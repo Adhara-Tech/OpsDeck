@@ -104,10 +104,17 @@
 
                     <!-- Plot Points -->
                     {% for point in heatmap_data %}
-                    <div
-                        style="grid-column: {{ point.x }}; grid-row: {{ 6 - point.y }}; display: flex; justify-content: center; align-items: center; pointer-events: none;">
-                        <span class="badge rounded-pill bg-dark" title="{{ point.title }}"
-                            style="font-size: 0.6rem; opacity: 0.8;">{{ point.r }}</span>
+                    <div style="grid-column: {{ point.x }}; grid-row: {{ 6 - point.y }}; display: flex; justify-content: center; align-items: center; z-index: 5;">
+                        <a href="{{ url_for('risk.list_risks', residual_likelihood=point.x, residual_impact=point.y) }}" 
+                           class="text-decoration-none"
+                           data-bs-toggle="tooltip" 
+                           data-bs-html="true" 
+                           title="{{ point.title | replace('\n', '<br>') }}">
+                            <span class="badge rounded-pill bg-dark shadow-sm" 
+                                  style="font-size: 0.75rem; cursor: pointer; transition: transform 0.2s;">
+                                {{ point.r }}
+                            </span>
+                        </a>
                     </div>
                     {% endfor %}
                 </div>
@@ -239,6 +246,9 @@
         plugins: {
             legend: { position: 'bottom' }
         },
+        onHover: (event, chartElement) => {
+                event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+            },
         onClick: (evt, elements) => {
             if (elements.length > 0) {
                 const index = elements[0].index;
@@ -251,30 +261,55 @@
 
     // Owner Chart
     const ownerCtx = document.getElementById('ownerChart').getContext('2d');
+    const ownerIds = {{ owner_ids | tojson }}; // <-- Catch the IDs from Flask
+
     new Chart(ownerCtx, {
         type: 'bar',
         data: {
             labels: {{ owner_labels | tojson }},
-        datasets: [{
-            label: 'Risks',
-            data: {{ owner_data | tojson }},
-        backgroundColor: '#4e73df'
+            datasets: [{
+                label: 'Risks',
+                data: {{ owner_data | tojson }},
+                backgroundColor: '#4e73df'
             }]
         },
         options: {
-        maintainAspectRatio: false,
-        plugins: {
-            legend: { display: false }
-        },
-        scales: {
-            y: {
-                beginAtZero: true,
-                ticks: { stepSize: 1 }
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { stepSize: 1 }
+                }
+            },
+            // --- ADD CLICK HANDLER ---
+            onClick: (evt, elements) => {
+                if (elements.length > 0) {
+                    const index = elements[0].index;
+                    const ownerId = ownerIds[index];
+                    
+                    // Only redirect if there is a valid ID (ignores 'Unassigned')
+                    if (ownerId) {
+                        window.location.href = `{{ url_for('risk.list_risks') }}?owner_id=${ownerId}`;
+                    }
+                }
+            },
+            onHover: (event, chartElement) => {
+                event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
             }
         }
-    }
+    });
+
+    document.addEventListener('DOMContentLoaded', function () {
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+        })
     });
 </script>
+
 
 <style>
     .heatmap-cell {

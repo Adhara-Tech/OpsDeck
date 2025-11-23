@@ -1,6 +1,6 @@
 {% extends "layout.html" %}
 
-{% set title = "New Opportunity" %}
+{% set title = "New Evaluation" %}
 
 {% block title %}{{ title }} - {{ super() }}{% endblock %}
 
@@ -12,7 +12,7 @@
     <div class="card-body">
         <form method="POST">
             <div class="mb-3">
-                <label for="name" class="form-label">Opportunity Name *</label>
+                <label for="name" class="form-label">Evaluation Name *</label>
                 <input type="text" class="form-control" id="name" name="name" required>
             </div>
             <div class="row mb-3">
@@ -72,7 +72,7 @@
             </div>
             <hr>
             <a href="{{ url_for('opportunities.list_opportunities') }}" class="btn btn-secondary">Cancel</a>
-            <button type="submit" class="btn btn-primary">Create Opportunity</button>
+            <button type="submit" class="btn btn-primary">Create Evaluation</button>
         </form>
     </div>
 </div>
