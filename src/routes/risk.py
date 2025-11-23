@@ -147,12 +147,14 @@ def dashboard_pdf():
     all_risks = Risk.query.all()
     total_risks = len(all_risks)
     
+    # 1. KPIs
     critical_risks_count = sum(1 for r in all_risks if r.residual_score >= 20)
     risk_exposure = sum(r.residual_score for r in all_risks)
     
     total_reduction = sum(r.risk_reduction_percentage for r in all_risks)
     avg_efficiency = round(total_reduction / total_risks, 1) if total_risks > 0 else 0.0
 
+    # 2. Charts Data
     # Strategy Data for PDF (Dictionary for loop)
     strategies = {}
     for r in all_risks:
@@ -165,17 +167,28 @@ def dashboard_pdf():
         coord = (r.residual_likelihood, r.residual_impact)
         heatmap_counts[coord] = heatmap_counts.get(coord, 0) + 1
 
-    # Tables
+    # 3. Lists for Page 1
+    # Top Critical Risks (Top 10 for PDF summary)
     top_critical_risks = sorted(
         [r for r in all_risks if r.residual_score >= 15],
         key=lambda x: x.residual_score,
         reverse=True
-    )[:10] # Top 10 for PDF
+    )[:10]
 
     accepted_risks = [r for r in all_risks if r.treatment_strategy == 'Accept']
 
+    # 4. Detailed List for Page 2 (Full Register)
+    # Sort by Criticality (Residual Score) Descending
+    detailed_risks = sorted(
+        all_risks,
+        key=lambda x: x.residual_score,
+        reverse=True
+    )
+
+    # 5. Metadata
     user = User.query.get(session.get('user_id'))
 
+    # Render HTML
     html_content = render_template(
         'risk/dashboard_pdf.html',
         total_risks=total_risks,
@@ -186,10 +199,12 @@ def dashboard_pdf():
         heatmap_counts=heatmap_counts,
         top_critical_risks=top_critical_risks,
         accepted_risks=accepted_risks,
+        detailed_risks=detailed_risks,
         generated_at=datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
         generated_by=user.name if user else 'System'
     )
     
+    # Generate PDF
     pdf_file = HTML(string=html_content).write_pdf()
     
     response = make_response(pdf_file)

@@ -290,7 +290,61 @@
             {% endfor %}
         </tbody>
     </table>
+<div style="page-break-before: always;"></div>
 
+    <div class="header">
+        <div>
+            <h1>Risk Register Detail</h1>
+            <p>Sorted by Criticality (Residual Score)</p>
+        </div>
+    </div>
+
+    <!-- Risk details -->
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 5%;">ID</th>
+                <th style="width: 40%;">Risk Description</th>
+                <th style="width: 15%;">Owner</th>
+                <th style="width: 10%;">Strategy</th>
+                <th style="width: 10%; text-align: center;">Inherent</th>
+                <th style="width: 10%; text-align: center;">Residual</th>
+                <th style="width: 10%; text-align: center;">Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for risk in detailed_risks %}
+            <tr>
+                <td>#{{ risk.id }}</td>
+                <td>
+                    {{ risk.risk_description }}
+                    {% if risk.mitigation_plan %}
+                    <br>
+                    <small style="color: #666;"><strong>Plan:</strong> {{ risk.mitigation_plan }}</small>
+                    {% endif %}
+                </td>
+                <td>{{ risk.owner.name if risk.owner else 'Unassigned' }}</td>
+                <td>{{ risk.treatment_strategy }}</td>
+                
+                <td style="text-align: center; background-color: #f8f9fa;">
+                    {{ risk.inherent_score }}
+                </td>
+
+                <td style="text-align: center;">
+                    {% if risk.residual_score >= 20 %}
+                        <span class="badge badge-danger">{{ risk.residual_score }}</span>
+                    {% elif risk.residual_score >= 15 %}
+                        <span class="badge badge-warning">{{ risk.residual_score }}</span>
+                    {% else %}
+                        <span class="badge badge-success">{{ risk.residual_score }}</span>
+                    {% endif %}
+                </td>
+
+                <td style="text-align: center;">{{ risk.status }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </body>
 
 </html>
