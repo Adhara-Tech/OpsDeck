@@ -119,12 +119,14 @@ class SecurityIncident(db.Model):
     attachments = db.relationship('Attachment',
                             primaryjoin="and_(SecurityIncident.id==foreign(Attachment.linkable_id), "
                                         "Attachment.linkable_type=='SecurityIncident')",
-                            lazy=True, cascade='all, delete-orphan')
+                            lazy=True, cascade='all, delete-orphan',
+                            overlaps="attachments")
     
     compliance_links = db.relationship('ComplianceLink',
                             primaryjoin="and_(SecurityIncident.id==foreign(ComplianceLink.linkable_id), "
                                         "ComplianceLink.linkable_type=='SecurityIncident')",
-                            lazy='dynamic', cascade='all, delete-orphan')
+                            lazy='dynamic', cascade='all, delete-orphan',
+                            overlaps="compliance_links")
 
 class PostIncidentReview(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -150,26 +152,81 @@ class IncidentTimelineEvent(db.Model):
     description = db.Column(db.Text, nullable=False)
     order = db.Column(db.Integer, nullable=False, default=0)
 
+risk_assets = db.Table('risk_assets',
+    db.Column('risk_id', db.Integer, db.ForeignKey('risk.id'), primary_key=True),
+    db.Column('asset_id', db.Integer, db.ForeignKey('asset.id'), primary_key=True)
+)
+
 class Risk(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     risk_description = db.Column(db.Text, nullable=False)
-    risk_owner = db.Column(db.String(100))
-    status = db.Column(db.String(50), default='Identified') # Identified, Assessed, In Treatment, Mitigated, Accepted
-    likelihood = db.Column(db.String(50), default='Low') # Low, Medium, High
-    impact = db.Column(db.String(50), default='Low') # Low, Medium, High
+    
+    # Management
+    owner_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    owner = db.relationship('User', foreign_keys=[owner_id])
+    
+    status = db.Column(db.String(50), default='Identified') # Identified, Assessed, In Treatment, Mitigated, Accepted, Closed
+    treatment_strategy = db.Column(db.String(50)) # Mitigate, Accept, Transfer, Avoid
+    next_review_date = db.Column(db.Date)
+    
+    # Quantitative Scoring (1-5)
+    inherent_impact = db.Column(db.Integer, default=5)
+    inherent_likelihood = db.Column(db.Integer, default=5)
+    
+    residual_impact = db.Column(db.Integer, default=5)
+    residual_likelihood = db.Column(db.Integer, default=5)
+    
     mitigation_plan = db.Column(db.Text)
-    iso_27001_control = db.Column(db.String(100)) # e.g., 'A.12.1.2 Protection against malware'
+    
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     link = db.Column(db.String(512))
+    
+    # Relationships
+    assets = db.relationship('Asset', secondary=risk_assets, backref='risks', lazy='dynamic')
+    
     attachments = db.relationship('Attachment',
                             primaryjoin="and_(Risk.id==foreign(Attachment.linkable_id), "
                                         "Attachment.linkable_type=='Risk')",
-                            lazy=True, cascade='all, delete-orphan')
+                            lazy=True, cascade='all, delete-orphan',
+                            overlaps="attachments")
 
     compliance_links = db.relationship('ComplianceLink',
                             primaryjoin="and_(Risk.id==foreign(ComplianceLink.linkable_id), "
                                         "ComplianceLink.linkable_type=='Risk')",
-                            lazy='dynamic', cascade='all, delete-orphan')
+                            lazy='dynamic', cascade='all, delete-orphan',
+                            overlaps="compliance_links")
+
+    @property
+    def inherent_score(self):
+        return (self.inherent_impact or 0) * (self.inherent_likelihood or 0)
+
+    @property
+    def residual_score(self):
+        return (self.residual_impact or 0) * (self.residual_likelihood or 0)
+
+    @property
+    def criticality_level(self):
+        score = self.residual_score
+        if score >= 20:
+            return 'Critical'
+        elif score >= 15:
+            return 'High'
+        elif score >= 5:
+            return 'Medium'
+        return 'Low'
+
+    @property
+    def is_overdue(self):
+        if self.next_review_date and self.next_review_date < date.today():
+            return True
+        return False
+
+    @property
+    def risk_reduction_percentage(self):
+        if self.inherent_score > 0:
+            reduction = self.inherent_score - self.residual_score
+            return round((reduction / self.inherent_score) * 100, 1)
+        return 0.0
 
 class SecurityAssessment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -182,12 +239,14 @@ class SecurityAssessment(db.Model):
     attachments = db.relationship('Attachment',
                             primaryjoin="and_(SecurityAssessment.id==foreign(Attachment.linkable_id), "
                                         "Attachment.linkable_type=='SecurityAssessment')",
-                            lazy=True, cascade='all, delete-orphan')
+                            lazy=True, cascade='all, delete-orphan',
+                            overlaps="attachments")
 
     compliance_links = db.relationship('ComplianceLink',
                             primaryjoin="and_(SecurityAssessment.id==foreign(ComplianceLink.linkable_id), "
                                         "ComplianceLink.linkable_type=='SecurityAssessment')",
-                            lazy='dynamic', cascade='all, delete-orphan')
+                            lazy='dynamic', cascade='all, delete-orphan',
+                            overlaps="compliance_links")
 
 class AssetInventory(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -204,7 +263,8 @@ class AssetInventory(db.Model):
     compliance_links = db.relationship('ComplianceLink',
                             primaryjoin="and_(AssetInventory.id==foreign(ComplianceLink.linkable_id), "
                                         "ComplianceLink.linkable_type=='AssetInventory')",
-                            lazy='dynamic', cascade='all, delete-orphan')
+                            lazy='dynamic', cascade='all, delete-orphan',
+                            overlaps="compliance_links")
 
 class AssetInventoryItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
