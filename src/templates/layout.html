@@ -92,16 +92,16 @@
 
                 <hr class="text-white">
                 <h6 class="sidebar-heading" data-bs-toggle="collapse" data-bs-target="#crm-menu" aria-expanded="false">
-                    CRM <i class="fa-fw fas fa-chevron-down float-end"></i></h6>
+                    PROCUREMENT <i class="fa-fw fas fa-chevron-down float-end"></i></h6>
                 <div class="collapse" id="crm-menu" data-bs-parent="#sidebar-accordion">
                     <li class="nav-item"><a
                             class="nav-link {% if request.endpoint.startswith('leads.') %}active{% endif %}"
-                            href="{{ url_for('leads.list_leads') }}"><i class="fa-fw fas fa-bullhorn"></i> Leads</a>
+                            href="{{ url_for('leads.list_leads') }}"><i class="fa-fw fas fa-bullhorn"></i> Requirements</a>
                     </li>
                     <li class="nav-item"><a
                             class="nav-link {% if request.endpoint.startswith('opportunities.') %}active{% endif %}"
                             href="{{ url_for('opportunities.list_opportunities') }}"><i
-                                class="fa-fw fas fa-lightbulb"></i> Opportunities</a></li>
+                                class="fa-fw fas fa-lightbulb"></i> Evaluations</a></li>
                     <li class="nav-item"><a
                             class="nav-link {% if request.endpoint.startswith('suppliers.') %}active{% endif %}"
                             href="{{ url_for('suppliers.suppliers') }}"><i class="fa-fw fas fa-building"></i>

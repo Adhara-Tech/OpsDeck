@@ -1,5 +1,5 @@
 from flask import (
-    Blueprint, render_template, request, redirect, url_for, flash
+    Blueprint, render_template, request, redirect, url_for, flash, session
 )
 from ..models import db, Risk, User, Asset
 from .main import login_required
@@ -25,6 +25,14 @@ def list_risks():
     owner_id = request.args.get('owner_id')
     if owner_id:
         query = query.filter(Risk.owner_id == owner_id)
+
+    residual_impact = request.args.get('residual_impact', type=int)
+    if residual_impact:
+        query = query.filter(Risk.residual_impact == residual_impact)
+
+    residual_likelihood = request.args.get('residual_likelihood', type=int)
+    if residual_likelihood:
+        query = query.filter(Risk.residual_likelihood == residual_likelihood)   
 
     min_score = request.args.get('min_score', type=int)
     if min_score:
@@ -59,30 +67,54 @@ def dashboard():
     strategy_labels = list(strategies.keys())
     strategy_data = list(strategies.values())
 
-    # Top Owners
-    owners = {}
+    # --- TOP OWNERS (UPDATED for Clickability) ---
+    # Group by (id, name) to preserve the ID for linking
+    owners_map = {} 
     for r in all_risks:
-        name = r.owner.name if r.owner else 'Unassigned'
-        owners[name] = owners.get(name, 0) + 1
+        if r.owner:
+            key = (r.owner.id, r.owner.name)
+        else:
+            key = (None, 'Unassigned')
+        
+        owners_map[key] = owners_map.get(key, 0) + 1
     
     # Sort by count desc and take top 5
-    sorted_owners = sorted(owners.items(), key=lambda item: item[1], reverse=True)[:5]
-    owner_labels = [item[0] for item in sorted_owners]
+    sorted_owners = sorted(owners_map.items(), key=lambda item: item[1], reverse=True)[:5]
+    
+    # Unpack into separate lists (names for labels, ids for links, counts for data)
+    owner_labels = [item[0][1] for item in sorted_owners]
+    owner_ids = [item[0][0] for item in sorted_owners]
     owner_data = [item[1] for item in sorted_owners]
+    # ---------------------------------------------
 
     # Heatmap Data (Scatter Plot format: x=Likelihood, y=Impact)
-    # We need to group risks by coordinate to show "bubble size" or just list them
-    heatmap_data = []
+    heatmap_map = {}
+    
     for r in all_risks:
+        x = r.residual_likelihood or 1
+        y = r.residual_impact or 1
+        coord = (x, y)
+        
+        if coord not in heatmap_map:
+            heatmap_map[coord] = {'count': 0, 'titles': []}
+        
+        heatmap_map[coord]['count'] += 1
+        heatmap_map[coord]['titles'].append(r.risk_description)
+
+    heatmap_data = []
+    for (x, y), data in heatmap_map.items():
+        tooltip_text = f"{data['count']} Risks:\n" + "\n".join([f"- {t}" for t in data['titles'][:5]])
+        if len(data['titles']) > 5:
+            tooltip_text += f"\n...and {len(data['titles']) - 5} more"
+
         heatmap_data.append({
-            'x': r.residual_likelihood,
-            'y': r.residual_impact,
-            'r': 5, # Radius (could be dynamic based on count at this spot)
-            'title': r.risk_description # For tooltip
+            'x': x,
+            'y': y,
+            'r': data['count'],
+            'title': tooltip_text
         })
 
     # 3. Tables
-    # Top Critical Risks (Residual Score >= 15 for the list, ordered desc)
     top_critical_risks = sorted(
         [r for r in all_risks if r.residual_score >= 15],
         key=lambda x: x.residual_score,
@@ -99,6 +131,7 @@ def dashboard():
                            strategy_labels=strategy_labels,
                            strategy_data=strategy_data,
                            owner_labels=owner_labels,
+                           owner_ids=owner_ids,  # <-- PASSING THIS NEW VARIABLE
                            owner_data=owner_data,
                            heatmap_data=heatmap_data,
                            top_critical_risks=top_critical_risks,
