@@ -1,0 +1,162 @@
+{% extends "layout.html" %}
+
+{% block title %}{% if activity %}Edit{% else %}New{% endif %} Security Activity - {{ super() }}{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/easymde/easymde.min.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-tasks"></i> {% if activity %}Edit{% else %}New{% endif %} Security Activity</h2>
+    <a href="{% if activity %}{{ url_for('activities.activity_detail', id=activity.id) }}{% else %}{{ url_for('activities.list_activities') }}{% endif %}"
+        class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> Back
+    </a>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST">
+            <div class="mb-3">
+                <label for="name" class="form-label">Name <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="name" name="name"
+                    value="{{ activity.name if activity else '' }}" required>
+            </div>
+
+            <div class="mb-3">
+                <label for="description" class="form-label">Description</label>
+                <textarea class="form-control" id="description" name="description"
+                    rows="6">{{ activity.description if activity else '' }}</textarea>
+            </div>
+
+            <div class="mb-3">
+                <label for="frequency" class="form-label">Frequency</label>
+                <select class="form-select" id="frequency" name="frequency">
+                    <option value="">Select frequency...</option>
+                    <option value="weekly" {% if activity and activity.frequency=='weekly' %}selected{% endif %}>Weekly
+                    </option>
+                    <option value="monthly" {% if activity and activity.frequency=='monthly' %}selected{% endif %}>
+                        Monthly</option>
+                    <option value="quarterly" {% if activity and activity.frequency=='quarterly' %}selected{% endif %}>
+                        Quarterly</option>
+                    <option value="semi-annual" {% if activity and activity.frequency=='semi-annual' %}selected{% endif
+                        %}>Semi-Annual</option>
+                    <option value="annual" {% if activity and activity.frequency=='annual' %}selected{% endif %}>Annual
+                    </option>
+                    <option value="ad-hoc" {% if activity and activity.frequency=='ad-hoc' %}selected{% endif %}>Ad-Hoc
+                    </option>
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Owner Type</label>
+                <div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="owner_type" id="owner_type_user" value="User"
+                            {% if not activity or activity.owner_type=='User' %}checked{% endif %}>
+                        <label class="form-check-label" for="owner_type_user">User</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="owner_type" id="owner_type_group"
+                            value="Group" {% if activity and activity.owner_type=='Group' %}checked{% endif %}>
+                        <label class="form-check-label" for="owner_type_group">Group</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3" id="user-owner-select"
+                style="display: {% if not activity or activity.owner_type == 'User' %}block{% else %}none{% endif %};">
+                <label for="user_owner_id" class="form-label">Owner (User)</label>
+                <select class="form-select no-tom" id="user_owner_id" name="user_owner_id">
+                    <option value="">Select user...</option>
+                    {% for user in users %}
+                    <option value="{{ user.id }}" {% if activity and activity.owner_type=='User' and
+                        activity.owner_id==user.id %}selected{% endif %}>
+                        {{ user.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="mb-3" id="group-owner-select"
+                style="display: {% if activity and activity.owner_type == 'Group' %}block{% else %}none{% endif %};">
+                <label for="group_owner_id" class="form-label">Owner (Group)</label>
+                <select class="form-select no-tom" id="group_owner_id" name="group_owner_id">
+                    <option value="">Select group...</option>
+                    {% for group in groups %}
+                    <option value="{{ group.id }}" {% if activity and activity.owner_type=='Group' and
+                        activity.owner_id==group.id %}selected{% endif %}>
+                        {{ group.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label for="participant_ids" class="form-label">Participants</label>
+                <select class="form-select" id="participant_ids" name="participant_ids" multiple>
+                    {% for user in users %}
+                    <option value="{{ user.id }}" {% if activity and user in activity.participants %}selected{% endif
+                        %}>
+                        {{ user.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <small class="form-text text-muted">Select users who participate in this activity</small>
+            </div>
+
+            <div class="mb-3">
+                <label for="tag_ids" class="form-label">Tags</label>
+                <select class="form-select" id="tag_ids" name="tag_ids" multiple>
+                    {% for tag in tags %}
+                    <option value="{{ tag.id }}" {% if activity and tag in activity.tags %}selected{% endif %}>
+                        {{ tag.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2">
+                <a href="{% if activity %}{{ url_for('activities.activity_detail', id=activity.id) }}{% else %}{{ url_for('activities.list_activities') }}{% endif %}"
+                    class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> {% if activity %}Update{% else %}Create{% endif %} Activity
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts_extra %}
+<script src="{{ url_for('static', filename='vendor/easymde/easymde.min.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Initialize EasyMDE for description
+        const easyMDE = new EasyMDE({
+            element: document.getElementById('description'),
+            spellChecker: false,
+            status: false,
+            toolbar: ["bold", "italic", "heading", "|", "unordered-list", "ordered-list", "|", "link", "preview"]
+        });
+
+        // Handle owner type toggle
+        const ownerTypeRadios = document.querySelectorAll('input[name="owner_type"]');
+        const userOwnerSelect = document.getElementById('user-owner-select');
+        const groupOwnerSelect = document.getElementById('group-owner-select');
+
+        ownerTypeRadios.forEach(radio => {
+            radio.addEventListener('change', function () {
+                if (this.value === 'User') {
+                    userOwnerSelect.style.display = 'block';
+                    groupOwnerSelect.style.display = 'none';
+                } else {
+                    userOwnerSelect.style.display = 'none';
+                    groupOwnerSelect.style.display = 'block';
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}
