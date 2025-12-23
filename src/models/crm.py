@@ -34,3 +34,14 @@ class Activity(db.Model):
 
     # Relationship
     opportunity_id = db.Column(db.Integer, db.ForeignKey('opportunity.id'), nullable=False)
+
+class Contact(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(100))
+    phone = db.Column(db.String(20))
+    role = db.Column(db.String(50))
+    supplier_id = db.Column(db.Integer, db.ForeignKey('supplier.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    is_archived = db.Column(db.Boolean, default=False, nullable=False)
+    opportunities = db.relationship('Opportunity', backref='primary_contact', foreign_keys='Opportunity.primary_contact_id')
