@@ -29,6 +29,19 @@
             </div>
             <div class="card-body">
                 <p class="lead">{{ risk.risk_description }}</p>
+
+                <!-- Category Badges -->
+                {% if risk.categories.count() > 0 %}
+                <div class="mb-3">
+                    <strong>Categories:</strong>
+                    {% set cat_colors = risk.get_category_colors() %}
+                    {% for cat in risk.categories %}
+                    <span class="badge bg-{{ cat_colors.get(cat.category, 'secondary') }} ms-1">{{ cat.category
+                        }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
                 <div class="row g-3">
                     <div class="col-md-6">
                         <strong>Status:</strong> {{ risk.status }}
@@ -79,6 +92,67 @@
             <div class="card-header">Mitigation Plan</div>
             <div class="card-body">
                 {{ risk.mitigation_plan or 'No mitigation plan defined.' }}
+            </div>
+        </div>
+
+        <!-- Active Mitigation Activities -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="bi bi-shield-check"></i> Active Mitigation
+            </div>
+            <div class="card-body">
+                {% if risk.mitigation_activities.count() > 0 %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Activity</th>
+                                <th>Frequency</th>
+                                <th>Last Execution</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for activity in risk.mitigation_activities %}
+                            {% set last_exec = activity.executions.first() %}
+                            <tr>
+                                <td>
+                                    <a href="{{ url_for('activities.detail', id=activity.id) }}">{{ activity.name }}</a>
+                                </td>
+                                <td>{{ activity.frequency or 'N/A' }}</td>
+                                <td>
+                                    {% if last_exec %}
+                                    {{ last_exec.execution_date.strftime('%Y-%m-%d') }}
+                                    {% else %}
+                                    <span class="text-muted">Never</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if last_exec %}
+                                    {% if last_exec.status == 'success' %}
+                                    <span class="badge bg-success">Success</span>
+                                    {% elif last_exec.status == 'failed' %}
+                                    <span class="badge bg-danger">Failed</span>
+                                    {% elif last_exec.status == 'in_progress' %}
+                                    <span class="badge bg-info">In Progress</span>
+                                    {% elif last_exec.status == 'issue_detected' %}
+                                    <span class="badge bg-warning">Issue Detected</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">{{ last_exec.status }}</span>
+                                    {% endif %}
+                                    {% else %}
+                                    <span class="badge bg-secondary">Pending</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">No mitigation activities linked. <a
+                        href="{{ url_for('risk.edit_risk', id=risk.id) }}">Edit risk</a> to add activities.</p>
+                {% endif %}
             </div>
         </div>
 

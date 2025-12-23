@@ -1,7 +1,8 @@
 from flask import (
     Blueprint, render_template, request, redirect, url_for, flash, session
 )
-from ..models import db, Risk, User, Asset
+from ..models import db, Risk, User, Asset, RiskCategory, RISK_CATEGORIES, RISK_CATEGORY_COLORS
+from ..models.activities import SecurityActivity
 from .main import login_required
 from .admin import admin_required
 from datetime import datetime
@@ -253,15 +254,32 @@ def new_risk():
                 asset = Asset.query.get(asset_id)
                 if asset:
                     risk.assets.append(asset)
-
+        
+        # Handle Categories
         db.session.add(risk)
+        db.session.flush()  # Get the risk.id
+        category_names = request.form.getlist('category_ids')
+        for cat_name in category_names:
+            if cat_name in RISK_CATEGORIES:
+                risk_cat = RiskCategory(risk_id=risk.id, category=cat_name)
+                db.session.add(risk_cat)
+        
+        # Handle Mitigation Activities
+        activity_ids = request.form.getlist('mitigation_activity_ids')
+        for activity_id in activity_ids:
+            activity = SecurityActivity.query.get(activity_id)
+            if activity:
+                risk.mitigation_activities.append(activity)
+
         db.session.commit()
         flash('Risk has been successfully logged.', 'success')
         return redirect(url_for('risk.list_risks'))
 
     users = User.query.filter_by(is_archived=False).all()
     assets = Asset.query.filter_by(is_archived=False).all()
-    return render_template('risk/form.html', users=users, assets=assets)
+    activities = SecurityActivity.query.order_by(SecurityActivity.name).all()
+    return render_template('risk/form.html', users=users, assets=assets, activities=activities,
+                           risk_categories=RISK_CATEGORIES, category_colors=RISK_CATEGORY_COLORS)
 
 @risk_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -298,6 +316,22 @@ def edit_risk(id):
                 asset = Asset.query.get(asset_id)
                 if asset:
                     risk.assets.append(asset)
+        
+        # Handle Categories (Clear and Re-add)
+        RiskCategory.query.filter_by(risk_id=risk.id).delete()
+        category_names = request.form.getlist('category_ids')
+        for cat_name in category_names:
+            if cat_name in RISK_CATEGORIES:
+                risk_cat = RiskCategory(risk_id=risk.id, category=cat_name)
+                db.session.add(risk_cat)
+        
+        # Handle Mitigation Activities (Clear and Re-add)
+        risk.mitigation_activities = []
+        activity_ids = request.form.getlist('mitigation_activity_ids')
+        for activity_id in activity_ids:
+            activity = SecurityActivity.query.get(activity_id)
+            if activity:
+                risk.mitigation_activities.append(activity)
 
         db.session.commit()
         flash('Risk has been updated.', 'success')
@@ -305,4 +339,6 @@ def edit_risk(id):
 
     users = User.query.filter_by(is_archived=False).all()
     assets = Asset.query.filter_by(is_archived=False).all()
-    return render_template('risk/form.html', risk=risk, users=users, assets=assets)
+    activities = SecurityActivity.query.order_by(SecurityActivity.name).all()
+    return render_template('risk/form.html', risk=risk, users=users, assets=assets, activities=activities,
+                           risk_categories=RISK_CATEGORIES, category_colors=RISK_CATEGORY_COLORS)
