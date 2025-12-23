@@ -1,6 +1,7 @@
 from flask import (
     Blueprint, render_template, request, redirect, url_for, flash
 )
+from datetime import datetime
 from ..models import db, Budget
 from .main import login_required
 
@@ -27,7 +28,9 @@ def new_budget():
             category=request.form.get('category'),
             amount=float(request.form['amount']),
             currency=request.form.get('currency', 'EUR'), # Use .get() and add default
-            period=request.form.get('period', 'One-time') # Use .get() and add default
+            period=request.form.get('period', 'One-time'), # Use .get() and add default
+            valid_from=datetime.strptime(request.form['valid_from'], '%Y-%m-%d').date(),
+            valid_until=datetime.strptime(request.form['valid_until'], '%Y-%m-%d').date()
         )
         db.session.add(budget)
         db.session.commit()
@@ -47,6 +50,8 @@ def edit_budget(id):
         budget.amount = float(request.form['amount'])
         budget.currency = request.form['currency']
         budget.period = request.form['period']
+        budget.valid_from = datetime.strptime(request.form['valid_from'], '%Y-%m-%d').date()
+        budget.valid_until = datetime.strptime(request.form['valid_until'], '%Y-%m-%d').date()
         db.session.commit()
         flash('Budget updated successfully!')
         return redirect(url_for('budgets.budgets'))

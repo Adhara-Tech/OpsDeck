@@ -160,6 +160,33 @@ risk_assets = db.Table('risk_assets',
     db.Column('asset_id', db.Integer, db.ForeignKey('asset.id'), primary_key=True)
 )
 
+# Standard CIA Triad + Extended risk categories
+RISK_CATEGORIES = [
+    'Confidentiality', 'Integrity', 'Availability',
+    'Traceability', 'Authenticity', 'Legal', 'Reputational'
+]
+
+# Category color mapping for UI
+RISK_CATEGORY_COLORS = {
+    'Confidentiality': 'danger',
+    'Integrity': 'primary',
+    'Availability': 'warning',
+    'Traceability': 'info',
+    'Authenticity': 'secondary',
+    'Legal': 'dark',
+    'Reputational': 'success'
+}
+
+risk_category_association = db.Table('risk_category_association',
+    db.Column('risk_id', db.Integer, db.ForeignKey('risk.id'), primary_key=True),
+    db.Column('category', db.String(50), primary_key=True)
+)
+
+risk_mitigation_activities = db.Table('risk_mitigation_activities',
+    db.Column('risk_id', db.Integer, db.ForeignKey('risk.id'), primary_key=True),
+    db.Column('activity_id', db.Integer, db.ForeignKey('security_activity.id'), primary_key=True)
+)
+
 class Risk(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     risk_description = db.Column(db.Text, nullable=False)
@@ -186,6 +213,22 @@ class Risk(db.Model):
     
     # Relationships
     assets = db.relationship('Asset', secondary=risk_assets, backref='risks', lazy='dynamic')
+    
+    # Multiple categories (CIA Triad + extended)
+    categories = db.relationship(
+        'RiskCategory',
+        backref='risk',
+        lazy='dynamic',
+        cascade='all, delete-orphan'
+    )
+    
+    # Mitigation activities (Many-to-Many with SecurityActivity)
+    mitigation_activities = db.relationship(
+        'SecurityActivity',
+        secondary=risk_mitigation_activities,
+        backref=db.backref('mitigated_risks', lazy='dynamic'),
+        lazy='dynamic'
+    )
     
     attachments = db.relationship('Attachment',
                             primaryjoin="and_(Risk.id==foreign(Attachment.linkable_id), "
@@ -230,6 +273,23 @@ class Risk(db.Model):
             reduction = self.inherent_score - self.residual_score
             return round((reduction / self.inherent_score) * 100, 1)
         return 0.0
+
+    @property
+    def category_list(self):
+        """Return list of category names for this risk."""
+        return [c.category for c in self.categories]
+
+    def get_category_colors(self):
+        """Return dict of category name -> Bootstrap color class."""
+        return {c.category: RISK_CATEGORY_COLORS.get(c.category, 'secondary') for c in self.categories}
+
+
+class RiskCategory(db.Model):
+    """Stores multiple categories for a single Risk."""
+    __tablename__ = 'risk_category'
+    id = db.Column(db.Integer, primary_key=True)
+    risk_id = db.Column(db.Integer, db.ForeignKey('risk.id'), nullable=False)
+    category = db.Column(db.String(50), nullable=False)
 
 class SecurityAssessment(db.Model):
     id = db.Column(db.Integer, primary_key=True)

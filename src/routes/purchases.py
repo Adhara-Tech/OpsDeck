@@ -23,15 +23,30 @@ def purchase_detail(id):
 @login_required
 def new_purchase():
     if request.method == 'POST':
+        purchase_date = datetime.strptime(request.form['purchase_date'], '%Y-%m-%d').date()
+        budget_id = request.form.get('budget_id') or None
+        
+        # Validate budget validity period if budget is selected
+        if budget_id:
+            budget = Budget.query.get(budget_id)
+            if budget and not budget.is_active(purchase_date):
+                flash('Error: This purchase date is outside the selected Budget\'s validity period.', 'danger')
+                return render_template('purchases/form.html',
+                                        suppliers=Supplier.query.order_by(Supplier.name).all(),
+                                        users=User.query.order_by(User.name).all(),
+                                        payment_methods=PaymentMethod.query.order_by(PaymentMethod.name).all(),
+                                        tags=Tag.query.order_by(Tag.name).all(),
+                                        budgets=Budget.query.order_by(Budget.name).all())
+        
         purchase = Purchase(
             internal_id=request.form.get('internal_id'),
             description=request.form['description'],
             invoice_number=request.form.get('invoice_number'),
-            purchase_date=datetime.strptime(request.form['purchase_date'], '%Y-%m-%d').date(),
+            purchase_date=purchase_date,
             comments=request.form.get('comments'),
             supplier_id=request.form.get('supplier_id') or None,
             payment_method_id=request.form.get('payment_method_id') or None,
-            budget_id=request.form.get('budget_id') or None
+            budget_id=budget_id
         )
         db.session.add(purchase)
         db.session.commit()
@@ -50,14 +65,30 @@ def new_purchase():
 def edit_purchase(id):
     purchase = Purchase.query.get_or_404(id)
     if request.method == 'POST':
+        purchase_date = datetime.strptime(request.form['purchase_date'], '%Y-%m-%d').date()
+        budget_id = request.form.get('budget_id') or None
+        
+        # Validate budget validity period if budget is selected
+        if budget_id:
+            budget = Budget.query.get(budget_id)
+            if budget and not budget.is_active(purchase_date):
+                flash('Error: This purchase date is outside the selected Budget\'s validity period.', 'danger')
+                return render_template('purchases/form.html',
+                                        purchase=purchase,
+                                        suppliers=Supplier.query.order_by(Supplier.name).all(),
+                                        users=User.query.order_by(User.name).all(),
+                                        payment_methods=PaymentMethod.query.order_by(PaymentMethod.name).all(),
+                                        tags=Tag.query.order_by(Tag.name).all(),
+                                        budgets=Budget.query.order_by(Budget.name).all())
+        
         purchase.internal_id = request.form.get('internal_id')
         purchase.description = request.form['description']
         purchase.invoice_number = request.form.get('invoice_number')
-        purchase.purchase_date = datetime.strptime(request.form['purchase_date'], '%Y-%m-%d').date()
+        purchase.purchase_date = purchase_date
         purchase.comments = request.form.get('comments')
         purchase.supplier_id = request.form.get('supplier_id') or None
         purchase.payment_method_id = request.form.get('payment_method_id') or None
-        purchase.budget_id = request.form.get('budget_id') or None
+        purchase.budget_id = budget_id
         db.session.commit()
         flash('Purchase updated successfully!')
         return redirect(url_for('purchases.purchases'))

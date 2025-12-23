@@ -161,8 +161,11 @@ class Budget(db.Model):
     amount = db.Column(db.Float, nullable=False)
     currency = db.Column(db.String(3), default='EUR')
     period = db.Column(db.String(50), nullable=False, default='One-time') # e.g., 'monthly', 'yearly'
+    valid_from = db.Column(db.Date, nullable=False, default=lambda: date(date.today().year, 1, 1))
+    valid_until = db.Column(db.Date, nullable=False, default=lambda: date(date.today().year, 12, 31))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     purchases = db.relationship('Purchase', backref='budget', lazy=True)
+    subscriptions = db.relationship('Subscription', backref='budget', lazy=True)
     is_archived = db.Column(db.Boolean, default=False, nullable=False)
 
     compliance_links = db.relationship('ComplianceLink',
@@ -173,6 +176,20 @@ class Budget(db.Model):
         lazy='dynamic', cascade='all, delete-orphan',
         overlaps="compliance_links"
     )
+
+    def is_active(self, date_to_check=None):
+        """
+        Check if the budget is active on a given date.
+        
+        Args:
+            date_to_check: Date to check (defaults to today)
+            
+        Returns:
+            True if date_to_check is between valid_from and valid_until (inclusive)
+        """
+        if date_to_check is None:
+            date_to_check = date.today()
+        return self.valid_from <= date_to_check <= self.valid_until
 
     @property
     def remaining(self):
@@ -228,6 +245,7 @@ class Subscription(db.Model):
     # Relationships
     supplier_id = db.Column(db.Integer, db.ForeignKey('supplier.id'), nullable=False)
     software_id = db.Column(db.Integer, db.ForeignKey('software.id'), nullable=True)
+    budget_id = db.Column(db.Integer, db.ForeignKey('budget.id'), nullable=True)
     contacts = db.relationship('Contact', secondary=subscription_contacts, backref='subscriptions')
     payment_methods = db.relationship('PaymentMethod', secondary=subscription_payment_methods, back_populates='subscriptions')
     attachments = db.relationship('Attachment',

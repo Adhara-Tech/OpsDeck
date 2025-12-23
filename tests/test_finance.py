@@ -51,7 +51,9 @@ def test_budget_remaining_calculation(auth_client, app):
     # Crear un Presupuesto (ID 1) con 5000
     auth_client.post('/budgets/new', data={
         'name': 'Presupuesto IT 2025',
-        'amount': 5000
+        'amount': 5000,
+        'valid_from': '2025-01-01',
+        'valid_until': '2025-12-31'
     }, follow_redirects=True)
     
     # Crear una Compra (ID 1) enlazada al Presupuesto 1

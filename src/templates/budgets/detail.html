@@ -5,7 +5,16 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="fas fa-wallet"></i> {{ budget.name }}</h2>
+    <div>
+        <h2>
+            <i class="fas fa-wallet"></i> {{ budget.name }}
+            {% if budget.is_active() %}
+            <span class="badge bg-success">Active</span>
+            {% else %}
+            <span class="badge bg-danger">Expired</span>
+            {% endif %}
+        </h2>
+    </div>
     <a href="{{ url_for('budgets.edit_budget', id=budget.id) }}" class="btn btn-outline-primary">
         <i class="fas fa-edit"></i> Edit Budget
     </a>
@@ -16,7 +25,9 @@
     <div class="card-body">
         <p><strong>Category:</strong> {{ budget.category or 'N/A' }}</p>
         <p><strong>Amount:</strong> {{ budget.currency }} {{ "%.2f"|format(budget.amount) }}</p>
-        <p class="mb-0"><strong>Period:</strong> {{ budget.period.title() }}</p>
+        <p><strong>Period:</strong> {{ budget.period.title() }}</p>
+        <p><strong>Valid From:</strong> {{ budget.valid_from.strftime('%Y-%m-%d') }}</p>
+        <p class="mb-0"><strong>Valid Until:</strong> {{ budget.valid_until.strftime('%Y-%m-%d') }}</p>
     </div>
 </div>
 
