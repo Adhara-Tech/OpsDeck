@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Audit Report - {{ audit.name }}</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            font-size: 12px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        .meta {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #666;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        .compliant {
+            color: green;
+            font-weight: bold;
+        }
+
+        .non-compliant {
+            color: red;
+            font-weight: bold;
+        }
+
+        .observation {
+            color: orange;
+            font-weight: bold;
+        }
+
+        .na {
+            color: #999;
+            font-style: italic;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Audit Report: {{ audit.name }}</h1>
+    <div class="meta">
+        <p><strong>Framework:</strong> {{ audit.framework.name }} | <strong>Auditor:</strong> {{ audit.auditor.email }}
+        </p>
+        <p><strong>Date Generated:</strong> {{ now.strftime('%Y-%m-%d %H:%M') }} | <strong>Status:</strong> {{
+            audit.status }}</p>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 10%;">Code</th>
+                <th style="width: 30%;">Control</th>
+                <th style="width: 10%;">Applicable</th>
+                <th style="width: 30%;">Justification / Notes</th>
+                <th style="width: 20%;">Result</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in audit.audit_items %}
+            <tr>
+                <td>{{ item.control_code }}</td>
+                <td>
+                    <strong>{{ item.control_title }}</strong><br>
+                    {{ item.control_description }}
+                </td>
+                <td>
+                    {% if item.is_applicable %}Yes{% else %}No{% endif %}
+                </td>
+                <td>
+                    {% if not item.is_applicable %}
+                    <strong>Justification:</strong> {{ item.justification }}<br>
+                    {% endif %}
+                    {% if item.auditor_notes %}
+                    <strong>Notes:</strong> {{ item.auditor_notes }}
+                    {% endif %}
+                </td>
+                <td>
+                    {% if item.status == 'Compliant' %}
+                    <span class="compliant">Compliant</span>
+                    {% elif item.status == 'Non-Compliant' %}
+                    <span class="non-compliant">Non-Compliant</span>
+                    {% elif item.status == 'Observation' %}
+                    <span class="observation">Observation</span>
+                    {% else %}
+                    {{ item.status }}
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+
+</html>

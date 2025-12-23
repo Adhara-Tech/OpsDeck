@@ -115,18 +115,20 @@ def create_app():
     app.register_blueprint(leads_bp)
     app.register_blueprint(documentation_bp, url_prefix='/documentation')
     app.register_blueprint(frameworks_bp)
+    from .routes.audits import audits_bp
+    app.register_blueprint(audits_bp)
     app.register_blueprint(links_bp, url_prefix='/links')
 
 
-    # --- Make user role available in all templates ---
+    # --- Make user and role available in all templates ---
     @app.context_processor
-    def inject_user_role():
+    def inject_user_context():
         user_id = session.get('user_id')
         if user_id:
             user = User.query.get(user_id)
             if user:
-                return dict(current_user_role=user.role)
-        return dict(current_user_role=None)
+                return dict(current_user=user, current_user_role=user.role)
+        return dict(current_user=None, current_user_role=None)
 
     # --- Force admin to change the default password ---
     from .routes.main import password_change_required

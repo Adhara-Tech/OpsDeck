@@ -1,0 +1,208 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ audit.name }} - OpsDeck{% endblock %}
+
+{% block content %}
+<form method="POST" action="{{ url_for('audits.update_audit_items', id=audit.id) }}">
+    <div
+        class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <div>
+            <h1 class="h2">{{ audit.name }}</h1>
+            <p class="text-muted mb-0">
+                Framework: <strong>{{ audit.framework.name }}</strong> |
+                Auditor: <strong>{{ audit.auditor.email }}</strong> |
+                Status: <span class="badge bg-info">{{ audit.status }}</span>
+            </p>
+        </div>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <a href="{{ url_for('audits.export_audit', id=audit.id) }}" class="btn btn-sm btn-outline-secondary me-2">
+                <i class="fas fa-file-pdf"></i> Export PDF
+            </a>
+            <button type="submit" class="btn btn-sm btn-success">
+                <i class="fas fa-save"></i> Save Changes
+            </button>
+        </div>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="progress mb-4" style="height: 20px;">
+        <div class="progress-bar bg-success" role="progressbar" style="width: {{ progress }}%;"
+            aria-valuenow="{{ progress }}" aria-valuemin="0" aria-valuemax="100">
+            {{ progress }}% Completed
+        </div>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Audit Controls (SOA)</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover" width="100%" cellspacing="0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 10%;">Control</th>
+                            <th style="width: 25%;">Description</th>
+                            <th style="width: 10%;">Applicable?</th>
+                            <th style="width: 20%;">Justification / Notes</th>
+                            <th style="width: 15%;">Compliance</th>
+                            <th style="width: 10%;">Evidence</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in audit.audit_items %}
+                        <tr>
+                            <td class="fw-bold">{{ item.control_code }}<br><small class="text-muted">{{
+                                    item.control_title }}</small></td>
+                            <td><small>{{ item.control_description }}</small></td>
+
+                            <!-- Applicability Toggle -->
+                            <td class="text-center align-middle">
+                                <div class="form-check form-switch d-flex justify-content-center">
+                                    <input class="form-check-input applicability-toggle" type="checkbox"
+                                        id="item_{{ item.id }}_applicable" name="item_{{ item.id }}_applicable"
+                                        data-target="justification_{{ item.id }}" {% if item.is_applicable %}checked{%
+                                        endif %}>
+                                </div>
+                            </td>
+
+                            <!-- Justification / Notes -->
+                            <td>
+                                <div id="justification_{{ item.id }}_container"
+                                    class="mb-2 {% if item.is_applicable %}d-none{% endif %}">
+                                    <label class="form-label small text-danger">Justification (Non-Applicable)</label>
+                                    <textarea class="form-control form-control-sm"
+                                        name="item_{{ item.id }}_justification"
+                                        rows="2">{{ item.justification or '' }}</textarea>
+                                </div>
+                                <div>
+                                    <label class="form-label small text-muted">Auditor Notes</label>
+                                    <textarea class="form-control form-control-sm" name="item_{{ item.id }}_notes"
+                                        rows="2">{{ item.auditor_notes or '' }}</textarea>
+                                </div>
+                            </td>
+
+                            <!-- Compliance Status -->
+                            <td class="align-middle">
+                                <select class="form-select form-select-sm status-select"
+                                    name="item_{{ item.id }}_status">
+                                    <option value="Not Started" {% if item.status=='Not Started' %}selected{% endif %}>
+                                        Not Started</option>
+                                    <option value="Compliant" {% if item.status=='Compliant' %}selected{% endif %}>
+                                        Compliant</option>
+                                    <option value="Non-Compliant" {% if item.status=='Non-Compliant' %}selected{% endif
+                                        %}>Non-Compliant</option>
+                                    <option value="Observation" {% if item.status=='Observation' %}selected{% endif %}>
+                                        Observation</option>
+                                </select>
+                            </td>
+
+                            <!-- Evidence Modal Trigger -->
+                            <td class="text-center align-middle">
+                                <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal"
+                                    data-bs-target="#evidenceModal_{{ item.id }}">
+                                    <i class="fas fa-paperclip"></i>
+                                    {% set count = item.attachments.count() %}
+                                    {% if count > 0 %}
+                                    <span class="badge bg-light text-dark ms-1">{{ count }}</span>
+                                    {% endif %}
+                                </button>
+
+                                <!-- Evidence Modal -->
+                                <div class="modal fade" id="evidenceModal_{{ item.id }}" tabindex="-1"
+                                    aria-hidden="true">
+                                    <div class="modal-dialog modal-lg">
+                                        <div class="modal-content">
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">Evidence for {{ item.control_code }}</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                                    aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body text-start">
+                                                <h6>Existing Evidence</h6>
+                                                <ul class="list-group mb-3">
+                                                    {% for att in item.attachments %}
+                                                    <li
+                                                        class="list-group-item d-flex justify-content-between align-items-center">
+                                                        <a href="{{ url_for('main.download_file', filename=att.secure_filename) }}"
+                                                            target="_blank">
+                                                            {{ att.filename }}
+                                                        </a>
+                                                        <span class="badge bg-secondary">{{
+                                                            att.created_at.strftime('%Y-%m-%d') }}</span>
+                                                    </li>
+                                                    {% else %}
+                                                    <li class="list-group-item text-muted">No evidence uploaded yet.
+                                                    </li>
+                                                    {% endfor %}
+                                                </ul>
+
+                                                <hr>
+
+                                                <h6>Upload New Evidence</h6>
+                                                <!-- Note: This form inside modal needs to handle upload separately or be part of main form with JS -->
+                                                <!-- For simplicity in this iteration, we'll suggest using the main Attachments module or a separate upload endpoint -->
+                                                <div class="alert alert-info">
+                                                    To upload evidence, please save your changes first, then use the
+                                                    global "Upload" button or drag & drop in the Documents section
+                                                    (Future Implementation).
+                                                    <br>
+                                                    <em>(For this MVP, assume file upload is handled via a generic
+                                                        attachment route linked to this item ID)</em>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Handle Applicability Toggle logic
+        const toggles = document.querySelectorAll('.applicability-toggle');
+
+        toggles.forEach(toggle => {
+            toggle.addEventListener('change', function () {
+                const targetId = this.getAttribute('data-target');
+                const container = document.getElementById(targetId + '_container');
+
+                if (this.checked) {
+                    // Applicable -> Hide Justification
+                    container.classList.add('d-none');
+                } else {
+                    // Not Applicable -> Show Justification
+                    container.classList.remove('d-none');
+                }
+            });
+        });
+
+        // Colorize Status Selects
+        const selects = document.querySelectorAll('.status-select');
+        function colorize(select) {
+            select.classList.remove('bg-success', 'bg-danger', 'bg-warning', 'text-white');
+            if (select.value === 'Compliant') {
+                select.classList.add('bg-success', 'text-white');
+            } else if (select.value === 'Non-Compliant') {
+                select.classList.add('bg-danger', 'text-white');
+            } else if (select.value === 'Observation') {
+                select.classList.add('bg-warning', 'text-dark');
+            }
+        }
+
+        selects.forEach(select => {
+            colorize(select);
+            select.addEventListener('change', () => colorize(select));
+        });
+    });
+</script>
+{% endblock %}

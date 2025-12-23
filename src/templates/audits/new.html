@@ -1,0 +1,56 @@
+{% extends "layout.html" %}
+
+{% block title %}New Audit - OpsDeck{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">New Compliance Audit</h1>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Audit Details</h6>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('audits.new_audit') }}">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Audit Name</label>
+                        <input type="text" class="form-control" id="name" name="name"
+                            placeholder="e.g., ISO 27001 - Q3 2024" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="framework_id" class="form-label">Framework</label>
+                        <select class="form-select tom-select" id="framework_id" name="framework_id" required>
+                            <option value="" selected disabled>Select Framework...</option>
+                            {% for framework in frameworks %}
+                            <option value="{{ framework.id }}">{{ framework.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="auditor_id" class="form-label">Auditor</label>
+                        <select class="form-select tom-select" id="auditor_id" name="auditor_id" required>
+                            <option value="" selected disabled>Select Auditor...</option>
+                            {% for user in users %}
+                            <option value="{{ user.id }}" {% if user.id==current_user.id %}selected{% endif %}>{{
+                                user.email }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Create Audit Snapshot
+                        </button>
+                        <a href="{{ url_for('audits.list_audits') }}" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

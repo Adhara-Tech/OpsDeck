@@ -96,7 +96,8 @@
                 <div class="collapse" id="crm-menu" data-bs-parent="#sidebar-accordion">
                     <li class="nav-item"><a
                             class="nav-link {% if request.endpoint.startswith('leads.') %}active{% endif %}"
-                            href="{{ url_for('leads.list_leads') }}"><i class="fa-fw fas fa-bullhorn"></i> Requirements</a>
+                            href="{{ url_for('leads.list_leads') }}"><i class="fa-fw fas fa-bullhorn"></i>
+                            Requirements</a>
                     </li>
                     <li class="nav-item"><a
                             class="nav-link {% if request.endpoint.startswith('opportunities.') %}active{% endif %}"
@@ -187,6 +188,9 @@
                     <li class="nav-item"><a class="nav-link {% if 'erasure' in request.endpoint %}active{% endif %}"
                             href="{{ url_for('compliance.list_erasures') }}"><i class="fa-fw fas fa-eraser"></i> Erasure
                             Log</a></li>
+                    <li class="nav-item"><a class="nav-link {% if request.blueprint == 'audits' %}active{% endif %}"
+                            href="{{ url_for('audits.list_audits') }}"><i class="fa-fw fas fa-clipboard-list"></i>
+                            Audits</a></li>
                 </div>
 
                 <hr class="text-white">
