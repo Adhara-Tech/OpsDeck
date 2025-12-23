@@ -1,0 +1,95 @@
+{% extends "layout.html" %}
+
+{% block title %}Execution Details - {{ execution.activity.name }} - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-clipboard-check"></i> Execution Details</h2>
+    <div>
+        <a href="{{ url_for('activities.edit_execution', id=execution.id) }}" class="btn btn-outline-secondary me-2">
+            <i class="fas fa-edit"></i> Edit
+        </a>
+        <a href="{{ url_for('activities.activity_detail', id=execution.activity_id) }}"
+            class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Activity
+        </a>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">Execution Information</div>
+    <div class="card-body">
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <strong>Activity:</strong>
+                <a href="{{ url_for('activities.activity_detail', id=execution.activity.id) }}">
+                    {{ execution.activity.name }}
+                </a>
+            </div>
+            <div class="col-md-6">
+                <strong>Execution Date:</strong> {{ execution.execution_date.strftime('%Y-%m-%d') }}
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <strong>Executor:</strong>
+                {% if execution.executor %}
+                <a href="{{ url_for('users.user_detail', id=execution.executor.id) }}">
+                    {{ execution.executor.name }}
+                </a>
+                {% else %}
+                <span class="text-muted">Unknown</span>
+                {% endif %}
+            </div>
+            <div class="col-md-6">
+                <strong>Status:</strong>
+                {% if execution.status == 'success' %}
+                <span class="badge bg-success">Success</span>
+                {% elif execution.status == 'failed' %}
+                <span class="badge bg-danger">Failed</span>
+                {% elif execution.status == 'issue_detected' %}
+                <span class="badge bg-warning text-dark">Issue Detected</span>
+                {% else %}
+                <span class="badge bg-info">In Progress</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12">
+                <strong>Recorded:</strong> {{ execution.created_at.strftime('%Y-%m-%d %H:%M') }}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if execution.outcome_notes %}
+<div class="card mb-4">
+    <div class="card-header">Outcome Notes</div>
+    <div class="card-body">
+        {{ execution.outcome_notes|markdown|safe }}
+    </div>
+</div>
+{% endif %}
+
+<div class="card mb-4">
+    <div class="card-header">Evidence Files</div>
+    <ul class="list-group list-group-flush">
+        {% for attachment in execution.attachments %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+            <span>
+                <i class="fas fa-file"></i> {{ attachment.filename }}
+                <small class="text-muted">(Uploaded: {{ attachment.created_at.strftime('%Y-%m-%d %H:%M') }})</small>
+            </span>
+            <a href="{{ url_for('attachments.download', id=attachment.id) }}" class="btn btn-sm btn-outline-primary">
+                <i class="fas fa-download"></i> Download
+            </a>
+        </li>
+        {% else %}
+        <li class="list-group-item text-muted">No evidence files attached</li>
+        {% endfor %}
+    </ul>
+</div>
+
+{% endblock %}

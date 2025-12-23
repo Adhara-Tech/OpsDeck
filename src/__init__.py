@@ -85,6 +85,7 @@ def create_app():
     from .routes.documentation import documentation_bp
     from .routes.frameworks import frameworks_bp
     from .routes.links import links_bp
+    from .routes.activities import activities_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(assets_bp, url_prefix='/assets')
@@ -116,6 +117,7 @@ def create_app():
     app.register_blueprint(documentation_bp, url_prefix='/documentation')
     app.register_blueprint(frameworks_bp)
     app.register_blueprint(links_bp, url_prefix='/links')
+    app.register_blueprint(activities_bp, url_prefix='/security/activities')
 
 
     # --- Make user role available in all templates ---

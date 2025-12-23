@@ -41,6 +41,7 @@ class ComplianceLink(db.Model):
         from .policy import Policy
         from .training import Course
         from .bcdr import BCDRPlan
+        from .activities import SecurityActivity, ActivityExecution
         
         # Map types to models
         model_map = {
@@ -62,7 +63,9 @@ class ComplianceLink(db.Model):
             'SecurityAssessment': SecurityAssessment,
             'Risk': Risk,
             'Risk': Risk,
-            'AssetInventory': AssetInventory
+            'AssetInventory': AssetInventory,
+            'SecurityActivity': SecurityActivity,
+            'ActivityExecution': ActivityExecution
         }
         
         model = model_map.get(self.linkable_type)

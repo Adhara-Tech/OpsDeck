@@ -1,0 +1,116 @@
+{% extends "layout.html" %}
+
+{% block title %}{% if execution %}Edit{% else %}Record{% endif %} Execution - {{ activity.name }} - {{ super() }}{%
+endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/easymde/easymde.min.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-play"></i> {% if execution %}Edit{% else %}Record{% endif %} Execution</h2>
+    <a href="{{ url_for('activities.activity_detail', id=activity.id) }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Activity
+    </a>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body">
+        <h5 class="card-title">{{ activity.name }}</h5>
+        <p class="card-text text-muted">{{ activity.description|truncate(200) if activity.description else 'No
+            description' }}</p>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST" enctype="multipart/form-data">
+            <div class="mb-3">
+                <label for="executor_id" class="form-label">Executor <span class="text-danger">*</span></label>
+                <select class="form-select no-tom" id="executor_id" name="executor_id" required>
+                    {% for user in users %}
+                    <option value="{{ user.id }}" {% if execution and execution.executor_id==user.id %}selected {% elif
+                        not execution and current_user and current_user.id==user.id %}selected {% endif %}>
+                        {{ user.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label for="execution_date" class="form-label">Execution Date <span class="text-danger">*</span></label>
+                <input type="date" class="form-control" id="execution_date" name="execution_date"
+                    value="{{ today_date }}" required>
+            </div>
+
+            <div class="mb-3">
+                <label for="status" class="form-label">Status <span class="text-danger">*</span></label>
+                <select class="form-select" id="status" name="status" required>
+                    <option value="in_progress" {% if execution and execution.status=='in_progress' %}selected{% endif
+                        %}>In Progress</option>
+                    <option value="success" {% if execution and execution.status=='success' %}selected{% endif %}>
+                        Success</option>
+                    <option value="failed" {% if execution and execution.status=='failed' %}selected{% endif %}>Failed
+                    </option>
+                    <option value="issue_detected" {% if execution and execution.status=='issue_detected' %}selected{%
+                        endif %}>Issue Detected</option>
+                </select>
+            </div>
+
+            <div class="mb-3">
+                <label for="outcome_notes" class="form-label">Outcome Notes</label>
+                <textarea class="form-control" id="outcome_notes" name="outcome_notes"
+                    rows="8">{{ execution.outcome_notes if execution else '' }}</textarea>
+                <small class="form-text text-muted">Markdown formatting supported</small>
+            </div>
+
+            <div class="mb-3">
+                <label for="files" class="form-label">Evidence Files</label>
+                <input type="file" class="form-control" id="files" name="files" multiple>
+                <small class="form-text text-muted">Upload evidence files, reports, screenshots, etc.</small>
+            </div>
+
+            {% if execution and execution.attachments %}
+            <div class="mb-3">
+                <label class="form-label">Existing Attachments</label>
+                <ul class="list-group">
+                    {% for attachment in execution.attachments %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-file"></i> {{ attachment.filename }}</span>
+                        <a href="{{ url_for('attachments.download', id=attachment.id) }}"
+                            class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-download"></i>
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <div class="d-flex justify-content-end gap-2">
+                <a href="{{ url_for('activities.activity_detail', id=activity.id) }}"
+                    class="btn btn-secondary">Cancel</a>
+                <button type="submit" class="btn btn-success">
+                    <i class="fas fa-save"></i> {% if execution %}Update{% else %}Record{% endif %} Execution
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts_extra %}
+<script src="{{ url_for('static', filename='vendor/easymde/easymde.min.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Initialize EasyMDE for outcome notes
+        const easyMDE = new EasyMDE({
+            element: document.getElementById('outcome_notes'),
+            spellChecker: false,
+            status: false,
+            toolbar: ["bold", "italic", "heading", "|", "unordered-list", "ordered-list", "|", "link", "code", "preview"]
+        });
+    });
+</script>
+{% endblock %}

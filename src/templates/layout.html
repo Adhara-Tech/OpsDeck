@@ -96,7 +96,8 @@
                 <div class="collapse" id="crm-menu" data-bs-parent="#sidebar-accordion">
                     <li class="nav-item"><a
                             class="nav-link {% if request.endpoint.startswith('leads.') %}active{% endif %}"
-                            href="{{ url_for('leads.list_leads') }}"><i class="fa-fw fas fa-bullhorn"></i> Requirements</a>
+                            href="{{ url_for('leads.list_leads') }}"><i class="fa-fw fas fa-bullhorn"></i>
+                            Requirements</a>
                     </li>
                     <li class="nav-item"><a
                             class="nav-link {% if request.endpoint.startswith('opportunities.') %}active{% endif %}"
@@ -218,6 +219,9 @@
                     <li class="nav-item"><a class="nav-link {% if 'bcdr' in request.endpoint %}active{% endif %}"
                             href="{{ url_for('compliance.list_bcdr_plans') }}"><i class="fa-fw fas fa-shield-alt"></i>
                             BCDR</a></li>
+                    <li class="nav-item"><a class="nav-link {% if request.blueprint == 'activities' %}active{% endif %}"
+                            href="{{ url_for('activities.list_activities') }}"><i class="fa-fw fas fa-tasks"></i>
+                            Security Activities</a></li>
                     <li class="nav-item"><a
                             class="nav-link {% if request.endpoint.startswith('training.') and request.endpoint == 'training.my_training' %}active{% endif %}"
                             href="{{ url_for('training.my_training') }}"><i class="fa-fw fas fa-graduation-cap"></i> My
