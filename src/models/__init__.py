@@ -7,4 +7,5 @@ from .policy import *
 from .security import *
 from .bcdr import *
 from .training import *
+from .audits import *
 from .activities import *

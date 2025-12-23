@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Defense Pack - {{ audit.name }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            font-size: 10pt;
+            line-height: 1.4;
+            color: #333;
+        }
+
+        h1 {
+            color: #1a237e;
+            border-bottom: 3px solid #1a237e;
+            padding-bottom: 10px;
+            font-size: 24pt;
+        }
+
+        h2 {
+            color: #303f9f;
+            margin-top: 30px;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 5px;
+            font-size: 14pt;
+        }
+
+        h3 {
+            color: #5c6bc0;
+            font-size: 11pt;
+            margin-top: 15px;
+        }
+
+        .cover-page {
+            text-align: center;
+            padding-top: 100px;
+        }
+
+        .cover-page h1 {
+            font-size: 32pt;
+            border: none;
+        }
+
+        .cover-page .subtitle {
+            font-size: 16pt;
+            color: #666;
+            margin-top: 20px;
+        }
+
+        .cover-page .meta {
+            margin-top: 60px;
+            font-size: 12pt;
+        }
+
+        .cover-page .meta p {
+            margin: 5px 0;
+        }
+
+        .page-break {
+            page-break-after: always;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+
+        th,
+        td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+            font-size: 9pt;
+        }
+
+        th {
+            background-color: #e8eaf6;
+            font-weight: bold;
+        }
+
+        .status-compliant {
+            background-color: #c8e6c9;
+            color: #2e7d32;
+            font-weight: bold;
+        }
+
+        .status-gap {
+            background-color: #ffcdd2;
+            color: #c62828;
+            font-weight: bold;
+        }
+
+        .status-observation {
+            background-color: #fff3e0;
+            color: #ef6c00;
+            font-weight: bold;
+        }
+
+        .status-na {
+            background-color: #f5f5f5;
+            color: #757575;
+        }
+
+        .control-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            padding: 12px;
+            margin-bottom: 15px;
+            page-break-inside: avoid;
+        }
+
+        .control-header {
+            display: flex;
+            justify-content: space-between;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 8px;
+            margin-bottom: 8px;
+        }
+
+        .control-code {
+            font-weight: bold;
+            color: #1a237e;
+            font-size: 11pt;
+        }
+
+        .control-title {
+            color: #333;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 8pt;
+            font-weight: bold;
+        }
+
+        .badge-success {
+            background-color: #c8e6c9;
+            color: #2e7d32;
+        }
+
+        .badge-danger {
+            background-color: #ffcdd2;
+            color: #c62828;
+        }
+
+        .badge-warning {
+            background-color: #fff3e0;
+            color: #ef6c00;
+        }
+
+        .badge-secondary {
+            background-color: #e0e0e0;
+            color: #616161;
+        }
+
+        .section-label {
+            font-weight: bold;
+            color: #5c6bc0;
+            font-size: 9pt;
+            margin-top: 10px;
+        }
+
+        .evidence-list {
+            margin: 5px 0;
+            padding-left: 20px;
+        }
+
+        .evidence-list li {
+            font-size: 9pt;
+            margin: 3px 0;
+        }
+
+        .footer {
+            text-align: center;
+            font-size: 8pt;
+            color: #999;
+            margin-top: 30px;
+            border-top: 1px solid #eee;
+            padding-top: 10px;
+        }
+
+        .summary-box {
+            background-color: #f5f5f5;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        .summary-grid {
+            display: table;
+            width: 100%;
+        }
+
+        .summary-item {
+            display: table-cell;
+            text-align: center;
+            padding: 10px;
+        }
+
+        .summary-number {
+            font-size: 24pt;
+            font-weight: bold;
+        }
+
+        .summary-label {
+            font-size: 9pt;
+            color: #666;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Cover Page -->
+    <div class="cover-page">
+        <h1>Defense Pack</h1>
+        <div class="subtitle">{{ audit.name }}</div>
+        <div class="meta">
+            <p><strong>Framework:</strong> {{ audit.framework.name }}</p>
+            <p><strong>Status:</strong> {{ audit.status }}{% if audit.outcome %} - {{ audit.outcome }}{% endif %}</p>
+            <p><strong>Internal Lead:</strong> {{ audit.internal_lead.name if audit.internal_lead else 'Not Assigned' }}
+            </p>
+            {% if audit.auditor %}
+            <p><strong>External Auditor:</strong> {{ audit.auditor.name }} ({{ audit.auditor.supplier.name if
+                audit.auditor.supplier else 'N/A' }})</p>
+            {% endif %}
+            <p><strong>Generated:</strong> {{ now.strftime('%Y-%m-%d %H:%M UTC') }}</p>
+        </div>
+    </div>
+
+    <div class="page-break"></div>
+
+    <!-- Executive Summary -->
+    <h2>Executive Summary</h2>
+
+    <div class="summary-box">
+        <div class="summary-grid">
+            <div class="summary-item">
+                <div class="summary-number" style="color: #2e7d32;">
+                    {% set compliant = audit.audit_items.filter_by(status='Compliant').count() %}
+                    {{ compliant }}
+                </div>
+                <div class="summary-label">Compliant</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-number" style="color: #c62828;">
+                    {% set gaps = audit.audit_items.filter_by(status='Gap').count() %}
+                    {{ gaps }}
+                </div>
+                <div class="summary-label">Gaps</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-number" style="color: #ef6c00;">
+                    {% set observations = audit.audit_items.filter_by(status='Observation').count() %}
+                    {{ observations }}
+                </div>
+                <div class="summary-label">Observations</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-number" style="color: #757575;">
+                    {% set na_count = audit.audit_items.filter_by(is_applicable=False).count() %}
+                    {{ na_count }}
+                </div>
+                <div class="summary-label">Not Applicable</div>
+            </div>
+        </div>
+    </div>
+
+    <p>
+        This Defense Pack contains the Statement of Applicability (SOA) and evidence index for the
+        <strong>{{ audit.name }}</strong> audit against the <strong>{{ audit.framework.name }}</strong> framework.
+    </p>
+
+    <div class="page-break"></div>
+
+    <!-- Statement of Applicability (SOA) Table -->
+    <h2>Statement of Applicability (SOA)</h2>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 10%;">Control</th>
+                <th style="width: 30%;">Title</th>
+                <th style="width: 10%;">Applicable?</th>
+                <th style="width: 12%;">Status</th>
+                <th style="width: 38%;">Justification</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in audit.audit_items %}
+            <tr>
+                <td><strong>{{ item.control_code }}</strong></td>
+                <td>{{ item.control_title }}</td>
+                <td class="{% if not item.is_applicable %}status-na{% endif %}">
+                    {{ 'Yes' if item.is_applicable else 'No' }}
+                </td>
+                <td
+                    class="{% if item.status == 'Compliant' %}status-compliant{% elif item.status == 'Gap' %}status-gap{% elif item.status == 'Observation' %}status-observation{% endif %}">
+                    {{ item.status }}
+                </td>
+                <td>{{ item.justification or '-' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="page-break"></div>
+
+    <!-- Detailed Control Analysis with Evidence -->
+    <h2>Detailed Control Analysis & Evidence Index</h2>
+
+    {% for item in audit.audit_items %}
+    <div class="control-card">
+        <div class="control-header">
+            <div>
+                <span class="control-code">{{ item.control_code }}</span>
+                <span class="control-title">{{ item.control_title }}</span>
+            </div>
+            <div>
+                {% if not item.is_applicable %}
+                <span class="badge badge-secondary">N/A</span>
+                {% endif %}
+                <span
+                    class="badge {% if item.status == 'Compliant' %}badge-success{% elif item.status == 'Gap' %}badge-danger{% elif item.status == 'Observation' %}badge-warning{% else %}badge-secondary{% endif %}">
+                    {{ item.status }}
+                </span>
+            </div>
+        </div>
+
+        {% if item.control_description %}
+        <p style="font-size: 9pt; color: #666;">{{ item.control_description }}</p>
+        {% endif %}
+
+        {% if item.justification %}
+        <div class="section-label">SOA Justification:</div>
+        <p style="font-size: 9pt;">{{ item.justification }}</p>
+        {% endif %}
+
+        {% if item.auditor_findings %}
+        <div class="section-label">Auditor Findings:</div>
+        <p style="font-size: 9pt;">{{ item.auditor_findings }}</p>
+        {% endif %}
+
+        <!-- Evidence Files -->
+        {% set files = item.attachments.all() %}
+        {% if files %}
+        <div class="section-label">Evidence Files ({{ files|length }}):</div>
+        <ul class="evidence-list">
+            {% for att in files %}
+            <li>📎 {{ att.filename }} <em>({{ att.created_at.strftime('%Y-%m-%d') }})</em></li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        <!-- Linked Objects -->
+        {% set links = item.linked_objects.all() %}
+        {% if links %}
+        <div class="section-label">Linked Evidence ({{ links|length }}):</div>
+        <ul class="evidence-list">
+            {% for link in links %}
+            {% set obj = link.linked_object %}
+            <li>🔗 [{{ link.linkable_type }}] {{ obj.name if obj else 'ID: ' + link.linkable_id|string }}
+                {% if link.description %}<em>- {{ link.description }}</em>{% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        {% if not files and not links and item.is_applicable %}
+        <p style="font-size: 9pt; color: #999; font-style: italic;">No evidence attached to this control.</p>
+        {% endif %}
+    </div>
+    {% endfor %}
+
+    <!-- Footer -->
+    <div class="footer">
+        <p>Generated by OpsDeck | {{ now.strftime('%Y-%m-%d %H:%M UTC') }}</p>
+        <p>This document is confidential and intended for audit purposes only.</p>
+    </div>
+
+</body>
+
+</html>

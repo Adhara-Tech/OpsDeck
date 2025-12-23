@@ -1,0 +1,113 @@
+{% extends "layout.html" %}
+
+{% block title %}New Audit - OpsDeck{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="fas fa-shield-alt"></i> New Compliance Audit</h1>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 bg-primary text-white">
+                <h6 class="m-0 font-weight-bold"><i class="fas fa-clipboard-list"></i> Audit Details</h6>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('audits.new_audit') }}">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Audit Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="name" name="name"
+                            placeholder="e.g., ISO 27001 - Q4 2024 Certification" required>
+                        <small class="text-muted">A descriptive name for this audit cycle.</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="framework_id" class="form-label">Select Framework <span
+                                class="text-danger">*</span></label>
+                        <select class="form-select tom-select" id="framework_id" name="framework_id" required>
+                            <option value="" selected disabled>Choose a framework...</option>
+                            {% for framework in frameworks %}
+                            <option value="{{ framework.id }}">{{ framework.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <hr class="my-4">
+                    <h6 class="text-muted mb-3"><i class="fas fa-users"></i> Team Assignment</h6>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="auditor_contact_id" class="form-label">External Auditor</label>
+                            <select class="form-select tom-select" id="auditor_contact_id" name="auditor_contact_id">
+                                <option value="">No external auditor</option>
+                                {% for contact in contacts %}
+                                <option value="{{ contact.id }}">{{ contact.name }} ({{ contact.supplier.name if
+                                    contact.supplier else 'N/A' }})</option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">Optional. Select the contact from your CRM.</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="internal_lead_id" class="form-label">Internal Lead <span
+                                    class="text-danger">*</span></label>
+                            <select class="form-select tom-select" id="internal_lead_id" name="internal_lead_id"
+                                required>
+                                <option value="" selected disabled>Select team lead...</option>
+                                {% for user in users %}
+                                <option value="{{ user.id }}" {% if current_user and user.id==current_user.id
+                                    %}selected{% endif %}>
+                                    {{ user.name }} ({{ user.email }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">The person responsible for coordinating the defense.</small>
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+                    <h6 class="text-muted mb-3"><i class="fas fa-cog"></i> Options</h6>
+
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="copy_links" name="copy_links">
+                        <label class="form-check-label" for="copy_links">
+                            <strong>Pre-fill evidences from Framework</strong>
+                        </label>
+                        <br>
+                        <small class="text-muted">
+                            If checked, existing compliance links from the framework will be copied as starting evidence
+                            for this audit.
+                        </small>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                        <a href="{{ url_for('audits.list_audits') }}" class="btn btn-outline-secondary me-md-2">
+                            <i class="fas fa-times"></i> Cancel
+                        </a>
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-rocket"></i> Create Audit Snapshot
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card shadow mb-4 border-info">
+            <div class="card-header py-3 bg-info text-white">
+                <h6 class="m-0 font-weight-bold"><i class="fas fa-info-circle"></i> How It Works</h6>
+            </div>
+            <div class="card-body">
+                <ol class="mb-0">
+                    <li class="mb-2">Select a <strong>Framework</strong> to audit against.</li>
+                    <li class="mb-2">A <strong>snapshot</strong> of all controls will be created.</li>
+                    <li class="mb-2">Your team can work on the audit without affecting the live framework.</li>
+                    <li class="mb-2">Track <strong>compliance status</strong> per control.</li>
+                    <li>Export a <strong>Defense Pack</strong> PDF when ready.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

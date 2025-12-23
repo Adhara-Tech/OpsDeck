@@ -188,6 +188,9 @@
                     <li class="nav-item"><a class="nav-link {% if 'erasure' in request.endpoint %}active{% endif %}"
                             href="{{ url_for('compliance.list_erasures') }}"><i class="fa-fw fas fa-eraser"></i> Erasure
                             Log</a></li>
+                    <li class="nav-item"><a class="nav-link {% if request.blueprint == 'audits' %}active{% endif %}"
+                            href="{{ url_for('audits.list_audits') }}"><i class="fa-fw fas fa-clipboard-list"></i>
+                            Audits</a></li>
                 </div>
 
                 <hr class="text-white">

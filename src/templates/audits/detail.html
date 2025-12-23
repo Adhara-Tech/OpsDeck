@@ -1,0 +1,571 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ audit.name }} - Defense Room - OpsDeck{% endblock %}
+
+{% block content %}
+<!-- Header Section -->
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <div>
+        <h1 class="h2"><i class="fas fa-shield-alt text-primary"></i> {{ audit.name }}</h1>
+        <p class="text-muted mb-0">
+            <i class="fas fa-book"></i> {{ audit.framework.name }}
+            <span class="mx-2">|</span>
+            <span
+                class="badge bg-{% if audit.status == 'Closed' %}success{% elif audit.status == 'Auditor Review' %}warning{% elif audit.status == 'Prep' %}info{% else %}secondary{% endif %}">
+                {{ audit.status }}
+            </span>
+            {% if audit.outcome %}
+            <span
+                class="badge bg-{% if audit.outcome == 'Pass' %}success{% elif audit.outcome == 'Fail' %}danger{% else %}warning{% endif %} ms-1">
+                {{ audit.outcome }}
+            </span>
+            {% endif %}
+        </p>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <button type="button" class="btn btn-sm btn-outline-secondary me-2" data-bs-toggle="modal"
+            data-bs-target="#editHeaderModal">
+            <i class="fas fa-edit"></i> Edit Details
+        </button>
+        <a href="{{ url_for('audits.export_audit', id=audit.id) }}" class="btn btn-sm btn-outline-primary me-2">
+            <i class="fas fa-file-pdf"></i> Export Defense Pack
+        </a>
+        <form action="{{ url_for('audits.delete_audit', id=audit.id) }}" method="POST" class="d-inline"
+            onsubmit="return confirm('Are you sure you want to delete this audit? This cannot be undone.');">
+            <button type="submit" class="btn btn-sm btn-outline-danger">
+                <i class="fas fa-trash"></i>
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Stats Row -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-white bg-success shadow">
+            <div class="card-body py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-white-50 small">Compliant</div>
+                        <div class="h3 mb-0">{{ compliant_count }}</div>
+                    </div>
+                    <i class="fas fa-check-circle fa-2x opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-danger shadow">
+            <div class="card-body py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-white-50 small">Gaps</div>
+                        <div class="h3 mb-0">{{ gap_count }}</div>
+                    </div>
+                    <i class="fas fa-times-circle fa-2x opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-warning shadow">
+            <div class="card-body py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-white-50 small">Observations</div>
+                        <div class="h3 mb-0">{{ observation_count }}</div>
+                    </div>
+                    <i class="fas fa-exclamation-triangle fa-2x opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-primary shadow">
+            <div class="card-body py-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-white-50 small">Progress</div>
+                        <div class="h3 mb-0">{{ progress }}%</div>
+                    </div>
+                    <i class="fas fa-chart-pie fa-2x opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Main Content -->
+    <div class="col-lg-8">
+        <!-- Controls Accordion -->
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-list-check"></i> Audit Controls ({{
+                    total_items }})</h6>
+                <form method="POST" action="{{ url_for('audits.update_audit_items', id=audit.id) }}" id="auditForm">
+                    <button type="submit" class="btn btn-sm btn-success">
+                        <i class="fas fa-save"></i> Save All Changes
+                    </button>
+            </div>
+            <div class="card-body p-0">
+                <div class="accordion" id="controlsAccordion">
+                    {% for item in audit.audit_items %}
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="heading{{ item.id }}">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#collapse{{ item.id }}" aria-expanded="false">
+                                <div class="d-flex w-100 justify-content-between align-items-center me-3">
+                                    <div>
+                                        <strong class="text-primary">{{ item.control_code }}</strong>
+                                        <span class="text-muted ms-2">{{ item.control_title[:60] }}{% if
+                                            item.control_title|length > 60 %}...{% endif %}</span>
+                                    </div>
+                                    <div>
+                                        <span
+                                            class="badge bg-{% if item.status == 'Compliant' %}success{% elif item.status == 'Gap' %}danger{% elif item.status == 'Observation' %}warning{% else %}secondary{% endif %} me-2">
+                                            {{ item.status }}
+                                        </span>
+                                        {% if not item.is_applicable %}
+                                        <span class="badge bg-dark me-1">N/A</span>
+                                        {% endif %}
+                                        {% set file_count = item.attachments.count() %}
+                                        {% set link_count = item.linked_objects.count() %}
+                                        {% if file_count > 0 %}
+                                        <span class="badge bg-light text-dark"><i class="fas fa-paperclip"></i> {{
+                                            file_count }}</span>
+                                        {% endif %}
+                                        {% if link_count > 0 %}
+                                        <span class="badge bg-light text-dark"><i class="fas fa-link"></i> {{ link_count
+                                            }}</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </button>
+                        </h2>
+                        <div id="collapse{{ item.id }}" class="accordion-collapse collapse"
+                            aria-labelledby="heading{{ item.id }}" data-bs-parent="#controlsAccordion">
+                            <div class="accordion-body">
+                                <p class="text-muted small mb-3">{{ item.control_description }}</p>
+
+                                <div class="row">
+                                    <!-- Left Column: Defense Strategy -->
+                                    <div class="col-md-6">
+                                        <h6 class="text-primary border-bottom pb-2 mb-3"><i class="fas fa-chess"></i>
+                                            Defense Strategy</h6>
+
+                                        <div class="form-check form-switch mb-3">
+                                            <input class="form-check-input applicability-toggle" type="checkbox"
+                                                id="item_{{ item.id }}_applicable" name="item_{{ item.id }}_applicable"
+                                                data-target="justification_{{ item.id }}" {% if item.is_applicable
+                                                %}checked{% endif %}>
+                                            <label class="form-check-label" for="item_{{ item.id }}_applicable">Is
+                                                Applicable</label>
+                                        </div>
+
+                                        <div id="justification_{{ item.id }}_container"
+                                            class="mb-3 {% if item.is_applicable %}d-none{% endif %}">
+                                            <label class="form-label small text-danger">Justification (SOA)</label>
+                                            <textarea class="form-control form-control-sm"
+                                                name="item_{{ item.id }}_justification" rows="2"
+                                                placeholder="Why is this control not applicable?">{{ item.justification or '' }}</textarea>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label small">Internal Comments <span
+                                                    class="badge bg-secondary">Private</span></label>
+                                            <textarea class="form-control form-control-sm"
+                                                name="item_{{ item.id }}_internal_comments" rows="2"
+                                                placeholder="Team notes and discussion...">{{ item.internal_comments or '' }}</textarea>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label small">Auditor Findings</label>
+                                            <textarea class="form-control form-control-sm"
+                                                name="item_{{ item.id }}_auditor_findings" rows="2"
+                                                placeholder="Findings from the auditor...">{{ item.auditor_findings or '' }}</textarea>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label small">Status</label>
+                                            <select class="form-select form-select-sm status-select"
+                                                name="item_{{ item.id }}_status">
+                                                <option value="Compliant" {% if item.status=='Compliant' %}selected{%
+                                                    endif %}>✓ Compliant</option>
+                                                <option value="Gap" {% if item.status=='Gap' %}selected{% endif %}>✗ Gap
+                                                </option>
+                                                <option value="Observation" {% if item.status=='Observation'
+                                                    %}selected{% endif %}>⚠ Observation</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <!-- Right Column: Evidence Vault -->
+                                    <div class="col-md-6">
+                                        <h6 class="text-info border-bottom pb-2 mb-3"><i class="fas fa-archive"></i>
+                                            Evidence Vault</h6>
+
+                                        <!-- Files -->
+                                        <div class="mb-3">
+                                            <label
+                                                class="form-label small d-flex justify-content-between align-items-center">
+                                                <span><i class="fas fa-file"></i> Files</span>
+                                            </label>
+                                            <ul class="list-group list-group-flush small mb-2">
+                                                {% for att in item.attachments %}
+                                                <li
+                                                    class="list-group-item d-flex justify-content-between align-items-center py-1 px-2">
+                                                    <a href="{{ url_for('attachments.download_file', attachment_id=att.id) }}"
+                                                        target="_blank">
+                                                        <i class="fas fa-file-alt"></i> {{ att.filename[:25] }}{% if
+                                                        att.filename|length > 25 %}...{% endif %}
+                                                    </a>
+                                                </li>
+                                                {% else %}
+                                                <li class="list-group-item text-muted py-1 px-2 small">No files
+                                                    uploaded.</li>
+                                                {% endfor %}
+                                            </ul>
+                                            </form><!-- Close main form before file upload form -->
+                                            <form
+                                                action="{{ url_for('audits.upload_item_attachment', id=audit.id, item_id=item.id) }}"
+                                                method="POST" enctype="multipart/form-data"
+                                                class="input-group input-group-sm">
+                                                <input type="file" class="form-control form-control-sm" name="file"
+                                                    required>
+                                                <button class="btn btn-outline-info btn-sm" type="submit"><i
+                                                        class="fas fa-upload"></i></button>
+                                            </form>
+                                            <form method="POST"
+                                                action="{{ url_for('audits.update_audit_items', id=audit.id) }}">
+                                                <!-- Re-open main form -->
+                                        </div>
+
+                                        <!-- Linked Objects -->
+                                        <div class="mb-3">
+                                            <label class="form-label small"><i class="fas fa-link"></i> Linked
+                                                Evidence</label>
+                                            <ul class="list-group list-group-flush small mb-2">
+                                                {% for link in item.linked_objects %}
+                                                {% set obj = link.linked_object %}
+                                                <li
+                                                    class="list-group-item d-flex justify-content-between align-items-center py-1 px-2">
+                                                    <span>
+                                                        <span class="badge bg-secondary">{{ link.linkable_type }}</span>
+                                                        {{ obj.name if obj else 'Object #' + link.linkable_id|string }}
+                                                    </span>
+                                                    </form>
+                                                    <form
+                                                        action="{{ url_for('audits.delete_item_link', id=audit.id, item_id=item.id, link_id=link.id) }}"
+                                                        method="POST" class="d-inline">
+                                                        <button type="submit"
+                                                            class="btn btn-sm btn-outline-danger py-0 px-1"
+                                                            title="Remove">
+                                                            <i class="fas fa-times"></i>
+                                                        </button>
+                                                    </form>
+                                                    <form method="POST"
+                                                        action="{{ url_for('audits.update_audit_items', id=audit.id) }}">
+                                                </li>
+                                                {% else %}
+                                                <li class="list-group-item text-muted py-1 px-2 small">No linked
+                                                    objects.</li>
+                                                {% endfor %}
+                                            </ul>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary w-100"
+                                                data-bs-toggle="modal" data-bs-target="#linkModal{{ item.id }}">
+                                                <i class="fas fa-plus"></i> Link Object
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="col-lg-4">
+        <!-- Auditor Card -->
+        {% if audit.auditor %}
+        <div class="card shadow mb-4 border-warning">
+            <div class="card-header py-3 bg-warning text-dark">
+                <h6 class="m-0 font-weight-bold"><i class="fas fa-user-tie"></i> External Auditor</h6>
+            </div>
+            <div class="card-body">
+                <h5>{{ audit.auditor.name }}</h5>
+                <p class="mb-1"><i class="fas fa-building"></i> {{ audit.auditor.supplier.name if audit.auditor.supplier
+                    else 'N/A' }}</p>
+                <p class="mb-1"><i class="fas fa-envelope"></i> <a href="mailto:{{ audit.auditor.email }}">{{
+                        audit.auditor.email }}</a></p>
+                {% if audit.auditor.phone %}
+                <p class="mb-0"><i class="fas fa-phone"></i> {{ audit.auditor.phone }}</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Internal Lead & Participants -->
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-users"></i> Defense Team</h6>
+                <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
+                    data-bs-target="#manageTeamModal">
+                    <i class="fas fa-user-plus"></i>
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3 pb-2 border-bottom">
+                    <div class="avatar-sm bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2"
+                        style="width:40px;height:40px;">
+                        {{ audit.internal_lead.name[0] if audit.internal_lead else '?' }}
+                    </div>
+                    <div>
+                        <strong>{{ audit.internal_lead.name if audit.internal_lead else 'Not Assigned' }}</strong>
+                        <br><small class="text-muted">Internal Lead</small>
+                    </div>
+                </div>
+
+                <h6 class="small text-muted">Team Members</h6>
+                {% for participant in audit.participants %}
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <div class="d-flex align-items-center">
+                        <div class="avatar-sm bg-secondary text-white rounded-circle d-flex align-items-center justify-content-center me-2"
+                            style="width:32px;height:32px;font-size:12px;">
+                            {{ participant.name[0] }}
+                        </div>
+                        <span class="small">{{ participant.name }}</span>
+                    </div>
+                    <form action="{{ url_for('audits.remove_participant', id=audit.id, user_id=participant.id) }}"
+                        method="POST" class="d-inline">
+                        <button type="submit" class="btn btn-sm btn-link text-danger p-0"><i
+                                class="fas fa-times"></i></button>
+                    </form>
+                </div>
+                {% else %}
+                <p class="text-muted small mb-0">No additional team members.</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Global Attachments -->
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-folder-open"></i> Audit Documents</h6>
+            </div>
+            <ul class="list-group list-group-flush">
+                {% for att in audit.attachments %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <a href="{{ url_for('attachments.download_file', attachment_id=att.id) }}">
+                        <i class="fas fa-file-alt"></i> {{ att.filename }}
+                    </a>
+                    <small class="text-muted">{{ att.created_at.strftime('%Y-%m-%d') }}</small>
+                </li>
+                {% else %}
+                <li class="list-group-item text-muted small">No documents uploaded yet.</li>
+                {% endfor %}
+            </ul>
+            <div class="card-body">
+                <form action="{{ url_for('audits.upload_audit_attachment', id=audit.id) }}" method="POST"
+                    enctype="multipart/form-data">
+                    <div class="input-group input-group-sm">
+                        <input type="file" class="form-control form-control-sm" name="file" required>
+                        <button class="btn btn-outline-primary" type="submit"><i class="fas fa-upload"></i>
+                            Upload</button>
+                    </div>
+                    <small class="text-muted">Upload final report, signed proposal, etc.</small>
+                </form>
+            </div>
+        </div>
+
+        <!-- Audit Info -->
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-info-circle"></i> Audit Info</h6>
+            </div>
+            <div class="card-body small">
+                <p class="mb-1"><strong>Created:</strong> {{ audit.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                {% if audit.start_date %}
+                <p class="mb-1"><strong>Start Date:</strong> {{ audit.start_date.strftime('%Y-%m-%d') }}</p>
+                {% endif %}
+                {% if audit.end_date %}
+                <p class="mb-1"><strong>End Date:</strong> {{ audit.end_date.strftime('%Y-%m-%d') }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Header Modal -->
+<div class="modal fade" id="editHeaderModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('audits.update_audit_header', id=audit.id) }}" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Audit Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Status</label>
+                        <select class="form-select" name="status">
+                            <option value="Planned" {% if audit.status=='Planned' %}selected{% endif %}>Planned</option>
+                            <option value="Prep" {% if audit.status=='Prep' %}selected{% endif %}>Prep</option>
+                            <option value="Auditor Review" {% if audit.status=='Auditor Review' %}selected{% endif %}>
+                                Auditor Review</option>
+                            <option value="Closed" {% if audit.status=='Closed' %}selected{% endif %}>Closed</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Outcome</label>
+                        <select class="form-select" name="outcome">
+                            <option value="">Not determined</option>
+                            <option value="Pass" {% if audit.outcome=='Pass' %}selected{% endif %}>Pass</option>
+                            <option value="Fail" {% if audit.outcome=='Fail' %}selected{% endif %}>Fail</option>
+                            <option value="Qualified" {% if audit.outcome=='Qualified' %}selected{% endif %}>Qualified
+                            </option>
+                        </select>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Start Date</label>
+                            <input type="date" class="form-control" name="start_date"
+                                value="{{ audit.start_date.strftime('%Y-%m-%d') if audit.start_date else '' }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">End Date</label>
+                            <input type="date" class="form-control" name="end_date"
+                                value="{{ audit.end_date.strftime('%Y-%m-%d') if audit.end_date else '' }}">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Manage Team Modal -->
+<div class="modal fade" id="manageTeamModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('audits.add_participant', id=audit.id) }}" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Team Member</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Select User</label>
+                        <select class="form-select tom-select" name="user_id" required>
+                            <option value="">Choose a user...</option>
+                            {% for user in users %}
+                            {% if user not in audit.participants and user != audit.internal_lead %}
+                            <option value="{{ user.id }}">{{ user.name }} ({{ user.email }})</option>
+                            {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add to Team</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Link Object Modals (one per item) -->
+{% for item in audit.audit_items %}
+<div class="modal fade" id="linkModal{{ item.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('audits.add_item_link', id=audit.id, item_id=item.id) }}" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title">Link Evidence to {{ item.control_code }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Object Type</label>
+                        <select class="form-select" name="linkable_type" required>
+                            <option value="">Select type...</option>
+                            <option value="Asset">Asset</option>
+                            <option value="Policy">Policy</option>
+                            <option value="Documentation">Documentation</option>
+                            <option value="Link">Link</option>
+                            <option value="Course">Training Course</option>
+                            <option value="Risk">Risk</option>
+                            <option value="Software">Software</option>
+                            <option value="Supplier">Supplier</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Object ID</label>
+                        <input type="number" class="form-control" name="linkable_id" required
+                            placeholder="Enter the ID of the object">
+                        <small class="text-muted">Enter the numeric ID of the object to link.</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description (Optional)</label>
+                        <textarea class="form-control" name="description" rows="2"
+                            placeholder="Why is this evidence for this control?"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Link Object</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Applicability Toggle
+        const toggles = document.querySelectorAll('.applicability-toggle');
+        toggles.forEach(toggle => {
+            toggle.addEventListener('change', function () {
+                const targetId = this.getAttribute('data-target');
+                const container = document.getElementById(targetId + '_container');
+                if (this.checked) {
+                    container.classList.add('d-none');
+                } else {
+                    container.classList.remove('d-none');
+                }
+            });
+        });
+
+        // Status Select Colors
+        const selects = document.querySelectorAll('.status-select');
+        function colorize(select) {
+            select.classList.remove('bg-success', 'bg-danger', 'bg-warning', 'text-white', 'text-dark');
+            if (select.value === 'Compliant') {
+                select.classList.add('bg-success', 'text-white');
+            } else if (select.value === 'Gap') {
+                select.classList.add('bg-danger', 'text-white');
+            } else if (select.value === 'Observation') {
+                select.classList.add('bg-warning', 'text-dark');
+            }
+        }
+        selects.forEach(select => {
+            colorize(select);
+            select.addEventListener('change', () => colorize(select));
+        });
+    });
+</script>
+{% endblock %}
