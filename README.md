@@ -1,111 +1,135 @@
-# OpsDeck
+![OpsDeck Logo](images/opsdeck-logo.png)
 
-OpsDeck is a unified IT operations platform designed to streamline asset management, vendor relations, and compliance. It centralizes disparate tools into a single control center, providing visibility and control over the entire IT ecosystem.
+# OpsDeck
+For IT managers and operations teams struggling with disconnected tools and sprawling spreadsheets, OpsDeck is the all-in-one control center that unifies asset management, vendor relations, and compliance into a single, intuitive platform. Ditch the chaos and gain complete visibility and control over your entire IT ecosystem, from procurement to disposal.
 
 ## Key Features
+OpsDeck provides a comprehensive suite of tools to streamline your IT operations:
 
 ### Asset Lifecycle Management
-- **Asset Tracking**: Monitor hardware, software, and peripherals from purchase to end-of-life.
-- **Assignments**: Track asset assignments to users and locations.
-- **Warranty Monitoring**: Automated tracking of warranty expiration dates.
-- **Maintenance**: Log repairs, upgrades, and maintenance activities.
-- **Disposal**: Manage end-of-life processes with formal disposal records.
+- Complete Asset Tracking: Monitor hardware, software, and peripherals from purchase to end-of-life.
+
+- Check-in/Check-out: Easily assign assets to users and track assignment history.
+
+- Warranty Monitoring: Receive automatic alerts for expiring warranties.
+
+- Maintenance & Disposal: Log all maintenance activities and manage formal disposal records.
+
+- Location Management: Track the physical location of all your assets.
+
+### Vendor & Procurement Management
+- Supplier Database: A centralized repository for all vendor information, contracts, and compliance status.
+
+- Purchase Management: Create and track purchase orders, linking them to assets, budgets, and suppliers.
+
+- Budget Oversight: Define budgets by category and monitor spending in real-time.
+
+- Service & Subscription Tracking: Never miss a renewal with proactive tracking of all recurring services and software licenses.
 
 ### Governance, Risk & Compliance (GRC)
-- **Compliance Linking**: Link any system object (Asset, Policy, Supplier) to specific Framework Controls (e.g., ISO 27001) to demonstrate compliance.
-- **Framework Management**: Manage compliance frameworks and controls.
-- **Policy Management**: Version-controlled policy documents with user acknowledgement tracking.
-- **Risk Register**: Document and score organizational risks.
-- **Incident Management**: Workflow for logging, investigating, and resolving security incidents.
-- **Audits**: Conduct and record asset audits.
+- Policy Management: Create and version control policies, and track employee acknowledgements.
 
-### Procurement & Finance
-- **Supplier Database**: Centralized vendor management.
-- **Purchase Orders**: Track purchases linked to budgets and suppliers.
-- **Budget Management**: Define and monitor budgets by category.
-- **Subscription Tracking**: Monitor recurring costs and renewal dates.
-- **Financial Reporting**: Depreciation reports, spend analysis, and forecasting.
+- Risk Register: Identify, assess, and document mitigation plans for organizational risks.
 
-### Core Operations
-- **User Directory**: Manage users, groups, and roles.
-- **Training Hub**: Assign and track completion of training courses.
-- **Documentation**: Internal knowledge base.
+- Security Incident Management: A complete workflow to log, investigate, and resolve security incidents, including Post-Incident Reviews (PIR).
+
+- Auditing: Conduct asset audits to ensure inventory accuracy and accountability.
+
+### Team & Resource Management
+- User Directory: Manage user profiles, assigned assets, and contact information.
+
+- Training Hub: Create training courses, assign them to users or groups, and track completion.
+
+- Team Grouping: Organize users into groups for easier policy and asset assignment.
+
+### Financial Oversight & Reporting
+- Depreciation Reports: Automatically calculate and visualize asset depreciation.
+
+- Spend Analysis: Gain insights into spending patterns by supplier, brand, or asset type.
+
+- Subscription Forecasting: Project future costs for all recurring services.
 
 ## Tech Stack
-- **Backend**: Python 3, Flask
-- **Database**: SQLAlchemy ORM, Flask-Migrate (SQLite default)
-- **Frontend**: Jinja2 Templates, Bootstrap 5, Tom Select (for enhanced UI components)
-- **Scheduling**: APScheduler
+* Backend: Python 3, Flask
+* Database: SQLAlchemy ORM, Flask-Migrate (for database migrations). Defaults to SQLite.
+* Frontend: Jinja2 Templates, Bootstrap 5
+* Scheduling: APScheduler
 
 ## Setup and Installation
+Follow these steps to get the application running locally.
 
-### 1. Prerequisites
-- Python 3.10+
-- Virtual environment tool (venv)
+1. Prerequisites
+* Python 3.10+
+* A virtual environment tool (venv)
 
-### 2. Installation
+2. Installation
 ```bash
-# Clone the repository
+
+# Clone the repository (or use your existing project folder)
 # git clone https://github.com/pixelotes/opsdeck.git
 # cd opsdeck
 
 # Create and activate a virtual environment
 python3 -m venv venv
-source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+source venv/bin/activate
 
-# Install dependencies
+# Install the required Python packages
 pip install -r requirements.txt
 ```
+3. Configuration
+The application is configured using environment variables. Create a file named .env in the root of the project and add the following variables.
 
-### 3. Configuration
-Create a `.env` file in the root directory:
+`.env.example`:
 
 ```bash
+
 # Flask Configuration
-SECRET_KEY='your-secret-key'
+SECRET_KEY='a-very-strong-and-random-secret-key'
 FLASK_APP=run:app
 
-# Database (Optional, defaults to local SQLite)
-# DATABASE_URL='sqlite:///opsdeck.db'
+# Database URL (optional, defaults to a local SQLite file)
+# DATABASE_URL='sqlite:///renewals.db'
 
-# Email Settings (Optional)
+# SMTP Email Notification Settings (optional)
 SMTP_SERVER='smtp.gmail.com'
 SMTP_PORT=587
-EMAIL_USERNAME='your-email@example.com'
-EMAIL_PASSWORD='your-app-password'
-```
+EMAIL_USERNAME='your-email@gmail.com'
+EMAIL_PASSWORD='your-gmail-app-password'
 
-### 4. Initialization
-Initialize the database and create the default admin user:
+# Webhook Notification Settings (optional)
+# WEBHOOK_URL='https://your-webhook-provider.com/...'
+```
+* `SECRET_KEY`: Required. A long, random string used for signing sessions.
+* `FLASK_APP`: Required. Tells Flask how to load the application.
+* SMTP variables: Only required if you want to use email notifications. For Gmail, you will need to generate an "App Password".
+
+4. Initialize the Database
+The first time you run the app, you need to create the database and the initial admin user.
 
 ```bash
-# Initialize migrations
+
+# 1. Initialize the migrations folder (only run this once ever)
 flask db init
 
-# Create migration script
+# 2. Create the first migration script
 flask db migrate -m "Initial migration"
 
-# Apply migrations
+# 3. Apply the migration to create all tables
 flask db upgrade
 
-# Create default admin user (admin/admin123)
+# 4. Create the default admin user (admin/admin123)
 flask init-db
 ```
 
 ## Usage
-Run the application:
+To run the application, use the Flask CLI:
 
 ```bash
+
 flask run
 ```
+The application will be available at http://127.0.0.1:5000.
 
-Access the application at `http://127.0.0.1:5000`.
-
-**Default Credentials:**
-- Username: `admin`
-- Password: `admin123` (Change immediately after login)
-
-## Documentation
-For more detailed information, please refer to the `documentation/` directory:
-- [Database Structure](documentation/database_structure.md)
-- [Workflows](documentation/workflows.md)
+* Default Login:
+  + Username: admin
+  + Password: admin123 (It's recommended to change this)
