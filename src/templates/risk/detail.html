@@ -32,6 +32,10 @@
                     role="tab">Affected Items</button>
             </li>
             <li class="nav-item" role="presentation">
+                <button class="nav-link" id="context-tab" data-bs-toggle="tab" data-bs-target="#context" type="button"
+                    role="tab">Context</button>
+            </li>
+            <li class="nav-item" role="presentation">
                 <button class="nav-link" id="attachments-tab" data-bs-toggle="tab" data-bs-target="#attachments"
                     type="button" role="tab">Attachments</button>
             </li>
@@ -284,6 +288,68 @@
                 </div>
             </div>
 
+            <!-- Context & References Tab -->
+            <div class="tab-pane fade" id="context" role="tabpanel">
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-journal-bookmark"></i> Context & References</h5>
+                        <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal"
+                            data-bs-target="#addReferenceModal">
+                            <i class="bi bi-plus-circle"></i> Add Reference
+                        </button>
+                    </div>
+                    <div class="card-body p-0">
+                        <ul class="list-group list-group-flush">
+                            {% for ref in risk.references %}
+                            {% set item = ref.item %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div class="d-flex align-items-center">
+                                    <div class="me-3">
+                                        {% if ref.linkable_type == 'Policy' %}
+                                        <i class="bi bi-file-earmark-text fs-4 text-primary"></i>
+                                        {% elif ref.linkable_type == 'Documentation' %}
+                                        <i class="bi bi-journal-text fs-4 text-success"></i>
+                                        {% elif ref.linkable_type == 'Link' %}
+                                        <i class="bi bi-link-45deg fs-4 text-warning"></i>
+                                        {% else %}
+                                        <i class="bi bi-file fs-4 text-muted"></i>
+                                        {% endif %}
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-0">
+                                            {% if ref.linkable_type == 'Policy' and item %}
+                                            <a href="{{ url_for('policies.policy_detail', id=item.id) }}">{{ item.title
+                                                }}</a>
+                                            {% elif ref.linkable_type == 'Documentation' and item %}
+                                            <a href="{{ url_for('documentation.documentation_detail', id=item.id) }}">{{
+                                                item.name }}</a>
+                                            {% elif ref.linkable_type == 'Link' and item %}
+                                            <a href="{{ item.url }}" target="_blank">{{ item.name }} <i
+                                                    class="bi bi-box-arrow-up-right small"></i></a>
+                                            {% else %}
+                                            Reference #{{ ref.linkable_id }}
+                                            {% endif %}
+                                        </h6>
+                                        <small class="text-muted">{{ ref.linkable_type }}</small>
+                                    </div>
+                                </div>
+
+                                <form action="{{ url_for('risk.remove_reference', ref_id=ref.id) }}" method="POST"
+                                    onsubmit="return confirm('Remove this reference?');">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger border-0">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </li>
+                            {% else %}
+                            <li class="list-group-item text-muted p-3">No references linked. Add policies,
+                                documentation, or links to provide context for this risk.</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
             <!-- Attachments Tab -->
             <div class="tab-pane fade" id="attachments" role="tabpanel">
                 <div class="card mb-4">
@@ -381,6 +447,42 @@
     </div>
 </div>
 
+<!-- Add Reference Modal -->
+<div class="modal fade" id="addReferenceModal" tabindex="-1" aria-labelledby="addReferenceModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addReferenceModalLabel">Add Reference</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('risk.add_reference', id=risk.id) }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="ref_linkable_type" class="form-label">Reference Type</label>
+                        <select class="form-select no-tom" id="ref_linkable_type" name="linkable_type" required>
+                            <option value="">Select type...</option>
+                            <option value="Policy">Policy</option>
+                            <option value="Documentation">Documentation</option>
+                            <option value="Link">External Link</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="ref_linkable_id" class="form-label">Select Reference</label>
+                        <select class="form-select no-tom" id="ref_linkable_id" name="linkable_id" required disabled>
+                            <option value="">Select type first...</option>
+                        </select>
+                        <div class="form-text">Choose the policy, document, or link to reference.</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="addRefSubmit" disabled>Add Reference</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% block scripts_extra %}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
@@ -451,6 +553,75 @@
             itemSelect.innerHTML = '<option value="">Select type first...</option>';
             itemSelect.disabled = true;
             submitBtn.disabled = true;
+        });
+
+        // --- Reference Modal Logic ---
+        const refTypeSelect = document.getElementById('ref_linkable_type');
+        const refItemSelect = document.getElementById('ref_linkable_id');
+        const refSubmitBtn = document.getElementById('addRefSubmit');
+
+        let refTomSelect = null;
+
+        refTypeSelect.addEventListener('change', async function () {
+            const type = this.value;
+
+            // Reset reference selector
+            if (refTomSelect) {
+                refTomSelect.destroy();
+                refTomSelect = null;
+            }
+
+            refItemSelect.innerHTML = '<option value="">Loading...</option>';
+            refItemSelect.disabled = true;
+            refSubmitBtn.disabled = true;
+
+            if (!type) {
+                refItemSelect.innerHTML = '<option value="">Select type first...</option>';
+                return;
+            }
+
+            try {
+                const response = await fetch(`{{ url_for('risk.api_get_references', ref_type='__TYPE__') }}`.replace('__TYPE__', type));
+                const items = await response.json();
+
+                // Clear and populate
+                refItemSelect.innerHTML = '<option value="">Select a reference...</option>';
+                items.forEach(item => {
+                    const opt = document.createElement('option');
+                    opt.value = item.id;
+                    opt.textContent = `${item.name} (${item.detail || ''})`;
+                    refItemSelect.appendChild(opt);
+                });
+
+                refItemSelect.disabled = false;
+
+                // Initialize TomSelect for better UX
+                refTomSelect = new TomSelect(refItemSelect, {
+                    create: false,
+                    sortField: { field: "text", direction: "asc" },
+                    placeholder: 'Search and select...',
+                    onChange: function (value) {
+                        refSubmitBtn.disabled = !value;
+                    }
+                });
+
+            } catch (error) {
+                console.error('Failed to load references:', error);
+                refItemSelect.innerHTML = '<option value="">Failed to load references</option>';
+            }
+        });
+
+        // Reset reference modal on close
+        const refModal = document.getElementById('addReferenceModal');
+        refModal.addEventListener('hidden.bs.modal', function () {
+            refTypeSelect.value = '';
+            if (refTomSelect) {
+                refTomSelect.destroy();
+                refTomSelect = null;
+            }
+            refItemSelect.innerHTML = '<option value="">Select type first...</option>';
+            refItemSelect.disabled = true;
+            refSubmitBtn.disabled = true;
         });
     });
 </script>

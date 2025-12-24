@@ -205,6 +205,37 @@ class RiskAffectedItem(db.Model):
             return model.query.get(self.linkable_id)
         return None
 
+
+class RiskReference(db.Model):
+    """
+    Polymorphic association table for linking Risk to context/reference objects.
+    Restricted to Policy, Documentation, and Link types.
+    """
+    __tablename__ = 'risk_reference'
+    id = db.Column(db.Integer, primary_key=True)
+    risk_id = db.Column(db.Integer, db.ForeignKey('risk.id'), nullable=False)
+    linkable_type = db.Column(db.String(50), nullable=False)  # 'Policy', 'Documentation', 'Link'
+    linkable_id = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    @property
+    def item(self):
+        """Resolves the polymorphic relationship to the reference object."""
+        from .core import Link, Documentation
+        from .policy import Policy
+        
+        model_map = {
+            'Policy': Policy,
+            'Documentation': Documentation,
+            'Link': Link,
+        }
+        
+        model = model_map.get(self.linkable_type)
+        if model:
+            return model.query.get(self.linkable_id)
+        return None
+
+
 # Standard CIA Triad + Extended risk categories
 RISK_CATEGORIES = [
     'Confidentiality', 'Integrity', 'Availability',
@@ -258,6 +289,9 @@ class Risk(db.Model):
     
     # Relationships
     affected_items = db.relationship('RiskAffectedItem', backref='risk', lazy='dynamic', cascade='all, delete-orphan')
+    
+    # Context & References (Policy, Documentation, Link)
+    references = db.relationship('RiskReference', backref='risk', lazy='dynamic', cascade='all, delete-orphan')
     
     # Multiple categories (CIA Triad + extended)
     categories = db.relationship(

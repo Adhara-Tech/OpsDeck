@@ -2,9 +2,12 @@ from flask import (
     Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 )
 from ..models import db, Risk, User, Asset, RiskCategory, RISK_CATEGORIES, RISK_CATEGORY_COLORS, RiskAffectedItem
+from ..models.security import RiskReference
 from ..models.activities import SecurityActivity
 from ..models.auth import Group
 from ..models.procurement import Subscription
+from ..models.policy import Policy
+from ..models.core import Documentation, Link
 from .main import login_required
 from .admin import admin_required
 from datetime import datetime
@@ -424,3 +427,93 @@ def api_get_items(item_type):
         items = [{'id': r.id, 'name': r.name, 'detail': r.supplier.name if r.supplier else 'N/A'} for r in records]
     
     return jsonify(items)
+
+
+@risk_bp.route('/api/references/<ref_type>')
+@login_required
+def api_get_references(ref_type):
+    """API endpoint to fetch reference items by type for dynamic selector."""
+    model_map = {
+        'Policy': Policy,
+        'Documentation': Documentation,
+        'Link': Link
+    }
+    
+    model = model_map.get(ref_type)
+    if not model:
+        return jsonify([])
+    
+    items = []
+    if ref_type == 'Policy':
+        records = model.query.order_by(model.title).all()
+        items = [{'id': r.id, 'name': r.title, 'detail': r.category or 'General'} for r in records]
+    elif ref_type == 'Documentation':
+        records = model.query.order_by(model.name).all()
+        items = [{'id': r.id, 'name': r.name, 'detail': r.description[:50] + '...' if r.description and len(r.description) > 50 else (r.description or 'No description')} for r in records]
+    elif ref_type == 'Link':
+        records = model.query.order_by(model.name).all()
+        items = [{'id': r.id, 'name': r.name, 'detail': r.url[:40] + '...' if len(r.url) > 40 else r.url} for r in records]
+    
+    return jsonify(items)
+
+
+@risk_bp.route('/<int:id>/references/add', methods=['POST'])
+@login_required
+@admin_required
+def add_reference(id):
+    """Add a reference (Policy, Documentation, Link) to a risk."""
+    risk = Risk.query.get_or_404(id)
+    linkable_type = request.form.get('linkable_type')
+    linkable_id = request.form.get('linkable_id')
+    
+    if not linkable_type or not linkable_id:
+        flash('Invalid reference selected.', 'danger')
+        return redirect(url_for('risk.detail', id=id))
+
+    # Check if already exists
+    exists = RiskReference.query.filter_by(
+        risk_id=risk.id,
+        linkable_type=linkable_type,
+        linkable_id=linkable_id
+    ).first()
+    
+    if exists:
+        flash('Reference is already linked to this risk.', 'warning')
+        return redirect(url_for('risk.detail', id=id))
+        
+    # Verify existence of the target object
+    model_map = {
+        'Policy': Policy,
+        'Documentation': Documentation,
+        'Link': Link
+    }
+    
+    model = model_map.get(linkable_type)
+    if not model:
+        flash(f'Unsupported reference type: {linkable_type}', 'danger')
+        return redirect(url_for('risk.detail', id=id))
+        
+    target = model.query.get(linkable_id)
+    if not target:
+        flash('Target reference not found.', 'danger')
+        return redirect(url_for('risk.detail', id=id))
+        
+    ref = RiskReference(risk_id=risk.id, linkable_type=linkable_type, linkable_id=linkable_id)
+    db.session.add(ref)
+    db.session.commit()
+    
+    flash('Reference added successfully.', 'success')
+    return redirect(url_for('risk.detail', id=id))
+
+
+@risk_bp.route('/references/<int:ref_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def remove_reference(ref_id):
+    """Remove a reference from a risk."""
+    ref = RiskReference.query.get_or_404(ref_id)
+    risk_id = ref.risk_id
+    db.session.delete(ref)
+    db.session.commit()
+    flash('Reference removed.', 'success')
+    return redirect(url_for('risk.detail', id=risk_id))
