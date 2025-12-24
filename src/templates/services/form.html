@@ -41,9 +41,16 @@
                             </select>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label for="cost_center" class="form-label">Cost Center</label>
-                            <input type="text" class="form-control" id="cost_center" name="cost_center"
-                                value="{{ service.cost_center if service else '' }}">
+                            <label for="cost_center_id" class="form-label">Cost Center</label>
+                            <select class="form-select tom-select" id="cost_center_id" name="cost_center_id">
+                                <option value="">Select Cost Center...</option>
+                                {% for cc in cost_centers %}
+                                <option value="{{ cc.id }}" {% if service and service.cost_center_id==cc.id %}selected{%
+                                    endif %}>
+                                    {{ cc.code }} - {{ cc.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
                         </div>
                     </div>
 

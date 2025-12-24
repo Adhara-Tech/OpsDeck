@@ -23,7 +23,8 @@ class BusinessService(db.Model):
     # Classification
     criticality = db.Column(db.String(50)) # 'Tier 1 - Critical', 'Tier 2 - High', 'Tier 3 - Standard'
     status = db.Column(db.String(50), default='Operational') # 'Pipeline', 'Operational', 'Retired'
-    cost_center = db.Column(db.String(100))
+    legacy_cost_center = db.Column(db.String(100))  # Preserved for migration
+    cost_center_id = db.Column(db.Integer, db.ForeignKey('cost_center.id'), nullable=True)
     
     # SLAs
     sla_response_hours = db.Column(db.Integer)
@@ -33,7 +34,11 @@ class BusinessService(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
+    cost_center = db.relationship('CostCenter', backref='services')
     components = db.relationship('ServiceComponent', backref='service', lazy='dynamic', cascade='all, delete-orphan')
+    documents = db.relationship('Documentation', secondary='service_documentation', backref='services')
+    policies = db.relationship('Policy', secondary='service_policies', backref='services')
+    activities = db.relationship('SecurityActivity', secondary='service_activities', backref='services')
 
     # Dependencies:
     # upstream_dependencies: Services I depend on.

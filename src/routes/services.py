@@ -1,9 +1,17 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, current_app
+from werkzeug.utils import secure_filename
 from .main import login_required
 from ..models.services import BusinessService, ServiceComponent
 from ..models.auth import User
+from ..models.core import CostCenter, Documentation, Link, Attachment
+from ..models.assets import Asset, Software, License
+from ..models.procurement import Supplier, Subscription
+from ..models.policy import Policy
+from ..models.activities import SecurityActivity
 from ..extensions import db
 from datetime import datetime
+import os
+import uuid
 
 services_bp = Blueprint('services', __name__, 
                         template_folder='../templates/services', # Relative to src/routes
@@ -26,7 +34,7 @@ def create_service():
         status = request.form.get('status')
         sla_response = request.form.get('sla_response_hours')
         sla_resolution = request.form.get('sla_resolution_hours')
-        cost_center = request.form.get('cost_center')
+        cost_center_id = request.form.get('cost_center_id')
         
         service = BusinessService(
             name=name,
@@ -36,7 +44,7 @@ def create_service():
             status=status,
             sla_response_hours=int(sla_response) if sla_response else None,
             sla_resolution_hours=int(sla_resolution) if sla_resolution else None,
-            cost_center=cost_center
+            cost_center_id=int(cost_center_id) if cost_center_id else None
         )
         
         try:
@@ -49,16 +57,35 @@ def create_service():
             flash(f'Error creating service: {str(e)}', 'danger')
     
     users = User.query.all()
-    return render_template('services/form.html', users=users, service=None)
+    cost_centers = CostCenter.query.order_by(CostCenter.code).all()
+    return render_template('services/form.html', users=users, service=None, cost_centers=cost_centers)
 
 @services_bp.route('/<int:id>')
 @login_required
 def detail(id):
     service = BusinessService.query.get_or_404(id)
     all_services = BusinessService.query.filter(BusinessService.id != id).all()
-    # For polymorphic modal: pass lists of potential components if feasible, 
-    # or implement dynamic loading via JS. For MVP, we might just pass types.
-    return render_template('services/detail.html', service=service, all_services=all_services)
+    
+    # Context data for Service Context tab
+    all_documents = Documentation.query.order_by(Documentation.name).all()
+    all_policies = Policy.query.order_by(Policy.title).all()
+    all_activities = SecurityActivity.query.order_by(SecurityActivity.name).all()
+    
+    # Query polymorphic links and attachments for this service
+    service_links = Link.query.filter_by(owner_type='BusinessService', owner_id=id).all()
+    service_attachments = Attachment.query.filter_by(linkable_type='BusinessService', linkable_id=id).all()
+    
+    return render_template('services/detail.html', 
+        service=service, 
+        all_services=all_services,
+        all_documents=all_documents,
+        all_policies=all_policies,
+        all_activities=all_activities,
+        service_links=service_links,
+        service_attachments=service_attachments,
+        service_policies=service.policies,
+        service_activities=service.activities
+    )
 
 @services_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -78,7 +105,8 @@ def edit_service(id):
         sla_res = request.form.get('sla_resolution_hours')
         service.sla_resolution_hours = int(sla_res) if sla_res else None
         
-        service.cost_center = request.form.get('cost_center')
+        cost_center_id = request.form.get('cost_center_id')
+        service.cost_center_id = int(cost_center_id) if cost_center_id else None
         
         try:
             db.session.commit()
@@ -89,7 +117,8 @@ def edit_service(id):
             flash(f'Error updating service: {str(e)}', 'danger')
             
     users = User.query.all()
-    return render_template('services/form.html', users=users, service=service)
+    cost_centers = CostCenter.query.order_by(CostCenter.code).all()
+    return render_template('services/form.html', users=users, service=service, cost_centers=cost_centers)
 
 @services_bp.route('/<int:id>/delete', methods=['POST'])
 @login_required
@@ -217,3 +246,212 @@ def delete_component(comp_id):
         db.session.rollback()
         flash(f'Error removing component: {str(e)}', 'danger')
     return redirect(url_for('services.detail', id=service_id))
+
+
+@services_bp.route('/api/search-components/<component_type>')
+@login_required
+def search_components(component_type):
+    """Search infrastructure components by type for TomSelect remote mode."""
+    q = request.args.get('q', '').strip().lower()
+    
+    # Map component types to their models and display field
+    model_map = {
+        'Asset': (Asset, 'name'),
+        'Software': (Software, 'name'),
+        'License': (License, 'name'),
+        'Supplier': (Supplier, 'name'),
+        'Subscription': (Subscription, 'name'),
+    }
+    
+    if component_type not in model_map:
+        return jsonify([])
+    
+    model, name_field = model_map[component_type]
+    
+    # Query with optional search filter
+    query = model.query
+    if q:
+        query = query.filter(getattr(model, name_field).ilike(f'%{q}%'))
+    
+    # Limit results for performance
+    items = query.limit(50).all()
+    
+    # Format for TomSelect: [{id: x, text: y}, ...]
+    results = []
+    for item in items:
+        display_name = getattr(item, name_field, None) or f'{component_type} #{item.id}'
+        results.append({
+            'id': item.id,
+            'text': display_name
+        })
+    
+    return jsonify(results)
+
+
+# --- Service Context Routes ---
+
+@services_bp.route('/<int:id>/link-document', methods=['POST'])
+@login_required
+def link_document(id):
+    service = BusinessService.query.get_or_404(id)
+    doc_id = request.form.get('document_id')
+    if doc_id:
+        doc = Documentation.query.get(doc_id)
+        if doc and doc not in service.documents:
+            service.documents.append(doc)
+            db.session.commit()
+            flash('Documentation linked.', 'success')
+    return redirect(url_for('services.detail', id=id))
+
+
+@services_bp.route('/<int:id>/unlink-document/<int:doc_id>', methods=['POST'])
+@login_required
+def unlink_document(id, doc_id):
+    service = BusinessService.query.get_or_404(id)
+    doc = Documentation.query.get(doc_id)
+    if doc and doc in service.documents:
+        service.documents.remove(doc)
+        db.session.commit()
+        flash('Documentation unlinked.', 'success')
+    return redirect(url_for('services.detail', id=id))
+
+
+@services_bp.route('/<int:id>/link-policy', methods=['POST'])
+@login_required
+def link_policy(id):
+    service = BusinessService.query.get_or_404(id)
+    policy_id = request.form.get('policy_id')
+    if policy_id:
+        policy = Policy.query.get(policy_id)
+        if policy and policy not in service.policies:
+            service.policies.append(policy)
+            db.session.commit()
+            flash('Policy linked.', 'success')
+    return redirect(url_for('services.detail', id=id))
+
+
+@services_bp.route('/<int:id>/unlink-policy/<int:policy_id>', methods=['POST'])
+@login_required
+def unlink_policy(id, policy_id):
+    service = BusinessService.query.get_or_404(id)
+    policy = Policy.query.get(policy_id)
+    if policy and policy in service.policies:
+        service.policies.remove(policy)
+        db.session.commit()
+        flash('Policy unlinked.', 'success')
+    return redirect(url_for('services.detail', id=id))
+
+
+@services_bp.route('/<int:id>/link-activity', methods=['POST'])
+@login_required
+def link_activity(id):
+    service = BusinessService.query.get_or_404(id)
+    activity_id = request.form.get('activity_id')
+    if activity_id:
+        activity = SecurityActivity.query.get(activity_id)
+        if activity and activity not in service.activities:
+            service.activities.append(activity)
+            db.session.commit()
+            flash('Security activity linked.', 'success')
+    return redirect(url_for('services.detail', id=id))
+
+
+@services_bp.route('/<int:id>/unlink-activity/<int:activity_id>', methods=['POST'])
+@login_required
+def unlink_activity(id, activity_id):
+    service = BusinessService.query.get_or_404(id)
+    activity = SecurityActivity.query.get(activity_id)
+    if activity and activity in service.activities:
+        service.activities.remove(activity)
+        db.session.commit()
+        flash('Security activity unlinked.', 'success')
+    return redirect(url_for('services.detail', id=id))
+
+
+@services_bp.route('/<int:id>/add-link', methods=['POST'])
+@login_required
+def add_link(id):
+    service = BusinessService.query.get_or_404(id)
+    name = request.form.get('name')
+    url = request.form.get('url')
+    
+    if name and url:
+        link = Link(
+            name=name,
+            url=url,
+            owner_type='BusinessService',
+            owner_id=id
+        )
+        db.session.add(link)
+        db.session.commit()
+        flash('External link added.', 'success')
+    return redirect(url_for('services.detail', id=id))
+
+
+@services_bp.route('/<int:id>/remove-link/<int:link_id>', methods=['POST'])
+@login_required
+def remove_link(id, link_id):
+    link = Link.query.get_or_404(link_id)
+    if link.owner_type == 'BusinessService' and link.owner_id == id:
+        db.session.delete(link)
+        db.session.commit()
+        flash('External link removed.', 'success')
+    return redirect(url_for('services.detail', id=id))
+
+
+@services_bp.route('/<int:id>/upload-attachment', methods=['POST'])
+@login_required
+def upload_attachment(id):
+    service = BusinessService.query.get_or_404(id)
+    
+    if 'file' not in request.files:
+        flash('No file selected.', 'warning')
+        return redirect(url_for('services.detail', id=id))
+    
+    file = request.files['file']
+    if file.filename == '':
+        flash('No file selected.', 'warning')
+        return redirect(url_for('services.detail', id=id))
+    
+    # Secure the filename and generate a unique stored name
+    original_filename = file.filename
+    ext = os.path.splitext(original_filename)[1]
+    stored_filename = f"{uuid.uuid4().hex}{ext}"
+    
+    # Save to uploads directory
+    upload_dir = os.path.join(current_app.root_path, '..', 'data', 'uploads')
+    os.makedirs(upload_dir, exist_ok=True)
+    file_path = os.path.join(upload_dir, stored_filename)
+    file.save(file_path)
+    
+    # Create attachment record
+    attachment = Attachment(
+        filename=original_filename,
+        secure_filename=stored_filename,
+        linkable_type='BusinessService',
+        linkable_id=id
+    )
+    db.session.add(attachment)
+    db.session.commit()
+    flash('File uploaded successfully.', 'success')
+    
+    return redirect(url_for('services.detail', id=id))
+
+
+@services_bp.route('/<int:id>/remove-attachment/<int:att_id>', methods=['POST'])
+@login_required
+def remove_attachment(id, att_id):
+    attachment = Attachment.query.get_or_404(att_id)
+    if attachment.linkable_type == 'BusinessService' and attachment.linkable_id == id:
+        # Optionally delete the file from disk
+        try:
+            file_path = os.path.join(current_app.root_path, '..', 'data', 'uploads', attachment.secure_filename)
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        except Exception:
+            pass  # File deletion is best-effort
+        
+        db.session.delete(attachment)
+        db.session.commit()
+        flash('Attachment removed.', 'success')
+    return redirect(url_for('services.detail', id=id))
