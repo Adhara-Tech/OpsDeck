@@ -120,6 +120,8 @@ def create_app():
     app.register_blueprint(audits_bp)
     from .routes.services import services_bp
     app.register_blueprint(services_bp)
+    from .routes.cost_centers import cost_centers_bp
+    app.register_blueprint(cost_centers_bp, url_prefix='/cost-centers')
     app.register_blueprint(links_bp, url_prefix='/links')
     app.register_blueprint(activities_bp, url_prefix='/security/activities')
 
