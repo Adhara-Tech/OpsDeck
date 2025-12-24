@@ -50,14 +50,16 @@
                             </div>
 
                             <div class="mb-3">
-                                <label for="asset_ids" class="form-label">Affected Assets</label>
-                                <select class="form-select" id="asset_ids" name="asset_ids" multiple>
-                                    {% for asset in assets %}
-                                    <option value="{{ asset.id }}" {% if risk and asset in risk.assets %}selected{%
-                                        endif %}>{{ asset.name }} ({{ asset.serial_number }})</option>
+                                <label for="category_ids" class="form-label">Categories (CIA Triad)</label>
+                                <select class="form-select" id="category_ids" name="category_ids" multiple size="4">
+                                    {% set selected_categories = risk.category_list if risk else [] %}
+                                    {% for cat in risk_categories %}
+                                    <option value="{{ cat }}" {% if cat in selected_categories %}selected{% endif %}>{{
+                                        cat }}</option>
                                     {% endfor %}
                                 </select>
-                                <div class="form-text">Hold Ctrl/Cmd to select multiple assets.</div>
+                                <div class="form-text">Hold Ctrl/Cmd to select multiple. Maps to CIA Triad + extended
+                                    categories.</div>
                             </div>
                         </div>
 
@@ -157,6 +159,22 @@
                                     <input type="url" class="form-control" id="link" name="link"
                                         value="{{ risk.link if risk else '' }}">
                                 </div>
+                                <div class="col-12 mt-3">
+                                    <label for="mitigation_activity_ids" class="form-label">Mitigation
+                                        Activities</label>
+                                    <select class="form-select" id="mitigation_activity_ids"
+                                        name="mitigation_activity_ids" multiple size="4">
+                                        {% set selected_activities = risk.mitigation_activities.all() if risk else [] %}
+                                        {% for activity in activities %}
+                                        <option value="{{ activity.id }}" {% if activity in selected_activities
+                                            %}selected{% endif %}>
+                                            {{ activity.name }} ({{ activity.frequency or 'N/A' }})
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    <div class="form-text">Link security activities that mitigate this risk (e.g.,
+                                        Pentesting, Access Reviews).</div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -170,7 +188,8 @@
                     <h5 class="card-title">Actions</h5>
                     <div class="d-grid gap-2">
                         <button type="submit" class="btn btn-primary">Save Risk</button>
-                        <a href="{{ url_for('risk.list_risks') }}" class="btn btn-outline-secondary">Cancel</a>
+                        <a href="{{ url_for('risk.detail', id=risk.id) if risk else url_for('risk.list_risks') }}"
+                            class="btn btn-outline-secondary">Cancel</a>
                     </div>
                 </div>
             </div>

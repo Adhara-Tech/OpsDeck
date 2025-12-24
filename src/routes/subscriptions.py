@@ -3,7 +3,7 @@ from flask import (
 )
 from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
-from ..models import db, Subscription, Supplier, Contact, PaymentMethod, Tag, CostHistory, CURRENCY_RATES, Software
+from ..models import db, Subscription, Supplier, Contact, PaymentMethod, Tag, CostHistory, CURRENCY_RATES, Software, Budget
 from .main import login_required
 
 subscriptions_bp = Blueprint('subscriptions', __name__)
@@ -83,18 +83,35 @@ def new_subscription():
     software_items = Software.query.filter_by(is_archived=False).order_by(Software.name).all()
 
     if request.method == 'POST':
+        renewal_date = datetime.strptime(request.form['renewal_date'], '%Y-%m-%d').date()
+        budget_id = request.form.get('budget_id') or None
+        
+        # Validate budget validity period if budget is selected
+        if budget_id:
+            budget = Budget.query.get(budget_id)
+            if budget and not budget.is_active(renewal_date):
+                flash('Error: This subscription renewal date is outside the selected Budget\'s validity period.', 'danger')
+                return render_template('subscriptions/form.html',
+                                        suppliers=Supplier.query.order_by(Supplier.name).all(),
+                                        contacts=Contact.query.order_by(Contact.name).all(),
+                                        payment_methods=PaymentMethod.query.order_by(PaymentMethod.name).all(),
+                                        tags=Tag.query.order_by(Tag.name).all(),
+                                        software_items=software_items,
+                                        budgets=Budget.query.order_by(Budget.name).all())
+        
         subscription = Subscription(
             name=request.form['name'],
             subscription_type=request.form['subscription_type'],
             description=request.form.get('description'),
-            renewal_date=datetime.strptime(request.form['renewal_date'], '%Y-%m-%d').date(),
+            renewal_date=renewal_date,
             renewal_period_type=request.form['renewal_period_type'],
             renewal_period_value=int(request.form.get('renewal_period_value', 1)),
             auto_renew='auto_renew' in request.form,
             cost=float(request.form['cost']),
             currency=request.form['currency'],
             supplier_id=request.form.get('supplier_id') or None,
-            software_id=request.form.get('software_id') or None
+            software_id=request.form.get('software_id') or None,
+            budget_id=budget_id
         )
 
         if subscription.renewal_period_type == 'monthly':
@@ -131,7 +148,8 @@ def new_subscription():
                             contacts=Contact.query.order_by(Contact.name).all(),
                             payment_methods=PaymentMethod.query.order_by(PaymentMethod.name).all(),
                             tags=Tag.query.order_by(Tag.name).all(),
-                            software_items=software_items)
+                            software_items=software_items,
+                            budgets=Budget.query.order_by(Budget.name).all())
 
 @subscriptions_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -140,6 +158,23 @@ def edit_subscription(id):
     software_items = Software.query.filter_by(is_archived=False).order_by(Software.name).all()
 
     if request.method == 'POST':
+        renewal_date = datetime.strptime(request.form['renewal_date'], '%Y-%m-%d').date()
+        budget_id = request.form.get('budget_id') or None
+        
+        # Validate budget validity period if budget is selected
+        if budget_id:
+            budget = Budget.query.get(budget_id)
+            if budget and not budget.is_active(renewal_date):
+                flash('Error: This subscription renewal date is outside the selected Budget\'s validity period.', 'danger')
+                return render_template('subscriptions/form.html',
+                                        subscription=subscription,
+                                        suppliers=Supplier.query.order_by(Supplier.name).all(),
+                                        contacts=Contact.query.order_by(Contact.name).all(),
+                                        payment_methods=PaymentMethod.query.order_by(PaymentMethod.name).all(),
+                                        tags=Tag.query.order_by(Tag.name).all(),
+                                        software_items=software_items,
+                                        budgets=Budget.query.order_by(Budget.name).all())
+        
         new_cost = float(request.form['cost'])
         new_currency = request.form['currency']
 
@@ -152,7 +187,7 @@ def edit_subscription(id):
         subscription.name = request.form['name']
         subscription.subscription_type = request.form['subscription_type']
         subscription.description = request.form.get('description')
-        subscription.renewal_date = datetime.strptime(request.form['renewal_date'], '%Y-%m-%d').date()
+        subscription.renewal_date = renewal_date
         subscription.renewal_period_type = request.form['renewal_period_type']
         subscription.renewal_period_value = int(request.form.get('renewal_period_value', 1))
         subscription.auto_renew = 'auto_renew' in request.form
@@ -160,6 +195,7 @@ def edit_subscription(id):
         subscription.currency = new_currency
         subscription.supplier_id = request.form.get('supplier_id') or None
         subscription.software_id = request.form.get('software_id') or None
+        subscription.budget_id = budget_id
         subscription.monthly_renewal_day = None
         if subscription.renewal_period_type == 'monthly':
             selector = request.form.get('monthly_renewal_day_selector')
@@ -193,7 +229,8 @@ def edit_subscription(id):
                             contacts=Contact.query.order_by(Contact.name).all(),
                             payment_methods=PaymentMethod.query.order_by(PaymentMethod.name).all(),
                             tags=Tag.query.order_by(Tag.name).all(),
-                            software_items=software_items)
+                            software_items=software_items,
+                            budgets=Budget.query.order_by(Budget.name).all())
 
 @subscriptions_bp.route('/<int:id>/delete', methods=['POST'])
 @login_required

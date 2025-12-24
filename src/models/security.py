@@ -155,9 +155,112 @@ class IncidentTimelineEvent(db.Model):
     description = db.Column(db.Text, nullable=False)
     order = db.Column(db.Integer, nullable=False, default=0)
 
-risk_assets = db.Table('risk_assets',
+class RiskAffectedItem(db.Model):
+    __tablename__ = 'risk_affected_item'
+    id = db.Column(db.Integer, primary_key=True)
+    risk_id = db.Column(db.Integer, db.ForeignKey('risk.id'), nullable=False)
+    linkable_type = db.Column(db.String(50), nullable=False)
+    linkable_id = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    @property
+    def item(self):
+        # Import models inside to avoid circular imports
+        from .assets import Asset, Peripheral, Software, License, MaintenanceLog
+        from .procurement import Supplier, Purchase, Budget, Subscription
+        from .core import Link, Documentation
+        from .auth import User, Group
+        from .policy import Policy
+        from .training import Course
+        from .bcdr import BCDRPlan
+        from .activities import SecurityActivity, ActivityExecution
+        
+        model_map = {
+            'User': User,
+            'Group': Group,
+            'Asset': Asset,
+            'Peripheral': Peripheral,
+            'Software': Software,
+            'License': License,
+            'MaintenanceLog': MaintenanceLog,
+            'Supplier': Supplier,
+            'Purchase': Purchase,
+            'Budget': Budget,
+            'Subscription': Subscription,
+            'Link': Link,
+            'Documentation': Documentation,
+            'Policy': Policy,
+            'Course': Course,
+            'BCDRPlan': BCDRPlan,
+            'SecurityActivity': SecurityActivity,
+            'ActivityExecution': ActivityExecution,
+            'SecurityIncident': SecurityIncident,
+            'SecurityAssessment': SecurityAssessment,
+            'Risk': Risk,
+            'AssetInventory': AssetInventory
+        }
+        
+        model = model_map.get(self.linkable_type)
+        if model:
+            return model.query.get(self.linkable_id)
+        return None
+
+
+class RiskReference(db.Model):
+    """
+    Polymorphic association table for linking Risk to context/reference objects.
+    Restricted to Policy, Documentation, and Link types.
+    """
+    __tablename__ = 'risk_reference'
+    id = db.Column(db.Integer, primary_key=True)
+    risk_id = db.Column(db.Integer, db.ForeignKey('risk.id'), nullable=False)
+    linkable_type = db.Column(db.String(50), nullable=False)  # 'Policy', 'Documentation', 'Link'
+    linkable_id = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    @property
+    def item(self):
+        """Resolves the polymorphic relationship to the reference object."""
+        from .core import Link, Documentation
+        from .policy import Policy
+        
+        model_map = {
+            'Policy': Policy,
+            'Documentation': Documentation,
+            'Link': Link,
+        }
+        
+        model = model_map.get(self.linkable_type)
+        if model:
+            return model.query.get(self.linkable_id)
+        return None
+
+
+# Standard CIA Triad + Extended risk categories
+RISK_CATEGORIES = [
+    'Confidentiality', 'Integrity', 'Availability',
+    'Traceability', 'Authenticity', 'Legal', 'Reputational'
+]
+
+# Category color mapping for UI
+RISK_CATEGORY_COLORS = {
+    'Confidentiality': 'danger',
+    'Integrity': 'primary',
+    'Availability': 'warning',
+    'Traceability': 'info',
+    'Authenticity': 'secondary',
+    'Legal': 'dark',
+    'Reputational': 'success'
+}
+
+risk_category_association = db.Table('risk_category_association',
     db.Column('risk_id', db.Integer, db.ForeignKey('risk.id'), primary_key=True),
-    db.Column('asset_id', db.Integer, db.ForeignKey('asset.id'), primary_key=True)
+    db.Column('category', db.String(50), primary_key=True)
+)
+
+risk_mitigation_activities = db.Table('risk_mitigation_activities',
+    db.Column('risk_id', db.Integer, db.ForeignKey('risk.id'), primary_key=True),
+    db.Column('activity_id', db.Integer, db.ForeignKey('security_activity.id'), primary_key=True)
 )
 
 class Risk(db.Model):
@@ -185,7 +288,26 @@ class Risk(db.Model):
     link = db.Column(db.String(512))
     
     # Relationships
-    assets = db.relationship('Asset', secondary=risk_assets, backref='risks', lazy='dynamic')
+    affected_items = db.relationship('RiskAffectedItem', backref='risk', lazy='dynamic', cascade='all, delete-orphan')
+    
+    # Context & References (Policy, Documentation, Link)
+    references = db.relationship('RiskReference', backref='risk', lazy='dynamic', cascade='all, delete-orphan')
+    
+    # Multiple categories (CIA Triad + extended)
+    categories = db.relationship(
+        'RiskCategory',
+        backref='risk',
+        lazy='dynamic',
+        cascade='all, delete-orphan'
+    )
+    
+    # Mitigation activities (Many-to-Many with SecurityActivity)
+    mitigation_activities = db.relationship(
+        'SecurityActivity',
+        secondary=risk_mitigation_activities,
+        backref=db.backref('mitigated_risks', lazy='dynamic'),
+        lazy='dynamic'
+    )
     
     attachments = db.relationship('Attachment',
                             primaryjoin="and_(Risk.id==foreign(Attachment.linkable_id), "
@@ -230,6 +352,28 @@ class Risk(db.Model):
             reduction = self.inherent_score - self.residual_score
             return round((reduction / self.inherent_score) * 100, 1)
         return 0.0
+
+    @property
+    def category_list(self):
+        """Return list of category names for this risk."""
+        return [c.category for c in self.categories]
+
+    @property
+    def affected_asset_ids(self):
+        """Return list of IDs of affected assets."""
+        return [item.linkable_id for item in self.affected_items if item.linkable_type == 'Asset']
+
+    def get_category_colors(self):
+        """Return dict of category name -> Bootstrap color class."""
+        return {c.category: RISK_CATEGORY_COLORS.get(c.category, 'secondary') for c in self.categories}
+
+
+class RiskCategory(db.Model):
+    """Stores multiple categories for a single Risk."""
+    __tablename__ = 'risk_category'
+    id = db.Column(db.Integer, primary_key=True)
+    risk_id = db.Column(db.Integer, db.ForeignKey('risk.id'), nullable=False)
+    category = db.Column(db.String(50), nullable=False)
 
 class SecurityAssessment(db.Model):
     id = db.Column(db.Integer, primary_key=True)

@@ -1,7 +1,13 @@
 from flask import (
-    Blueprint, render_template, request, redirect, url_for, flash, session
+    Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 )
-from ..models import db, Risk, User, Asset
+from ..models import db, Risk, User, Asset, RiskCategory, RISK_CATEGORIES, RISK_CATEGORY_COLORS, RiskAffectedItem
+from ..models.security import RiskReference
+from ..models.activities import SecurityActivity
+from ..models.auth import Group
+from ..models.procurement import Subscription
+from ..models.policy import Policy
+from ..models.core import Documentation, Link
 from .main import login_required
 from .admin import admin_required
 from datetime import datetime
@@ -250,18 +256,35 @@ def new_risk():
         asset_ids = request.form.getlist('asset_ids')
         if asset_ids:
             for asset_id in asset_ids:
-                asset = Asset.query.get(asset_id)
-                if asset:
-                    risk.assets.append(asset)
-
+                # Verify asset exists
+                if Asset.query.get(asset_id):
+                    item = RiskAffectedItem(linkable_type='Asset', linkable_id=asset_id)
+                    risk.affected_items.append(item)
+        
+        # Handle Categories
         db.session.add(risk)
+        db.session.flush()  # Get the risk.id
+        category_names = request.form.getlist('category_ids')
+        for cat_name in category_names:
+            if cat_name in RISK_CATEGORIES:
+                risk_cat = RiskCategory(risk_id=risk.id, category=cat_name)
+                db.session.add(risk_cat)
+        
+        # Handle Mitigation Activities
+        activity_ids = request.form.getlist('mitigation_activity_ids')
+        for activity_id in activity_ids:
+            activity = SecurityActivity.query.get(activity_id)
+            if activity:
+                risk.mitigation_activities.append(activity)
+
         db.session.commit()
         flash('Risk has been successfully logged.', 'success')
         return redirect(url_for('risk.list_risks'))
 
     users = User.query.filter_by(is_archived=False).all()
-    assets = Asset.query.filter_by(is_archived=False).all()
-    return render_template('risk/form.html', users=users, assets=assets)
+    activities = SecurityActivity.query.order_by(SecurityActivity.name).all()
+    return render_template('risk/form.html', users=users, activities=activities,
+                           risk_categories=RISK_CATEGORIES, category_colors=RISK_CATEGORY_COLORS)
 
 @risk_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -290,19 +313,207 @@ def edit_risk(id):
         else:
             risk.next_review_date = None
 
-        # Handle Assets (Clear and Re-add)
-        risk.assets = [] # Clear existing
-        asset_ids = request.form.getlist('asset_ids')
-        if asset_ids:
-            for asset_id in asset_ids:
-                asset = Asset.query.get(asset_id)
-                if asset:
-                    risk.assets.append(asset)
+        # Handle Categories (Clear and Re-add)
+        RiskCategory.query.filter_by(risk_id=risk.id).delete()
+        category_names = request.form.getlist('category_ids')
+        for cat_name in category_names:
+            if cat_name in RISK_CATEGORIES:
+                risk_cat = RiskCategory(risk_id=risk.id, category=cat_name)
+                db.session.add(risk_cat)
+        
+        # Handle Mitigation Activities (Clear and Re-add)
+        risk.mitigation_activities = []
+        activity_ids = request.form.getlist('mitigation_activity_ids')
+        for activity_id in activity_ids:
+            activity = SecurityActivity.query.get(activity_id)
+            if activity:
+                risk.mitigation_activities.append(activity)
 
         db.session.commit()
         flash('Risk has been updated.', 'success')
-        return redirect(url_for('risk.list_risks'))
+        return redirect(url_for('risk.detail', id=risk.id))
 
     users = User.query.filter_by(is_archived=False).all()
-    assets = Asset.query.filter_by(is_archived=False).all()
-    return render_template('risk/form.html', risk=risk, users=users, assets=assets)
+    activities = SecurityActivity.query.order_by(SecurityActivity.name).all()
+    return render_template('risk/form.html', risk=risk, users=users, activities=activities,
+                           risk_categories=RISK_CATEGORIES, category_colors=RISK_CATEGORY_COLORS)
+
+@risk_bp.route('/<int:id>/affected_items/add', methods=['POST'])
+@login_required
+@admin_required
+def add_affected_item(id):
+    risk = Risk.query.get_or_404(id)
+    linkable_type = request.form.get('linkable_type')
+    linkable_id = request.form.get('linkable_id')
+    
+    if not linkable_type or not linkable_id:
+        flash('Invalid item selected.', 'danger')
+        return redirect(url_for('risk.detail', id=id))
+
+    # Check if already exists
+    exists = RiskAffectedItem.query.filter_by(
+        risk_id=risk.id,
+        linkable_type=linkable_type,
+        linkable_id=linkable_id
+    ).first()
+    
+    if exists:
+        flash('Item is already linked to this risk.', 'warning')
+        return redirect(url_for('risk.detail', id=id))
+        
+    # Verify existence of the target object
+    model_map = {
+        'User': User,
+        'Group': Group,
+        'Asset': Asset,
+        'Subscription': Subscription
+    }
+    
+    model = model_map.get(linkable_type)
+    if not model:
+        flash(f'Unsupported item type: {linkable_type}', 'danger')
+        return redirect(url_for('risk.detail', id=id))
+        
+    target = model.query.get(linkable_id)
+    if not target:
+        flash('Target item not found.', 'danger')
+        return redirect(url_for('risk.detail', id=id))
+        
+    item = RiskAffectedItem(risk_id=risk.id, linkable_type=linkable_type, linkable_id=linkable_id)
+    db.session.add(item)
+    db.session.commit()
+    
+    flash('Affected item added successfully.', 'success')
+    return redirect(url_for('risk.detail', id=id))
+
+@risk_bp.route('/affected_items/<int:item_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def remove_affected_item(item_id):
+    item = RiskAffectedItem.query.get_or_404(item_id)
+    risk_id = item.risk_id
+    db.session.delete(item)
+    db.session.commit()
+    flash('Affected item removed.', 'success')
+    return redirect(url_for('risk.detail', id=risk_id))
+
+@risk_bp.route('/api/items/<item_type>')
+@login_required
+def api_get_items(item_type):
+    """API endpoint to fetch items by type for dynamic selector."""
+    model_map = {
+        'User': User,
+        'Group': Group,
+        'Asset': Asset,
+        'Subscription': Subscription
+    }
+    
+    model = model_map.get(item_type)
+    if not model:
+        return jsonify([])
+    
+    items = []
+    if item_type == 'User':
+        records = model.query.filter_by(is_archived=False).order_by(model.name).all()
+        items = [{'id': r.id, 'name': r.name, 'detail': r.email} for r in records]
+    elif item_type == 'Group':
+        records = model.query.order_by(model.name).all()
+        items = [{'id': r.id, 'name': r.name, 'detail': f'{len(r.users)} members'} for r in records]
+    elif item_type == 'Asset':
+        records = model.query.filter_by(is_archived=False).order_by(model.name).all()
+        items = [{'id': r.id, 'name': r.name, 'detail': r.serial_number or r.status} for r in records]
+    elif item_type == 'Subscription':
+        records = model.query.filter_by(is_archived=False).order_by(model.name).all()
+        items = [{'id': r.id, 'name': r.name, 'detail': r.supplier.name if r.supplier else 'N/A'} for r in records]
+    
+    return jsonify(items)
+
+
+@risk_bp.route('/api/references/<ref_type>')
+@login_required
+def api_get_references(ref_type):
+    """API endpoint to fetch reference items by type for dynamic selector."""
+    model_map = {
+        'Policy': Policy,
+        'Documentation': Documentation,
+        'Link': Link
+    }
+    
+    model = model_map.get(ref_type)
+    if not model:
+        return jsonify([])
+    
+    items = []
+    if ref_type == 'Policy':
+        records = model.query.order_by(model.title).all()
+        items = [{'id': r.id, 'name': r.title, 'detail': r.category or 'General'} for r in records]
+    elif ref_type == 'Documentation':
+        records = model.query.order_by(model.name).all()
+        items = [{'id': r.id, 'name': r.name, 'detail': r.description[:50] + '...' if r.description and len(r.description) > 50 else (r.description or 'No description')} for r in records]
+    elif ref_type == 'Link':
+        records = model.query.order_by(model.name).all()
+        items = [{'id': r.id, 'name': r.name, 'detail': r.url[:40] + '...' if len(r.url) > 40 else r.url} for r in records]
+    
+    return jsonify(items)
+
+
+@risk_bp.route('/<int:id>/references/add', methods=['POST'])
+@login_required
+@admin_required
+def add_reference(id):
+    """Add a reference (Policy, Documentation, Link) to a risk."""
+    risk = Risk.query.get_or_404(id)
+    linkable_type = request.form.get('linkable_type')
+    linkable_id = request.form.get('linkable_id')
+    
+    if not linkable_type or not linkable_id:
+        flash('Invalid reference selected.', 'danger')
+        return redirect(url_for('risk.detail', id=id))
+
+    # Check if already exists
+    exists = RiskReference.query.filter_by(
+        risk_id=risk.id,
+        linkable_type=linkable_type,
+        linkable_id=linkable_id
+    ).first()
+    
+    if exists:
+        flash('Reference is already linked to this risk.', 'warning')
+        return redirect(url_for('risk.detail', id=id))
+        
+    # Verify existence of the target object
+    model_map = {
+        'Policy': Policy,
+        'Documentation': Documentation,
+        'Link': Link
+    }
+    
+    model = model_map.get(linkable_type)
+    if not model:
+        flash(f'Unsupported reference type: {linkable_type}', 'danger')
+        return redirect(url_for('risk.detail', id=id))
+        
+    target = model.query.get(linkable_id)
+    if not target:
+        flash('Target reference not found.', 'danger')
+        return redirect(url_for('risk.detail', id=id))
+        
+    ref = RiskReference(risk_id=risk.id, linkable_type=linkable_type, linkable_id=linkable_id)
+    db.session.add(ref)
+    db.session.commit()
+    
+    flash('Reference added successfully.', 'success')
+    return redirect(url_for('risk.detail', id=id))
+
+
+@risk_bp.route('/references/<int:ref_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def remove_reference(ref_id):
+    """Remove a reference from a risk."""
+    ref = RiskReference.query.get_or_404(ref_id)
+    risk_id = ref.risk_id
+    db.session.delete(ref)
+    db.session.commit()
+    flash('Reference removed.', 'success')
+    return redirect(url_for('risk.detail', id=risk_id))

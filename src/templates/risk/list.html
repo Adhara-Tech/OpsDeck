@@ -27,23 +27,45 @@
                     <tr>
                         <th>Description</th>
                         <th>Status</th>
-                        <th>Likelihood</th>
-                        <th>Impact</th>
+                        <th>Inherent</th>
+                        <th>Residual</th>
                         <th>Owner</th>
-                        <th>ISO 27001 Control</th>
+                        <th>Categories</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for risk in risks %}
                     <tr>
-                        <td><a href="{{ url_for('risk.detail', id=risk.id) }}">{{ risk.risk_description|truncate(100)
+                        <td><a href="{{ url_for('risk.detail', id=risk.id) }}">{{ risk.risk_description|truncate(80)
                                 }}</a></td>
-                        <td>{{ risk.status }}</td>
-                        <td>{{ risk.likelihood }}</td>
-                        <td>{{ risk.impact }}</td>
-                        <td>{{ risk.risk_owner or 'N/A' }}</td>
-                        <td>{{ risk.iso_27001_control or 'N/A' }}</td>
+                        <td>
+                            <span
+                                class="badge bg-{{ 'success' if risk.status == 'Closed' else 'warning' if risk.status == 'Identified' else 'primary' }}">
+                                {{ risk.status }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">{{ risk.inherent_score }}</span>
+                            <small class="text-muted">({{ risk.inherent_impact }}x{{ risk.inherent_likelihood
+                                }})</small>
+                        </td>
+                        <td>
+                            <span
+                                class="badge bg-{{ 'danger' if risk.criticality_level == 'Critical' else 'warning' if risk.criticality_level == 'High' else 'info' if risk.criticality_level == 'Medium' else 'success' }}">
+                                {{ risk.residual_score }}
+                            </span>
+                            <small class="text-muted">({{ risk.residual_impact }}x{{ risk.residual_likelihood
+                                }})</small>
+                        </td>
+                        <td>{{ risk.owner.name if risk.owner else 'Unassigned' }}</td>
+                        <td>
+                            {% set cat_colors = risk.get_category_colors() %}
+                            {% for cat in risk.categories %}
+                            <span class="badge bg-{{ cat_colors.get(cat.category, 'secondary') }}">{{ cat.category
+                                }}</span>
+                            {% endfor %}
+                        </td>
                         <td>
                             {% if current_user_role == 'admin' %}
                             <a href="{{ url_for('risk.edit_risk', id=risk.id) }}" class="btn btn-sm btn-outline-primary"
