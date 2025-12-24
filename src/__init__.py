@@ -118,6 +118,8 @@ def create_app():
     app.register_blueprint(frameworks_bp)
     from .routes.audits import audits_bp
     app.register_blueprint(audits_bp)
+    from .routes.services import services_bp
+    app.register_blueprint(services_bp)
     app.register_blueprint(links_bp, url_prefix='/links')
     app.register_blueprint(activities_bp, url_prefix='/security/activities')
 

@@ -117,6 +117,9 @@
                 <h6 class="sidebar-heading" data-bs-toggle="collapse" data-bs-target="#operations-menu"
                     aria-expanded="false">Operations <i class="fa-fw fas fa-chevron-down float-end"></i></h6>
                 <div class="collapse" id="operations-menu" data-bs-parent="#sidebar-accordion">
+                    <li class="nav-item"><a class="nav-link {% if request.blueprint == 'services' %}active{% endif %}"
+                            href="{{ url_for('services.list_services') }}"><i class="fa-fw fas fa-server"></i>
+                            Service Catalog</a></li>
                     <li class="nav-item"><a
                             class="nav-link {% if request.endpoint.startswith('subscriptions.subscriptions') %}active{% endif %}"
                             href="{{ url_for('subscriptions.subscriptions') }}"><i class="fa-fw fas fa-cogs"></i>

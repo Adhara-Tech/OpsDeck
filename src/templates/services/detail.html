@@ -1,0 +1,362 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ service.name }} - Service Detail{% endblock %}
+
+{% block head_extra %}
+<!-- Mermaid.js for Topology Warning: This fetches from CDN. Ensure internet access or bundle locally. -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({ startOnLoad: true });</script>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <div>
+        <h1 class="h2">
+            {{ service.name }}
+            {% if 'Tier 1' in service.criticality|default('') %}
+            <span class="badge bg-danger fs-6 align-middle">{{ service.criticality }}</span>
+            {% elif 'Tier 2' in service.criticality|default('') %}
+            <span class="badge bg-warning text-dark fs-6 align-middle">{{ service.criticality }}</span>
+            {% else %}
+            <span class="badge bg-secondary fs-6 align-middle">{{ service.criticality }}</span>
+            {% endif %}
+        </h1>
+        <p class="text-muted mb-0">{{ service.description }}</p>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('services.edit_service', id=service.id) }}" class="btn btn-sm btn-outline-secondary me-2">
+            <i class="fas fa-edit"></i> Edit
+        </a>
+        <a href="{{ url_for('services.list_services') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back
+        </a>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <!-- Key Info Cards -->
+    <div class="col-md-3">
+        <div class="card border-left-primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Owner</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ service.owner.name if service.owner else 'Unassigned' }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-user fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card border-left-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Status</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ service.status }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-signal fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card border-left-info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">SLA Target</div>
+                        <div class="h6 mb-0 font-weight-bold text-gray-800">
+                            Resp: {{ service.sla_response_hours|default('-') }}h <br>
+                            Res: {{ service.sla_resolution_hours|default('-') }}h
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-stopwatch fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card border-left-warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Cost Center</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ service.cost_center|default('-', true) }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-wallet fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabs -->
+<ul class="nav nav-tabs mb-3" id="serviceTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="topology-tab" data-bs-toggle="tab" data-bs-target="#topology" type="button"
+            role="tab">Topology & Dependencies</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="infrastructure-tab" data-bs-toggle="tab" data-bs-target="#infrastructure"
+            type="button" role="tab">Infrastructure Components</button>
+    </li>
+</ul>
+
+<div class="tab-content" id="serviceTabsContent">
+
+    <!-- Topology Tab -->
+    <div class="tab-pane fade show active" id="topology" role="tabpanel">
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                        <h6 class="m-0 font-weight-bold text-primary">Dependency Graph</h6>
+                    </div>
+                    <div class="card-body text-center">
+                        <div class="mermaid">
+                            graph TD;
+                            style ME fill:#f9f,stroke:#333,stroke-width:4px
+                            ME["{{ service.name }}"]
+
+                            {% for parent in service.upstream_dependencies %}
+                            UP_{{ parent.id }}["{{ parent.name }}"] --> ME
+                            click UP_{{ parent.id }} "{{ url_for('services.detail', id=parent.id) }}"
+                            {% endfor %}
+
+                            {% for child in service.downstream_dependencies %}
+                            ME --> DOWN_{{ child.id }}["{{ child.name }}"]
+                            click DOWN_{{ child.id }} "{{ url_for('services.detail', id=child.id) }}"
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <!-- Upstream (Depends On) -->
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                        <h6 class="m-0 font-weight-bold text-primary">Depends On (Upstream)</h6>
+                        <button class="btn btn-sm btn-primary" data-bs-toggle="modal"
+                            data-bs-target="#addDependencyModal" onclick="setDependencyType('upstream')">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        {% for parent in service.upstream_dependencies %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <a href="{{ url_for('services.detail', id=parent.id) }}">{{ parent.name }}</a>
+                            <form
+                                action="{{ url_for('services.remove_dependency', id=service.id, target_id=parent.id) }}"
+                                method="POST" class="d-inline">
+                                <input type="hidden" name="type" value="upstream">
+                                <button type="submit" class="btn btn-sm text-danger border-0 bg-transparent py-0">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </form>
+                        </li>
+                        {% else %}
+                        <li class="list-group-item text-muted">No upstream dependencies.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                <!-- Downstream (Supported Services) -->
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                        <h6 class="m-0 font-weight-bold text-primary">Supported Services (Downstream)</h6>
+                        <button class="btn btn-sm btn-primary" data-bs-toggle="modal"
+                            data-bs-target="#addDependencyModal" onclick="setDependencyType('downstream')">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        {% for child in service.downstream_dependencies %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <a href="{{ url_for('services.detail', id=child.id) }}">{{ child.name }}</a>
+                            <form
+                                action="{{ url_for('services.remove_dependency', id=service.id, target_id=child.id) }}"
+                                method="POST" class="d-inline">
+                                <input type="hidden" name="type" value="downstream">
+                                <button type="submit" class="btn btn-sm text-danger border-0 bg-transparent py-0">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </form>
+                        </li>
+                        {% else %}
+                        <li class="list-group-item text-muted">No supported services.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Infrastructure Tab -->
+    <div class="tab-pane fade" id="infrastructure" role="tabpanel">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">Linked Infrastructure</h6>
+                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addComponentModal">
+                    <i class="fas fa-plus"></i> Add Component
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Item</th>
+                                <th>Notes</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for comp in service.components %}
+                            <tr>
+                                <td><span class="badge bg-secondary">{{ comp.component_type }}</span></td>
+                                <td>
+                                    {% if comp.linked_object %}
+                                    {# Helper to guess display name #}
+                                    {{ comp.linked_object.name or comp.linked_object.title or
+                                    comp.linked_object.hostname or 'Item #' ~ comp.component_id }}
+                                    {% else %}
+                                    <span class="text-danger">Item Not Found (ID: {{ comp.component_id }})</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ comp.notes }}</td>
+                                <td>
+                                    <form action="{{ url_for('services.delete_component', comp_id=comp.id) }}"
+                                        method="POST" class="d-inline"
+                                        onsubmit="return confirm('Remove this component?');">
+                                        <button type="submit" class="btn btn-sm btn-danger">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">No infrastructure components linked.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Add Dependency -->
+<div class="modal fade" id="addDependencyModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('services.add_dependency', id=service.id) }}" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Service Dependency</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="dependency_type" id="dependency_type_input" value="upstream">
+
+                    <div class="mb-3">
+                        <p id="dependency_desc_text">Select a service...</p>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Service</label>
+                        <select class="form-select tom-select" name="target_service_id" required>
+                            <option value="">Select Service...</option>
+                            {% for srv in all_services %}
+                            <option value="{{ srv.id }}">{{ srv.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Add Dependency</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Add Component -->
+<div class="modal fade" id="addComponentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('services.add_component', id=service.id) }}" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title">Link Infrastructure Component</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Component Type</label>
+                        <select class="form-select" name="component_type" id="componentTypeSelect" required
+                            onchange="toggleComponentIDInput()">
+                            <option value="Asset">Physical Asset</option>
+                            <option value="Software">Software</option>
+                            <option value="License">License</option>
+                            <option value="Supplier">Supplier</option>
+                            <option value="Subscription">Subscription</option>
+                            <!-- Add more as needed -->
+                        </select>
+                    </div>
+
+                    <!-- Ideally this would be dynamic via AJAX. For MVP, we'll use a simple ID input or rely on the user knowing the ID. 
+                         Improving this would require an API endpoint `/api/search_items?type=X` -->
+                    <div class="mb-3">
+                        <label class="form-label">Component ID</label>
+                        <input type="number" class="form-control" name="component_id" placeholder="Enter ID of the item"
+                            required>
+                        <div class="form-text">Enter the ID of the asset/software. (Search feature coming soon)</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <input type="text" class="form-control" name="notes" placeholder="e.g. Hosting Server">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Link Component</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+    function setDependencyType(type) {
+        document.getElementById('dependency_type_input').value = type;
+        if (type === 'upstream') {
+            document.getElementById('dependency_desc_text').innerText = "Select a service that '{{ service.name }}' DEPENDS ON.";
+        } else {
+            document.getElementById('dependency_desc_text').innerText = "Select a service that DEPENDS ON '{{ service.name }}'.";
+        }
+    }
+</script>
+{% endblock %}
