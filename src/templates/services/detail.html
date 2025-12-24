@@ -355,7 +355,7 @@
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             <div>
                                 <i class="fas fa-file-contract text-muted"></i>
-                                <a href="{{ url_for('policies.policy_detail', id=policy.id) }}">{{ policy.title }}</a>
+                                <a href="{{ url_for('policies.detail', id=policy.id) }}">{{ policy.title }}</a>
                             </div>
                             <form action="{{ url_for('services.unlink_policy', id=service.id, policy_id=policy.id) }}"
                                 method="POST" class="d-inline">

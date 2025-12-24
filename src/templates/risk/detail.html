@@ -318,7 +318,7 @@
                                     <div>
                                         <h6 class="mb-0">
                                             {% if ref.linkable_type == 'Policy' and item %}
-                                            <a href="{{ url_for('policies.policy_detail', id=item.id) }}">{{ item.title
+                                            <a href="{{ url_for('policies.detail', id=item.id) }}">{{ item.title
                                                 }}</a>
                                             {% elif ref.linkable_type == 'Documentation' and item %}
                                             <a href="{{ url_for('documentation.documentation_detail', id=item.id) }}">{{
