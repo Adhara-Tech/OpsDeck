@@ -5,7 +5,7 @@ from datetime import date
 
 # --- Model Tests ---
 
-def test_security_activity_model(app):
+def test_security_activity_model(app, init_database):
     """Test standard activity creation and relationships."""
     with app.app_context():
         # Setup
@@ -35,7 +35,7 @@ def test_security_activity_model(app):
         assert saved.tags[0].name == 'Security'
         assert saved.executions.count() == 0
 
-def test_activity_execution_lifecycle(app):
+def test_activity_execution_lifecycle(app, init_database):
     """Test recording an execution and its relationship."""
     with app.app_context():
         # Setup
@@ -60,7 +60,7 @@ def test_activity_execution_lifecycle(app):
         assert activity.executions.first().status == 'success'
         assert activity.executions.order_by(ActivityExecution.execution_date.desc()).first().id == execution.id
 
-def test_polymorphic_owner_group(app):
+def test_polymorphic_owner_group(app, init_database):
     """Test group as activity owner."""
     with app.app_context():
         group = Group(name='Security Team')
@@ -78,7 +78,7 @@ def test_polymorphic_owner_group(app):
         assert activity.owner.name == 'Security Team'
         assert isinstance(activity.owner, Group)
 
-def test_activity_related_objects(app):
+def test_activity_related_objects(app, init_database):
     """Test linking an asset to an activity."""
     with app.app_context():
         activity = SecurityActivity(name='Asset Review')

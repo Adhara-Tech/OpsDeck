@@ -16,232 +16,306 @@
 </div>
 
 <div class="row">
-    <!-- Left Column: Details & Scores -->
-    <div class="col-md-8">
-        <!-- Risk Description & Status -->
-        <div class="card mb-4">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Risk Overview</h5>
-                <span
-                    class="badge bg-{{ 'danger' if risk.criticality_level == 'Critical' else 'warning' if risk.criticality_level == 'High' else 'info' if risk.criticality_level == 'Medium' else 'success' }}">
-                    {{ risk.criticality_level }}
-                </span>
-            </div>
-            <div class="card-body">
-                <p class="lead">{{ risk.risk_description }}</p>
+    <div class="col-12">
+        <!-- Tabs Navigation -->
+        <ul class="nav nav-tabs mb-4" id="riskTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview"
+                    type="button" role="tab">Overview</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="treatment-tab" data-bs-toggle="tab" data-bs-target="#treatment"
+                    type="button" role="tab">Treatment</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="affected-tab" data-bs-toggle="tab" data-bs-target="#affected" type="button"
+                    role="tab">Affected Items</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="attachments-tab" data-bs-toggle="tab" data-bs-target="#attachments"
+                    type="button" role="tab">Attachments</button>
+            </li>
+        </ul>
 
-                <!-- Category Badges -->
-                {% if risk.categories.count() > 0 %}
-                <div class="mb-3">
-                    <strong>Categories:</strong>
-                    {% set cat_colors = risk.get_category_colors() %}
-                    {% for cat in risk.categories %}
-                    <span class="badge bg-{{ cat_colors.get(cat.category, 'secondary') }} ms-1">{{ cat.category
-                        }}</span>
-                    {% endfor %}
-                </div>
-                {% endif %}
+        <div class="tab-content" id="riskTabsContent">
+            <!-- Overview Tab -->
+            <div class="tab-pane fade show active" id="overview" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="card mb-4">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">Risk Description</h5>
+                                <span
+                                    class="badge bg-{{ 'danger' if risk.criticality_level == 'Critical' else 'warning' if risk.criticality_level == 'High' else 'info' if risk.criticality_level == 'Medium' else 'success' }}">
+                                    {{ risk.criticality_level }}
+                                </span>
+                            </div>
+                            <div class="card-body">
+                                <p class="lead">{{ risk.risk_description }}</p>
 
-                <div class="row g-3">
-                    <div class="col-md-6">
-                        <strong>Status:</strong> {{ risk.status }}
-                    </div>
-                    <div class="col-md-6">
-                        <strong>Strategy:</strong> {{ risk.treatment_strategy or 'N/A' }}
-                    </div>
-                    <div class="col-md-6">
-                        <strong>Owner:</strong> {{ risk.owner.name if risk.owner else 'Unassigned' }}
-                    </div>
-                    <div class="col-md-6">
-                        <strong>Next Review:</strong>
-                        <span class="{{ 'text-danger fw-bold' if risk.is_overdue else '' }}">
-                            {{ risk.next_review_date.strftime('%Y-%m-%d') if risk.next_review_date else 'Not set' }}
-                        </span>
-                    </div>
-                </div>
-            </div>
-        </div>
+                                {% if risk.categories.count() > 0 %}
+                                <div class="mb-3">
+                                    <strong>Categories:</strong>
+                                    {% set cat_colors = risk.get_category_colors() %}
+                                    {% for cat in risk.categories %}
+                                    <span class="badge bg-{{ cat_colors.get(cat.category, 'secondary') }} ms-1">{{
+                                        cat.category }}</span>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
 
-        <!-- Scoring Matrix -->
-        <div class="row mb-4">
-            <div class="col-md-6">
-                <div class="card h-100">
-                    <div class="card-header text-center">Inherent Risk</div>
-                    <div class="card-body text-center">
-                        <h2 class="display-4">{{ risk.inherent_score }}</h2>
-                        <p class="text-muted">Impact: {{ risk.inherent_impact }} x Likelihood: {{
-                            risk.inherent_likelihood }}</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div
-                    class="card h-100 border-{{ 'danger' if risk.criticality_level == 'Critical' else 'warning' if risk.criticality_level == 'High' else 'info' if risk.criticality_level == 'Medium' else 'success' }}">
-                    <div class="card-header text-center">Residual Risk</div>
-                    <div class="card-body text-center">
-                        <h2 class="display-4">{{ risk.residual_score }}</h2>
-                        <p class="text-muted">Impact: {{ risk.residual_impact }} x Likelihood: {{
-                            risk.residual_likelihood }}</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Mitigation Plan -->
-        <div class="card mb-4">
-            <div class="card-header">Mitigation Plan</div>
-            <div class="card-body">
-                {{ risk.mitigation_plan or 'No mitigation plan defined.' }}
-            </div>
-        </div>
-
-        <!-- Active Mitigation Activities -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <i class="bi bi-shield-check"></i> Active Mitigation
-            </div>
-            <div class="card-body">
-                {% if risk.mitigation_activities.count() > 0 %}
-                <div class="table-responsive">
-                    <table class="table table-sm">
-                        <thead>
-                            <tr>
-                                <th>Activity</th>
-                                <th>Frequency</th>
-                                <th>Last Execution</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for activity in risk.mitigation_activities %}
-                            {% set last_exec = activity.executions.first() %}
-                            <tr>
-                                <td>
-                                    <a href="{{ url_for('activities.detail', id=activity.id) }}">{{ activity.name }}</a>
-                                </td>
-                                <td>{{ activity.frequency or 'N/A' }}</td>
-                                <td>
-                                    {% if last_exec %}
-                                    {{ last_exec.execution_date.strftime('%Y-%m-%d') }}
-                                    {% else %}
-                                    <span class="text-muted">Never</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if last_exec %}
-                                    {% if last_exec.status == 'success' %}
-                                    <span class="badge bg-success">Success</span>
-                                    {% elif last_exec.status == 'failed' %}
-                                    <span class="badge bg-danger">Failed</span>
-                                    {% elif last_exec.status == 'in_progress' %}
-                                    <span class="badge bg-info">In Progress</span>
-                                    {% elif last_exec.status == 'issue_detected' %}
-                                    <span class="badge bg-warning">Issue Detected</span>
-                                    {% else %}
-                                    <span class="badge bg-secondary">{{ last_exec.status }}</span>
-                                    {% endif %}
-                                    {% else %}
-                                    <span class="badge bg-secondary">Pending</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                {% else %}
-                <p class="text-muted mb-0">No mitigation activities linked. <a
-                        href="{{ url_for('risk.edit_risk', id=risk.id) }}">Edit risk</a> to add activities.</p>
-                {% endif %}
-            </div>
-        </div>
-
-        <!-- Controls (Compliance Links) -->
-        <div class="card mb-4">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Linked Controls</h5>
-                <!-- Link to add control (could be a modal or redirect) -->
-                <a href="{{ url_for('compliance.link_control', linkable_type='Risk', linkable_id=risk.id) }}"
-                    class="btn btn-sm btn-outline-primary">
-                    <i class="bi bi-link"></i> Link Control
-                </a>
-            </div>
-            <div class="card-body">
-                {% if risk.compliance_links.count() > 0 %}
-                <div class="list-group">
-                    {% for link in risk.compliance_links %}
-                    <div class="list-group-item">
-                        <div class="d-flex w-100 justify-content-between">
-                            <h6 class="mb-1">{{ link.framework_control.control_id }} - {{ link.framework_control.name }}
-                            </h6>
-                            <small>{{ link.framework_control.framework.name }}</small>
+                                <div class="row g-3 mt-2">
+                                    <div class="col-md-6">
+                                        <strong>Status:</strong> {{ risk.status }}
+                                    </div>
+                                    <div class="col-md-6">
+                                        <strong>Owner:</strong> {{ risk.owner.name if risk.owner else 'Unassigned' }}
+                                    </div>
+                                    <div class="col-md-6">
+                                        <strong>Next Review:</strong>
+                                        <span class="{{ 'text-danger fw-bold' if risk.is_overdue else '' }}">
+                                            {{ risk.next_review_date.strftime('%Y-%m-%d') if risk.next_review_date else
+                                            'Not set' }}
+                                        </span>
+                                    </div>
+                                    <div class="col-md-6">
+                                        {% if risk.link and (risk.link.startswith('http://') or
+                                        risk.link.startswith('https://')) %}
+                                        <a href="{{ risk.link }}" target="_blank" class="btn btn-sm btn-outline-info">
+                                            <i class="bi bi-box-arrow-up-right"></i> External Link
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <p class="mb-1 small">{{ link.description }}</p>
+
+                        <!-- Scoring Matrix -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="card h-100">
+                                    <div class="card-header text-center">Inherent Risk</div>
+                                    <div class="card-body text-center">
+                                        <h2 class="display-4">{{ risk.inherent_score }}</h2>
+                                        <p class="text-muted">Impact: {{ risk.inherent_impact }} x Likelihood: {{
+                                            risk.inherent_likelihood }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div
+                                    class="card h-100 border-{{ 'danger' if risk.criticality_level == 'Critical' else 'warning' if risk.criticality_level == 'High' else 'info' if risk.criticality_level == 'Medium' else 'success' }}">
+                                    <div class="card-header text-center">Residual Risk</div>
+                                    <div class="card-body text-center">
+                                        <h2 class="display-4">{{ risk.residual_score }}</h2>
+                                        <p class="text-muted">Impact: {{ risk.residual_impact }} x Likelihood: {{
+                                            risk.residual_likelihood }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    {% endfor %}
+
+                    <div class="col-md-4">
+                        <!-- Linked Controls -->
+                        <div class="card mb-4">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">Linked Controls</h5>
+                                <a href="{{ url_for('compliance.link_control', linkable_type='Risk', linkable_id=risk.id) }}"
+                                    class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-link"></i> Link
+                                </a>
+                            </div>
+                            <div class="card-body p-0">
+                                {% if risk.compliance_links.count() > 0 %}
+                                <div class="list-group list-group-flush">
+                                    {% for link in risk.compliance_links %}
+                                    <div class="list-group-item">
+                                        <div class="d-flex w-100 justify-content-between">
+                                            <h6 class="mb-1">{{ link.framework_control.control_id }}</h6>
+                                            <small>{{ link.framework_control.framework.name }}</small>
+                                        </div>
+                                        <p class="mb-1 small">{{ link.description|truncate(50) }}</p>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <div class="p-3 text-muted">No controls linked.</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                {% else %}
-                <p class="text-muted">No controls linked.</p>
-                {% endif %}
             </div>
-        </div>
-    </div>
 
-    <!-- Right Column: Assets & Meta -->
-    <div class="col-md-4">
-        <!-- Affected Assets -->
-        <div class="card mb-4">
-            <div class="card-header">Affected Assets</div>
-            <ul class="list-group list-group-flush">
-                {% for asset in risk.assets %}
-                <li class="list-group-item d-flex justify-content-between align-items-center">
-                    <a href="{{ url_for('assets.asset_detail', id=asset.id) }}">{{ asset.name }}</a>
-                    <span class="badge bg-secondary">{{ asset.status }}</span>
-                </li>
-                {% else %}
-                <li class="list-group-item text-muted">No assets linked.</li>
-                {% endfor %}
-            </ul>
-        </div>
+            <!-- Treatment Tab -->
+            <div class="tab-pane fade" id="treatment" role="tabpanel">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">Strategy & Plan</h5>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Strategy:</strong> {{ risk.treatment_strategy or 'Undefined' }}</p>
+                        <h6>Mitigation Plan:</h6>
+                        <p>{{ risk.mitigation_plan or 'No mitigation plan defined.' }}</p>
+                    </div>
+                </div>
 
-        <!-- Attachments -->
-        <div class="card mb-4">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Attachments</h5>
-                <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
-                    data-bs-target="#uploadModal">
-                    <i class="bi bi-upload"></i> Upload
-                </button>
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-shield-check"></i> Mitigation Activities</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if risk.mitigation_activities.count() > 0 %}
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Activity</th>
+                                        <th>Frequency</th>
+                                        <th>Last Execution</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for activity in risk.mitigation_activities %}
+                                    {% set last_exec = activity.executions.first() %}
+                                    <tr>
+                                        <td><a href="{{ url_for('activities.detail', id=activity.id) }}">{{
+                                                activity.name }}</a></td>
+                                        <td>{{ activity.frequency or 'N/A' }}</td>
+                                        <td>
+                                            {% if last_exec %}
+                                            {{ last_exec.execution_date.strftime('%Y-%m-%d') }}
+                                            {% else %}
+                                            <span class="text-muted">Never</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if last_exec %}
+                                            {% if last_exec.status == 'success' %}
+                                            <span class="badge bg-success">Success</span>
+                                            {% elif last_exec.status == 'failed' %}
+                                            <span class="badge bg-danger">Failed</span>
+                                            {% elif last_exec.status == 'in_progress' %}
+                                            <span class="badge bg-info">In Progress</span>
+                                            {% elif last_exec.status == 'issue_detected' %}
+                                            <span class="badge bg-warning">Issue Detected</span>
+                                            {% else %}
+                                            <span class="badge bg-secondary">{{ last_exec.status }}</span>
+                                            {% endif %}
+                                            {% else %}
+                                            <span class="badge bg-secondary">Pending</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <p class="text-muted mb-0">No mitigation activities linked.</p>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
-            <ul class="list-group list-group-flush">
-                {% for attachment in risk.attachments %}
-                <li class="list-group-item d-flex justify-content-between align-items-center">
-                    <a href="{{ url_for('attachments.download_file', attachment_id=attachment.id) }}" target="_blank">
-                        {{ attachment.filename }}
-                    </a>
-                    <form action="{{ url_for('attachments.delete_attachment', attachment_id=attachment.id) }}"
-                        method="POST" class="d-inline"
-                        onsubmit="return confirm('Are you sure you want to delete this attachment?');">
-                        <button type="submit" class="btn btn-sm btn-outline-danger border-0">
-                            <i class="bi bi-trash"></i>
+
+            <!-- Affected Items Tab -->
+            <div class="tab-pane fade" id="affected" role="tabpanel">
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Affected Elements</h5>
+                        <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal"
+                            data-bs-target="#addItemModal">
+                            <i class="bi bi-plus-circle"></i> Add Item
                         </button>
-                    </form>
-                </li>
-                {% else %}
-                <li class="list-group-item text-muted">No attachments.</li>
-                {% endfor %}
-            </ul>
-        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <ul class="list-group list-group-flush">
+                            {% for affected_item in risk.affected_items %}
+                            {% set item = affected_item.item %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div class="d-flex align-items-center">
+                                    <div class="me-3">
+                                        {% if affected_item.linkable_type == 'User' %}
+                                        <i class="bi bi-person fs-4 text-primary"></i>
+                                        {% elif affected_item.linkable_type == 'Group' %}
+                                        <i class="bi bi-people fs-4 text-info"></i>
+                                        {% elif affected_item.linkable_type == 'Asset' %}
+                                        <i class="bi bi-laptop fs-4 text-secondary"></i>
+                                        {% elif affected_item.linkable_type == 'Subscription' %}
+                                        <i class="bi bi-cloud fs-4 text-warning"></i>
+                                        {% else %}
+                                        <i class="bi bi-box fs-4 text-muted"></i>
+                                        {% endif %}
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-0">
+                                            {% if item and item.name %}
+                                            {{ item.name }}
+                                            {% elif item and item.username %}
+                                            {{ item.username }}
+                                            {% else %}
+                                            Item #{{ affected_item.linkable_id }}
+                                            {% endif %}
+                                        </h6>
+                                        <small class="text-muted">{{ affected_item.linkable_type }}</small>
+                                    </div>
+                                </div>
 
-        {% if risk.link %}
-        <div class="card mb-4">
-            <div class="card-body">
-                <a href="{{ risk.link }}" target="_blank" class="btn btn-outline-info w-100">
-                    <i class="bi bi-box-arrow-up-right"></i> Open External Link
-                </a>
+                                <div class="d-flex align-items-center">
+                                    {% if item and item.status %}
+                                    <span class="badge bg-secondary me-3">{{ item.status }}</span>
+                                    {% endif %}
+
+                                    <form action="{{ url_for('risk.remove_affected_item', item_id=affected_item.id) }}"
+                                        method="POST" onsubmit="return confirm('Remove this item?');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger border-0">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </li>
+                            {% else %}
+                            <li class="list-group-item text-muted p-3">No affected items linked.</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Attachments Tab -->
+            <div class="tab-pane fade" id="attachments" role="tabpanel">
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Attachments</h5>
+                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
+                            data-bs-target="#uploadModal">
+                            <i class="bi bi-upload"></i> Upload
+                        </button>
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        {% for attachment in risk.attachments %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <a href="{{ url_for('attachments.download_file', attachment_id=attachment.id) }}"
+                                target="_blank">
+                                {{ attachment.filename }}
+                            </a>
+                            <form action="{{ url_for('attachments.delete_attachment', attachment_id=attachment.id) }}"
+                                method="POST" class="d-inline"
+                                onsubmit="return confirm('Are you sure you want to delete this attachment?');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger border-0">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                        </li>
+                        {% else %}
+                        <li class="list-group-item text-muted">No attachments.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
             </div>
         </div>
-        {% endif %}
     </div>
 </div>
 
@@ -269,4 +343,116 @@
         </div>
     </div>
 </div>
+
+<!-- Add Item Modal -->
+<div class="modal fade" id="addItemModal" tabindex="-1" aria-labelledby="addItemModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addItemModalLabel">Add Affected Item</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('risk.add_affected_item', id=risk.id) }}" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="linkable_type" class="form-label">Item Type</label>
+                        <select class="form-select no-tom" id="linkable_type" name="linkable_type" required>
+                            <option value="">Select type...</option>
+                            <option value="Asset">Asset</option>
+                            <option value="User">User</option>
+                            <option value="Group">Group</option>
+                            <option value="Subscription">Subscription (Service)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="linkable_id" class="form-label">Select Item</label>
+                        <select class="form-select no-tom" id="linkable_id" name="linkable_id" required disabled>
+                            <option value="">Select type first...</option>
+                        </select>
+                        <div class="form-text">Choose the item to link to this risk.</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary" id="addItemSubmit" disabled>Add Item</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% block scripts_extra %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const typeSelect = document.getElementById('linkable_type');
+        const itemSelect = document.getElementById('linkable_id');
+        const submitBtn = document.getElementById('addItemSubmit');
+
+        // TomSelect instance for item selector
+        let itemTomSelect = null;
+
+        typeSelect.addEventListener('change', async function () {
+            const type = this.value;
+
+            // Reset item selector
+            if (itemTomSelect) {
+                itemTomSelect.destroy();
+                itemTomSelect = null;
+            }
+
+            itemSelect.innerHTML = '<option value="">Loading...</option>';
+            itemSelect.disabled = true;
+            submitBtn.disabled = true;
+
+            if (!type) {
+                itemSelect.innerHTML = '<option value="">Select type first...</option>';
+                return;
+            }
+
+            try {
+                const response = await fetch(`{{ url_for('risk.api_get_items', item_type='__TYPE__') }}`.replace('__TYPE__', type));
+                const items = await response.json();
+
+                // Clear and populate
+                itemSelect.innerHTML = '<option value="">Select an item...</option>';
+                items.forEach(item => {
+                    const opt = document.createElement('option');
+                    opt.value = item.id;
+                    opt.textContent = `${item.name} (${item.detail || ''})`;
+                    itemSelect.appendChild(opt);
+                });
+
+                itemSelect.disabled = false;
+
+                // Initialize TomSelect for better UX
+                itemTomSelect = new TomSelect(itemSelect, {
+                    create: false,
+                    sortField: { field: "text", direction: "asc" },
+                    placeholder: 'Search and select...',
+                    onChange: function (value) {
+                        submitBtn.disabled = !value;
+                    }
+                });
+
+            } catch (error) {
+                console.error('Failed to load items:', error);
+                itemSelect.innerHTML = '<option value="">Failed to load items</option>';
+            }
+        });
+
+        // Reset modal on close
+        const modal = document.getElementById('addItemModal');
+        modal.addEventListener('hidden.bs.modal', function () {
+            typeSelect.value = '';
+            if (itemTomSelect) {
+                itemTomSelect.destroy();
+                itemTomSelect = null;
+            }
+            itemSelect.innerHTML = '<option value="">Select type first...</option>';
+            itemSelect.disabled = true;
+            submitBtn.disabled = true;
+        });
+    });
+</script>
+{% endblock %}
 {% endblock %}

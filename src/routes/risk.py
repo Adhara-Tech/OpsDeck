@@ -1,8 +1,10 @@
 from flask import (
-    Blueprint, render_template, request, redirect, url_for, flash, session
+    Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 )
-from ..models import db, Risk, User, Asset, RiskCategory, RISK_CATEGORIES, RISK_CATEGORY_COLORS
+from ..models import db, Risk, User, Asset, RiskCategory, RISK_CATEGORIES, RISK_CATEGORY_COLORS, RiskAffectedItem
 from ..models.activities import SecurityActivity
+from ..models.auth import Group
+from ..models.procurement import Subscription
 from .main import login_required
 from .admin import admin_required
 from datetime import datetime
@@ -251,9 +253,10 @@ def new_risk():
         asset_ids = request.form.getlist('asset_ids')
         if asset_ids:
             for asset_id in asset_ids:
-                asset = Asset.query.get(asset_id)
-                if asset:
-                    risk.assets.append(asset)
+                # Verify asset exists
+                if Asset.query.get(asset_id):
+                    item = RiskAffectedItem(linkable_type='Asset', linkable_id=asset_id)
+                    risk.affected_items.append(item)
         
         # Handle Categories
         db.session.add(risk)
@@ -276,9 +279,8 @@ def new_risk():
         return redirect(url_for('risk.list_risks'))
 
     users = User.query.filter_by(is_archived=False).all()
-    assets = Asset.query.filter_by(is_archived=False).all()
     activities = SecurityActivity.query.order_by(SecurityActivity.name).all()
-    return render_template('risk/form.html', users=users, assets=assets, activities=activities,
+    return render_template('risk/form.html', users=users, activities=activities,
                            risk_categories=RISK_CATEGORIES, category_colors=RISK_CATEGORY_COLORS)
 
 @risk_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
@@ -308,15 +310,6 @@ def edit_risk(id):
         else:
             risk.next_review_date = None
 
-        # Handle Assets (Clear and Re-add)
-        risk.assets = [] # Clear existing
-        asset_ids = request.form.getlist('asset_ids')
-        if asset_ids:
-            for asset_id in asset_ids:
-                asset = Asset.query.get(asset_id)
-                if asset:
-                    risk.assets.append(asset)
-        
         # Handle Categories (Clear and Re-add)
         RiskCategory.query.filter_by(risk_id=risk.id).delete()
         category_names = request.form.getlist('category_ids')
@@ -335,10 +328,99 @@ def edit_risk(id):
 
         db.session.commit()
         flash('Risk has been updated.', 'success')
-        return redirect(url_for('risk.list_risks'))
+        return redirect(url_for('risk.detail', id=risk.id))
 
     users = User.query.filter_by(is_archived=False).all()
-    assets = Asset.query.filter_by(is_archived=False).all()
     activities = SecurityActivity.query.order_by(SecurityActivity.name).all()
-    return render_template('risk/form.html', risk=risk, users=users, assets=assets, activities=activities,
+    return render_template('risk/form.html', risk=risk, users=users, activities=activities,
                            risk_categories=RISK_CATEGORIES, category_colors=RISK_CATEGORY_COLORS)
+
+@risk_bp.route('/<int:id>/affected_items/add', methods=['POST'])
+@login_required
+@admin_required
+def add_affected_item(id):
+    risk = Risk.query.get_or_404(id)
+    linkable_type = request.form.get('linkable_type')
+    linkable_id = request.form.get('linkable_id')
+    
+    if not linkable_type or not linkable_id:
+        flash('Invalid item selected.', 'danger')
+        return redirect(url_for('risk.detail', id=id))
+
+    # Check if already exists
+    exists = RiskAffectedItem.query.filter_by(
+        risk_id=risk.id,
+        linkable_type=linkable_type,
+        linkable_id=linkable_id
+    ).first()
+    
+    if exists:
+        flash('Item is already linked to this risk.', 'warning')
+        return redirect(url_for('risk.detail', id=id))
+        
+    # Verify existence of the target object
+    model_map = {
+        'User': User,
+        'Group': Group,
+        'Asset': Asset,
+        'Subscription': Subscription
+    }
+    
+    model = model_map.get(linkable_type)
+    if not model:
+        flash(f'Unsupported item type: {linkable_type}', 'danger')
+        return redirect(url_for('risk.detail', id=id))
+        
+    target = model.query.get(linkable_id)
+    if not target:
+        flash('Target item not found.', 'danger')
+        return redirect(url_for('risk.detail', id=id))
+        
+    item = RiskAffectedItem(risk_id=risk.id, linkable_type=linkable_type, linkable_id=linkable_id)
+    db.session.add(item)
+    db.session.commit()
+    
+    flash('Affected item added successfully.', 'success')
+    return redirect(url_for('risk.detail', id=id))
+
+@risk_bp.route('/affected_items/<int:item_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def remove_affected_item(item_id):
+    item = RiskAffectedItem.query.get_or_404(item_id)
+    risk_id = item.risk_id
+    db.session.delete(item)
+    db.session.commit()
+    flash('Affected item removed.', 'success')
+    return redirect(url_for('risk.detail', id=risk_id))
+
+@risk_bp.route('/api/items/<item_type>')
+@login_required
+def api_get_items(item_type):
+    """API endpoint to fetch items by type for dynamic selector."""
+    model_map = {
+        'User': User,
+        'Group': Group,
+        'Asset': Asset,
+        'Subscription': Subscription
+    }
+    
+    model = model_map.get(item_type)
+    if not model:
+        return jsonify([])
+    
+    items = []
+    if item_type == 'User':
+        records = model.query.filter_by(is_archived=False).order_by(model.name).all()
+        items = [{'id': r.id, 'name': r.name, 'detail': r.email} for r in records]
+    elif item_type == 'Group':
+        records = model.query.order_by(model.name).all()
+        items = [{'id': r.id, 'name': r.name, 'detail': f'{len(r.users)} members'} for r in records]
+    elif item_type == 'Asset':
+        records = model.query.filter_by(is_archived=False).order_by(model.name).all()
+        items = [{'id': r.id, 'name': r.name, 'detail': r.serial_number or r.status} for r in records]
+    elif item_type == 'Subscription':
+        records = model.query.filter_by(is_archived=False).order_by(model.name).all()
+        items = [{'id': r.id, 'name': r.name, 'detail': r.supplier.name if r.supplier else 'N/A'} for r in records]
+    
+    return jsonify(items)
