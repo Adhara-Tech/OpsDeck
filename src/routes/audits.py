@@ -29,34 +29,72 @@ def list_audits():
 @login_required
 def new_audit():
     if request.method == 'POST':
-        name = request.form.get('name')
-        framework_id = request.form.get('framework_id')
-        auditor_contact_id = request.form.get('auditor_contact_id') or None
+        creation_strategy = request.form.get('creation_strategy', 'scratch')
+        
+        # Common fields
         internal_lead_id = request.form.get('internal_lead_id')
-        copy_links = request.form.get('copy_links') == 'on'
-
-        if not name or not framework_id or not internal_lead_id:
-            flash('Audit Name, Framework, and Internal Lead are required.', 'danger')
+        
+        if not internal_lead_id:
+            flash('Internal Lead is required.', 'danger')
             return redirect(url_for('audits.new_audit'))
 
         try:
-            audit = ComplianceAudit.create_snapshot(
-                framework_id=int(framework_id),
-                name=name,
-                auditor_contact_id=int(auditor_contact_id) if auditor_contact_id else None,
-                internal_lead_id=int(internal_lead_id),
-                copy_links=copy_links
-            )
+            audit = None
+            if creation_strategy == 'scratch':
+                name = request.form.get('name')
+                framework_id = request.form.get('framework_id')
+                auditor_contact_id = request.form.get('auditor_contact_id') or None
+                copy_links = request.form.get('copy_links') == 'on'
+
+                if not name or not framework_id:
+                    flash('Audit Name and Framework are required for fresh starts.', 'danger')
+                    return redirect(url_for('audits.new_audit'))
+
+                audit = ComplianceAudit.create_snapshot(
+                    framework_id=int(framework_id),
+                    name=name,
+                    auditor_contact_id=int(auditor_contact_id) if auditor_contact_id else None,
+                    internal_lead_id=int(internal_lead_id),
+                    copy_links=copy_links
+                )
+            
+            elif creation_strategy == 'clone':
+                source_audit_id = request.form.get('source_audit_id')
+                target_date_str = request.form.get('target_date')
+                
+                if not source_audit_id:
+                    flash('Source Audit is required for renewal.', 'danger')
+                    return redirect(url_for('audits.new_audit'))
+                
+                target_date = None
+                if target_date_str:
+                    target_date = datetime.strptime(target_date_str, '%Y-%m-%d').date()
+
+                audit = ComplianceAudit.clone(
+                    source_id=int(source_audit_id),
+                    new_owner_id=int(internal_lead_id),
+                    target_date=target_date
+                )
+            
             flash('Audit created successfully.', 'success')
             return redirect(url_for('audits.view_audit', id=audit.id))
+            
         except Exception as e:
+            db.session.rollback()
             flash(f'Error creating audit: {str(e)}', 'danger')
             return redirect(url_for('audits.new_audit'))
 
     frameworks = Framework.query.filter_by(is_active=True).all()
     users = User.query.filter_by(is_archived=False).all()
     contacts = Contact.query.filter_by(is_archived=False).all()
-    return render_template('audits/new.html', frameworks=frameworks, users=users, contacts=contacts)
+    # Fetch previous audits for the clone dropdown (exclude nothing for now, maybe filter later)
+    previous_audits = ComplianceAudit.query.order_by(ComplianceAudit.created_at.desc()).all()
+    
+    return render_template('audits/new.html', 
+                         frameworks=frameworks, 
+                         users=users, 
+                         contacts=contacts,
+                         previous_audits=previous_audits)
 
 # ============================================================================
 # DETAIL & UPDATE

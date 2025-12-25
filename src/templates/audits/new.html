@@ -15,22 +15,83 @@
             </div>
             <div class="card-body">
                 <form method="POST" action="{{ url_for('audits.new_audit') }}">
-                    <div class="mb-3">
-                        <label for="name" class="form-label">Audit Name <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control" id="name" name="name"
-                            placeholder="e.g., ISO 27001 - Q4 2024 Certification" required>
-                        <small class="text-muted">A descriptive name for this audit cycle.</small>
+                    <!-- Strategy Selection -->
+                    <div class="mb-4">
+                        <label class="form-label d-block mb-2"><strong>Strategy</strong></label>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="creation_strategy" id="strategy_scratch"
+                                value="scratch" checked onclick="toggleStrategy('scratch')">
+                            <label class="form-check-label" for="strategy_scratch">
+                                <i class="fas fa-magic"></i> Start from Scratch
+                            </label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="creation_strategy" id="strategy_clone"
+                                value="clone" onclick="toggleStrategy('clone')">
+                            <label class="form-check-label" for="strategy_clone">
+                                <i class="fas fa-sync-alt"></i> Renewal / Rollover
+                            </label>
+                        </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="framework_id" class="form-label">Select Framework <span
-                                class="text-danger">*</span></label>
-                        <select class="form-select tom-select" id="framework_id" name="framework_id" required>
-                            <option value="" selected disabled>Choose a framework...</option>
-                            {% for framework in frameworks %}
-                            <option value="{{ framework.id }}">{{ framework.name }}</option>
-                            {% endfor %}
-                        </select>
+                    <!-- Section A: Start from Scratch -->
+                    <div id="section_scratch">
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Audit Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="name" name="name"
+                                placeholder="e.g., ISO 27001 - Q4 2024 Certification">
+                            <small class="text-muted">A descriptive name for this audit cycle.</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="framework_id" class="form-label">Select Framework <span
+                                    class="text-danger">*</span></label>
+                            <select class="form-select tom-select" id="framework_id" name="framework_id">
+                                <option value="" selected disabled>Choose a framework...</option>
+                                {% for framework in frameworks %}
+                                <option value="{{ framework.id }}">{{ framework.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="copy_links" name="copy_links">
+                            <label class="form-check-label" for="copy_links">
+                                <strong>Pre-fill evidences from Framework</strong>
+                            </label>
+                            <br>
+                            <small class="text-muted">
+                                If checked, existing compliance links from the framework will be copied as starting
+                                evidence.
+                            </small>
+                        </div>
+                    </div>
+
+                    <!-- Section B: Renewal / Rollover -->
+                    <div id="section_clone" style="display: none;">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> Rollover will clone an existing audit, resetting status
+                            to
+                            <strong>Pending</strong> while preserving justifications and evidence.
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="source_audit_id" class="form-label">Source Audit <span
+                                    class="text-danger">*</span></label>
+                            <select class="form-select tom-select" id="source_audit_id" name="source_audit_id">
+                                <option value="" selected disabled>Select previous audit...</option>
+                                {% for audit in previous_audits %}
+                                <option value="{{ audit.id }}">{{ audit.name }} ({{
+                                    audit.created_at.strftime('%Y-%m-%d') }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="target_date" class="form-label">Target Completion Date</label>
+                            <input type="date" class="form-control" id="target_date" name="target_date">
+                            <small class="text-muted">Deadline for the new audit cycle.</small>
+                        </div>
                     </div>
 
                     <hr class="my-4">
@@ -40,7 +101,7 @@
                         <div class="col-md-6 mb-3">
                             <label for="auditor_contact_id" class="form-label">External Auditor</label>
                             <select class="form-select tom-select" id="auditor_contact_id" name="auditor_contact_id">
-                                <option value="">No external auditor</option>
+                                <option value="">No external auditor (Internal Only)</option>
                                 {% for contact in contacts %}
                                 <option value="{{ contact.id }}">{{ contact.name }} ({{ contact.supplier.name if
                                     contact.supplier else 'N/A' }})</option>
@@ -65,21 +126,6 @@
                         </div>
                     </div>
 
-                    <hr class="my-4">
-                    <h6 class="text-muted mb-3"><i class="fas fa-cog"></i> Options</h6>
-
-                    <div class="form-check form-switch mb-3">
-                        <input class="form-check-input" type="checkbox" id="copy_links" name="copy_links">
-                        <label class="form-check-label" for="copy_links">
-                            <strong>Pre-fill evidences from Framework</strong>
-                        </label>
-                        <br>
-                        <small class="text-muted">
-                            If checked, existing compliance links from the framework will be copied as starting evidence
-                            for this audit.
-                        </small>
-                    </div>
-
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
                         <a href="{{ url_for('audits.list_audits') }}" class="btn btn-outline-secondary me-md-2">
                             <i class="fas fa-times"></i> Cancel
@@ -96,18 +142,55 @@
     <div class="col-lg-4">
         <div class="card shadow mb-4 border-info">
             <div class="card-header py-3 bg-info text-white">
-                <h6 class="m-0 font-weight-bold"><i class="fas fa-info-circle"></i> How It Works</h6>
+                <h6 class="m-0 font-weight-bold"><i class="fas fa-info-circle"></i> Strategy Guide</h6>
             </div>
             <div class="card-body">
-                <ol class="mb-0">
-                    <li class="mb-2">Select a <strong>Framework</strong> to audit against.</li>
-                    <li class="mb-2">A <strong>snapshot</strong> of all controls will be created.</li>
-                    <li class="mb-2">Your team can work on the audit without affecting the live framework.</li>
-                    <li class="mb-2">Track <strong>compliance status</strong> per control.</li>
-                    <li>Export a <strong>Defense Pack</strong> PDF when ready.</li>
-                </ol>
+                <div id="guide_scratch">
+                    <h6 class="font-weight-bold">Start from Scratch</h6>
+                    <ul class="mb-0">
+                        <li class="mb-1">Best for new certifications or clean slates.</li>
+                        <li class="mb-1">Takes a snapshot of the current <strong>Framework</strong>.</li>
+                        <li class="mb-1">All statuses start as <strong>Pending</strong>.</li>
+                        <li>Optionally copy current framework links as evidence.</li>
+                    </ul>
+                </div>
+                <div id="guide_clone" style="display: none;">
+                    <h6 class="font-weight-bold">Renewal / Rollover</h6>
+                    <ul class="mb-0">
+                        <li class="mb-1">Best for annual recertification (e.g., ISO 2024 → 2025).</li>
+                        <li class="mb-1">Copies <strong>Justifications</strong> and <strong>Comments</strong>.</li>
+                        <li class="mb-1">Resets <strong>Compliant</strong> status to <strong>Pending</strong>.</li>
+                        <li>Keeps <strong>N/A</strong> items as <strong>Not Applicable</strong>.</li>
+                    </ul>
+                </div>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+    function toggleStrategy(strategy) {
+        if (strategy === 'scratch') {
+            document.getElementById('section_scratch').style.display = 'block';
+            document.getElementById('section_clone').style.display = 'none';
+            document.getElementById('guide_scratch').style.display = 'block';
+            document.getElementById('guide_clone').style.display = 'none';
+
+            // Required toggle
+            document.getElementById('name').required = true;
+            document.getElementById('framework_id').required = true;
+            document.getElementById('source_audit_id').required = false;
+        } else {
+            document.getElementById('section_scratch').style.display = 'none';
+            document.getElementById('section_clone').style.display = 'block';
+            document.getElementById('guide_scratch').style.display = 'none';
+            document.getElementById('guide_clone').style.display = 'block';
+
+            // Required toggle
+            document.getElementById('name').required = false;
+            document.getElementById('framework_id').required = false;
+            document.getElementById('source_audit_id').required = true;
+        }
+    }
+</script>
 {% endblock %}

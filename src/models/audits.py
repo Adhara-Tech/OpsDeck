@@ -134,6 +134,82 @@ class ComplianceAudit(db.Model):
         
         return audit
 
+
+    @classmethod
+    def clone(cls, source_id, new_owner_id, target_date):
+        """
+        Clones an existing audit for a new period (Rollover).
+        - Preserves: SOA (is_applicable), Justifications, Comments, Evidence Links.
+        - Resets: Status (Compliant/Gap -> Pending), Dates, Auditor.
+        - Metadata: New Name = "Renewal [Year]: [Old Name]", Owner = new_owner_id.
+        """
+        source = cls.query.get(source_id)
+        if not source:
+             raise ValueError(f"Source audit with id {source_id} not found")
+
+        # 1. Create New Audit Header
+        year = target_date.year if target_date else datetime.utcnow().year
+        new_audit = cls(
+            name=f"Renewal {year}: {source.name}",
+            framework_id=source.framework_id,
+            internal_lead_id=new_owner_id,
+            # Reset dates and auditor
+            auditor_id=None,
+            start_date=None,
+            end_date=target_date, # Use target_date as end_date deadline
+            status='Planned',
+            outcome=None,
+            locked_at=None
+        )
+        db.session.add(new_audit)
+        db.session.flush() # Generate ID
+
+        # 2. Clone Controls
+        # Iterate over source items to carry over decisions + evidence
+        for old_item in source.audit_items:
+            new_item = AuditControlItem(
+                audit_id=new_audit.id,
+                original_control_id=old_item.original_control_id,
+                
+                # --- SNAPSHOT TEXT ---
+                # We copy from the OLD item to preserve the snapshot state 
+                # (unless we want to re-sync with framework, but requirement says "Preserve")
+                control_code=old_item.control_code,
+                control_title=old_item.control_title,
+                control_description=old_item.control_description,
+
+                # --- COPY TEXT DATA ---
+                justification=old_item.justification,
+                internal_comments=old_item.internal_comments,
+                
+                # --- SOA LOGIC ---
+                is_applicable=old_item.is_applicable
+            )
+            
+            # --- STATUS RESET LOGIC ---
+            if not old_item.is_applicable:
+                new_item.status = 'Not Applicable' # Explicit string
+            else:
+                new_item.status = 'Pending' # Reset to Pending for re-validation
+
+            db.session.add(new_item)
+            db.session.flush() # Need ID for links
+            
+            # --- CLONE EVIDENCES (Reference Copy) ---
+            # We copy the LINKS (pointers to assets/docs), not the attachments themselves (files)
+            # Logic: "We used Policy X last year, we likely use it this year too"
+            for link in old_item.linked_objects:
+                 new_link = AuditControlLink(
+                     audit_item_id=new_item.id,
+                     linkable_type=link.linkable_type,
+                     linkable_id=link.linkable_id,
+                     description=link.description
+                 )
+                 db.session.add(new_link)
+
+        db.session.commit()
+        return new_audit
+
 class AuditControlItem(db.Model):
     """
     Represents a specific control within an audit. 
