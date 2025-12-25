@@ -90,6 +90,11 @@ def view_audit(id):
 def update_audit_header(id):
     audit = ComplianceAudit.query.get_or_404(id)
     
+    # Lock check
+    if audit.is_locked:
+        flash('Audit is locked and cannot be modified.', 'warning')
+        return redirect(url_for('audits.view_audit', id=id))
+    
     audit.status = request.form.get('status', audit.status)
     audit.outcome = request.form.get('outcome') or None
     
@@ -109,6 +114,11 @@ def update_audit_header(id):
 @login_required
 def update_audit_items(id):
     audit = ComplianceAudit.query.get_or_404(id)
+    
+    # Lock check
+    if audit.is_locked:
+        flash('Audit is locked and cannot be modified.', 'warning')
+        return redirect(url_for('audits.view_audit', id=id))
     
     for item in audit.audit_items:
         item_id = str(item.id)
@@ -140,6 +150,12 @@ def update_audit_items(id):
 @login_required
 def add_participant(id):
     audit = ComplianceAudit.query.get_or_404(id)
+    
+    # Lock check
+    if audit.is_locked:
+        flash('Audit is locked and cannot be modified.', 'warning')
+        return redirect(url_for('audits.view_audit', id=id))
+    
     user_id = request.form.get('user_id')
     
     if user_id:
@@ -155,6 +171,12 @@ def add_participant(id):
 @login_required
 def remove_participant(id, user_id):
     audit = ComplianceAudit.query.get_or_404(id)
+    
+    # Lock check
+    if audit.is_locked:
+        flash('Audit is locked and cannot be modified.', 'warning')
+        return redirect(url_for('audits.view_audit', id=id))
+    
     user = User.query.get_or_404(user_id)
     
     if user in audit.participants:
@@ -174,6 +196,11 @@ def upload_audit_attachment(id):
     from flask import current_app
     
     audit = ComplianceAudit.query.get_or_404(id)
+    
+    # Lock check
+    if audit.is_locked:
+        flash('Audit is locked and cannot be modified.', 'warning')
+        return redirect(url_for('audits.view_audit', id=id))
     
     if 'file' not in request.files:
         flash('No file selected.', 'danger')
@@ -211,7 +238,13 @@ def upload_audit_attachment(id):
 def upload_item_attachment(id, item_id):
     from flask import current_app
     
+    audit = ComplianceAudit.query.get_or_404(id)
     item = AuditControlItem.query.get_or_404(item_id)
+    
+    # Lock check
+    if audit.is_locked:
+        flash('Audit is locked and cannot be modified.', 'warning')
+        return redirect(url_for('audits.view_audit', id=id))
     
     if 'file' not in request.files:
         flash('No file selected.', 'danger')
@@ -247,7 +280,13 @@ def upload_item_attachment(id, item_id):
 @audits_bp.route('/<int:id>/item/<int:item_id>/link', methods=['POST'])
 @login_required
 def add_item_link(id, item_id):
+    audit = ComplianceAudit.query.get_or_404(id)
     item = AuditControlItem.query.get_or_404(item_id)
+    
+    # Lock check
+    if audit.is_locked:
+        flash('Audit is locked and cannot be modified.', 'warning')
+        return redirect(url_for('audits.view_audit', id=id))
     
     linkable_type = request.form.get('linkable_type')
     linkable_id = request.form.get('linkable_id')
@@ -269,10 +308,80 @@ def add_item_link(id, item_id):
 @audits_bp.route('/<int:id>/item/<int:item_id>/link/<int:link_id>/delete', methods=['POST'])
 @login_required
 def delete_item_link(id, item_id, link_id):
+    audit = ComplianceAudit.query.get_or_404(id)
+    
+    # Lock check
+    if audit.is_locked:
+        flash('Audit is locked and cannot be modified.', 'warning')
+        return redirect(url_for('audits.view_audit', id=id))
+    
     link = AuditControlLink.query.get_or_404(link_id)
     db.session.delete(link)
     db.session.commit()
     flash('Link removed.', 'success')
+    return redirect(url_for('audits.view_audit', id=id))
+
+# ============================================================================
+# API: AJAX Status Update
+# ============================================================================
+
+@audits_bp.route('/api/control/<int:id>/status', methods=['POST'])
+@login_required
+def api_update_control_status(id):
+    """AJAX endpoint for instant status updates on audit controls."""
+    item = AuditControlItem.query.get_or_404(id)
+    
+    # Security: Check if the audit is locked
+    if item.audit.is_locked:
+        return jsonify({'success': False, 'error': 'Audit is locked'}), 403
+    
+    data = request.get_json()
+    if not data or 'status' not in data:
+        return jsonify({'success': False, 'error': 'Status is required'}), 400
+    
+    new_status = data['status']
+    valid_statuses = ['Pending', 'Compliant', 'Observation', 'Gap', 'Not Applicable']
+    
+    if new_status not in valid_statuses:
+        return jsonify({'success': False, 'error': 'Invalid status'}), 400
+    
+    item.status = new_status
+    db.session.commit()
+    
+    return jsonify({'success': True, 'new_status': new_status})
+
+# ============================================================================
+# LOCK/UNLOCK AUDIT
+# ============================================================================
+
+@audits_bp.route('/<int:id>/lock', methods=['POST'])
+@login_required
+def lock_audit(id):
+    """Lock the audit to prevent further modifications."""
+    audit = ComplianceAudit.query.get_or_404(id)
+    
+    if audit.is_locked:
+        flash('Audit is already locked.', 'info')
+    else:
+        audit.locked_at = datetime.utcnow()
+        db.session.commit()
+        flash('Audit has been locked. No further modifications are allowed.', 'success')
+    
+    return redirect(url_for('audits.view_audit', id=id))
+
+@audits_bp.route('/<int:id>/unlock', methods=['POST'])
+@login_required
+def unlock_audit(id):
+    """Unlock the audit to allow modifications again."""
+    audit = ComplianceAudit.query.get_or_404(id)
+    
+    if not audit.is_locked:
+        flash('Audit is not locked.', 'info')
+    else:
+        audit.locked_at = None
+        db.session.commit()
+        flash('Audit has been unlocked. Modifications are now allowed.', 'success')
+    
     return redirect(url_for('audits.view_audit', id=id))
 
 # ============================================================================

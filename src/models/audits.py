@@ -31,6 +31,11 @@ class ComplianceAudit(db.Model):
     start_date = db.Column(db.Date)
     end_date = db.Column(db.Date)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    locked_at = db.Column(db.DateTime, nullable=True)
+
+    @property
+    def is_locked(self):
+        return self.locked_at is not None
 
     # Relationships
     framework_id = db.Column(db.Integer, db.ForeignKey('framework.id'), nullable=False)
@@ -107,7 +112,7 @@ class ComplianceAudit(db.Model):
                 justification=None,
                 
                 # Audit defaults
-                status='Compliant', # Default assumption, to be verified
+                status='Pending', # Starting state, to be assessed
             )
             db.session.add(audit_item)
             db.session.flush() # Need ID for links
@@ -153,7 +158,7 @@ class AuditControlItem(db.Model):
     internal_comments = db.Column(db.Text) # Private team chat/notes
     auditor_findings = db.Column(db.Text) # Notes from the auditor
     
-    status = db.Column(db.String(50), default='Compliant', nullable=False) # Compliant, Gap, Observation
+    status = db.Column(db.String(50), default='Pending', nullable=False) # Pending, Compliant, Observation, Gap, Not Applicable
 
     # --- Relationships ---
     # audit relationship is defined in ComplianceAudit via backref
