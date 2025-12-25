@@ -200,3 +200,27 @@ def delete_doc(id):
     db.session.commit()
     flash('Entrada de documentación eliminada.', 'success')
     return redirect(url_for('documentation.list_docs'))
+
+@documentation_bp.route('/api/search')
+@login_required
+def search_api():
+    """Search documentation by title or filename for TomSelect."""
+    from flask import jsonify
+    
+    query = request.args.get('q', '').strip()
+    if not query:
+        return jsonify([])
+    
+    # Search by name (which is the title field)
+    docs = Documentation.query.filter(
+        (Documentation.name.ilike(f'%{query}%'))
+    ).limit(20).all()
+    
+    return jsonify([
+        {
+            'id': d.id,
+            'title': d.name,
+            'filename': d.external_link or 'Internal'
+        } 
+        for d in docs
+    ])

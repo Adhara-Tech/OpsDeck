@@ -449,3 +449,110 @@ def delete_audit(id):
     db.session.commit()
     flash('Audit deleted.', 'success')
     return redirect(url_for('audits.list_audits'))
+
+# ============================================================================
+# API: Search Linkable Objects
+# ============================================================================
+
+@audits_bp.route('/api/search-linkable')
+@login_required
+def search_linkable_api():
+    """Search for linkable objects by type and query.
+       If query is empty, returns all non-archived objects of that type.
+    """
+    object_type = request.args.get('type', '').strip()
+    query = request.args.get('q', '').strip()
+    
+    if not object_type:
+        return jsonify([])
+    
+    results = []
+    limit = 50 if query else 200 # Higher limit if listing all
+    
+    if object_type == 'Asset':
+        from ..models import Asset
+        q = Asset.query.filter_by(is_archived=False)
+        if query:
+            q = q.filter(Asset.name.ilike(f'%{query}%'))
+        items = q.limit(limit).all()
+        results = [{'id': item.id, 'name': item.name, 'type': item.status or 'Asset'} for item in items]
+    
+    elif object_type == 'Policy':
+        from ..models import Policy
+        q = Policy.query
+        if query:
+            q = q.filter(Policy.title.ilike(f'%{query}%')) # Policy has title, not name
+        items = q.limit(limit).all()
+        results = [{'id': item.id, 'name': item.title, 'type': 'Policy'} for item in items]
+    
+    elif object_type == 'Documentation':
+        from ..models import Documentation
+        q = Documentation.query
+        if query:
+            q = q.filter(Documentation.name.ilike(f'%{query}%'))
+        items = q.limit(limit).all()
+        results = [{'id': item.id, 'name': item.name, 'type': 'Documentation'} for item in items]
+    
+    elif object_type == 'Link':
+        from ..models import Link
+        q = Link.query
+        if query:
+            q = q.filter(Link.name.ilike(f'%{query}%'))
+        items = q.limit(limit).all()
+        results = [{'id': item.id, 'name': item.name, 'type': 'External Link'} for item in items]
+    
+    elif object_type == 'Course':
+        from ..models import Course
+        q = Course.query
+        if query:
+            q = q.filter(Course.title.ilike(f'%{query}%')) # Course has title
+        items = q.limit(limit).all()
+        results = [{'id': item.id, 'name': item.title, 'type': 'Training Course'} for item in items]
+    
+    elif object_type == 'Risk':
+        from ..models import Risk
+        q = Risk.query
+        # risks dont have is_archived, but maybe we exclude 'Closed'? 
+        # For now, show all as user can link closed risks too usually.
+        if query:
+            q = q.filter(Risk.risk_description.ilike(f'%{query}%')) # Risk has risk_description, usually not name?
+            # Wait, looking at previous code it used Risk.name.ilike
+            # Let me check Risk model again or just use risk_description?
+            # Previous code: items = Risk.query.filter(Risk.name.ilike(f'%{query}%')).limit(20).all()
+            # But in model `Risk` I saw `risk_description`. I didn't see `name`.
+            # Let me re-verify Risk model. 
+        # Risk model check: 
+        # class Risk(db.Model):
+        #     risk_description = db.Column(db.Text, nullable=False)
+        #     ...
+        #     It does NOT have a name field! The previous code was likely broken for Risk.
+        #     I will use risk_description as name.
+        items = q.limit(limit).all()
+        # Truncate description for display
+        results = [{'id': item.id, 'name': (item.risk_description[:50] + '...') if len(item.risk_description) > 50 else item.risk_description, 'type': f'Risk (Severity: {item.severity if hasattr(item, "severity") else "N/A"})'} for item in items]
+    
+    elif object_type == 'Software':
+        from ..models import Software
+        q = Software.query.filter_by(is_archived=False)
+        if query:
+            q = q.filter(Software.name.ilike(f'%{query}%'))
+        items = q.limit(limit).all()
+        results = [{'id': item.id, 'name': item.name, 'type': 'Software'} for item in items]
+    
+    elif object_type == 'Supplier':
+        from ..models import Supplier
+        q = Supplier.query.filter_by(is_archived=False)
+        if query:
+            q = q.filter(Supplier.name.ilike(f'%{query}%'))
+        items = q.limit(limit).all()
+        results = [{'id': item.id, 'name': item.name, 'type': 'Supplier'} for item in items]
+    
+    elif object_type == 'BusinessService':
+        from ..models import BusinessService
+        q = BusinessService.query.filter(BusinessService.status != 'Retired')
+        if query:
+            q = q.filter(BusinessService.name.ilike(f'%{query}%'))
+        items = q.limit(limit).all()
+        results = [{'id': item.id, 'name': item.name, 'type': 'Service'} for item in items]
+    
+    return jsonify(results)

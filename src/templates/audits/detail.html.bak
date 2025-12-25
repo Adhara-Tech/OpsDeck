@@ -556,8 +556,8 @@
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label">Object Type</label>
-                        <select class="form-select" name="linkable_type" id="linkableType-{{ item.id }}" required>
-                            <option value="" selected>Select type...</option>
+                        <select class="form-select" name="linkable_type" required>
+                            <option value="">Select type...</option>
                             <option value="Asset">Asset</option>
                             <option value="Policy">Policy</option>
                             <option value="Documentation">Documentation</option>
@@ -569,11 +569,17 @@
                             <option value="BusinessService">Service</option>
                         </select>
                     </div>
-                    <div class="mb-3" id="object-selector-{{ item.id }}" style="display: none;">
-                        <label for="objectSelect-{{ item.id }}" class="form-label">Select Object</label>
-                        <select id="objectSelect-{{ item.id }}" name="linkable_id_dynamic" class="object-select"
-                            placeholder="Type to search..."></select>
-                        <div class="form-text">Search for the object to link as evidence.</div>
+                    <div class="mb-3" id="documentation-selector-{{ item.id }}" style="display: none;">
+                        <label for="documentSelect-{{ item.id }}" class="form-label">Select Document</label>
+                        <select id="documentSelect-{{ item.id }}" name="linkable_id_doc" class="documentation-select"
+                            placeholder="Type to search documents..."></select>
+                        <div class="form-text">Search for an existing policy, procedure, or evidence file.</div>
+                    </div>
+                    <div class="mb-3" id="manual-id-input-{{ item.id }}">
+                        <label class="form-label">Object ID</label>
+                        <input type="number" class="form-control" name="linkable_id"
+                            placeholder="Enter the ID of the object">
+                        <small class="text-muted">Enter the numeric ID of the object to link.</small>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Description (Optional)</label>
@@ -777,105 +783,6 @@
                 saveStatus(this);
             });
         });
-        // Dynamic Link Object Search (TomSelect)
-        const typeSelects = document.querySelectorAll('select[name="linkable_type"]');
-        typeSelects.forEach(typeSelect => {
-            typeSelect.addEventListener('change', function () {
-                const selectId = this.id;
-                const itemId = selectId.split('-')[1]; // linkableType-{id}
-                const container = document.getElementById(`object-selector-${itemId}`);
-                const objectSelectInput = document.getElementById(`objectSelect-${itemId}`);
-                const objectType = this.value;
-
-                if (!objectType) {
-                    container.style.display = 'none';
-                    return;
-                }
-
-                container.style.display = 'block';
-
-                // Destroy existing TomSelect if it exists to reset for new type
-                if (objectSelectInput.tomselect) {
-                    objectSelectInput.tomselect.clear();
-                    objectSelectInput.tomselect.destroy();
-                    // Clear options manually to be safe
-                    objectSelectInput.innerHTML = '';
-                }
-
-                // Show loading placeholder or disable while fetching? 
-                // We'll populate it after fetch.
-
-                // Fetch all items for this type
-                fetch(`/security/audits/api/search-linkable?type=${encodeURIComponent(objectType)}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        // Populate select options
-                        let optionsHtml = '<option value="">Select object...</option>';
-                        data.forEach(item => {
-                            optionsHtml += `<option value="${item.id}" data-type="${item.type}">${item.name}</option>`;
-                        });
-                        objectSelectInput.innerHTML = optionsHtml;
-
-                        // Initialize TomSelect as a simple dropdown (not remote search)
-                        new TomSelect(objectSelectInput, {
-                            create: false,
-                            sortField: {
-                                field: "text",
-                                direction: "asc"
-                            },
-                            placeholder: 'Select object...',
-                            render: {
-                                option: function (item, escape) {
-                                    // Use the text from the option slightly enriched if possible, 
-                                    // but standard TomSelect with data attributes needs custom data reading.
-                                    // Simpler: Just rely on the text content which we can format or 
-                                    // pass data via the settings.
-                                    // Let's pass the data directly to TomSelect if we want custom rendering.
-                                    return `<div>
-                                        <span class="title">${escape(item.text)}</span>
-                                     </div>`;
-                                },
-                                item: function (item, escape) {
-                                    return `<div>${escape(item.text)}</div>`;
-                                }
-                            }
-                        });
-
-                        // If we want richer rendering we need to pass the full data object to TomSelect constructor 
-                        // instead of just HTML options. But HTML options + TomSelect is easiest for "simple list".
-                        // To get the "subtitle" (type) like before, we'd need to pass `options` array.
-
-                        // Enhanced approach: Destroy, then init with options array.
-                        objectSelectInput.tomselect.destroy();
-
-                        new TomSelect(objectSelectInput, {
-                            valueField: 'id',
-                            labelField: 'name',
-                            searchField: 'name',
-                            options: data, // Pass the fetched data directly
-                            create: false,
-                            placeholder: 'Select object...',
-                            render: {
-                                option: function (item, escape) {
-                                    return `<div>
-                                        <span class="title">${escape(item.name)}</span>
-                                        <span class="subtitle text-muted small ms-2">(${escape(item.type)})</span>
-                                    </div>`;
-                                },
-                                item: function (item, escape) {
-                                    return `<div>${escape(item.name)}</div>`;
-                                }
-                            }
-                        });
-
-                    })
-                    .catch(err => {
-                        console.error('Error fetching linkable objects:', err);
-                        objectSelectInput.innerHTML = '<option value="">Error loading objects</option>';
-                    });
-            });
-        });
-
     });
 </script>
 {% endblock %}
