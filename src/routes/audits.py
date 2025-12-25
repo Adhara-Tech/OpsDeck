@@ -327,7 +327,9 @@ def add_item_link(id, item_id):
         return redirect(url_for('audits.view_audit', id=id))
     
     linkable_type = request.form.get('linkable_type')
-    linkable_id = request.form.get('linkable_id')
+    
+    linkable_id = request.form.get('linkable_id_dynamic') 
+    
     description = request.form.get('description')
     
     if linkable_type and linkable_id:
@@ -340,6 +342,8 @@ def add_item_link(id, item_id):
         db.session.add(link)
         db.session.commit()
         flash('Evidence linked.', 'success')
+    else:
+        flash('Failed to link object: Missing type or ID.', 'warning')
     
     return redirect(url_for('audits.view_audit', id=id))
 
