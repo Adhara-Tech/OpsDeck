@@ -31,6 +31,11 @@ class ComplianceAudit(db.Model):
     start_date = db.Column(db.Date)
     end_date = db.Column(db.Date)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    locked_at = db.Column(db.DateTime, nullable=True)
+
+    @property
+    def is_locked(self):
+        return self.locked_at is not None
 
     # Relationships
     framework_id = db.Column(db.Integer, db.ForeignKey('framework.id'), nullable=False)
@@ -107,7 +112,7 @@ class ComplianceAudit(db.Model):
                 justification=None,
                 
                 # Audit defaults
-                status='Compliant', # Default assumption, to be verified
+                status='Pending', # Starting state, to be assessed
             )
             db.session.add(audit_item)
             db.session.flush() # Need ID for links
@@ -153,7 +158,7 @@ class AuditControlItem(db.Model):
     internal_comments = db.Column(db.Text) # Private team chat/notes
     auditor_findings = db.Column(db.Text) # Notes from the auditor
     
-    status = db.Column(db.String(50), default='Compliant', nullable=False) # Compliant, Gap, Observation
+    status = db.Column(db.String(50), default='Pending', nullable=False) # Pending, Compliant, Observation, Gap, Not Applicable
 
     # --- Relationships ---
     # audit relationship is defined in ComplianceAudit via backref
@@ -199,13 +204,14 @@ class AuditControlLink(db.Model):
     def linked_object(self):
         """Resolves the polymorphic relationship to the linked object."""
         # Import models inside the method to avoid circular imports
-        from .assets import Asset, Peripheral, Software, License, MaintenanceLog, AssetInventory
+        from .assets import Asset, Peripheral, Software, License, MaintenanceLog
         from .procurement import Supplier, Purchase, Budget, Subscription
         from .core import Link, Documentation
         from .policy import Policy
         from .training import Course
         from .bcdr import BCDRPlan
-        from .security import SecurityIncident, SecurityAssessment, Risk
+        from .security import SecurityIncident, SecurityAssessment, Risk, AssetInventory
+        from .services import BusinessService
         
         # Map types to models
         model_map = {
@@ -226,7 +232,8 @@ class AuditControlLink(db.Model):
             'SecurityIncident': SecurityIncident,
             'SecurityAssessment': SecurityAssessment,
             'Risk': Risk,
-            'AssetInventory': AssetInventory
+            'AssetInventory': AssetInventory,
+            'BusinessService': BusinessService
         }
         
         model = model_map.get(self.linkable_type)

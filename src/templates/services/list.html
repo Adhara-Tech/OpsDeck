@@ -1,0 +1,84 @@
+{% extends "layout.html" %}
+
+{% block title %}Service Catalog{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Service Catalog</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('services.create_service') }}" class="btn btn-sm btn-primary">
+            <i class="fas fa-plus"></i> New Service
+        </a>
+    </div>
+</div>
+
+<div class="card shadow mb-4">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover datatable" width="100%" cellspacing="0">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Owner</th>
+                        <th>Criticality</th>
+                        <th>Status</th>
+                        <th>SLA (Resp/Res)</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for service in services %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('services.detail', id=service.id) }}"
+                                class="text-decoration-none fw-bold">
+                                {{ service.name }}
+                            </a>
+                        </td>
+                        <td>
+                            {% if service.owner %}
+                            <span class="badge bg-light text-dark border">
+                                <i class="fas fa-user-circle"></i> {{ service.owner.name }}
+                            </span>
+                            {% else %}
+                            <span class="text-muted fst-italic">Unassigned</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if 'Tier 1' in service.criticality|default('') %}
+                            <span class="badge bg-danger">{{ service.criticality }}</span>
+                            {% elif 'Tier 2' in service.criticality|default('') %}
+                            <span class="badge bg-warning text-dark">{{ service.criticality }}</span>
+                            {% else %}
+                            <span class="badge bg-secondary">{{ service.criticality }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% set status_colors = {'Operational': 'success', 'Pipeline': 'info', 'Retired':
+                            'secondary'} %}
+                            <span class="badge bg-{{ status_colors.get(service.status, 'primary') }}">
+                                {{ service.status }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if service.sla_response_hours or service.sla_resolution_hours %}
+                            <small>{{ service.sla_response_hours|default('-') }}h / {{
+                                service.sla_resolution_hours|default('-') }}h</small>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{{ url_for('services.edit_service', id=service.id) }}"
+                                class="btn btn-sm btn-outline-secondary" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

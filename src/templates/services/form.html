@@ -1,0 +1,121 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ 'Edit' if service else 'New' }} Service{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">{{ 'Edit' if service else 'Create' }} Service</h1>
+    <a href="{{ url_for('services.list_services') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> Back to List
+    </a>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Service Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="name" name="name"
+                            value="{{ service.name if service else '' }}" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description"
+                            rows="3">{{ service.description if service else '' }}</textarea>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="owner_id" class="form-label">Service Owner</label>
+                            <select class="form-select tom-select" id="owner_id" name="owner_id">
+                                <option value="">Select Owner...</option>
+                                {% for user in users %}
+                                <option value="{{ user.id }}" {% if service and service.owner_id==user.id %}selected{%
+                                    endif %}>
+                                    {{ user.name }} ({{ user.email }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="cost_center_id" class="form-label">Cost Center</label>
+                            <select class="form-select tom-select" id="cost_center_id" name="cost_center_id">
+                                <option value="">Select Cost Center...</option>
+                                {% for cc in cost_centers %}
+                                <option value="{{ cc.id }}" {% if service and service.cost_center_id==cc.id %}selected{%
+                                    endif %}>
+                                    {{ cc.code }} - {{ cc.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="criticality" class="form-label">Criticality</label>
+                            <select class="form-select" id="criticality" name="criticality">
+                                <option value="Tier 1 - Critical" {% if service and
+                                    service.criticality=='Tier 1 - Critical' %}selected{% endif %}>Tier 1 - Critical
+                                </option>
+                                <option value="Tier 2 - High" {% if service and service.criticality=='Tier 2 - High'
+                                    %}selected{% endif %}>Tier 2 - High</option>
+                                <option value="Tier 3 - Standard" {% if service and
+                                    service.criticality=='Tier 3 - Standard' %}selected{% endif %}>Tier 3 - Standard
+                                </option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="status" class="form-label">Status</label>
+                            <select class="form-select" id="status" name="status">
+                                <option value="Pipeline" {% if service and service.status=='Pipeline' %}selected{% endif
+                                    %}>Pipeline (In Dev)</option>
+                                <option value="Operational" {% if service and service.status=='Operational' %}selected{%
+                                    endif %}>Operational</option>
+                                <option value="Retired" {% if service and service.status=='Retired' %}selected{% endif
+                                    %}>Retired</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="sla_response_hours" class="form-label">SLA Response Target (Hours)</label>
+                            <input type="number" class="form-control" id="sla_response_hours" name="sla_response_hours"
+                                value="{{ service.sla_response_hours if service else '' }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="sla_resolution_hours" class="form-label">SLA Resolution Target (Hours)</label>
+                            <input type="number" class="form-control" id="sla_resolution_hours"
+                                name="sla_resolution_hours"
+                                value="{{ service.sla_resolution_hours if service else '' }}">
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Save Service
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {% if service %}
+        <div class="card shadow mt-4 border-danger">
+            <div class="card-header bg-danger text-white">Danger Zone</div>
+            <div class="card-body">
+                <p>Deleting this service is irreversible.</p>
+                <form action="{{ url_for('services.delete_service', id=service.id) }}" method="POST"
+                    onsubmit="return confirm('Are you sure you want to delete this service?');">
+                    <button type="submit" class="btn btn-danger">Delete Service</button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

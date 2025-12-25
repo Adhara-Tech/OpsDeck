@@ -23,19 +23,39 @@
         </p>
     </div>
     <div class="btn-toolbar mb-2 mb-md-0">
+        {% if audit.is_locked %}
+        <span class="badge bg-dark me-3 d-flex align-items-center" style="font-size: 0.9rem;">
+            <i class="fas fa-lock me-1"></i> AUDIT LOCKED
+        </span>
+        <form action="{{ url_for('audits.unlock_audit', id=audit.id) }}" method="POST" class="d-inline me-2">
+            <button type="submit" class="btn btn-sm btn-outline-warning"
+                onclick="return confirm('Are you sure you want to unlock this audit?');">
+                <i class="fas fa-unlock"></i> Unlock
+            </button>
+        </form>
+        {% else %}
+        <form action="{{ url_for('audits.lock_audit', id=audit.id) }}" method="POST" class="d-inline me-2">
+            <button type="submit" class="btn btn-sm btn-outline-dark"
+                onclick="return confirm('Lock this audit? All editing will be disabled.');">
+                <i class="fas fa-lock"></i> Lock Audit
+            </button>
+        </form>
         <button type="button" class="btn btn-sm btn-outline-secondary me-2" data-bs-toggle="modal"
             data-bs-target="#editHeaderModal">
             <i class="fas fa-edit"></i> Edit Details
         </button>
+        {% endif %}
         <a href="{{ url_for('audits.export_audit', id=audit.id) }}" class="btn btn-sm btn-outline-primary me-2">
             <i class="fas fa-file-pdf"></i> Export Defense Pack
         </a>
+        {% if not audit.is_locked %}
         <form action="{{ url_for('audits.delete_audit', id=audit.id) }}" method="POST" class="d-inline"
             onsubmit="return confirm('Are you sure you want to delete this audit? This cannot be undone.');">
             <button type="submit" class="btn btn-sm btn-outline-danger">
                 <i class="fas fa-trash"></i>
             </button>
         </form>
+        {% endif %}
     </div>
 </div>
 
@@ -103,10 +123,14 @@
             <div class="card-header py-3 d-flex justify-content-between align-items-center">
                 <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-list-check"></i> Audit Controls ({{
                     total_items }})</h6>
+                {% if not audit.is_locked %}
                 <form method="POST" action="{{ url_for('audits.update_audit_items', id=audit.id) }}" id="auditForm">
                     <button type="submit" class="btn btn-sm btn-success">
                         <i class="fas fa-save"></i> Save All Changes
                     </button>
+                    {% else %}
+                    <span class="badge bg-secondary"><i class="fas fa-lock"></i> Read-Only</span>
+                    {% endif %}
             </div>
             <div class="card-body p-0">
                 <div class="accordion" id="controlsAccordion">
@@ -121,13 +145,31 @@
                                         <span class="text-muted ms-2">{{ item.control_title[:60] }}{% if
                                             item.control_title|length > 60 %}...{% endif %}</span>
                                     </div>
-                                    <div>
+                                    <div class="d-flex align-items-center">
+                                        {% if not audit.is_locked %}
+                                        <select class="form-select form-select-sm audit-status-select me-2"
+                                            data-id="{{ item.id }}" style="width: auto; min-width: 140px;"
+                                            onclick="event.stopPropagation();">
+                                            <option value="Pending" {% if item.status=='Pending' %}selected{% endif %}>⏳
+                                                Pending</option>
+                                            <option value="Compliant" {% if item.status=='Compliant' %}selected{% endif
+                                                %}>✓ Compliant</option>
+                                            <option value="Observation" {% if item.status=='Observation' %}selected{%
+                                                endif %}>⚠ Observation</option>
+                                            <option value="Gap" {% if item.status=='Gap' %}selected{% endif %}>✗ Gap
+                                            </option>
+                                            <option value="Not Applicable" {% if item.status=='Not Applicable'
+                                                %}selected{% endif %}>— N/A</option>
+                                        </select>
+                                        <span class="status-saved-indicator me-2"
+                                            style="display: none; color: #198754;">
+                                            <i class="fas fa-check-circle"></i>
+                                        </span>
+                                        {% else %}
                                         <span
-                                            class="badge bg-{% if item.status == 'Compliant' %}success{% elif item.status == 'Gap' %}danger{% elif item.status == 'Observation' %}warning{% else %}secondary{% endif %} me-2">
+                                            class="badge bg-{% if item.status == 'Compliant' %}success{% elif item.status == 'Gap' %}danger{% elif item.status == 'Observation' %}warning{% elif item.status == 'Not Applicable' %}secondary{% else %}light text-dark{% endif %} me-2">
                                             {{ item.status }}
                                         </span>
-                                        {% if not item.is_applicable %}
-                                        <span class="badge bg-dark me-1">N/A</span>
                                         {% endif %}
                                         {% set file_count = item.attachments.count() %}
                                         {% set link_count = item.linked_objects.count() %}
@@ -158,7 +200,7 @@
                                             <input class="form-check-input applicability-toggle" type="checkbox"
                                                 id="item_{{ item.id }}_applicable" name="item_{{ item.id }}_applicable"
                                                 data-target="justification_{{ item.id }}" {% if item.is_applicable
-                                                %}checked{% endif %}>
+                                                %}checked{% endif %} {% if audit.is_locked %}disabled{% endif %}>
                                             <label class="form-check-label" for="item_{{ item.id }}_applicable">Is
                                                 Applicable</label>
                                         </div>
@@ -168,7 +210,8 @@
                                             <label class="form-label small text-danger">Justification (SOA)</label>
                                             <textarea class="form-control form-control-sm"
                                                 name="item_{{ item.id }}_justification" rows="2"
-                                                placeholder="Why is this control not applicable?">{{ item.justification or '' }}</textarea>
+                                                placeholder="Why is this control not applicable?" {% if audit.is_locked
+                                                %}disabled{% endif %}>{{ item.justification or '' }}</textarea>
                                         </div>
 
                                         <div class="mb-3">
@@ -176,27 +219,37 @@
                                                     class="badge bg-secondary">Private</span></label>
                                             <textarea class="form-control form-control-sm"
                                                 name="item_{{ item.id }}_internal_comments" rows="2"
-                                                placeholder="Team notes and discussion...">{{ item.internal_comments or '' }}</textarea>
+                                                placeholder="Team notes and discussion..." {% if audit.is_locked
+                                                %}disabled{% endif %}>{{ item.internal_comments or '' }}</textarea>
                                         </div>
 
                                         <div class="mb-3">
                                             <label class="form-label small">Auditor Findings</label>
                                             <textarea class="form-control form-control-sm"
                                                 name="item_{{ item.id }}_auditor_findings" rows="2"
-                                                placeholder="Findings from the auditor...">{{ item.auditor_findings or '' }}</textarea>
+                                                placeholder="Findings from the auditor..." {% if audit.is_locked
+                                                %}disabled{% endif %}>{{ item.auditor_findings or '' }}</textarea>
                                         </div>
 
                                         <div class="mb-3">
                                             <label class="form-label small">Status</label>
-                                            <select class="form-select form-select-sm status-select"
-                                                name="item_{{ item.id }}_status">
+                                            {% if not audit.is_locked %}
+                                            <select class="form-select form-select-sm audit-status-select"
+                                                data-id="{{ item.id }}">
+                                                <option value="Pending" {% if item.status=='Pending' %}selected{% endif
+                                                    %}>⏳ Pending</option>
                                                 <option value="Compliant" {% if item.status=='Compliant' %}selected{%
                                                     endif %}>✓ Compliant</option>
-                                                <option value="Gap" {% if item.status=='Gap' %}selected{% endif %}>✗ Gap
-                                                </option>
                                                 <option value="Observation" {% if item.status=='Observation'
                                                     %}selected{% endif %}>⚠ Observation</option>
+                                                <option value="Gap" {% if item.status=='Gap' %}selected{% endif %}>✗ Gap
+                                                </option>
+                                                <option value="Not Applicable" {% if item.status=='Not Applicable'
+                                                    %}selected{% endif %}>— N/A</option>
                                             </select>
+                                            {% else %}
+                                            <div class="form-control form-control-sm bg-light">{{ item.status }}</div>
+                                            {% endif %}
                                         </div>
                                     </div>
 
@@ -226,6 +279,7 @@
                                                     uploaded.</li>
                                                 {% endfor %}
                                             </ul>
+                                            {% if not audit.is_locked %}
                                             </form><!-- Close main form before file upload form -->
                                             <form
                                                 action="{{ url_for('audits.upload_item_attachment', id=audit.id, item_id=item.id) }}"
@@ -239,6 +293,7 @@
                                             <form method="POST"
                                                 action="{{ url_for('audits.update_audit_items', id=audit.id) }}">
                                                 <!-- Re-open main form -->
+                                                {% endif %}
                                         </div>
 
                                         <!-- Linked Objects -->
@@ -254,6 +309,7 @@
                                                         <span class="badge bg-secondary">{{ link.linkable_type }}</span>
                                                         {{ obj.name if obj else 'Object #' + link.linkable_id|string }}
                                                     </span>
+                                                    {% if not audit.is_locked %}
                                                     </form>
                                                     <form
                                                         action="{{ url_for('audits.delete_item_link', id=audit.id, item_id=item.id, link_id=link.id) }}"
@@ -266,16 +322,19 @@
                                                     </form>
                                                     <form method="POST"
                                                         action="{{ url_for('audits.update_audit_items', id=audit.id) }}">
+                                                        {% endif %}
                                                 </li>
                                                 {% else %}
                                                 <li class="list-group-item text-muted py-1 px-2 small">No linked
                                                     objects.</li>
                                                 {% endfor %}
                                             </ul>
+                                            {% if not audit.is_locked %}
                                             <button type="button" class="btn btn-sm btn-outline-secondary w-100"
                                                 data-bs-toggle="modal" data-bs-target="#linkModal{{ item.id }}">
                                                 <i class="fas fa-plus"></i> Link Object
                                             </button>
+                                            {% endif %}
                                         </div>
                                     </div>
                                 </div>
@@ -507,6 +566,7 @@
                             <option value="Risk">Risk</option>
                             <option value="Software">Software</option>
                             <option value="Supplier">Supplier</option>
+                            <option value="BusinessService">Service</option>
                         </select>
                     </div>
                     <div class="mb-3">
@@ -534,37 +594,188 @@
 {% endblock %}
 
 {% block scripts_extra %}
+<!-- Toast Container -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1100;">
+    <div id="statusToast" class="toast align-items-center text-bg-success border-0" role="alert" aria-live="assertive"
+        aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body">
+                <i class="fas fa-check-circle me-2"></i><span id="toastMessage">Status saved</span>
+            </div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
+                aria-label="Close"></button>
+        </div>
+    </div>
+</div>
+
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        // Applicability Toggle
+        // Applicability Toggle - linked to status
         const toggles = document.querySelectorAll('.applicability-toggle');
         toggles.forEach(toggle => {
-            toggle.addEventListener('change', function () {
+            // Extract control ID from toggle id (format: item_XX_applicable)
+            const toggleId = toggle.id; // e.g., "item_123_applicable"
+            const controlId = toggleId.replace('item_', '').replace('_applicable', '');
+
+            toggle.addEventListener('change', async function () {
                 const targetId = this.getAttribute('data-target');
                 const container = document.getElementById(targetId + '_container');
+
+                // Get all status selects for this control
+                const statusSelects = document.querySelectorAll(`.audit-status-select[data-id="${controlId}"]`);
+
                 if (this.checked) {
+                    // Is Applicable = ON -> hide justification, enable dropdown, set to Pending
                     container.classList.add('d-none');
+                    statusSelects.forEach(sel => {
+                        sel.disabled = false;
+                        sel.value = 'Pending';
+                        colorizeStatus(sel);
+                    });
+                    // Save the status change via AJAX
+                    if (statusSelects.length > 0) {
+                        await saveStatusQuiet(controlId, 'Pending');
+                    }
                 } else {
+                    // Is Applicable = OFF -> show justification, disable dropdown, set to N/A
                     container.classList.remove('d-none');
+                    statusSelects.forEach(sel => {
+                        sel.value = 'Not Applicable';
+                        sel.disabled = true;
+                        colorizeStatus(sel);
+                    });
+                    // Save the status change via AJAX
+                    if (statusSelects.length > 0) {
+                        await saveStatusQuiet(controlId, 'Not Applicable');
+                    }
                 }
             });
+
+            // Initialize on page load - if not applicable, disable the dropdown
+            if (!toggle.checked) {
+                const statusSelects = document.querySelectorAll(`.audit-status-select[data-id="${controlId}"]`);
+                statusSelects.forEach(sel => {
+                    sel.disabled = true;
+                });
+            }
         });
 
-        // Status Select Colors
-        const selects = document.querySelectorAll('.status-select');
-        function colorize(select) {
-            select.classList.remove('bg-success', 'bg-danger', 'bg-warning', 'text-white', 'text-dark');
-            if (select.value === 'Compliant') {
-                select.classList.add('bg-success', 'text-white');
-            } else if (select.value === 'Gap') {
-                select.classList.add('bg-danger', 'text-white');
-            } else if (select.value === 'Observation') {
-                select.classList.add('bg-warning', 'text-dark');
+        // Quiet save (no toast, used for applicability toggle)
+        async function saveStatusQuiet(controlId, newStatus) {
+            try {
+                const response = await fetch(`/security/audits/api/control/${controlId}/status`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ status: newStatus })
+                });
+                const data = await response.json();
+                if (response.ok && data.success) {
+                    showToast(`Status set to ${newStatus}`, true);
+                }
+            } catch (error) {
+                console.error('Error saving status:', error);
             }
         }
-        selects.forEach(select => {
-            colorize(select);
-            select.addEventListener('change', () => colorize(select));
+
+        // Status Select Colors & AJAX Save
+        const statusSelects = document.querySelectorAll('.audit-status-select');
+
+        function colorizeStatus(select) {
+            select.classList.remove('bg-success', 'bg-danger', 'bg-warning', 'bg-secondary', 'text-white', 'text-dark', 'text-muted');
+            select.style.borderColor = '';
+
+            switch (select.value) {
+                case 'Compliant':
+                    select.classList.add('bg-success', 'text-white');
+                    break;
+                case 'Gap':
+                    select.classList.add('bg-danger', 'text-white');
+                    break;
+                case 'Observation':
+                    select.classList.add('bg-warning', 'text-dark');
+                    break;
+                case 'Not Applicable':
+                    select.classList.add('bg-secondary', 'text-white');
+                    select.style.opacity = '0.7';
+                    break;
+                case 'Pending':
+                default:
+                    select.classList.add('bg-light', 'text-dark');
+                    select.style.borderColor = '#6c757d';
+                    break;
+            }
+        }
+
+        function showToast(message, isSuccess = true) {
+            const toastEl = document.getElementById('statusToast');
+            const toastMessage = document.getElementById('toastMessage');
+
+            toastEl.classList.remove('text-bg-success', 'text-bg-danger');
+            toastEl.classList.add(isSuccess ? 'text-bg-success' : 'text-bg-danger');
+            toastMessage.textContent = message;
+
+            const toast = new bootstrap.Toast(toastEl, { delay: 2000 });
+            toast.show();
+        }
+
+        function syncStatusSelects(controlId, newValue) {
+            // Sync all selects with the same data-id (header and body selects)
+            document.querySelectorAll(`.audit-status-select[data-id="${controlId}"]`).forEach(sel => {
+                sel.value = newValue;
+                colorizeStatus(sel);
+            });
+        }
+
+        async function saveStatus(select) {
+            const controlId = select.getAttribute('data-id');
+            const newStatus = select.value;
+
+            // Add loading state
+            select.disabled = true;
+
+            try {
+                const response = await fetch(`/security/audits/api/control/${controlId}/status`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ status: newStatus })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    // Sync all selects for this control
+                    syncStatusSelects(controlId, newStatus);
+
+                    // Show saved indicator
+                    const indicator = select.parentElement.querySelector('.status-saved-indicator');
+                    if (indicator) {
+                        indicator.style.display = 'inline';
+                        setTimeout(() => { indicator.style.display = 'none'; }, 2000);
+                    }
+
+                    showToast('Status saved', true);
+                } else {
+                    showToast(data.error || 'Failed to save status', false);
+                }
+            } catch (error) {
+                console.error('Error saving status:', error);
+                showToast('Network error - please try again', false);
+            } finally {
+                select.disabled = false;
+            }
+        }
+
+        // Initialize all status selects
+        statusSelects.forEach(select => {
+            colorizeStatus(select);
+            select.addEventListener('change', function (e) {
+                e.stopPropagation();
+                saveStatus(this);
+            });
         });
     });
 </script>

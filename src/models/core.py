@@ -128,3 +128,37 @@ class Documentation(db.Model):
         if self.owner_type == 'Group' and self.owner_id:
             return Group.query.get(self.owner_id)
         return None
+
+
+class CostCenter(db.Model):
+    """Cost Center for service financial tracking."""
+    __tablename__ = 'cost_center'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(50), unique=True, index=True, nullable=False)
+    name = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<CostCenter {self.code}>'
+
+
+# Association table for Service-Documentation Many-to-Many
+service_documentation = db.Table('service_documentation',
+    db.Column('service_id', db.Integer, db.ForeignKey('business_service.id'), primary_key=True),
+    db.Column('documentation_id', db.Integer, db.ForeignKey('documentation.id'), primary_key=True)
+)
+
+# Association table for Service-Policy Many-to-Many
+service_policies = db.Table('service_policies',
+    db.Column('service_id', db.Integer, db.ForeignKey('business_service.id'), primary_key=True),
+    db.Column('policy_id', db.Integer, db.ForeignKey('policy.id'), primary_key=True)
+)
+
+# Association table for Service-SecurityActivity Many-to-Many
+service_activities = db.Table('service_activities',
+    db.Column('service_id', db.Integer, db.ForeignKey('business_service.id'), primary_key=True),
+    db.Column('activity_id', db.Integer, db.ForeignKey('security_activity.id'), primary_key=True)
+)

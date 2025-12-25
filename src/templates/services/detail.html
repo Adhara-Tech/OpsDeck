@@ -1,0 +1,727 @@
+{% extends "layout.html" %}
+{% from "components/compliance_link_macro.html" import compliance_links %}
+
+{% block title %}{{ service.name }} - Service Detail{% endblock %}
+
+{% block head_extra %}
+<!-- Mermaid.js for Topology Warning: This fetches from CDN. Ensure internet access or bundle locally. -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({ startOnLoad: true });</script>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <div>
+        <h1 class="h2">
+            {{ service.name }}
+            {% if 'Tier 1' in service.criticality|default('') %}
+            <span class="badge bg-danger fs-6 align-middle">{{ service.criticality }}</span>
+            {% elif 'Tier 2' in service.criticality|default('') %}
+            <span class="badge bg-warning text-dark fs-6 align-middle">{{ service.criticality }}</span>
+            {% else %}
+            <span class="badge bg-secondary fs-6 align-middle">{{ service.criticality }}</span>
+            {% endif %}
+        </h1>
+        <p class="text-muted mb-0">{{ service.description }}</p>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('services.edit_service', id=service.id) }}" class="btn btn-sm btn-outline-secondary me-2">
+            <i class="fas fa-edit"></i> Edit
+        </a>
+        <a href="{{ url_for('services.list_services') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back
+        </a>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <!-- Key Info Cards -->
+    <div class="col-md-3">
+        <div class="card border-left-primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">Owner</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {{ service.owner.name if service.owner else 'Unassigned' }}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-user fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card border-left-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">Status</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">{{ service.status }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-signal fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card border-left-info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">SLA Target</div>
+                        <div class="h6 mb-0 font-weight-bold text-gray-800">
+                            Resp: {{ service.sla_response_hours|default('-') }}h <br>
+                            Res: {{ service.sla_resolution_hours|default('-') }}h
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-stopwatch fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-3">
+        <div class="card border-left-warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">Cost Center</div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">
+                            {% if service.cost_center %}{{ service.cost_center.code }} - {{ service.cost_center.name
+                            }}{% else %}-{% endif %}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-wallet fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabs -->
+<ul class="nav nav-tabs mb-3" id="serviceTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="topology-tab" data-bs-toggle="tab" data-bs-target="#topology" type="button"
+            role="tab">Topology & Dependencies</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="infrastructure-tab" data-bs-toggle="tab" data-bs-target="#infrastructure"
+            type="button" role="tab">Infrastructure Components</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="context-tab" data-bs-toggle="tab" data-bs-target="#context" type="button"
+            role="tab">Service Context</button>
+    </li>
+</ul>
+
+<div class="tab-content" id="serviceTabsContent">
+
+    <!-- Topology Tab -->
+    <div class="tab-pane fade show active" id="topology" role="tabpanel">
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                        <h6 class="m-0 font-weight-bold text-primary">Dependency Graph</h6>
+                    </div>
+                    <div class="card-body text-center">
+                        <div class="mermaid">
+                            graph TD;
+                            style ME fill:#f9f,stroke:#333,stroke-width:4px
+                            ME["{{ service.name }}"]
+
+                            {% for parent in service.upstream_dependencies %}
+                            UP_{{ parent.id }}["{{ parent.name }}"] --> ME
+                            click UP_{{ parent.id }} "{{ url_for('services.detail', id=parent.id) }}"
+                            {% endfor %}
+
+                            {% for child in service.downstream_dependencies %}
+                            ME --> DOWN_{{ child.id }}["{{ child.name }}"]
+                            click DOWN_{{ child.id }} "{{ url_for('services.detail', id=child.id) }}"
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <!-- Upstream (Depends On) -->
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                        <h6 class="m-0 font-weight-bold text-primary">Depends On (Upstream)</h6>
+                        <button class="btn btn-sm btn-primary" data-bs-toggle="modal"
+                            data-bs-target="#addDependencyModal" onclick="setDependencyType('upstream')">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        {% for parent in service.upstream_dependencies %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <a href="{{ url_for('services.detail', id=parent.id) }}">{{ parent.name }}</a>
+                            <form
+                                action="{{ url_for('services.remove_dependency', id=service.id, target_id=parent.id) }}"
+                                method="POST" class="d-inline">
+                                <input type="hidden" name="type" value="upstream">
+                                <button type="submit" class="btn btn-sm text-danger border-0 bg-transparent py-0">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </form>
+                        </li>
+                        {% else %}
+                        <li class="list-group-item text-muted">No upstream dependencies.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                <!-- Downstream (Supported Services) -->
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                        <h6 class="m-0 font-weight-bold text-primary">Supported Services (Downstream)</h6>
+                        <button class="btn btn-sm btn-primary" data-bs-toggle="modal"
+                            data-bs-target="#addDependencyModal" onclick="setDependencyType('downstream')">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        {% for child in service.downstream_dependencies %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <a href="{{ url_for('services.detail', id=child.id) }}">{{ child.name }}</a>
+                            <form
+                                action="{{ url_for('services.remove_dependency', id=service.id, target_id=child.id) }}"
+                                method="POST" class="d-inline">
+                                <input type="hidden" name="type" value="downstream">
+                                <button type="submit" class="btn btn-sm text-danger border-0 bg-transparent py-0">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </form>
+                        </li>
+                        {% else %}
+                        <li class="list-group-item text-muted">No supported services.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Infrastructure Tab -->
+    <div class="tab-pane fade" id="infrastructure" role="tabpanel">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">Linked Infrastructure</h6>
+                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addComponentModal">
+                    <i class="fas fa-plus"></i> Add Component
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Item</th>
+                                <th>Notes</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for comp in service.components %}
+                            <tr>
+                                <td><span class="badge bg-secondary">{{ comp.component_type }}</span></td>
+                                <td>
+                                    {% if comp.linked_object %}
+                                    {# Helper to guess display name #}
+                                    {{ comp.linked_object.name or comp.linked_object.title or
+                                    comp.linked_object.hostname or 'Item #' ~ comp.component_id }}
+                                    {% else %}
+                                    <span class="text-danger">Item Not Found (ID: {{ comp.component_id }})</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ comp.notes }}</td>
+                                <td>
+                                    <form action="{{ url_for('services.delete_component', comp_id=comp.id) }}"
+                                        method="POST" class="d-inline"
+                                        onsubmit="return confirm('Remove this component?');">
+                                        <button type="submit" class="btn btn-sm btn-danger">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">No infrastructure components linked.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Service Context Tab -->
+    <div class="tab-pane fade" id="context" role="tabpanel">
+        <div class="row">
+            <!-- Documentation Card -->
+            <div class="col-md-6 col-lg-4">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                        <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-book"></i> Documentation</h6>
+                        <button class="btn btn-sm btn-primary" data-bs-toggle="modal"
+                            data-bs-target="#linkDocumentModal">
+                            <i class="fas fa-link"></i> Link
+                        </button>
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        {% for doc in service.documents %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="fas fa-file-alt text-muted"></i>
+                                {% if doc.external_link %}
+                                <a href="{{ doc.external_link }}" target="_blank">{{ doc.name }}</a>
+                                {% else %}
+                                {{ doc.name }}
+                                {% endif %}
+                            </div>
+                            <form action="{{ url_for('services.unlink_document', id=service.id, doc_id=doc.id) }}"
+                                method="POST" class="d-inline">
+                                <button type="submit" class="btn btn-sm text-danger border-0 bg-transparent py-0"
+                                    title="Unlink">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </form>
+                        </li>
+                        {% else %}
+                        <li class="list-group-item text-muted">No documentation linked.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+
+            <!-- External Links Card -->
+            <div class="col-md-6 col-lg-4">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                        <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-external-link-alt"></i> External
+                            Links</h6>
+                        <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addLinkModal">
+                            <i class="fas fa-plus"></i> Add
+                        </button>
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        {% for link in service_links %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="fas fa-link text-muted"></i>
+                                <a href="{{ link.url }}" target="_blank">{{ link.name }}</a>
+                            </div>
+                            <form action="{{ url_for('services.remove_link', id=service.id, link_id=link.id) }}"
+                                method="POST" class="d-inline">
+                                <button type="submit" class="btn btn-sm text-danger border-0 bg-transparent py-0"
+                                    title="Remove">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                        </li>
+                        {% else %}
+                        <li class="list-group-item text-muted">No external links.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Policies Card -->
+            <div class="col-md-6 col-lg-4">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                        <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-gavel"></i> Policies</h6>
+                        <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#linkPolicyModal">
+                            <i class="fas fa-link"></i> Link
+                        </button>
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        {% for policy in service_policies %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="fas fa-file-contract text-muted"></i>
+                                <a href="{{ url_for('policies.detail', id=policy.id) }}">{{ policy.title }}</a>
+                            </div>
+                            <form action="{{ url_for('services.unlink_policy', id=service.id, policy_id=policy.id) }}"
+                                method="POST" class="d-inline">
+                                <button type="submit" class="btn btn-sm text-danger border-0 bg-transparent py-0"
+                                    title="Unlink">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </form>
+                        </li>
+                        {% else %}
+                        <li class="list-group-item text-muted">No policies linked.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Security Activities Card -->
+            <div class="col-md-6 col-lg-4">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                        <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-shield-alt"></i> Security
+                            Activities</h6>
+                        <button class="btn btn-sm btn-primary" data-bs-toggle="modal"
+                            data-bs-target="#linkActivityModal">
+                            <i class="fas fa-link"></i> Link
+                        </button>
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        {% for activity in service_activities %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="fas fa-tasks text-muted"></i>
+                                <a href="{{ url_for('activities.activity_detail', id=activity.id) }}">{{ activity.name
+                                    }}</a>
+                            </div>
+                            <form
+                                action="{{ url_for('services.unlink_activity', id=service.id, activity_id=activity.id) }}"
+                                method="POST" class="d-inline">
+                                <button type="submit" class="btn btn-sm text-danger border-0 bg-transparent py-0"
+                                    title="Unlink">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </form>
+                        </li>
+                        {% else %}
+                        <li class="list-group-item text-muted">No security activities linked.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Attachments Card -->
+            <div class="col-md-6 col-lg-4">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                        <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-paperclip"></i> Files / Contracts
+                        </h6>
+                        <button class="btn btn-sm btn-primary" data-bs-toggle="modal"
+                            data-bs-target="#uploadAttachmentModal">
+                            <i class="fas fa-upload"></i> Upload
+                        </button>
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        {% for att in service_attachments %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="fas fa-file text-muted"></i>
+                                <a href="{{ url_for('attachments.download_attachment', attachment_id=att.id) }}">{{
+                                    att.filename }}</a>
+                            </div>
+                            <form action="{{ url_for('services.remove_attachment', id=service.id, att_id=att.id) }}"
+                                method="POST" class="d-inline">
+                                <button type="submit" class="btn btn-sm text-danger border-0 bg-transparent py-0"
+                                    title="Remove">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                        </li>
+                        {% else %}
+                        <li class="list-group-item text-muted">No files attached.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Add Dependency -->
+<div class="modal fade" id="addDependencyModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('services.add_dependency', id=service.id) }}" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Service Dependency</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="dependency_type" id="dependency_type_input" value="upstream">
+
+                    <div class="mb-3">
+                        <p id="dependency_desc_text">Select a service...</p>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Service</label>
+                        <select class="form-select tom-select" name="target_service_id" required>
+                            <option value="">Select Service...</option>
+                            {% for srv in all_services %}
+                            <option value="{{ srv.id }}">{{ srv.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Add Dependency</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Add Component -->
+<div class="modal fade" id="addComponentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('services.add_component', id=service.id) }}" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title">Link Infrastructure Component</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Component Type</label>
+                        <select class="form-select" name="component_type" id="componentTypeSelect" required>
+                            <option value="Asset">Physical Asset</option>
+                            <option value="Software">Software</option>
+                            <option value="License">License</option>
+                            <option value="Supplier">Supplier</option>
+                            <option value="Subscription">Subscription</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Select Component</label>
+                        <select id="componentSelect" name="component_id" class="form-control"
+                            placeholder="Search for component..." required></select>
+                        <div class="form-text">Start typing to search for items</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <input type="text" class="form-control" name="notes" placeholder="e.g. Hosting Server">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Link Component</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Link Document -->
+<div class="modal fade" id="linkDocumentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('services.link_document', id=service.id) }}" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title">Link Documentation</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Select Documentation</label>
+                        <select class="form-select tom-select" name="document_id" required>
+                            <option value="">Search documentation...</option>
+                            {% for doc in all_documents %}
+                            <option value="{{ doc.id }}">{{ doc.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Link</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Add Link -->
+<div class="modal fade" id="addLinkModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('services.add_link', id=service.id) }}" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add External Link</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Label</label>
+                        <input type="text" class="form-control" name="name" placeholder="e.g. Support Portal" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">URL</label>
+                        <input type="url" class="form-control" name="url" placeholder="https://..." required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Add Link</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Link Policy -->
+<div class="modal fade" id="linkPolicyModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('services.link_policy', id=service.id) }}" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title">Link Policy</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Select Policy</label>
+                        <select class="form-select tom-select" name="policy_id" required>
+                            <option value="">Search policies...</option>
+                            {% for policy in all_policies %}
+                            <option value="{{ policy.id }}">{{ policy.title }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Link</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Link Security Activity -->
+<div class="modal fade" id="linkActivityModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('services.link_activity', id=service.id) }}" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title">Link Security Activity</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Select Activity</label>
+                        <select class="form-select tom-select" name="activity_id" required>
+                            <option value="">Search activities...</option>
+                            {% for activity in all_activities %}
+                            <option value="{{ activity.id }}">{{ activity.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Link</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Upload Attachment -->
+<div class="modal fade" id="uploadAttachmentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('services.upload_attachment', id=service.id) }}" method="POST"
+                enctype="multipart/form-data">
+                <div class="modal-header">
+                    <h5 class="modal-title">Upload File</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Select File</label>
+                        <input type="file" class="form-control" name="file" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Upload</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{{ compliance_links(service, 'BusinessService') }}
+
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+    function setDependencyType(type) {
+        document.getElementById('dependency_type_input').value = type;
+        if (type === 'upstream') {
+            document.getElementById('dependency_desc_text').innerText = "Select a service that '{{ service.name }}' DEPENDS ON.";
+        } else {
+            document.getElementById('dependency_desc_text').innerText = "Select a service that DEPENDS ON '{{ service.name }}'.";
+        }
+    }
+
+    // Component TomSelect initialization
+    let componentSelectInstance = null;
+
+    function initComponentSelect(componentType) {
+        const selectEl = document.getElementById('componentSelect');
+
+        // Destroy existing instance if any
+        if (componentSelectInstance) {
+            componentSelectInstance.destroy();
+        }
+
+        // Create new TomSelect with remote loading
+        componentSelectInstance = new TomSelect(selectEl, {
+            valueField: 'id',
+            labelField: 'text',
+            searchField: 'text',
+            placeholder: 'Search for ' + componentType + '...',
+            load: function (query, callback) {
+                const url = '/services/api/search-components/' + componentType + '?q=' + encodeURIComponent(query);
+                fetch(url)
+                    .then(response => response.json())
+                    .then(json => callback(json))
+                    .catch(() => callback());
+            },
+            // Load initial options without search
+            onInitialize: function () {
+                const self = this;
+                fetch('/services/api/search-components/' + componentType)
+                    .then(response => response.json())
+                    .then(json => {
+                        json.forEach(item => self.addOption(item));
+                    });
+            }
+        });
+    }
+
+    // Initialize on modal show
+    document.getElementById('addComponentModal').addEventListener('show.bs.modal', function () {
+        const selectedType = document.getElementById('componentTypeSelect').value;
+        initComponentSelect(selectedType);
+    });
+
+    // Reinitialize when type changes
+    document.getElementById('componentTypeSelect').addEventListener('change', function () {
+        initComponentSelect(this.value);
+    });
+</script>
+{% endblock %}

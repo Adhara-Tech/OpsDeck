@@ -117,6 +117,9 @@
                 <h6 class="sidebar-heading" data-bs-toggle="collapse" data-bs-target="#operations-menu"
                     aria-expanded="false">Operations <i class="fa-fw fas fa-chevron-down float-end"></i></h6>
                 <div class="collapse" id="operations-menu" data-bs-parent="#sidebar-accordion">
+                    <li class="nav-item"><a class="nav-link {% if request.blueprint == 'services' %}active{% endif %}"
+                            href="{{ url_for('services.list_services') }}"><i class="fa-fw fas fa-server"></i>
+                            Service Catalog</a></li>
                     <li class="nav-item"><a
                             class="nav-link {% if request.endpoint.startswith('subscriptions.subscriptions') %}active{% endif %}"
                             href="{{ url_for('subscriptions.subscriptions') }}"><i class="fa-fw fas fa-cogs"></i>
@@ -248,6 +251,10 @@
                     <li class="nav-item"><a
                             class="nav-link {% if request.endpoint.startswith('budgets.') %}active{% endif %}"
                             href="{{ url_for('budgets.budgets') }}"><i class="fa-fw fas fa-wallet"></i> Budgets</a></li>
+                    <li class="nav-item"><a
+                            class="nav-link {% if request.endpoint.startswith('cost_centers.') %}active{% endif %}"
+                            href="{{ url_for('cost_centers.list_cost_centers') }}"><i class="fa-fw fas fa-building"></i>
+                            Cost Centers</a></li>
                     <li class="nav-item"><a
                             class="nav-link {% if request.endpoint.startswith('payment_methods.') %}active{% endif %}"
                             href="{{ url_for('payment_methods.payment_methods') }}"><i
