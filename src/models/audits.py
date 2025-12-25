@@ -206,6 +206,7 @@ class AuditControlLink(db.Model):
         from .training import Course
         from .bcdr import BCDRPlan
         from .security import SecurityIncident, SecurityAssessment, Risk, AssetInventory
+        from .services import BusinessService
         
         # Map types to models
         model_map = {
@@ -226,7 +227,8 @@ class AuditControlLink(db.Model):
             'SecurityIncident': SecurityIncident,
             'SecurityAssessment': SecurityAssessment,
             'Risk': Risk,
-            'AssetInventory': AssetInventory
+            'AssetInventory': AssetInventory,
+            'BusinessService': BusinessService
         }
         
         model = model_map.get(self.linkable_type)
