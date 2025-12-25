@@ -199,13 +199,13 @@ class AuditControlLink(db.Model):
     def linked_object(self):
         """Resolves the polymorphic relationship to the linked object."""
         # Import models inside the method to avoid circular imports
-        from .assets import Asset, Peripheral, Software, License, MaintenanceLog, AssetInventory
+        from .assets import Asset, Peripheral, Software, License, MaintenanceLog
         from .procurement import Supplier, Purchase, Budget, Subscription
         from .core import Link, Documentation
         from .policy import Policy
         from .training import Course
         from .bcdr import BCDRPlan
-        from .security import SecurityIncident, SecurityAssessment, Risk
+        from .security import SecurityIncident, SecurityAssessment, Risk, AssetInventory
         
         # Map types to models
         model_map = {

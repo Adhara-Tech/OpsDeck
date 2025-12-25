@@ -52,6 +52,16 @@ class BusinessService(db.Model):
         lazy='dynamic'
     )
     
+    # Compliance Links
+    compliance_links = db.relationship('ComplianceLink',
+        primaryjoin=lambda: and_(
+            foreign(__import__('src.models.security', fromlist=['ComplianceLink']).ComplianceLink.linkable_id) == BusinessService.id,
+            __import__('src.models.security', fromlist=['ComplianceLink']).ComplianceLink.linkable_type == 'BusinessService'
+        ),
+        lazy='dynamic', cascade='all, delete-orphan',
+        overlaps="compliance_links"
+    )
+    
     def __repr__(self):
         return f'<BusinessService {self.name}>'
 
