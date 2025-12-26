@@ -3,6 +3,12 @@
 {% block title %}{{ audit.name }} - Defense Room - OpsDeck{% endblock %}
 
 {% block content %}
+
+{% if not audit.is_locked %}
+<form method="POST" action="{{ url_for('audits.update_audit_items', id=audit.id) }}" id="auditForm"
+    style="display: none;"></form>
+{% endif %}
+
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <div>
         <h1 class="h2"><i class="fas fa-shield-alt text-primary"></i> {{ audit.name }}</h1>
@@ -125,13 +131,14 @@
                 <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-list-check"></i> Audit Controls ({{
                     total_items }})</h6>
                 {% if not audit.is_locked %}
-                <form method="POST" action="{{ url_for('audits.update_audit_items', id=audit.id) }}" id="auditForm">
-                    <button type="submit" class="btn btn-sm btn-success">
-                        <i class="fas fa-save"></i> Save All Changes
-                    </button>
-                    {% else %}
-                    <span class="badge bg-secondary"><i class="fas fa-lock"></i> Read-Only</span>
-                    {% endif %}
+
+                <button type="submit" form="auditForm" class="btn btn-sm btn-success">
+                    <i class="fas fa-save"></i> Save All Changes
+                </button>
+
+                {% else %}
+                <span class="badge bg-secondary"><i class="fas fa-lock"></i> Read-Only</span>
+                {% endif %}
             </div>
             <div class="card-body p-0">
                 <div class="accordion" id="controlsAccordion">
@@ -148,9 +155,10 @@
                                     </div>
                                     <div class="d-flex align-items-center">
                                         {% if not audit.is_locked %}
+
                                         <select class="form-select form-select-sm audit-status-select me-2"
-                                            data-id="{{ item.id }}" style="width: auto; min-width: 140px;"
-                                            onclick="event.stopPropagation();">
+                                            form="auditForm" name="item_{{ item.id }}_status" data-id="{{ item.id }}"
+                                            style="width: auto; min-width: 140px;" onclick="event.stopPropagation();">
                                             <option value="Pending" {% if item.status=='Pending' %}selected{% endif %}>⏳
                                                 Pending</option>
                                             <option value="Compliant" {% if item.status=='Compliant' %}selected{% endif
@@ -198,7 +206,8 @@
 
                                         <div class="form-check form-switch mb-3">
                                             <input class="form-check-input applicability-toggle" type="checkbox"
-                                                id="item_{{ item.id }}_applicable" name="item_{{ item.id }}_applicable"
+                                                form="auditForm" id="item_{{ item.id }}_applicable"
+                                                name="item_{{ item.id }}_applicable"
                                                 data-target="justification_{{ item.id }}" {% if item.is_applicable
                                                 %}checked{% endif %} {% if audit.is_locked %}disabled{% endif %}>
                                             <label class="form-check-label" for="item_{{ item.id }}_applicable">Is
@@ -208,7 +217,7 @@
                                         <div id="justification_{{ item.id }}_container"
                                             class="mb-3 {% if item.is_applicable %}d-none{% endif %}">
                                             <label class="form-label small text-danger">Justification (SOA)</label>
-                                            <textarea class="form-control form-control-sm"
+                                            <textarea class="form-control form-control-sm" form="auditForm"
                                                 name="item_{{ item.id }}_justification" rows="2"
                                                 placeholder="Why is this control not applicable?" {% if audit.is_locked
                                                 %}disabled{% endif %}>{{ item.justification or '' }}</textarea>
@@ -217,7 +226,7 @@
                                         <div class="mb-3">
                                             <label class="form-label small">Internal Comments <span
                                                     class="badge bg-secondary">Private</span></label>
-                                            <textarea class="form-control form-control-sm"
+                                            <textarea class="form-control form-control-sm" form="auditForm"
                                                 name="item_{{ item.id }}_internal_comments" rows="2"
                                                 placeholder="Team notes and discussion..." {% if audit.is_locked
                                                 %}disabled{% endif %}>{{ item.internal_comments or '' }}</textarea>
@@ -225,7 +234,7 @@
 
                                         <div class="mb-3">
                                             <label class="form-label small">Auditor Findings</label>
-                                            <textarea class="form-control form-control-sm"
+                                            <textarea class="form-control form-control-sm" form="auditForm"
                                                 name="item_{{ item.id }}_auditor_findings" rows="2"
                                                 placeholder="Findings from the auditor..." {% if audit.is_locked
                                                 %}disabled{% endif %}>{{ item.auditor_findings or '' }}</textarea>
@@ -235,6 +244,7 @@
                                             <label class="form-label small">Status</label>
                                             {% if not audit.is_locked %}
                                             <select class="form-select form-select-sm audit-status-select"
+                                                form="auditForm" name="item_{{ item.id }}_status"
                                                 data-id="{{ item.id }}">
                                                 <option value="Pending" {% if item.status=='Pending' %}selected{% endif
                                                     %}>⏳ Pending</option>
@@ -282,7 +292,7 @@
                                                 {% endfor %}
                                             </ul>
                                             {% if not audit.is_locked %}
-                                            </form>
+
                                             <form
                                                 action="{{ url_for('audits.upload_item_attachment', id=audit.id, item_id=item.id) }}"
                                                 method="POST" enctype="multipart/form-data"
@@ -292,9 +302,8 @@
                                                 <button class="btn btn-outline-info btn-sm" type="submit"><i
                                                         class="fas fa-upload"></i></button>
                                             </form>
-                                            <form method="POST"
-                                                action="{{ url_for('audits.update_audit_items', id=audit.id) }}">
-                                                {% endif %}
+
+                                            {% endif %}
                                         </div>
 
                                         <div class="mb-3">
@@ -315,7 +324,6 @@
 
                                                     <div class="flex-shrink-0">
                                                         {% if not audit.is_locked %}
-                                                        </form>
                                                         <form
                                                             action="{{ url_for('audits.delete_item_link', id=audit.id, item_id=item.id, link_id=link.id) }}"
                                                             method="POST" class="d-inline">
@@ -325,9 +333,7 @@
                                                                 <i class="fas fa-times"></i>
                                                             </button>
                                                         </form>
-                                                        <form method="POST"
-                                                            action="{{ url_for('audits.update_audit_items', id=audit.id) }}">
-                                                            {% endif %}
+                                                        {% endif %}
                                                     </div>
                                                 </li>
                                                 {% else %}
@@ -349,7 +355,6 @@
                     </div>
                     {% endfor %}
                 </div>
-                </form>
             </div>
         </div>
     </div>
