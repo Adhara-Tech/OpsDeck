@@ -3,6 +3,7 @@ from flask import (
 )
 from ..models import db, Location
 from .main import login_required
+from .admin import admin_required
 
 locations_bp = Blueprint('locations', __name__)
 
@@ -21,6 +22,7 @@ def archived_locations():
 
 @locations_bp.route('/<int:id>/archive', methods=['POST'])
 @login_required
+@admin_required
 def archive_location(id):
     location = Location.query.get_or_404(id)
     location.is_archived = True
@@ -31,6 +33,7 @@ def archive_location(id):
 
 @locations_bp.route('/<int:id>/unarchive', methods=['POST'])
 @login_required
+@admin_required
 def unarchive_location(id):
     location = Location.query.get_or_404(id)
     location.is_archived = False

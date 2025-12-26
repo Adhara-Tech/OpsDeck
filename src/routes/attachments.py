@@ -6,11 +6,13 @@ from flask import (
 from werkzeug.utils import secure_filename
 from .main import login_required
 from ..models import db, Attachment
+from .admin import admin_required
 
 attachments_bp = Blueprint('attachments', __name__)
 
 @attachments_bp.route('/upload', methods=['POST'])
 @login_required
+@admin_required
 def upload_file():
     if 'file' not in request.files:
         flash('No file part', 'danger')
@@ -115,6 +117,7 @@ def download_file(attachment_id):
 
 @attachments_bp.route('/delete/<int:attachment_id>', methods=['POST'])
 @login_required
+@admin_required
 def delete_attachment(attachment_id):
     """
     Deletes an attachment from the filesystem and the database.

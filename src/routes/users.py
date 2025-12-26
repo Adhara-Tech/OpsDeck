@@ -88,6 +88,7 @@ def edit_user(id):
 
 @users_bp.route('/<int:id>/inventory/generate', methods=['POST'])
 @login_required
+@admin_required
 def generate_inventory(id):
     """
     Genera un snapshot en PDF del inventario del usuario y lo guarda

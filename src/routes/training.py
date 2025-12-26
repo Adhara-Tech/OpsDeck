@@ -85,6 +85,7 @@ def course_detail(id):
 
 @training_bp.route('/completion/<int:assignment_id>/complete', methods=['POST'])
 @login_required
+@admin_required
 def complete_course(assignment_id):
     assignment = CourseAssignment.query.get_or_404(assignment_id)
     notes = request.form.get('notes')

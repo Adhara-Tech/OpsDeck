@@ -4,6 +4,7 @@ from flask import (
 from datetime import datetime
 from ..models import db, Purchase, Supplier, User, PaymentMethod, Tag, Budget, PurchaseCostHistory
 from .main import login_required
+from .admin import admin_required
 
 purchases_bp = Blueprint('purchases', __name__, url_prefix='/purchases')
 
@@ -103,6 +104,7 @@ def edit_purchase(id):
 
 @purchases_bp.route('/<int:id>/validate_cost', methods=['POST'])
 @login_required
+@admin_required
 def validate_cost(id):
     purchase = Purchase.query.get_or_404(id)
     user_id = session.get('user_id')
@@ -119,6 +121,7 @@ def validate_cost(id):
 
 @purchases_bp.route('/<int:id>/unvalidate_cost', methods=['POST'])
 @login_required
+@admin_required
 def unvalidate_cost(id):
     purchase = Purchase.query.get_or_404(id)
     user_id = session.get('user_id')

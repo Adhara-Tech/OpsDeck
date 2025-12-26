@@ -4,6 +4,7 @@ from flask import (
 from datetime import datetime
 from ..models import db, Peripheral, Asset, Purchase, Supplier, User, PeripheralAssignment
 from .main import login_required
+from .admin import admin_required
 
 peripherals_bp = Blueprint('peripherals', __name__)
 
@@ -134,6 +135,7 @@ def checkout_peripheral(id):
 
 @peripherals_bp.route('/<int:id>/checkin', methods=['POST'])
 @login_required
+@admin_required
 def checkin_peripheral(id):
     peripheral = Peripheral.query.get_or_404(id)
     if not peripheral.user:
@@ -161,6 +163,7 @@ def archived_peripherals():
 
 @peripherals_bp.route('/<int:id>/archive', methods=['POST'])
 @login_required
+@admin_required
 def archive_peripheral(id):
     """Sets a peripheral's status to archived."""
     peripheral = Peripheral.query.get_or_404(id)
@@ -172,6 +175,7 @@ def archive_peripheral(id):
 
 @peripherals_bp.route('/<int:id>/unarchive', methods=['POST'])
 @login_required
+@admin_required
 def unarchive_peripheral(id):
     """Restores an archived peripheral to active."""
     peripheral = Peripheral.query.get_or_404(id)

@@ -2,6 +2,7 @@ from datetime import datetime
 from flask import Blueprint, render_template, request, flash, redirect, url_for
 from ..models import db, License, User, Purchase, Subscription, Software, Budget # Import Software and Budget
 from .main import login_required
+from .admin import admin_required
 
 licenses_bp = Blueprint('licenses', __name__, url_prefix='/licenses')
 
@@ -208,6 +209,7 @@ def edit_license(id):
 
 @licenses_bp.route('/<int:id>/archive', methods=['POST'])
 @login_required
+@admin_required
 def archive_license(id):
     license = License.query.get_or_404(id)
     license.is_archived = True
@@ -223,6 +225,7 @@ def archived_licenses():
 
 @licenses_bp.route('/<int:id>/restore', methods=['POST'])
 @login_required
+@admin_required
 def restore_license(id):
     license = License.query.get_or_404(id)
     license.is_archived = False

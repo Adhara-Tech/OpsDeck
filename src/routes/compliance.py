@@ -205,6 +205,7 @@ def log_inventory_item(id):
 
 @compliance_bp.route('/inventory/<int:id>/complete', methods=['POST'])
 @login_required
+@admin_required
 def complete_inventory(id):
     """Marks an inventory as complete."""
     inventory = AssetInventory.query.get_or_404(id)
@@ -553,6 +554,7 @@ def get_framework_controls(framework_id):
 
 @compliance_bp.route('/link', methods=['POST'])
 @login_required
+@admin_required
 def create_compliance_link():
     """Creates a new compliance link."""
     data = request.json

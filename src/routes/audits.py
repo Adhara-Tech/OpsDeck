@@ -12,6 +12,7 @@ import os
 import uuid
 from datetime import datetime
 from werkzeug.utils import secure_filename
+from .admin import admin_required
 
 audits_bp = Blueprint('audits', __name__, url_prefix='/security/audits')
 
@@ -125,6 +126,7 @@ def view_audit(id):
 
 @audits_bp.route('/<int:id>/header', methods=['POST'])
 @login_required
+@admin_required
 def update_audit_header(id):
     audit = ComplianceAudit.query.get_or_404(id)
     
@@ -150,6 +152,7 @@ def update_audit_header(id):
 
 @audits_bp.route('/<int:id>/update', methods=['POST'])
 @login_required
+@admin_required
 def update_audit_items(id):
     audit = ComplianceAudit.query.get_or_404(id)
     
@@ -186,6 +189,7 @@ def update_audit_items(id):
 
 @audits_bp.route('/<int:id>/participants/add', methods=['POST'])
 @login_required
+@admin_required
 def add_participant(id):
     audit = ComplianceAudit.query.get_or_404(id)
     
@@ -207,6 +211,7 @@ def add_participant(id):
 
 @audits_bp.route('/<int:id>/participants/<int:user_id>/remove', methods=['POST'])
 @login_required
+@admin_required
 def remove_participant(id, user_id):
     audit = ComplianceAudit.query.get_or_404(id)
     
@@ -230,6 +235,7 @@ def remove_participant(id, user_id):
 
 @audits_bp.route('/<int:id>/attachments/upload', methods=['POST'])
 @login_required
+@admin_required
 def upload_audit_attachment(id):
     from flask import current_app
     
@@ -273,6 +279,7 @@ def upload_audit_attachment(id):
 
 @audits_bp.route('/<int:id>/item/<int:item_id>/upload', methods=['POST'])
 @login_required
+@admin_required
 def upload_item_attachment(id, item_id):
     from flask import current_app
     
@@ -317,6 +324,7 @@ def upload_item_attachment(id, item_id):
 
 @audits_bp.route('/<int:id>/item/<int:item_id>/link', methods=['POST'])
 @login_required
+@admin_required
 def add_item_link(id, item_id):
     audit = ComplianceAudit.query.get_or_404(id)
     item = AuditControlItem.query.get_or_404(item_id)
@@ -349,6 +357,7 @@ def add_item_link(id, item_id):
 
 @audits_bp.route('/<int:id>/item/<int:item_id>/link/<int:link_id>/delete', methods=['POST'])
 @login_required
+@admin_required
 def delete_item_link(id, item_id, link_id):
     audit = ComplianceAudit.query.get_or_404(id)
     
@@ -369,6 +378,7 @@ def delete_item_link(id, item_id, link_id):
 
 @audits_bp.route('/api/control/<int:id>/status', methods=['POST'])
 @login_required
+@admin_required
 def api_update_control_status(id):
     """AJAX endpoint for instant status updates on audit controls."""
     item = AuditControlItem.query.get_or_404(id)
@@ -398,6 +408,7 @@ def api_update_control_status(id):
 
 @audits_bp.route('/<int:id>/lock', methods=['POST'])
 @login_required
+@admin_required
 def lock_audit(id):
     """Lock the audit to prevent further modifications."""
     audit = ComplianceAudit.query.get_or_404(id)
@@ -413,6 +424,7 @@ def lock_audit(id):
 
 @audits_bp.route('/<int:id>/unlock', methods=['POST'])
 @login_required
+@admin_required
 def unlock_audit(id):
     """Unlock the audit to allow modifications again."""
     audit = ComplianceAudit.query.get_or_404(id)
@@ -447,6 +459,7 @@ def export_audit(id):
 
 @audits_bp.route('/<int:id>/delete', methods=['POST'])
 @login_required
+@admin_required
 def delete_audit(id):
     audit = ComplianceAudit.query.get_or_404(id)
     db.session.delete(audit)
