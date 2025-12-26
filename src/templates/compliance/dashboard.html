@@ -52,6 +52,8 @@
 <a href="{{ url_for('training.course_detail', id=obj.id) }}">{{ obj.title }}</a>
 {% elif type == 'Policy' %}
 <a href="{{ url_for('policies.detail', id=obj.id) }}">{{ obj.title }}</a>
+{% elif type == 'BusinessService' %}
+<a href="{{ url_for('services.detail', id=obj.id) }}">{{ obj.name }}</a>
 {% else %}
 {{ obj.name or obj.title or obj.description or 'Unknown' }}
 {% endif %}
