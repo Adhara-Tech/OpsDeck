@@ -311,14 +311,35 @@
     <main class="main-content">
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
+        {# Lista para trackear mensajes ya mostrados #}
+        {% set printed_messages = [] %}
+
         {% for category, message in messages %}
-        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+        {% if message not in printed_messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm mt-3" role="alert">
+
+            {# Iconos según categoría para mejor UX #}
+            {% if category == 'success' %}
+            <i class="fas fa-check-circle me-2"></i>
+            {% elif category == 'danger' %}
+            <i class="fas fa-exclamation-circle me-2"></i>
+            {% elif category == 'warning' %}
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            {% else %}
+            <i class="fas fa-info-circle me-2"></i>
+            {% endif %}
+
             {{ message }}
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
+
+        {# Hack de Jinja2 para añadir a la lista sin imprimir nada #}
+        {% if printed_messages.append(message) %}{% endif %}
+        {% endif %}
         {% endfor %}
         {% endif %}
         {% endwith %}
+
         {% block content %}{% endblock %}
     </main>
 
