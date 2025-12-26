@@ -275,7 +275,26 @@ class AuditControlLink(db.Model):
     linkable_id = db.Column(db.Integer, nullable=False)
     
     description = db.Column(db.Text) # Context for why this is evidence
-
+    
+    @property
+    def display_name(self):
+        """Devuelve el nombre legible del objeto, sin importar su tipo."""
+        obj = self.linked_object
+        if not obj:
+            return "Elemento no encontrado"
+        
+        # 1. Políticas y Cursos usan 'title'
+        if hasattr(obj, 'title'):
+            return obj.title
+            
+        # 2. Riesgos usan 'risk_description'
+        if hasattr(obj, 'risk_description'):
+            # Opcional: Truncar si es muy largo, ya que suelen ser textos
+            return obj.risk_description 
+            
+        # 3. El resto (Assets, Users, etc.) usan 'name'
+        return getattr(obj, 'name', str(obj))
+    
     @property
     def linked_object(self):
         """Resolves the polymorphic relationship to the linked object."""

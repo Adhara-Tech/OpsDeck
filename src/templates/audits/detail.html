@@ -302,17 +302,14 @@
                                                 Evidence</label>
                                             <ul class="list-group list-group-flush small mb-2">
                                                 {% for link in item.linked_objects %}
-                                                {% set obj = link.linked_object %}
                                                 <li
                                                     class="list-group-item d-flex justify-content-between align-items-center py-1 px-2">
                                                     <div class="d-flex align-items-center text-truncate me-2"
                                                         style="min-width: 0;">
                                                         <span class="badge bg-secondary me-2 flex-shrink-0">{{
                                                             link.linkable_type }}</span>
-                                                        <span class="text-truncate"
-                                                            title="{{ obj.name if obj else 'Object #' + link.linkable_id|string }}">
-                                                            {{ obj.name if obj else 'Object #' + link.linkable_id|string
-                                                            }}
+                                                        <span class="text-truncate" title="{{ link.display_name }}">
+                                                            {{ link.display_name }}
                                                         </span>
                                                     </div>
 
