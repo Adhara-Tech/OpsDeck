@@ -65,6 +65,90 @@ def logout():
     flash('You have been logged out', 'success')
     return redirect(url_for('main.login'))
 
+
+@main_bp.route('/google/callback')
+def google_callback():
+    """Handle Google OAuth callback and authenticate user."""
+    from flask_dance.contrib.google import google
+    
+    if not google.authorized:
+        current_app.logger.warning(
+            "Fallo en autorización OAuth Google",
+            extra={
+                "event.action": "login-oauth",
+                "event.outcome": "failure",
+                "error.message": "Google not authorized",
+                "source.ip": request.remote_addr
+            }
+        )
+        flash('Error al autorizar con Google', 'danger')
+        return redirect(url_for('main.login'))
+    
+    # Get user info from Google
+    try:
+        resp = google.get("/oauth2/v2/userinfo")
+        if not resp.ok:
+            current_app.logger.error(
+                "Error obteniendo userinfo de Google",
+                extra={
+                    "event.action": "login-oauth",
+                    "event.outcome": "failure",
+                    "error.message": f"Google API error: {resp.status_code}",
+                    "source.ip": request.remote_addr
+                }
+            )
+            flash('Error al obtener información de Google', 'danger')
+            return redirect(url_for('main.login'))
+        
+        google_info = resp.json()
+        email = google_info.get("email")
+    except Exception as e:
+        current_app.logger.error(
+            f"Exception during Google OAuth: {str(e)}",
+            extra={
+                "event.action": "login-oauth",
+                "event.outcome": "failure",
+                "error.message": str(e),
+                "source.ip": request.remote_addr
+            }
+        )
+        flash('Error al procesar la autenticación de Google', 'danger')
+        return redirect(url_for('main.login'))
+    
+    # Find user in database
+    user = User.query.filter_by(email=email).first()
+    
+    if user:
+        # Success - log and create session
+        current_app.logger.info(
+            f"Login OAuth exitoso: {email}",
+            extra={
+                "user.email": email,
+                "user.id": user.id,
+                "event.action": "login-oauth",
+                "event.provider": "google",
+                "event.outcome": "success",
+                "source.ip": request.remote_addr
+            }
+        )
+        session['user_id'] = user.id
+        flash('Logged in successfully via Google', 'success')
+        return redirect(url_for('main.dashboard'))
+    else:
+        # User not found in database
+        current_app.logger.warning(
+            f"Intento de login OAuth con usuario desconocido: {email}",
+            extra={
+                "user.email": email,
+                "event.action": "login-oauth",
+                "event.outcome": "failure",
+                "error.message": "User not found in database",
+                "source.ip": request.remote_addr
+            }
+        )
+        flash('No existe un usuario registrado con este email.', 'danger')
+        return redirect(url_for('main.login'))
+
 def password_change_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,10 +8,17 @@
     <link href="{{ url_for('static', filename='vendor/bootstrap/css/bootstrap.min.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='vendor/font-awesome/css/all.min.css') }}" rel="stylesheet">
     <style>
-        body { background-color: #f8f9fa; }
-        .login-container { max-width: 400px; margin: 5rem auto; }
+        body {
+            background-color: #f8f9fa;
+        }
+
+        .login-container {
+            max-width: 400px;
+            margin: 5rem auto;
+        }
     </style>
 </head>
+
 <body>
     <div class="login-container">
         <div class="card">
@@ -19,9 +27,9 @@
             </div>
             <div class="card-body">
                 {% with messages = get_flashed_messages() %}
-                    {% if messages %}
-                        <div class="alert alert-danger">{{ messages[0] }}</div>
-                    {% endif %}
+                {% if messages %}
+                <div class="alert alert-danger">{{ messages[0] }}</div>
+                {% endif %}
                 {% endwith %}
                 <form method="POST" action="{{ url_for('main.login') }}">
                     <div class="mb-3">
@@ -34,9 +42,17 @@
                     </div>
                     <button type="submit" class="btn btn-primary w-100">Login</button>
                 </form>
+
+                {% if config.get('GOOGLE_OAUTH_CLIENT_ID') %}
+                <hr class="my-3">
+                <a href="{{ url_for('google.login') }}" class="btn btn-danger w-100">
+                    <i class="fab fa-google"></i> Iniciar sesión con Google
+                </a>
+                {% endif %}
             </div>
         </div>
     </div>
     <script src="{{ url_for('static', filename='vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
 </body>
+
 </html>

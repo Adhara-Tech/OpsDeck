@@ -10,6 +10,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import ecs_logging
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from flask_dance.contrib.google import make_google_blueprint
 
 from .extensions import db, migrate
 from .models import User
@@ -87,6 +88,13 @@ def create_app():
     app.config['EMAIL_USERNAME'] = os.environ.get('EMAIL_USERNAME', '')
     app.config['EMAIL_PASSWORD'] = os.environ.get('EMAIL_PASSWORD', '')
     app.config['WEBHOOK_URL'] = os.environ.get('WEBHOOK_URL', '')
+
+    # --- Google OAuth Configuration ---
+    app.config['GOOGLE_OAUTH_CLIENT_ID'] = os.environ.get('GOOGLE_OAUTH_CLIENT_ID', '')
+    app.config['GOOGLE_OAUTH_CLIENT_SECRET'] = os.environ.get('GOOGLE_OAUTH_CLIENT_SECRET', '')
+    # Allow insecure transport for local development
+    if os.environ.get('OAUTHLIB_INSECURE_TRANSPORT') == '1':
+        os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
     # --- Initialize Extensions ---
     db.init_app(app)
@@ -191,6 +199,16 @@ def create_app():
     app.register_blueprint(cost_centers_bp, url_prefix='/cost-centers')
     app.register_blueprint(links_bp, url_prefix='/links')
     app.register_blueprint(activities_bp, url_prefix='/security/activities')
+
+    # --- Google OAuth Blueprint ---
+    if app.config.get('GOOGLE_OAUTH_CLIENT_ID'):
+        google_bp = make_google_blueprint(
+            client_id=app.config['GOOGLE_OAUTH_CLIENT_ID'],
+            client_secret=app.config['GOOGLE_OAUTH_CLIENT_SECRET'],
+            scope=["profile", "email"],
+            redirect_to="main.google_callback"
+        )
+        app.register_blueprint(google_bp, url_prefix="/login")
 
 
     # --- Make user and role available in all templates ---
