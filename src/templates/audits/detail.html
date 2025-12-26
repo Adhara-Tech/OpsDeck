@@ -317,9 +317,47 @@
                                                         style="min-width: 0;">
                                                         <span class="badge bg-secondary me-2 flex-shrink-0">{{
                                                             link.linkable_type }}</span>
+                                                        {% if link.linkable_type == 'Asset' %}
+                                                        <a href="{{ url_for('assets.asset_detail', id=link.linkable_id) }}"
+                                                            class="text-truncate" title="{{ link.display_name }}">{{
+                                                            link.display_name }}</a>
+                                                        {% elif link.linkable_type == 'Policy' %}
+                                                        <a href="{{ url_for('policies.detail', id=link.linkable_id) }}"
+                                                            class="text-truncate" title="{{ link.display_name }}">{{
+                                                            link.display_name }}</a>
+                                                        {% elif link.linkable_type == 'Documentation' %}
+                                                        <a href="{{ url_for('documentation.detail', id=link.linkable_id) }}"
+                                                            class="text-truncate" title="{{ link.display_name }}">{{
+                                                            link.display_name }}</a>
+                                                        {% elif link.linkable_type == 'Link' %}
+                                                        <a href="{{ url_for('links.detail', id=link.linkable_id) }}"
+                                                            class="text-truncate" title="{{ link.display_name }}">{{
+                                                            link.display_name }}</a>
+                                                        {% elif link.linkable_type == 'Course' %}
+                                                        <a href="{{ url_for('training.course_detail', id=link.linkable_id) }}"
+                                                            class="text-truncate" title="{{ link.display_name }}">{{
+                                                            link.display_name }}</a>
+                                                        {% elif link.linkable_type == 'Risk' %}
+                                                        <a href="{{ url_for('risk.detail', id=link.linkable_id) }}"
+                                                            class="text-truncate" title="{{ link.display_name }}">{{
+                                                            link.display_name }}</a>
+                                                        {% elif link.linkable_type == 'Software' %}
+                                                        <a href="{{ url_for('software.detail', id=link.linkable_id) }}"
+                                                            class="text-truncate" title="{{ link.display_name }}">{{
+                                                            link.display_name }}</a>
+                                                        {% elif link.linkable_type == 'Supplier' %}
+                                                        <a href="{{ url_for('suppliers.supplier_detail', id=link.linkable_id) }}"
+                                                            class="text-truncate" title="{{ link.display_name }}">{{
+                                                            link.display_name }}</a>
+                                                        {% elif link.linkable_type == 'BusinessService' %}
+                                                        <a href="{{ url_for('services.detail', id=link.linkable_id) }}"
+                                                            class="text-truncate" title="{{ link.display_name }}">{{
+                                                            link.display_name }}</a>
+                                                        {% else %}
                                                         <span class="text-truncate" title="{{ link.display_name }}">
                                                             {{ link.display_name }}
                                                         </span>
+                                                        {% endif %}
                                                     </div>
 
                                                     <div class="flex-shrink-0">
