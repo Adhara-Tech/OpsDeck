@@ -1,5 +1,5 @@
 from flask import (
-    Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, g
+    Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, g, current_app
 )
 from sqlalchemy import or_
 from markupsafe import Markup
@@ -27,10 +27,31 @@ def login():
         user = User.query.filter_by(email=email).first()
 
         if user and user.check_password(password):
+            # Log successful login
+            current_app.logger.info(
+                "Inicio de sesión exitoso",
+                extra={
+                    "user.email": user.email,
+                    "user.id": user.id,
+                    "event.action": "login",
+                    "event.outcome": "success",
+                    "source.ip": request.remote_addr
+                }
+            )
             session['user_id'] = user.id
             flash('Logged in successfully', 'success')
             return redirect(url_for('main.dashboard'))
         else:
+            # Log failed login attempt
+            current_app.logger.warning(
+                "Intento de inicio de sesión fallido",
+                extra={
+                    "user.email": email,
+                    "event.action": "login",
+                    "event.outcome": "failure",
+                    "source.ip": request.remote_addr
+                }
+            )
             flash('Invalid email or password')
 
     return render_template('login.html')

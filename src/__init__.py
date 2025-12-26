@@ -1,9 +1,13 @@
 # src/__init__.py
 
 import os
+import sys
+import logging
+from logging.handlers import RotatingFileHandler
 import atexit
 from flask import Flask, session
 from apscheduler.schedulers.background import BackgroundScheduler
+import ecs_logging
 
 from .extensions import db, migrate
 from .models import User
@@ -12,6 +16,45 @@ import markdown
 from markupsafe import Markup
 from .seeder_prod import seed_production_frameworks
 import re
+
+
+def configure_logging(app):
+    """
+    Configure structured ECS logging with file rotation and console output.
+    """
+    # Get the app logger
+    logger = logging.getLogger(app.name)
+    logger.setLevel(logging.INFO)
+
+    # Create logs directory if it doesn't exist
+    log_dir = 'logs'
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+
+    # 1. Handler for file output (JSON ECS format)
+    # Rotates at 10MB, keeps 5 backup files
+    log_file_path = os.path.join(log_dir, 'logs.json')
+    file_handler = RotatingFileHandler(
+        log_file_path,
+        maxBytes=10 * 1024 * 1024,  # 10MB
+        backupCount=5
+    )
+    file_handler.setFormatter(ecs_logging.StdlibFormatter())
+
+    # 2. Handler for console output (readable format for development)
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(
+        logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    )
+
+    # Clear any existing handlers and add the new ones
+    logger.handlers = []
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+
+    # Sync Flask's app.logger with our configured logger
+    app.logger.handlers = logger.handlers
+    app.logger.setLevel(logger.level)
 
 def create_app():
     """
@@ -43,6 +86,9 @@ def create_app():
     # --- Initialize Extensions ---
     db.init_app(app)
     migrate.init_app(app, db)
+
+    # --- Configure Logging (ECS format with rotation) ---
+    configure_logging(app)
     
     # --- REGISTER THE CUSTOM MARKDOWN FILTER ---
     @app.template_filter('markdown')
