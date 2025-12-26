@@ -3,7 +3,12 @@
 {% block title %}{{ audit.name }} - Defense Room - OpsDeck{% endblock %}
 
 {% block content %}
-<!-- Header Section -->
+
+{% if not audit.is_locked %}
+<form method="POST" action="{{ url_for('audits.update_audit_items', id=audit.id) }}" id="auditForm"
+    style="display: none;"></form>
+{% endif %}
+
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <div>
         <h1 class="h2"><i class="fas fa-shield-alt text-primary"></i> {{ audit.name }}</h1>
@@ -23,6 +28,11 @@
         </p>
     </div>
     <div class="btn-toolbar mb-2 mb-md-0">
+        <button type="button" class="btn btn-sm btn-outline-secondary me-2" onclick="toggleSidebar()"
+            title="Toggle Sidebar">
+            <i class="fas fa-columns"></i>
+        </button>
+
         {% if audit.is_locked %}
         <span class="badge bg-dark me-3 d-flex align-items-center" style="font-size: 0.9rem;">
             <i class="fas fa-lock me-1"></i> AUDIT LOCKED
@@ -59,7 +69,6 @@
     </div>
 </div>
 
-<!-- Stats Row -->
 <div class="row mb-4">
     <div class="col-md-3">
         <div class="card text-white bg-success shadow">
@@ -116,21 +125,20 @@
 </div>
 
 <div class="row">
-    <!-- Main Content -->
-    <div class="col-lg-8">
-        <!-- Controls Accordion -->
+    <div class="col-lg-8" id="mainContentCol" style="transition: all 0.3s ease;">
         <div class="card shadow mb-4">
             <div class="card-header py-3 d-flex justify-content-between align-items-center">
                 <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-list-check"></i> Audit Controls ({{
                     total_items }})</h6>
                 {% if not audit.is_locked %}
-                <form method="POST" action="{{ url_for('audits.update_audit_items', id=audit.id) }}" id="auditForm">
-                    <button type="submit" class="btn btn-sm btn-success">
-                        <i class="fas fa-save"></i> Save All Changes
-                    </button>
-                    {% else %}
-                    <span class="badge bg-secondary"><i class="fas fa-lock"></i> Read-Only</span>
-                    {% endif %}
+
+                <button type="submit" form="auditForm" class="btn btn-sm btn-success">
+                    <i class="fas fa-save"></i> Save All Changes
+                </button>
+
+                {% else %}
+                <span class="badge bg-secondary"><i class="fas fa-lock"></i> Read-Only</span>
+                {% endif %}
             </div>
             <div class="card-body p-0">
                 <div class="accordion" id="controlsAccordion">
@@ -147,9 +155,10 @@
                                     </div>
                                     <div class="d-flex align-items-center">
                                         {% if not audit.is_locked %}
+
                                         <select class="form-select form-select-sm audit-status-select me-2"
-                                            data-id="{{ item.id }}" style="width: auto; min-width: 140px;"
-                                            onclick="event.stopPropagation();">
+                                            form="auditForm" name="item_{{ item.id }}_status" data-id="{{ item.id }}"
+                                            style="width: auto; min-width: 140px;" onclick="event.stopPropagation();">
                                             <option value="Pending" {% if item.status=='Pending' %}selected{% endif %}>⏳
                                                 Pending</option>
                                             <option value="Compliant" {% if item.status=='Compliant' %}selected{% endif
@@ -191,14 +200,14 @@
                                 <p class="text-muted small mb-3">{{ item.control_description }}</p>
 
                                 <div class="row">
-                                    <!-- Left Column: Defense Strategy -->
                                     <div class="col-md-6">
                                         <h6 class="text-primary border-bottom pb-2 mb-3"><i class="fas fa-chess"></i>
                                             Defense Strategy</h6>
 
                                         <div class="form-check form-switch mb-3">
                                             <input class="form-check-input applicability-toggle" type="checkbox"
-                                                id="item_{{ item.id }}_applicable" name="item_{{ item.id }}_applicable"
+                                                form="auditForm" id="item_{{ item.id }}_applicable"
+                                                name="item_{{ item.id }}_applicable"
                                                 data-target="justification_{{ item.id }}" {% if item.is_applicable
                                                 %}checked{% endif %} {% if audit.is_locked %}disabled{% endif %}>
                                             <label class="form-check-label" for="item_{{ item.id }}_applicable">Is
@@ -208,7 +217,7 @@
                                         <div id="justification_{{ item.id }}_container"
                                             class="mb-3 {% if item.is_applicable %}d-none{% endif %}">
                                             <label class="form-label small text-danger">Justification (SOA)</label>
-                                            <textarea class="form-control form-control-sm"
+                                            <textarea class="form-control form-control-sm" form="auditForm"
                                                 name="item_{{ item.id }}_justification" rows="2"
                                                 placeholder="Why is this control not applicable?" {% if audit.is_locked
                                                 %}disabled{% endif %}>{{ item.justification or '' }}</textarea>
@@ -217,7 +226,7 @@
                                         <div class="mb-3">
                                             <label class="form-label small">Internal Comments <span
                                                     class="badge bg-secondary">Private</span></label>
-                                            <textarea class="form-control form-control-sm"
+                                            <textarea class="form-control form-control-sm" form="auditForm"
                                                 name="item_{{ item.id }}_internal_comments" rows="2"
                                                 placeholder="Team notes and discussion..." {% if audit.is_locked
                                                 %}disabled{% endif %}>{{ item.internal_comments or '' }}</textarea>
@@ -225,7 +234,7 @@
 
                                         <div class="mb-3">
                                             <label class="form-label small">Auditor Findings</label>
-                                            <textarea class="form-control form-control-sm"
+                                            <textarea class="form-control form-control-sm" form="auditForm"
                                                 name="item_{{ item.id }}_auditor_findings" rows="2"
                                                 placeholder="Findings from the auditor..." {% if audit.is_locked
                                                 %}disabled{% endif %}>{{ item.auditor_findings or '' }}</textarea>
@@ -235,6 +244,7 @@
                                             <label class="form-label small">Status</label>
                                             {% if not audit.is_locked %}
                                             <select class="form-select form-select-sm audit-status-select"
+                                                form="auditForm" name="item_{{ item.id }}_status"
                                                 data-id="{{ item.id }}">
                                                 <option value="Pending" {% if item.status=='Pending' %}selected{% endif
                                                     %}>⏳ Pending</option>
@@ -253,12 +263,10 @@
                                         </div>
                                     </div>
 
-                                    <!-- Right Column: Evidence Vault -->
                                     <div class="col-md-6">
                                         <h6 class="text-info border-bottom pb-2 mb-3"><i class="fas fa-archive"></i>
                                             Evidence Vault</h6>
 
-                                        <!-- Files -->
                                         <div class="mb-3">
                                             <label
                                                 class="form-label small d-flex justify-content-between align-items-center">
@@ -268,11 +276,15 @@
                                                 {% for att in item.attachments %}
                                                 <li
                                                     class="list-group-item d-flex justify-content-between align-items-center py-1 px-2">
-                                                    <a href="{{ url_for('attachments.download_file', attachment_id=att.id) }}"
-                                                        target="_blank">
-                                                        <i class="fas fa-file-alt"></i> {{ att.filename[:25] }}{% if
-                                                        att.filename|length > 25 %}...{% endif %}
-                                                    </a>
+                                                    <div class="d-flex align-items-center text-truncate me-2"
+                                                        style="min-width: 0;">
+                                                        <i class="fas fa-file-alt text-muted me-2 flex-shrink-0"></i>
+                                                        <a href="{{ url_for('attachments.download_file', attachment_id=att.id) }}"
+                                                            target="_blank" class="text-truncate"
+                                                            title="{{ att.filename }}">
+                                                            {{ att.filename }}
+                                                        </a>
+                                                    </div>
                                                 </li>
                                                 {% else %}
                                                 <li class="list-group-item text-muted py-1 px-2 small">No files
@@ -280,7 +292,7 @@
                                                 {% endfor %}
                                             </ul>
                                             {% if not audit.is_locked %}
-                                            </form><!-- Close main form before file upload form -->
+
                                             <form
                                                 action="{{ url_for('audits.upload_item_attachment', id=audit.id, item_id=item.id) }}"
                                                 method="POST" enctype="multipart/form-data"
@@ -290,39 +302,77 @@
                                                 <button class="btn btn-outline-info btn-sm" type="submit"><i
                                                         class="fas fa-upload"></i></button>
                                             </form>
-                                            <form method="POST"
-                                                action="{{ url_for('audits.update_audit_items', id=audit.id) }}">
-                                                <!-- Re-open main form -->
-                                                {% endif %}
+
+                                            {% endif %}
                                         </div>
 
-                                        <!-- Linked Objects -->
                                         <div class="mb-3">
                                             <label class="form-label small"><i class="fas fa-link"></i> Linked
                                                 Evidence</label>
                                             <ul class="list-group list-group-flush small mb-2">
                                                 {% for link in item.linked_objects %}
-                                                {% set obj = link.linked_object %}
                                                 <li
                                                     class="list-group-item d-flex justify-content-between align-items-center py-1 px-2">
-                                                    <span>
-                                                        <span class="badge bg-secondary">{{ link.linkable_type }}</span>
-                                                        {{ obj.name if obj else 'Object #' + link.linkable_id|string }}
-                                                    </span>
-                                                    {% if not audit.is_locked %}
-                                                    </form>
-                                                    <form
-                                                        action="{{ url_for('audits.delete_item_link', id=audit.id, item_id=item.id, link_id=link.id) }}"
-                                                        method="POST" class="d-inline">
-                                                        <button type="submit"
-                                                            class="btn btn-sm btn-outline-danger py-0 px-1"
-                                                            title="Remove">
-                                                            <i class="fas fa-times"></i>
-                                                        </button>
-                                                    </form>
-                                                    <form method="POST"
-                                                        action="{{ url_for('audits.update_audit_items', id=audit.id) }}">
+                                                    <div class="d-flex align-items-center text-truncate me-2"
+                                                        style="min-width: 0;">
+                                                        <span class="badge bg-secondary me-2 flex-shrink-0">{{
+                                                            link.linkable_type }}</span>
+                                                        {% if link.linkable_type == 'Asset' %}
+                                                        <a href="{{ url_for('assets.asset_detail', id=link.linkable_id) }}"
+                                                            class="text-truncate" title="{{ link.display_name }}">{{
+                                                            link.display_name }}</a>
+                                                        {% elif link.linkable_type == 'Policy' %}
+                                                        <a href="{{ url_for('policies.detail', id=link.linkable_id) }}"
+                                                            class="text-truncate" title="{{ link.display_name }}">{{
+                                                            link.display_name }}</a>
+                                                        {% elif link.linkable_type == 'Documentation' %}
+                                                        <a href="{{ url_for('documentation.detail', id=link.linkable_id) }}"
+                                                            class="text-truncate" title="{{ link.display_name }}">{{
+                                                            link.display_name }}</a>
+                                                        {% elif link.linkable_type == 'Link' %}
+                                                        <a href="{{ url_for('links.detail', id=link.linkable_id) }}"
+                                                            class="text-truncate" title="{{ link.display_name }}">{{
+                                                            link.display_name }}</a>
+                                                        {% elif link.linkable_type == 'Course' %}
+                                                        <a href="{{ url_for('training.course_detail', id=link.linkable_id) }}"
+                                                            class="text-truncate" title="{{ link.display_name }}">{{
+                                                            link.display_name }}</a>
+                                                        {% elif link.linkable_type == 'Risk' %}
+                                                        <a href="{{ url_for('risk.detail', id=link.linkable_id) }}"
+                                                            class="text-truncate" title="{{ link.display_name }}">{{
+                                                            link.display_name }}</a>
+                                                        {% elif link.linkable_type == 'Software' %}
+                                                        <a href="{{ url_for('software.detail', id=link.linkable_id) }}"
+                                                            class="text-truncate" title="{{ link.display_name }}">{{
+                                                            link.display_name }}</a>
+                                                        {% elif link.linkable_type == 'Supplier' %}
+                                                        <a href="{{ url_for('suppliers.supplier_detail', id=link.linkable_id) }}"
+                                                            class="text-truncate" title="{{ link.display_name }}">{{
+                                                            link.display_name }}</a>
+                                                        {% elif link.linkable_type == 'BusinessService' %}
+                                                        <a href="{{ url_for('services.detail', id=link.linkable_id) }}"
+                                                            class="text-truncate" title="{{ link.display_name }}">{{
+                                                            link.display_name }}</a>
+                                                        {% else %}
+                                                        <span class="text-truncate" title="{{ link.display_name }}">
+                                                            {{ link.display_name }}
+                                                        </span>
                                                         {% endif %}
+                                                    </div>
+
+                                                    <div class="flex-shrink-0">
+                                                        {% if not audit.is_locked %}
+                                                        <form
+                                                            action="{{ url_for('audits.delete_item_link', id=audit.id, item_id=item.id, link_id=link.id) }}"
+                                                            method="POST" class="d-inline">
+                                                            <button type="submit"
+                                                                class="btn btn-sm btn-outline-danger py-0 px-1"
+                                                                title="Remove">
+                                                                <i class="fas fa-times"></i>
+                                                            </button>
+                                                        </form>
+                                                        {% endif %}
+                                                    </div>
                                                 </li>
                                                 {% else %}
                                                 <li class="list-group-item text-muted py-1 px-2 small">No linked
@@ -343,14 +393,11 @@
                     </div>
                     {% endfor %}
                 </div>
-                </form>
             </div>
         </div>
     </div>
 
-    <!-- Sidebar -->
-    <div class="col-lg-4">
-        <!-- Auditor Card -->
+    <div class="col-lg-4" id="auditSidebar" style="transition: all 0.3s ease;">
         {% if audit.auditor %}
         <div class="card shadow mb-4 border-warning">
             <div class="card-header py-3 bg-warning text-dark">
@@ -369,7 +416,6 @@
         </div>
         {% endif %}
 
-        <!-- Internal Lead & Participants -->
         <div class="card shadow mb-4">
             <div class="card-header py-3 d-flex justify-content-between align-items-center">
                 <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-users"></i> Defense Team</h6>
@@ -412,7 +458,6 @@
             </div>
         </div>
 
-        <!-- Global Attachments -->
         <div class="card shadow mb-4">
             <div class="card-header py-3">
                 <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-folder-open"></i> Audit Documents</h6>
@@ -442,7 +487,6 @@
             </div>
         </div>
 
-        <!-- Audit Info -->
         <div class="card shadow mb-4">
             <div class="card-header py-3">
                 <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-info-circle"></i> Audit Info</h6>
@@ -460,7 +504,6 @@
     </div>
 </div>
 
-<!-- Edit Header Modal -->
 <div class="modal fade" id="editHeaderModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -512,7 +555,6 @@
     </div>
 </div>
 
-<!-- Manage Team Modal -->
 <div class="modal fade" id="manageTeamModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -543,7 +585,6 @@
     </div>
 </div>
 
-<!-- Link Object Modals (one per item) -->
 {% for item in audit.audit_items %}
 <div class="modal fade" id="linkModal{{ item.id }}" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
@@ -556,8 +597,8 @@
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label">Object Type</label>
-                        <select class="form-select" name="linkable_type" required>
-                            <option value="">Select type...</option>
+                        <select class="form-select" name="linkable_type" id="linkableType-{{ item.id }}" required>
+                            <option value="" selected>Select type...</option>
                             <option value="Asset">Asset</option>
                             <option value="Policy">Policy</option>
                             <option value="Documentation">Documentation</option>
@@ -569,11 +610,11 @@
                             <option value="BusinessService">Service</option>
                         </select>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label">Object ID</label>
-                        <input type="number" class="form-control" name="linkable_id" required
-                            placeholder="Enter the ID of the object">
-                        <small class="text-muted">Enter the numeric ID of the object to link.</small>
+                    <div class="mb-3" id="object-selector-{{ item.id }}" style="display: none;">
+                        <label for="objectSelect-{{ item.id }}" class="form-label">Select Object</label>
+                        <select id="objectSelect-{{ item.id }}" name="linkable_id_dynamic" class="object-select"
+                            placeholder="Type to search..."></select>
+                        <div class="form-text">Search for the object to link as evidence.</div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Description (Optional)</label>
@@ -594,7 +635,6 @@
 {% endblock %}
 
 {% block scripts_extra %}
-<!-- Toast Container -->
 <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1100;">
     <div id="statusToast" class="toast align-items-center text-bg-success border-0" role="alert" aria-live="assertive"
         aria-atomic="true">
@@ -609,7 +649,43 @@
 </div>
 
 <script>
+    // --- SIDEBAR TOGGLE FUNCTION ---
+    function toggleSidebar() {
+        const sidebar = document.getElementById('auditSidebar');
+        const main = document.getElementById('mainContentCol');
+
+        // Check if currently hidden (via inline style or class)
+        // Note: Bootstrap 5 uses classes mostly, but we are using inline style for 'display: none' in this logic
+        // We can check if it's visible.
+
+        const isHidden = sidebar.style.display === 'none';
+
+        if (isHidden) {
+            // SHOW
+            sidebar.style.display = 'block';
+            main.classList.remove('col-lg-12');
+            main.classList.add('col-lg-8');
+            localStorage.setItem('audit_sidebar_collapsed', 'false');
+        } else {
+            // HIDE
+            sidebar.style.display = 'none';
+            main.classList.remove('col-lg-8');
+            main.classList.add('col-lg-12');
+            localStorage.setItem('audit_sidebar_collapsed', 'true');
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
+        // Restore sidebar state preference
+        const isCollapsed = localStorage.getItem('audit_sidebar_collapsed') === 'true';
+        if (isCollapsed) {
+            const sidebar = document.getElementById('auditSidebar');
+            const main = document.getElementById('mainContentCol');
+            sidebar.style.display = 'none';
+            main.classList.remove('col-lg-8');
+            main.classList.add('col-lg-12');
+        }
+
         // Applicability Toggle - linked to status
         const toggles = document.querySelectorAll('.applicability-toggle');
         toggles.forEach(toggle => {
@@ -777,6 +853,105 @@
                 saveStatus(this);
             });
         });
+        // Dynamic Link Object Search (TomSelect)
+        const typeSelects = document.querySelectorAll('select[name="linkable_type"]');
+        typeSelects.forEach(typeSelect => {
+            typeSelect.addEventListener('change', function () {
+                const selectId = this.id;
+                const itemId = selectId.split('-')[1]; // linkableType-{id}
+                const container = document.getElementById(`object-selector-${itemId}`);
+                const objectSelectInput = document.getElementById(`objectSelect-${itemId}`);
+                const objectType = this.value;
+
+                if (!objectType) {
+                    container.style.display = 'none';
+                    return;
+                }
+
+                container.style.display = 'block';
+
+                // Destroy existing TomSelect if it exists to reset for new type
+                if (objectSelectInput.tomselect) {
+                    objectSelectInput.tomselect.clear();
+                    objectSelectInput.tomselect.destroy();
+                    // Clear options manually to be safe
+                    objectSelectInput.innerHTML = '';
+                }
+
+                // Show loading placeholder or disable while fetching? 
+                // We'll populate it after fetch.
+
+                // Fetch all items for this type
+                fetch(`/security/audits/api/search-linkable?type=${encodeURIComponent(objectType)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        // Populate select options
+                        let optionsHtml = '<option value="">Select object...</option>';
+                        data.forEach(item => {
+                            optionsHtml += `<option value="${item.id}" data-type="${item.type}">${item.name}</option>`;
+                        });
+                        objectSelectInput.innerHTML = optionsHtml;
+
+                        // Initialize TomSelect as a simple dropdown (not remote search)
+                        new TomSelect(objectSelectInput, {
+                            create: false,
+                            sortField: {
+                                field: "text",
+                                direction: "asc"
+                            },
+                            placeholder: 'Select object...',
+                            render: {
+                                option: function (item, escape) {
+                                    // Use the text from the option slightly enriched if possible, 
+                                    // but standard TomSelect with data attributes needs custom data reading.
+                                    // Simpler: Just rely on the text content which we can format or 
+                                    // pass data via the settings.
+                                    // Let's pass the data directly to TomSelect if we want custom rendering.
+                                    return `<div>
+                                        <span class="title">${escape(item.text)}</span>
+                                     </div>`;
+                                },
+                                item: function (item, escape) {
+                                    return `<div>${escape(item.text)}</div>`;
+                                }
+                            }
+                        });
+
+                        // If we want richer rendering we need to pass the full data object to TomSelect constructor 
+                        // instead of just HTML options. But HTML options + TomSelect is easiest for "simple list".
+                        // To get the "subtitle" (type) like before, we'd need to pass `options` array.
+
+                        // Enhanced approach: Destroy, then init with options array.
+                        objectSelectInput.tomselect.destroy();
+
+                        new TomSelect(objectSelectInput, {
+                            valueField: 'id',
+                            labelField: 'name',
+                            searchField: 'name',
+                            options: data, // Pass the fetched data directly
+                            create: false,
+                            placeholder: 'Select object...',
+                            render: {
+                                option: function (item, escape) {
+                                    return `<div>
+                                        <span class="title">${escape(item.name)}</span>
+                                        <span class="subtitle text-muted small ms-2">(${escape(item.type)})</span>
+                                    </div>`;
+                                },
+                                item: function (item, escape) {
+                                    return `<div>${escape(item.name)}</div>`;
+                                }
+                            }
+                        });
+
+                    })
+                    .catch(err => {
+                        console.error('Error fetching linkable objects:', err);
+                        objectSelectInput.innerHTML = '<option value="">Error loading objects</option>';
+                    });
+            });
+        });
+
     });
 </script>
 {% endblock %}

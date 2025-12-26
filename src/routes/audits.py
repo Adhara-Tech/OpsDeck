@@ -29,34 +29,72 @@ def list_audits():
 @login_required
 def new_audit():
     if request.method == 'POST':
-        name = request.form.get('name')
-        framework_id = request.form.get('framework_id')
-        auditor_contact_id = request.form.get('auditor_contact_id') or None
+        creation_strategy = request.form.get('creation_strategy', 'scratch')
+        
+        # Common fields
         internal_lead_id = request.form.get('internal_lead_id')
-        copy_links = request.form.get('copy_links') == 'on'
-
-        if not name or not framework_id or not internal_lead_id:
-            flash('Audit Name, Framework, and Internal Lead are required.', 'danger')
+        
+        if not internal_lead_id:
+            flash('Internal Lead is required.', 'danger')
             return redirect(url_for('audits.new_audit'))
 
         try:
-            audit = ComplianceAudit.create_snapshot(
-                framework_id=int(framework_id),
-                name=name,
-                auditor_contact_id=int(auditor_contact_id) if auditor_contact_id else None,
-                internal_lead_id=int(internal_lead_id),
-                copy_links=copy_links
-            )
+            audit = None
+            if creation_strategy == 'scratch':
+                name = request.form.get('name')
+                framework_id = request.form.get('framework_id')
+                auditor_contact_id = request.form.get('auditor_contact_id') or None
+                copy_links = request.form.get('copy_links') == 'on'
+
+                if not name or not framework_id:
+                    flash('Audit Name and Framework are required for fresh starts.', 'danger')
+                    return redirect(url_for('audits.new_audit'))
+
+                audit = ComplianceAudit.create_snapshot(
+                    framework_id=int(framework_id),
+                    name=name,
+                    auditor_contact_id=int(auditor_contact_id) if auditor_contact_id else None,
+                    internal_lead_id=int(internal_lead_id),
+                    copy_links=copy_links
+                )
+            
+            elif creation_strategy == 'clone':
+                source_audit_id = request.form.get('source_audit_id')
+                target_date_str = request.form.get('target_date')
+                
+                if not source_audit_id:
+                    flash('Source Audit is required for renewal.', 'danger')
+                    return redirect(url_for('audits.new_audit'))
+                
+                target_date = None
+                if target_date_str:
+                    target_date = datetime.strptime(target_date_str, '%Y-%m-%d').date()
+
+                audit = ComplianceAudit.clone(
+                    source_id=int(source_audit_id),
+                    new_owner_id=int(internal_lead_id),
+                    target_date=target_date
+                )
+            
             flash('Audit created successfully.', 'success')
             return redirect(url_for('audits.view_audit', id=audit.id))
+            
         except Exception as e:
+            db.session.rollback()
             flash(f'Error creating audit: {str(e)}', 'danger')
             return redirect(url_for('audits.new_audit'))
 
     frameworks = Framework.query.filter_by(is_active=True).all()
     users = User.query.filter_by(is_archived=False).all()
     contacts = Contact.query.filter_by(is_archived=False).all()
-    return render_template('audits/new.html', frameworks=frameworks, users=users, contacts=contacts)
+    # Fetch previous audits for the clone dropdown (exclude nothing for now, maybe filter later)
+    previous_audits = ComplianceAudit.query.order_by(ComplianceAudit.created_at.desc()).all()
+    
+    return render_template('audits/new.html', 
+                         frameworks=frameworks, 
+                         users=users, 
+                         contacts=contacts,
+                         previous_audits=previous_audits)
 
 # ============================================================================
 # DETAIL & UPDATE
@@ -289,7 +327,9 @@ def add_item_link(id, item_id):
         return redirect(url_for('audits.view_audit', id=id))
     
     linkable_type = request.form.get('linkable_type')
-    linkable_id = request.form.get('linkable_id')
+    
+    linkable_id = request.form.get('linkable_id_dynamic') 
+    
     description = request.form.get('description')
     
     if linkable_type and linkable_id:
@@ -302,6 +342,8 @@ def add_item_link(id, item_id):
         db.session.add(link)
         db.session.commit()
         flash('Evidence linked.', 'success')
+    else:
+        flash('Failed to link object: Missing type or ID.', 'warning')
     
     return redirect(url_for('audits.view_audit', id=id))
 
@@ -411,3 +453,110 @@ def delete_audit(id):
     db.session.commit()
     flash('Audit deleted.', 'success')
     return redirect(url_for('audits.list_audits'))
+
+# ============================================================================
+# API: Search Linkable Objects
+# ============================================================================
+
+@audits_bp.route('/api/search-linkable')
+@login_required
+def search_linkable_api():
+    """Search for linkable objects by type and query.
+       If query is empty, returns all non-archived objects of that type.
+    """
+    object_type = request.args.get('type', '').strip()
+    query = request.args.get('q', '').strip()
+    
+    if not object_type:
+        return jsonify([])
+    
+    results = []
+    limit = 50 if query else 200 # Higher limit if listing all
+    
+    if object_type == 'Asset':
+        from ..models import Asset
+        q = Asset.query.filter_by(is_archived=False)
+        if query:
+            q = q.filter(Asset.name.ilike(f'%{query}%'))
+        items = q.limit(limit).all()
+        results = [{'id': item.id, 'name': item.name, 'type': item.status or 'Asset'} for item in items]
+    
+    elif object_type == 'Policy':
+        from ..models import Policy
+        q = Policy.query
+        if query:
+            q = q.filter(Policy.title.ilike(f'%{query}%')) # Policy has title, not name
+        items = q.limit(limit).all()
+        results = [{'id': item.id, 'name': item.title, 'type': 'Policy'} for item in items]
+    
+    elif object_type == 'Documentation':
+        from ..models import Documentation
+        q = Documentation.query
+        if query:
+            q = q.filter(Documentation.name.ilike(f'%{query}%'))
+        items = q.limit(limit).all()
+        results = [{'id': item.id, 'name': item.name, 'type': 'Documentation'} for item in items]
+    
+    elif object_type == 'Link':
+        from ..models import Link
+        q = Link.query
+        if query:
+            q = q.filter(Link.name.ilike(f'%{query}%'))
+        items = q.limit(limit).all()
+        results = [{'id': item.id, 'name': item.name, 'type': 'External Link'} for item in items]
+    
+    elif object_type == 'Course':
+        from ..models import Course
+        q = Course.query
+        if query:
+            q = q.filter(Course.title.ilike(f'%{query}%')) # Course has title
+        items = q.limit(limit).all()
+        results = [{'id': item.id, 'name': item.title, 'type': 'Training Course'} for item in items]
+    
+    elif object_type == 'Risk':
+        from ..models import Risk
+        q = Risk.query
+        # risks dont have is_archived, but maybe we exclude 'Closed'? 
+        # For now, show all as user can link closed risks too usually.
+        if query:
+            q = q.filter(Risk.risk_description.ilike(f'%{query}%')) # Risk has risk_description, usually not name?
+            # Wait, looking at previous code it used Risk.name.ilike
+            # Let me check Risk model again or just use risk_description?
+            # Previous code: items = Risk.query.filter(Risk.name.ilike(f'%{query}%')).limit(20).all()
+            # But in model `Risk` I saw `risk_description`. I didn't see `name`.
+            # Let me re-verify Risk model. 
+        # Risk model check: 
+        # class Risk(db.Model):
+        #     risk_description = db.Column(db.Text, nullable=False)
+        #     ...
+        #     It does NOT have a name field! The previous code was likely broken for Risk.
+        #     I will use risk_description as name.
+        items = q.limit(limit).all()
+        # Truncate description for display
+        results = [{'id': item.id, 'name': (item.risk_description[:50] + '...') if len(item.risk_description) > 50 else item.risk_description, 'type': f'Risk (Severity: {item.severity if hasattr(item, "severity") else "N/A"})'} for item in items]
+    
+    elif object_type == 'Software':
+        from ..models import Software
+        q = Software.query.filter_by(is_archived=False)
+        if query:
+            q = q.filter(Software.name.ilike(f'%{query}%'))
+        items = q.limit(limit).all()
+        results = [{'id': item.id, 'name': item.name, 'type': 'Software'} for item in items]
+    
+    elif object_type == 'Supplier':
+        from ..models import Supplier
+        q = Supplier.query.filter_by(is_archived=False)
+        if query:
+            q = q.filter(Supplier.name.ilike(f'%{query}%'))
+        items = q.limit(limit).all()
+        results = [{'id': item.id, 'name': item.name, 'type': 'Supplier'} for item in items]
+    
+    elif object_type == 'BusinessService':
+        from ..models import BusinessService
+        q = BusinessService.query.filter(BusinessService.status != 'Retired')
+        if query:
+            q = q.filter(BusinessService.name.ilike(f'%{query}%'))
+        items = q.limit(limit).all()
+        results = [{'id': item.id, 'name': item.name, 'type': 'Service'} for item in items]
+    
+    return jsonify(results)
