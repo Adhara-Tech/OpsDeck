@@ -6,9 +6,11 @@ from markupsafe import Markup
 from functools import wraps
 from datetime import date, timedelta, datetime
 from dateutil.relativedelta import relativedelta
-from ..models import db, User, Subscription, NotificationSetting, Asset, Supplier, Contact, Purchase, Peripheral, Location, PaymentMethod
+from ..models import db, User, UserKnownIP, Subscription, NotificationSetting, Asset, Supplier, Contact, Purchase, Peripheral, Location, PaymentMethod
 from src import limiter
+from src import notifications
 import calendar
+import random
 
 main_bp = Blueprint('main', __name__)
 
@@ -24,25 +26,13 @@ def login_required(f):
 @limiter.limit("5 per minute")
 def login():
     if request.method == 'POST':
-        email = request.form['email'] # Changed from username
+        email = request.form['email']
         password = request.form['password']
         user = User.query.filter_by(email=email).first()
 
         if user and user.check_password(password):
-            # Log successful login
-            current_app.logger.info(
-                "Inicio de sesión exitoso",
-                extra={
-                    "user.email": user.email,
-                    "user.id": user.id,
-                    "event.action": "login",
-                    "event.outcome": "success",
-                    "source.ip": request.remote_addr
-                }
-            )
-            session['user_id'] = user.id
-            flash('Logged in successfully', 'success')
-            return redirect(url_for('main.dashboard'))
+            # Credentials valid - check if MFA is needed
+            return verify_ip_and_login(user)
         else:
             # Log failed login attempt
             current_app.logger.warning(
@@ -57,6 +47,150 @@ def login():
             flash('Invalid email or password')
 
     return render_template('login.html')
+
+
+def verify_ip_and_login(user):
+    """Verify user's IP and either login directly or trigger MFA flow."""
+    ip = request.remote_addr
+    
+    # Check if IP is known for this user
+    known_ip = UserKnownIP.query.filter_by(
+        user_id=user.id,
+        ip_address=ip
+    ).first()
+    
+    # If IP is known or MFA is disabled -> direct login
+    if known_ip or not current_app.config.get('MFA_ENABLED', False):
+        if known_ip:
+            known_ip.last_seen = datetime.utcnow()
+            db.session.commit()
+        
+        # Log successful login
+        current_app.logger.info(
+            "Inicio de sesión exitoso",
+            extra={
+                "user.email": user.email,
+                "user.id": user.id,
+                "event.action": "login",
+                "event.outcome": "success",
+                "source.ip": ip
+            }
+        )
+        session['user_id'] = user.id
+        flash('Logged in successfully', 'success')
+        return redirect(url_for('main.dashboard'))
+    
+    # --- NEW IP DETECTED: Trigger MFA ---
+    
+    # Generate 6-digit OTP
+    otp = "".join([str(random.randint(0, 9)) for _ in range(6)])
+    
+    # Store MFA session data (expires in 10 min)
+    session['mfa_user_id'] = user.id
+    session['mfa_otp'] = otp
+    session['mfa_expiry'] = (datetime.utcnow() + timedelta(minutes=10)).timestamp()
+    
+    # Send OTP email
+    email_body = f"""
+    <h2>Código de Verificación de Seguridad</h2>
+    <p>Se ha detectado un intento de inicio de sesión desde una nueva ubicación.</p>
+    <p>Tu código de verificación es:</p>
+    <h1 style="font-size: 32px; letter-spacing: 5px; font-family: monospace;">{otp}</h1>
+    <p>Este código expira en 10 minutos.</p>
+    <p>Si no has intentado iniciar sesión, ignora este correo.</p>
+    """
+    notifications.send_email(
+        current_app._get_current_object(),
+        "OpsDeck - Código de Verificación",
+        email_body,
+        [user.email]
+    )
+    
+    # Log MFA code sent (without revealing the code)
+    current_app.logger.info(
+        f"MFA activado: Código enviado a {user.email}",
+        extra={
+            "event.action": "mfa-code-sent",
+            "user.email": user.email,
+            "user.id": user.id,
+            "source.ip": ip
+        }
+    )
+    
+    flash('Nuevo dispositivo detectado. Revisa tu email para el código de verificación.', 'info')
+    return redirect(url_for('main.mfa_verify'))
+
+
+@main_bp.route('/mfa-verify', methods=['GET', 'POST'])
+@limiter.limit("10 per minute")
+def mfa_verify():
+    """Handle MFA verification."""
+    # Check if MFA session exists
+    if 'mfa_user_id' not in session:
+        return redirect(url_for('main.login'))
+    
+    if request.method == 'POST':
+        code = request.form.get('code', '').strip()
+        stored_otp = session.get('mfa_otp')
+        expiry = session.get('mfa_expiry')
+        user_id = session.get('mfa_user_id')
+        
+        # Check if session is expired
+        if not stored_otp or datetime.utcnow().timestamp() > expiry:
+            # Clear MFA session
+            session.pop('mfa_user_id', None)
+            session.pop('mfa_otp', None)
+            session.pop('mfa_expiry', None)
+            flash('El código ha expirado. Por favor, inicia sesión de nuevo.', 'warning')
+            return redirect(url_for('main.login'))
+        
+        if code == stored_otp:
+            # SUCCESS - Get user and complete login
+            user = User.query.get(user_id)
+            if user:
+                # Save the new IP to whitelist
+                new_ip = UserKnownIP(
+                    user_id=user.id,
+                    ip_address=request.remote_addr
+                )
+                db.session.add(new_ip)
+                db.session.commit()
+                
+                # Clear MFA session
+                session.pop('mfa_user_id', None)
+                session.pop('mfa_otp', None)
+                session.pop('mfa_expiry', None)
+                
+                # Log successful MFA verification
+                current_app.logger.info(
+                    "Verificación MFA exitosa",
+                    extra={
+                        "event.action": "mfa-verify",
+                        "event.outcome": "success",
+                        "user.email": user.email,
+                        "user.id": user.id,
+                        "source.ip": request.remote_addr
+                    }
+                )
+                
+                # Complete login
+                session['user_id'] = user.id
+                flash('Dispositivo verificado. Bienvenido.', 'success')
+                return redirect(url_for('main.dashboard'))
+        
+        # FAILURE - Wrong code
+        current_app.logger.warning(
+            "Intento fallido de MFA (Código incorrecto)",
+            extra={
+                "event.action": "mfa-verify",
+                "event.outcome": "failure",
+                "user.id": user_id,
+                "source.ip": request.remote_addr
+            }
+        )
+        flash('Código incorrecto. Inténtalo de nuevo.', 'danger')
+    
+    return render_template('mfa.html')
 
 @main_bp.route('/logout')
 @login_required

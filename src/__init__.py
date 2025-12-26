@@ -96,6 +96,9 @@ def create_app():
     if os.environ.get('OAUTHLIB_INSECURE_TRANSPORT') == '1':
         os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
+    # --- MFA Configuration ---
+    app.config['MFA_ENABLED'] = os.environ.get('MFA_ENABLED', 'False').lower() == 'true'
+
     # --- Initialize Extensions ---
     db.init_app(app)
     migrate.init_app(app, db)
