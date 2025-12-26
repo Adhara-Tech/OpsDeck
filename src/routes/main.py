@@ -7,6 +7,7 @@ from functools import wraps
 from datetime import date, timedelta, datetime
 from dateutil.relativedelta import relativedelta
 from ..models import db, User, Subscription, NotificationSetting, Asset, Supplier, Contact, Purchase, Peripheral, Location, PaymentMethod
+from src import limiter
 import calendar
 
 main_bp = Blueprint('main', __name__)
@@ -20,6 +21,7 @@ def login_required(f):
     return decorated_function
 
 @main_bp.route('/login', methods=['GET', 'POST'])
+@limiter.limit("5 per minute")
 def login():
     if request.method == 'POST':
         email = request.form['email'] # Changed from username

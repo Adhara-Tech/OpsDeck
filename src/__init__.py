@@ -5,9 +5,11 @@ import sys
 import logging
 from logging.handlers import RotatingFileHandler
 import atexit
-from flask import Flask, session
+from flask import Flask, session, render_template, request
 from apscheduler.schedulers.background import BackgroundScheduler
 import ecs_logging
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 from .extensions import db, migrate
 from .models import User
@@ -16,6 +18,9 @@ import markdown
 from markupsafe import Markup
 from .seeder_prod import seed_production_frameworks
 import re
+
+# --- Rate Limiter (global instance for use in blueprints) ---
+limiter = Limiter(key_func=get_remote_address, storage_uri="memory://")
 
 
 def configure_logging(app):
@@ -86,9 +91,25 @@ def create_app():
     # --- Initialize Extensions ---
     db.init_app(app)
     migrate.init_app(app, db)
+    limiter.init_app(app)
 
     # --- Configure Logging (ECS format with rotation) ---
     configure_logging(app)
+
+    # --- Custom 429 Error Handler with logging ---
+    @app.errorhandler(429)
+    def ratelimit_handler(e):
+        app.logger.warning(
+            "Rate limit excedido",
+            extra={
+                "event.action": "rate-limit",
+                "source.ip": get_remote_address(),
+                "http.request.method": request.method,
+                "url.path": request.path,
+                "error.message": e.description
+            }
+        )
+        return render_template('429.html', error=e.description), 429
     
     # --- REGISTER THE CUSTOM MARKDOWN FILTER ---
     @app.template_filter('markdown')
