@@ -51,6 +51,7 @@
                 </p>
 
                 <form method="POST" action="{{ url_for('main.mfa_verify') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-4">
                         <label for="code" class="form-label">Código de Verificación</label>
                         <input type="text" class="form-control code-input" id="code" name="code" maxlength="6"

@@ -9,6 +9,7 @@
 
 <!-- Formulario principal para los campos de texto -->
 <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="card mb-4">
         <div class="card-header">Review Details</div>
         <div class="card-body">

@@ -46,11 +46,13 @@
                                     <i class="fas fa-edit"></i>
                                 </a>
                                 <form action="{{ url_for('contacts.archive_contact', id=contact.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to archive this contact?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <button type="submit" class="btn btn-sm btn-outline-warning" title="Archive">
                                         <i class="fas fa-archive"></i>
                                     </button>
                                 </form>
                                 <form action="{{ url_for('contacts.delete_contact', id=contact.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                     <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete">
                                         <i class="fas fa-trash"></i>
                                     </button>

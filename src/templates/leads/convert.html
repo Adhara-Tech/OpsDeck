@@ -7,12 +7,14 @@
     <div class="card-body text-center">
         <p class="lead">Choose what to convert this requirement into:</p>
         <form method="POST" class="d-inline-block me-3">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="conversion_type" value="opportunity">
             <button type="submit" class="btn btn-lg btn-success">
                 <i class="fas fa-lightbulb"></i> Create New Evaluation
             </button>
         </form>
         <form method="POST" class="d-inline-block">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="conversion_type" value="supplier">
             <button type="submit" class="btn btn-lg btn-info">
                 <i class="fas fa-building"></i> Create New Supplier

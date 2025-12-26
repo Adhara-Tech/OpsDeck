@@ -172,6 +172,7 @@
                             <form
                                 action="{{ url_for('services.remove_dependency', id=service.id, target_id=parent.id) }}"
                                 method="POST" class="d-inline">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <input type="hidden" name="type" value="upstream">
                                 <button type="submit" class="btn btn-sm text-danger border-0 bg-transparent py-0">
                                     <i class="fas fa-times"></i>
@@ -200,6 +201,7 @@
                             <form
                                 action="{{ url_for('services.remove_dependency', id=service.id, target_id=child.id) }}"
                                 method="POST" class="d-inline">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <input type="hidden" name="type" value="downstream">
                                 <button type="submit" class="btn btn-sm text-danger border-0 bg-transparent py-0">
                                     <i class="fas fa-times"></i>
@@ -253,6 +255,7 @@
                                     <form action="{{ url_for('services.delete_component', comp_id=comp.id) }}"
                                         method="POST" class="d-inline"
                                         onsubmit="return confirm('Remove this component?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button type="submit" class="btn btn-sm btn-danger">
                                             <i class="fas fa-trash"></i>
                                         </button>
@@ -297,6 +300,7 @@
                             </div>
                             <form action="{{ url_for('services.unlink_document', id=service.id, doc_id=doc.id) }}"
                                 method="POST" class="d-inline">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="btn btn-sm text-danger border-0 bg-transparent py-0"
                                     title="Unlink">
                                     <i class="fas fa-times"></i>
@@ -329,6 +333,7 @@
                             </div>
                             <form action="{{ url_for('services.remove_link', id=service.id, link_id=link.id) }}"
                                 method="POST" class="d-inline">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="btn btn-sm text-danger border-0 bg-transparent py-0"
                                     title="Remove">
                                     <i class="fas fa-trash"></i>
@@ -360,6 +365,7 @@
                             </div>
                             <form action="{{ url_for('services.unlink_policy', id=service.id, policy_id=policy.id) }}"
                                 method="POST" class="d-inline">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="btn btn-sm text-danger border-0 bg-transparent py-0"
                                     title="Unlink">
                                     <i class="fas fa-times"></i>
@@ -395,6 +401,7 @@
                             <form
                                 action="{{ url_for('services.unlink_activity', id=service.id, activity_id=activity.id) }}"
                                 method="POST" class="d-inline">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="btn btn-sm text-danger border-0 bg-transparent py-0"
                                     title="Unlink">
                                     <i class="fas fa-times"></i>
@@ -429,6 +436,7 @@
                             </div>
                             <form action="{{ url_for('services.remove_attachment', id=service.id, att_id=att.id) }}"
                                 method="POST" class="d-inline">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="btn btn-sm text-danger border-0 bg-transparent py-0"
                                     title="Remove">
                                     <i class="fas fa-trash"></i>
@@ -450,6 +458,7 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <form action="{{ url_for('services.add_dependency', id=service.id) }}" method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-header">
                     <h5 class="modal-title">Add Service Dependency</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -485,6 +494,7 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <form action="{{ url_for('services.add_component', id=service.id) }}" method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-header">
                     <h5 class="modal-title">Link Infrastructure Component</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -527,6 +537,7 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <form action="{{ url_for('services.link_document', id=service.id) }}" method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-header">
                     <h5 class="modal-title">Link Documentation</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -556,6 +567,7 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <form action="{{ url_for('services.add_link', id=service.id) }}" method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-header">
                     <h5 class="modal-title">Add External Link</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -584,6 +596,7 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <form action="{{ url_for('services.link_policy', id=service.id) }}" method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-header">
                     <h5 class="modal-title">Link Policy</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -613,6 +626,7 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <form action="{{ url_for('services.link_activity', id=service.id) }}" method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-header">
                     <h5 class="modal-title">Link Security Activity</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -643,6 +657,7 @@
         <div class="modal-content">
             <form action="{{ url_for('services.upload_attachment', id=service.id) }}" method="POST"
                 enctype="multipart/form-data">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="modal-header">
                     <h5 class="modal-title">Upload File</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>

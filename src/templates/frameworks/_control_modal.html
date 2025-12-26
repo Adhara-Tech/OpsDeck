@@ -2,6 +2,7 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <form id="controlForm" method="POST" action="">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 
                 <input type="hidden" id="modalFrameworkId" name="framework_id" value="">
                 

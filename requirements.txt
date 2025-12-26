@@ -15,3 +15,5 @@ Flask-Login
 ecs-logging
 flask-limiter
 Flask-Dance
+Flask-WTF
+flask-talisman

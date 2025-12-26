@@ -35,6 +35,7 @@
     </div>
     <div class="card-body">
         <form action="{{ url_for('opportunities.add_activity', id=opportunity.id) }}" method="POST" class="mb-4">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="mb-3">
                 <label for="notes" class="form-label">New Activity Notes</label>
                 <textarea class="form-control" name="notes" rows="3" required></textarea>

@@ -11,6 +11,7 @@ import ecs_logging
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_dance.contrib.google import make_google_blueprint
+from flask_talisman import Talisman
 
 from .extensions import db, migrate
 from .models import User
@@ -23,7 +24,14 @@ import re
 # --- Rate Limiter (global instance for use in blueprints) ---
 limiter = Limiter(key_func=get_remote_address, storage_uri="memory://")
 
+# --- CSRF Protection ---
+from flask_wtf.csrf import CSRFProtect
+csrf = CSRFProtect()
 
+# --- Content Security Policy ---
+talisman = Talisman()
+
+# --- Initialize Extensions ---
 def configure_logging(app):
     """
     Configure structured ECS logging with file rotation and console output.
@@ -93,7 +101,8 @@ def create_app():
     app.config['GOOGLE_OAUTH_CLIENT_ID'] = os.environ.get('GOOGLE_OAUTH_CLIENT_ID', '')
     app.config['GOOGLE_OAUTH_CLIENT_SECRET'] = os.environ.get('GOOGLE_OAUTH_CLIENT_SECRET', '')
     # Allow insecure transport for local development
-    if os.environ.get('OAUTHLIB_INSECURE_TRANSPORT') == '1':
+    insecure_transport = os.environ.get('OAUTHLIB_INSECURE_TRANSPORT') == '1'
+    if insecure_transport:
         os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
     # --- MFA Configuration ---
@@ -103,6 +112,8 @@ def create_app():
     db.init_app(app)
     migrate.init_app(app, db)
     limiter.init_app(app)
+    csrf.init_app(app)
+    talisman.init_app(app, content_security_policy=None, force_https=not insecure_transport)
 
     # --- Configure Logging (ECS format with rotation) ---
     configure_logging(app)

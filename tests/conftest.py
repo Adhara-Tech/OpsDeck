@@ -7,6 +7,8 @@ from src.models import User
 @pytest.fixture(scope='session')
 def app():
     """Crea una instancia de la aplicación Flask para pruebas (scope session)."""
+    # Disable HTTPS for tests
+    os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
     app = create_app()
     
     # Crear un directorio temporal para uploads

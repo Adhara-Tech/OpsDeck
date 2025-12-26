@@ -92,6 +92,7 @@
                                 <i class="fas fa-edit"></i>
                             </a>
                             <form action="{{ url_for('subscriptions.archive_subscription', id=subscription.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to archive this subscription?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="btn btn-sm btn-outline-warning" title="Archive">
                                     <i class="fas fa-archive"></i>
                                 </button>

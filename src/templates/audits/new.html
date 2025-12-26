@@ -15,6 +15,7 @@
             </div>
             <div class="card-body">
                 <form method="POST" action="{{ url_for('audits.new_audit') }}">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <!-- Strategy Selection -->
                     <div class="mb-4">
                         <label class="form-label d-block mb-2"><strong>Strategy</strong></label>

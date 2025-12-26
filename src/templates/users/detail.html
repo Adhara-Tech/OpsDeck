@@ -24,6 +24,7 @@
         <span><i class="fas fa-history"></i> Historial de Inventario (Snapshots)</span>
         <!-- Botón para generar el snapshot -->
         <form action="{{ url_for('users.generate_inventory', id=user.id) }}" method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-sm btn-outline-primary">
                 <i class="fas fa-camera"></i> Crear Snapshot
             </button>
@@ -47,6 +48,7 @@
                 
                 <!-- Botón para borrar el snapshot -->
                 <form action="{{ url_for('attachments.delete_attachment', attachment_id=att.id) }}" method="POST" onsubmit="return confirm('¿Estás seguro de que quieres borrar este snapshot?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="btn btn-sm btn-link text-danger p-0">
                         <i class="fas fa-trash"></i>
                     </button>

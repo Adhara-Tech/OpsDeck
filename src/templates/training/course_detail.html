@@ -24,6 +24,7 @@
     <div class="card-header">Assign Training</div>
     <div class="card-body">
         <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="row">
                 <div class="col-md-6">
                     <label for="user_ids" class="form-label">Assign to Users</label>
@@ -96,6 +97,7 @@
                                     <form
                                         action="{{ url_for('training.admin_complete_course', assignment_id=assignment.id) }}"
                                         method="post" enctype="multipart/form-data">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <div class="modal-body">
                                             <div class="mb-3">
                                                 <label for="completion_date-{{ assignment.id }}"
@@ -161,6 +163,7 @@
                                     <form
                                         action="{{ url_for('training.edit_completion', completion_id=assignment.completion.id) }}"
                                         method="post" enctype="multipart/form-data">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <div class="modal-body">
                                             <div class="mb-3">
                                                 <label for="completion_date-edit-{{ assignment.completion.id }}"
