@@ -1,6 +1,6 @@
 from datetime import datetime
 from flask import Blueprint, render_template, request, flash, redirect, url_for
-from ..models import db, License, User, Purchase, Subscription, Software, Budget # Import Software and Budget
+from ..models import db, License, User, Purchase, Subscription, Software # Import Software and Budget
 from .main import login_required
 from .admin import admin_required
 

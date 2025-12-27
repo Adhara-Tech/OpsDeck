@@ -1,9 +1,8 @@
-import os
 import requests
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from datetime import datetime, timedelta
+from datetime import datetime
 
 # Import the models needed for the notification logic
 from .models import Subscription, NotificationSetting

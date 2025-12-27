@@ -1,9 +1,6 @@
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
-from sqlalchemy.orm import foreign
-from sqlalchemy import and_
 from ..extensions import db
-from .core import Attachment
 
 user_groups = db.Table('user_groups',
     db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),

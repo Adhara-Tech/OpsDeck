@@ -1,5 +1,5 @@
 from flask import (
-    Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, g, current_app
+    Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, current_app
 )
 from sqlalchemy import or_
 from markupsafe import Markup

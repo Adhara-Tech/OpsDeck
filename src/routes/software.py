@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for
-from ..models import db, Software, Supplier, User, Group, License
+from ..models import db, Software, Supplier, User, Group
 from .main import login_required
 
 software_bp = Blueprint('software', __name__, url_prefix='/software')

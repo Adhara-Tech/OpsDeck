@@ -672,7 +672,6 @@ def dashboard():
 def export_dashboard_pdf():
     """Exports the compliance dashboard to PDF."""
     from weasyprint import HTML
-    from io import BytesIO
     from flask import make_response
 
     frameworks = Framework.query.filter_by(is_active=True).order_by(Framework.name).all()

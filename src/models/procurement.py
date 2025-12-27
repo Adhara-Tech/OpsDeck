@@ -4,8 +4,7 @@ from dateutil.relativedelta import relativedelta
 from sqlalchemy.orm import foreign
 from sqlalchemy import and_
 from ..extensions import db
-from .core import Attachment, CURRENCY_RATES, Tag
-from .auth import User
+from .core import CURRENCY_RATES
 
 # Association table for Subscriptions and Tags
 subscription_tags = db.Table('subscription_tags',

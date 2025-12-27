@@ -1,10 +1,9 @@
-import random
-from datetime import date, timedelta, datetime
+from datetime import date, timedelta
 from faker import Faker
 from .models import (
-    db, Supplier, Contact, User, Location, PaymentMethod, Tag, Budget, Purchase,
-    Asset, Peripheral, Subscription, CostHistory, Risk, SecurityIncident,
-    PostIncidentReview, IncidentTimelineEvent, MaintenanceLog, DisposalRecord,
+    db, Supplier, User, Location, PaymentMethod, Tag, Budget, Purchase,
+    Asset, Peripheral, Subscription, Risk, SecurityIncident,
+    MaintenanceLog, DisposalRecord,
     BCDRPlan, BCDRTestLog, Course, CourseAssignment, Group, Policy, PolicyVersion, Opportunity,
     Documentation, Link, Software, License, Framework, FrameworkControl, ComplianceLink
 )

@@ -1,7 +1,7 @@
 import os
 import uuid
 from flask import (
-    Blueprint, request, redirect, flash, current_app, send_from_directory, url_for
+    Blueprint, request, redirect, flash, current_app, send_from_directory
 )
 from werkzeug.utils import secure_filename
 from .main import login_required

@@ -2,7 +2,7 @@ from flask import (
     Blueprint, render_template, request
 )
 from sqlalchemy import func
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from dateutil.relativedelta import relativedelta
 from ..models import db, Subscription, Asset, Supplier, User, Group, Peripheral, Location, CURRENCY_RATES, License, Purchase
 from .main import login_required

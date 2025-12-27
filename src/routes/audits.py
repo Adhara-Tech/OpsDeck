@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, jsonify, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, jsonify
 from .main import login_required
 from ..extensions import db
 from ..models.audits import ComplianceAudit, AuditControlItem, AuditControlLink
