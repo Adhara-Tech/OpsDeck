@@ -45,12 +45,12 @@
                             {% endif %}
                         </td>
                         <td>
-                            {% if 'Tier 1' in service.criticality|default('') %}
+                            {% if 'Tier 1' in service.criticality|default('', true) %}
                             <span class="badge bg-danger">{{ service.criticality }}</span>
-                            {% elif 'Tier 2' in service.criticality|default('') %}
+                            {% elif 'Tier 2' in service.criticality|default('', true) %}
                             <span class="badge bg-warning text-dark">{{ service.criticality }}</span>
                             {% else %}
-                            <span class="badge bg-secondary">{{ service.criticality }}</span>
+                            <span class="badge bg-secondary">{{ service.criticality|default('Standard', true) }}</span>
                             {% endif %}
                         </td>
                         <td>
@@ -62,8 +62,8 @@
                         </td>
                         <td>
                             {% if service.sla_response_hours or service.sla_resolution_hours %}
-                            <small>{{ service.sla_response_hours|default('-') }}h / {{
-                                service.sla_resolution_hours|default('-') }}h</small>
+                            <small>{{ service.sla_response_hours|default('-', true) }}h / {{
+                                service.sla_resolution_hours|default('-', true) }}h</small>
                             {% else %}
                             <span class="text-muted">-</span>
                             {% endif %}
