@@ -45,7 +45,43 @@ kubectl create secret generic opsdeck-secrets \
 
 > **Security Best Practice:** Always use strong, randomly generated passwords for production deployments. Consider using a secret management tool like HashiCorp Vault, AWS Secrets Manager, or Azure Key Vault for managing sensitive credentials.
 
-### 3. Install the Chart
+### 3. Configure Persistent Storage (Optional)
+
+OpsDeck supports persistent storage for three types of data:
+
+1. **SQLite Database** (if using SQLite instead of PostgreSQL)
+2. **Logs** (`/app/logs` folder)
+3. **Attachments** (`/app/data/attachments` folder)
+
+By default, all persistence is enabled in `values.yaml`. You can customize the storage sizes and classes:
+
+```yaml
+# values.yaml
+database:
+  type: sqlite
+  sqlite:
+    persistence:
+      enabled: true
+      size: 1Gi
+      storageClass: ""  # Use default storage class
+
+persistence:
+  logs:
+    enabled: true
+    size: 500Mi
+    storageClass: ""
+    existingClaim: ""  # Optional: use an existing PVC
+  
+  attachments:
+    enabled: true
+    size: 5Gi
+    storageClass: ""
+    existingClaim: ""  # Optional: use an existing PVC
+```
+
+To disable persistence for any component, set `enabled: false` in the corresponding section.
+
+### 4. Install the Chart
 
 Navigate to the directory containing your chart and run:
 
