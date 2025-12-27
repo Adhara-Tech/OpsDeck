@@ -83,14 +83,16 @@ def test_edit_framework(auth_client, app):
         seed_production_frameworks()
         fw_iso = Framework.query.filter_by(name='ISO27001:2022').first()
         fw_iso_id = fw_iso.id
-        assert fw_iso.is_active is True
+        # Production frameworks are seeded as inactive by default
+        assert fw_iso.is_active is False
     
     # --- Parte 1: Editar 'is_active' en un 'built-in' (DEBE funcionar) ---
+    # Activate it first
     response = auth_client.post(f'/frameworks/{fw_iso_id}/edit', data={
         'name': 'Nombre Falso', # Este campo debe ser ignorado
         'description': 'Descripción Falsa', # Este también
         'link': 'https://fake.com', # Este también
-        'is_active': '' # Desactivarlo (checkbox no marcado)
+        'is_active': 'on' # Activarlo (checkbox marcado)
     }, follow_redirects=True)
     
     assert response.status_code == 200
@@ -99,11 +101,11 @@ def test_edit_framework(auth_client, app):
     assert b"Nombre Falso" not in response.data
     assert b"ISO27001:2022" in response.data
     
-    # Comprobar en BBDD
+    # Comprobar en BBDD que se activó
     with app.app_context():
         fw_iso_updated = Framework.query.get(fw_iso_id)
         assert fw_iso_updated.name == 'ISO27001:2022' # No cambió
-        assert fw_iso_updated.is_active is False # SÍ cambió
+        assert fw_iso_updated.is_active is True # SÍ cambió
 
     # --- Parte 2: Editar 'name' en un 'custom' (DEBE funcionar) ---
     with app.app_context():
