@@ -108,12 +108,18 @@ def create_app():
     # --- MFA Configuration ---
     app.config['MFA_ENABLED'] = os.environ.get('MFA_ENABLED', 'False').lower() == 'true'
 
+    # --- Admin User Configuration (for initial setup) ---
+    app.config['DEFAULT_ADMIN_EMAIL'] = os.environ.get('DEFAULT_ADMIN_EMAIL', 'admin@example.com')
+    app.config['DEFAULT_ADMIN_INITIAL_PASSWORD'] = os.environ.get('DEFAULT_ADMIN_INITIAL_PASSWORD', 'admin123')
+
     # --- Initialize Extensions ---
     db.init_app(app)
     migrate.init_app(app, db)
     limiter.init_app(app)
     csrf.init_app(app)
-    talisman.init_app(app, content_security_policy=None, force_https=not insecure_transport)
+    # Disable HTTPS enforcement in development (debug mode) or when explicitly disabled
+    is_development = app.debug or insecure_transport or os.environ.get('FLASK_ENV') == 'development'
+    talisman.init_app(app, content_security_policy=None, force_https=not is_development)
 
     # --- Configure Logging (ECS format with rotation) ---
     configure_logging(app)
@@ -256,15 +262,30 @@ def create_app():
     # --- CLI Commands ---
     @app.cli.command("init-db")
     def init_db_command():
-        """Creates the database tables and a default admin user."""
+        """Creates the database tables and a default admin user if none exists."""
         with app.app_context():
             db.create_all()
-            if not User.query.first(): # Changed from AppUser
-                admin_user = User(name='admin', email='admin@example.com', role='admin') # Changed to User
-                admin_user.set_password('admin123')
-                db.session.add(admin_user)
-                db.session.commit()
-                print("Database initialized and admin user created.")
+            
+            # Get admin credentials from configuration (environment variables)
+            email = app.config.get('DEFAULT_ADMIN_EMAIL')
+            password = app.config.get('DEFAULT_ADMIN_INITIAL_PASSWORD')
+            
+            if not email or not password:
+                print("Error: Admin credentials not configured.")
+                return
+            
+            # Check if admin user already exists (idempotency)
+            existing_admin = User.query.filter_by(email=email).first()
+            if existing_admin:
+                print(f"Admin user '{email}' already exists. Skipping creation.")
+                return
+            
+            # Create the admin user
+            admin_user = User(name='Administrator', email=email, role='admin')
+            admin_user.set_password(password)
+            db.session.add(admin_user)
+            db.session.commit()
+            print(f"✓ Admin user created successfully: {email}")
     
     # --- Seed the db with fake demo data ---
     @app.cli.command("seed-db-demodata")

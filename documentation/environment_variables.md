@@ -45,3 +45,14 @@ These variables control the security of the session cookie.
 | `SESSION_COOKIE_SECURE` | If `True`, the cookie is only sent over HTTPS. | `False` | `True` |
 | `SESSION_COOKIE_HTTPONLY` | If `True`, prevents JavaScript access to the cookie. | `True` | `True` |
 | `SESSION_COOKIE_SAMESITE` | Restricts how cookies are sent with cross-site requests (`'Lax'`, `'Strict'`, or `'None'`). | `'Lax'` | `'Lax'` or `'Strict'` |
+
+## Admin User Initialization
+
+These variables control the credentials for the initial administrator user created on first deployment.
+
+| Variable | Description | Default | Required |
+| :--- | :--- | :--- | :--- |
+| `DEFAULT_ADMIN_EMAIL` | Email address for the default admin user created on first run. | `'admin@example.com'` | No |
+| `DEFAULT_ADMIN_INITIAL_PASSWORD` | Initial password for the default admin user. **Change this in production.** | `'admin123'` | No |
+
+> **Security Note:** These credentials are only used when creating the admin user for the first time. If a user with the specified email already exists, no action is taken. The application will prompt you to change the default password upon first login. Always use strong, unique credentials in production environments.

@@ -49,10 +49,25 @@ docker-compose logs -f web
 
 The application is configured to automatically initialize the database on the first run (via `entrypoint.sh`).
 
-### 5. Access the Application
+### 5. Configure Admin Credentials (Optional)
+
+By default, the application creates an admin user with email `admin@example.com` and password `admin123`. For production deployments, you should customize these credentials by adding the following to your `.env` file:
+
+```bash
+DEFAULT_ADMIN_EMAIL=your-admin@company.com
+DEFAULT_ADMIN_INITIAL_PASSWORD=YourSecurePassword123!
+```
+
+The admin user is created automatically when the container starts for the first time. The application will prompt you to change the password on first login.
+
+### 6. Access the Application
 
 Open your browser and navigate to:
 `http://localhost:5000`
+
+**Default Login:**
+- Email: Value of `DEFAULT_ADMIN_EMAIL` (default: `admin@example.com`)
+- Password: Value of `DEFAULT_ADMIN_INITIAL_PASSWORD` (default: `admin123`)
 
 ## Data Persistence
 

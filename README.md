@@ -4,6 +4,8 @@
 
 OpsDeck is the definitive Enterprise Resource Planning (ERP) system designed specifically for modern IT departments. Moving beyond simple inventory tracking, it serves as a unified command center that orchestrates people, processes, technology, and compliance within a single, integrated platform. OpsDeck eliminates tool fragmentation and provides IT leaders with total visibility and control over their entire ecosystem.
 
+![OpsDeck Dashboard](images/main-dashboard.png)
+
 ## Overview
 
 At its core, OpsDeck is engineered to manage the **complete lifecycle of IT assets**, ensuring absolute traceability from procurement and assignment to maintenance and final disposal. However, it distinguishes itself from traditional tools by integrating a robust **Service Catalog** that allows departments to standardize and control their technological offerings. 
@@ -60,6 +62,10 @@ SMTP_PORT=587
 EMAIL_USERNAME='your-email@gmail.com'
 EMAIL_PASSWORD='your-gmail-app-password'
 
+# Default Admin User Credentials (optional)
+DEFAULT_ADMIN_EMAIL='admin@example.com'
+DEFAULT_ADMIN_INITIAL_PASSWORD='admin123'
+
 ```
 
 ### 4. Initialize the Database
@@ -72,10 +78,15 @@ flask db init
 flask db migrate -m "Initial migration"
 flask db upgrade
 
-# Create the default admin user (admin/admin123)
+# Create the default admin user
+# By default, this creates: admin@example.com / admin123
+# You can customize these credentials using environment variables:
+# DEFAULT_ADMIN_EMAIL and DEFAULT_ADMIN_INITIAL_PASSWORD
 flask init-db
 
 ```
+
+> **Security Note:** The `flask init-db` command is idempotent and safe to run multiple times. If the admin user already exists, it will skip creation. You can set custom admin credentials via environment variables before running this command (see [Environment Variables](documentation/environment_variables.md)).
 
 ## Usage
 
@@ -89,8 +100,9 @@ flask run
 The application will be available at http://127.0.0.1:5000.
 
 * **Default Login:**
-* Username: `admin@example.com`
-* Password: `admin123` (Please change this immediately after login)
+  * Email: `admin@example.com` (or the value of `DEFAULT_ADMIN_EMAIL`)
+  * Password: `admin123` (or the value of `DEFAULT_ADMIN_INITIAL_PASSWORD`)
+  * **⚠️ You will be prompted to change the default password on first login**
 
 ## License
 

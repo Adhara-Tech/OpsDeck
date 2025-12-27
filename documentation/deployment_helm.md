@@ -33,13 +33,17 @@ kubectl create namespace opsdeck
 
 ### 2. Configure Secrets
 
-Create a secret for sensitive environment variables:
+Create a secret for sensitive environment variables, including the admin credentials:
 
 ```bash
 kubectl create secret generic opsdeck-secrets \
   --from-literal=secret-key='your-super-secret-key-here' \
+  --from-literal=admin-email='admin@yourcompany.com' \
+  --from-literal=admin-password='YourSecurePassword123!' \
   -n opsdeck
 ```
+
+> **Security Best Practice:** Always use strong, randomly generated passwords for production deployments. Consider using a secret management tool like HashiCorp Vault, AWS Secrets Manager, or Azure Key Vault for managing sensitive credentials.
 
 ### 3. Install the Chart
 
