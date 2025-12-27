@@ -28,50 +28,70 @@ OpsDeck is designed around several key operational workflows.
     *   A **DisposalRecord** is created, detailing the method (e-waste, sale, donation) and any proceeds.
     *   Asset is archived but remains in history for audit purposes.
 
-## Compliance & GRC
+## Service Management (Service Catalog)
 
-1.  **Framework Definition**:
-    *   **Frameworks** (e.g., ISO 27001) are imported or created.
-    *   **FrameworkControls** (e.g., A.5.1) are defined.
+1.  **Definition**:
+    *   **Business Services** (e.g., "Customer Portal", "HR System") are defined.
+    *   Services are designated as "Critical" or "Non-Critical".
 
-2.  **Linking (Evidence Collection)**:
-    *   Users navigate to any object (Asset, Policy, Supplier, etc.).
-    *   Using the "Compliance Links" component, they link the object to a specific control.
-    *   A justification/description is provided (e.g., "This firewall asset satisfies control A.13.1").
+2.  **Dependency Mapping**:
+    *   **Components** (Assets, Software, other Services) are linked to the Business Service.
+    *   This creates a topology view showing what infrastructure supports which business function.
 
-3.  **Auditing**:
-    *   Auditors view the Framework page to see all controls.
-    *   Drilling down into a control reveals all linked evidence (Assets, Policies, etc.).
-    *   Gaps (controls with no links) are easily identified.
+3.  **Context & Compliance**:
+    *   Documentation, Policies, and Security Activities are linked to the Service.
+    *   Compliance status is tracked at the service level, linking the service to specific Framework Controls.
 
-## Incident Management
+## Compliance & Audits
 
-1.  **Reporting**:
-    *   A **SecurityIncident** is logged (title, severity, description).
-    *   Status starts as "Open".
+1.  **Framework Management**:
+    *   **Frameworks** (ISO 27001, SOC2) and **FrameworkControls** are defined.
 
-2.  **Investigation**:
-    *   Evidence is gathered and attached.
-    *   Affected assets or users are linked.
+2.  **Evidence Collection (Continuous)**:
+    *   Users link "Linkable Objects" (Assets, Policies, Services, etc.) to controls via the **Compliance Link** feature.
+    *   This builds a continuous repository of evidence.
 
-3.  **Resolution**:
-    *   Root cause is identified.
-    *   Status changes to "Resolved".
+3.  **Audit Execution (The Defense Room)**:
+    *   **Audit Creation**:
+        *   **Fresh Start**: Create a blank audit.
+        *   **Renewal**: Clone a previous audit's scope and evidence.
+    *   **Snapshot**: The system freezes the current state of Framework Controls and their links into **AuditControlItems**.
+    *   **Gap Analysis**: Auditors review the interface to see controls without evidence.
+    *   **Locking**: Once finalized, the audit is **Locked** to prevent further changes, creating an immutable record.
 
-4.  **Review**:
-    *   A Post-Incident Review (PIR) is conducted.
-    *   Lessons learned are documented.
-    *   Status changes to "Closed".
+## Risk Management
+
+1.  **Identification**:
+    *   **Run a Risk Assessment** to identify threats.
+    *   Create a **Risk** record, categorizing it (CIA Triad) and assigning an owner.
+
+2.  **Context**:
+    *   Link the Risk to affected **Assets**, **Business Services**, or **Vendors**.
+
+3.  **Assessment**:
+    *   Define Inherent Risk (Impact x Likelihood).
+    *   Define Residual Risk (after mitigation).
+
+4.  **Mitigation**:
+    *   Link **Security Activities** (mitigations) to the Risk.
+    *   Set **Validity Periods** for the assessment (e.g., this risk assessment is valid until the next review date).
 
 ## Procurement & Budgets
 
 1.  **Budgeting**:
-    *   **Budgets** are defined for the fiscal year (e.g., "Hardware 2024").
+    *   **Budgets** are created with defined **Validity Periods**.
+    *   Status is tracked (Active/Expired) based on dates.
 
 2.  **Purchasing**:
-    *   **Purchases** are logged and deducted from the selected budget.
-    *   **Subscriptions** are set up for recurring costs.
+    *   Purchases are validated against the budget's validity period.
+    *   Subscriptions are tracked for renewals.
 
 3.  **Forecasting**:
-    *   The dashboard provides a 12-month forecast based on active subscriptions and renewal dates.
-    *   Spend analysis reports show spending by category and supplier.
+    *   12-month forecast based on active subscriptions.
+
+## Incident Management
+
+1.  **Reporting**: A **SecurityIncident** is logged.
+2.  **Investigation**: Evidence gathered, affected assets linked.
+3.  **Resolution**: Root cause identified, status "Resolved".
+4.  **Review**: Post-Incident Review (PIR), lessons learned.

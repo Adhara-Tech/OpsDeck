@@ -289,7 +289,12 @@ def password_change_required(f):
         user_id = session.get('user_id')
         if user_id:
             user = User.query.get(user_id)
-            if user and user.name == 'admin' and user.check_password('admin123'): # Check name for default admin
+            # Get configured admin credentials from app config
+            default_admin_email = current_app.config.get('DEFAULT_ADMIN_EMAIL', 'admin@example.com')
+            default_admin_password = current_app.config.get('DEFAULT_ADMIN_INITIAL_PASSWORD', 'admin123')
+            
+            # Check if user is using the default admin credentials
+            if user and user.email == default_admin_email and user.check_password(default_admin_password):
                 if request.endpoint not in ['main.change_password', 'main.logout', 'static']: # Check if request is not for allowed endpoints
 
                     link = url_for('main.change_password')
