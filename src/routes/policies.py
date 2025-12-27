@@ -216,7 +216,6 @@ def view_version(id):
 
 @policies_bp.route('/version/<int:id>/acknowledge', methods=['POST'])
 @login_required
-@admin_required
 def acknowledge_version(id):
     version = PolicyVersion.query.get_or_404(id)
     user_id = session.get('user_id')
