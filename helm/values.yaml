@@ -32,6 +32,24 @@ database:
       size: 1Gi
       storageClass: "" # Dejar vacío para usar la default
 
+# --- Persistent Storage for Application Data ---
+persistence:
+  # Logs storage (logs folder)
+  logs:
+    enabled: true
+    size: 500Mi
+    storageClass: ""
+    # If you want to use an existing PVC instead of creating a new one
+    existingClaim: ""
+  
+  # Attachments storage (data/attachments folder)
+  attachments:
+    enabled: true
+    size: 5Gi
+    storageClass: ""
+    # If you want to use an existing PVC instead of creating a new one
+    existingClaim: ""
+
 # --- Configuración PostgreSQL Interna (Bitnami Subchart) ---
 # Se activa automáticamente si database.type es "internal" (ver lógica abajo no, se controla manual)
 # Para usar externa, pon enabled: false
@@ -71,3 +89,4 @@ env:
 # Si tienes un secreto creado manualmente (ej: sealed-secrets o external-secrets)
 # pon el nombre aquí. La chart cargará todo el contenido como variables de entorno.
 existingSecret: ""
+

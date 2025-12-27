@@ -1,0 +1,18 @@
+{{- if and .Values.persistence.attachments.enabled (not .Values.persistence.attachments.existingClaim) -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "opsdeck.fullname" . }}-attachments-pvc
+  labels:
+    {{- include "opsdeck.labels" . | nindent 4 }}
+    app.kubernetes.io/component: attachments
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.persistence.attachments.size }}
+  {{- if .Values.persistence.attachments.storageClass }}
+  storageClassName: {{ .Values.persistence.attachments.storageClass }}
+  {{- end }}
+{{- end }}

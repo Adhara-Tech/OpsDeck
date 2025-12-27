@@ -45,13 +45,13 @@ spec:
               value: postgresql://{{ .Values.database.external.username }}:$(DB_PASSWORD_RAW)@{{ .Values.database.external.host }}:{{ .Values.database.external.port }}/{{ .Values.database.external.database }}
             
             # OPCIÓN C: SQLite (Local)
-            # Forzamos la ruta a /data/fichaje.db para usar el volumen persistente
+            # Forzamos la ruta a /data/renewals.db para usar el volumen persistente
             {{- else if eq .Values.database.type "sqlite" }}
             - name: SQLALCHEMY_DATABASE_URI
               {{- if .Values.database.sqlite.persistence.enabled }}
-              value: sqlite:////data/fichaje.db
+              value: sqlite:////data/renewals.db
               {{- else }}
-              value: sqlite:////app/fichaje.db
+              value: sqlite:////app/data/renewals.db
               {{- end }}
             {{- end }}
             
@@ -91,17 +91,53 @@ spec:
               cpu: 100m
               memory: 128Mi
 
-          # --- 5. Montaje de Volumen SQLite (Condicional) ---
+          # --- 5. Montaje de Volúmenes ---
           volumeMounts:
+            # SQLite database (if enabled)
             {{- if and (eq .Values.database.type "sqlite") .Values.database.sqlite.persistence.enabled }}
             - name: sqlite-data
               mountPath: /data
             {{- end }}
+            
+            # Logs folder
+            {{- if .Values.persistence.logs.enabled }}
+            - name: logs
+              mountPath: /app/logs
+            {{- end }}
+            
+            # Attachments folder
+            {{- if .Values.persistence.attachments.enabled }}
+            - name: attachments
+              mountPath: /app/data/attachments
+            {{- end }}
 
-      # --- 6. Definición del Volumen (Condicional) ---
+      # --- 6. Definición de Volúmenes ---
       volumes:
+        # SQLite PVC
         {{- if and (eq .Values.database.type "sqlite") .Values.database.sqlite.persistence.enabled }}
         - name: sqlite-data
           persistentVolumeClaim:
             claimName: {{ include "opsdeck.fullname" . }}-sqlite-pvc
+        {{- end }}
+        
+        # Logs PVC
+        {{- if .Values.persistence.logs.enabled }}
+        - name: logs
+          persistentVolumeClaim:
+            {{- if .Values.persistence.logs.existingClaim }}
+            claimName: {{ .Values.persistence.logs.existingClaim }}
+            {{- else }}
+            claimName: {{ include "opsdeck.fullname" . }}-logs-pvc
+            {{- end }}
+        {{- end }}
+        
+        # Attachments PVC
+        {{- if .Values.persistence.attachments.enabled }}
+        - name: attachments
+          persistentVolumeClaim:
+            {{- if .Values.persistence.attachments.existingClaim }}
+            claimName: {{ .Values.persistence.attachments.existingClaim }}
+            {{- else }}
+            claimName: {{ include "opsdeck.fullname" . }}-attachments-pvc
+            {{- end }}
         {{- end }}
