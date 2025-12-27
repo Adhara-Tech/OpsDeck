@@ -1,5 +1,5 @@
 import pytest
-from src.models import Framework, FrameworkControl, Asset, ComplianceLink, User
+from src.models import Framework, FrameworkControl, Asset, ComplianceLink
 from src import db
 
 @pytest.fixture(scope='function')

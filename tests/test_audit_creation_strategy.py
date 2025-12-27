@@ -1,11 +1,8 @@
-import pytest
 from datetime import date
 from src.models import db
-from src.models.audits import ComplianceAudit, AuditControlItem
+from src.models.audits import ComplianceAudit
 from src.models.security import Framework, FrameworkControl
 from src.models.auth import User
-from src.models.crm import Contact
-from src.models.procurement import Supplier
 
 def test_audit_creation_strategies_route(auth_client, app):
     """

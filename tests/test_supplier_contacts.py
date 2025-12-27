@@ -1,4 +1,4 @@
-from src.models import Contact, Supplier
+from src.models import Contact
 
 def test_contact_lifecycle(auth_client, app):
     """

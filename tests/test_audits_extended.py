@@ -8,14 +8,12 @@ Tests for features not covered in test_audits.py:
 - API status update endpoint
 - Audit header update
 """
-import pytest
 import io
 import json
 from src.models import db
 from src.models.audits import ComplianceAudit, AuditControlItem
 from src.models.security import Framework, FrameworkControl
 from src.models.auth import User
-from src.models.core import Attachment
 from datetime import datetime
 
 

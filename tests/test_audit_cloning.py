@@ -1,8 +1,7 @@
-import pytest
-from datetime import date, datetime
+from datetime import date
 from src.models import db
-from src.models.audits import ComplianceAudit, AuditControlItem, AuditControlLink
-from src.models.security import Framework, FrameworkControl, ComplianceLink
+from src.models.audits import ComplianceAudit, AuditControlLink
+from src.models.security import Framework, FrameworkControl
 from src.models.assets import Asset
 from src.models.auth import User
 from src.models.crm import Contact

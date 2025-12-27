@@ -1,4 +1,3 @@
-import pytest
 from src.models import db, Framework, FrameworkControl
 
 def test_list_frameworks(auth_client, app):
