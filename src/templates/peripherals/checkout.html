@@ -9,6 +9,7 @@
 <div class="card">
     <div class="card-body">
         <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="mb-3">
                 <label for="user_id" class="form-label">Check Out To *</label>
                 <select class="form-select" id="user_id" name="user_id" required>

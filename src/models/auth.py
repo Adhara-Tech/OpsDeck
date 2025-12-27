@@ -1,9 +1,6 @@
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
-from sqlalchemy.orm import foreign
-from sqlalchemy import and_
 from ..extensions import db
-from .core import Attachment
 
 user_groups = db.Table('user_groups',
     db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
@@ -55,3 +52,23 @@ class User(db.Model): # Add UserMixin here if using Flask-Login
         if self.password_hash:
             return check_password_hash(self.password_hash, password)
         return False
+
+
+class UserKnownIP(db.Model):
+    """Stores known IP addresses for users to enable MFA bypass."""
+    __tablename__ = 'user_known_ips'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    ip_address = db.Column(db.String(45), nullable=False)  # IPv6 compatible
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    last_seen = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    user = db.relationship('User', backref=db.backref('known_ips', lazy=True, cascade='all, delete-orphan'))
+    
+    __table_args__ = (
+        db.Index('idx_user_ip', 'user_id', 'ip_address'),
+    )
+    
+    def __repr__(self):
+        return f'<UserKnownIP {self.ip_address} for User {self.user_id}>'

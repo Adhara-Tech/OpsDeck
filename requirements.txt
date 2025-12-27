@@ -12,3 +12,8 @@ Markdown>=3.0
 weasyprint==66.0
 pytest==9.0.1
 Flask-Login
+ecs-logging
+flask-limiter
+Flask-Dance
+Flask-WTF
+flask-talisman

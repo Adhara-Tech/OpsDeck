@@ -1,9 +1,17 @@
 # src/__init__.py
 
 import os
+import sys
+import logging
+from logging.handlers import RotatingFileHandler
 import atexit
-from flask import Flask, session
+from flask import Flask, session, render_template, request
 from apscheduler.schedulers.background import BackgroundScheduler
+import ecs_logging
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
+from flask_dance.contrib.google import make_google_blueprint
+from flask_talisman import Talisman
 
 from .extensions import db, migrate
 from .models import User
@@ -12,6 +20,55 @@ import markdown
 from markupsafe import Markup
 from .seeder_prod import seed_production_frameworks
 import re
+
+# --- Rate Limiter (global instance for use in blueprints) ---
+limiter = Limiter(key_func=get_remote_address, storage_uri="memory://")
+
+# --- CSRF Protection ---
+from flask_wtf.csrf import CSRFProtect
+csrf = CSRFProtect()
+
+# --- Content Security Policy ---
+talisman = Talisman()
+
+# --- Initialize Extensions ---
+def configure_logging(app):
+    """
+    Configure structured ECS logging with file rotation and console output.
+    """
+    # Get the app logger
+    logger = logging.getLogger(app.name)
+    logger.setLevel(logging.INFO)
+
+    # Create logs directory if it doesn't exist
+    log_dir = 'logs'
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+
+    # 1. Handler for file output (JSON ECS format)
+    # Rotates at 10MB, keeps 5 backup files
+    log_file_path = os.path.join(log_dir, 'logs.json')
+    file_handler = RotatingFileHandler(
+        log_file_path,
+        maxBytes=10 * 1024 * 1024,  # 10MB
+        backupCount=5
+    )
+    file_handler.setFormatter(ecs_logging.StdlibFormatter())
+
+    # 2. Handler for console output (readable format for development)
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(
+        logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+    )
+
+    # Clear any existing handlers and add the new ones
+    logger.handlers = []
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+
+    # Sync Flask's app.logger with our configured logger
+    app.logger.handlers = logger.handlers
+    app.logger.setLevel(logger.level)
 
 def create_app():
     """
@@ -40,9 +97,41 @@ def create_app():
     app.config['EMAIL_PASSWORD'] = os.environ.get('EMAIL_PASSWORD', '')
     app.config['WEBHOOK_URL'] = os.environ.get('WEBHOOK_URL', '')
 
+    # --- Google OAuth Configuration ---
+    app.config['GOOGLE_OAUTH_CLIENT_ID'] = os.environ.get('GOOGLE_OAUTH_CLIENT_ID', '')
+    app.config['GOOGLE_OAUTH_CLIENT_SECRET'] = os.environ.get('GOOGLE_OAUTH_CLIENT_SECRET', '')
+    # Allow insecure transport for local development
+    insecure_transport = os.environ.get('OAUTHLIB_INSECURE_TRANSPORT') == '1'
+    if insecure_transport:
+        os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+
+    # --- MFA Configuration ---
+    app.config['MFA_ENABLED'] = os.environ.get('MFA_ENABLED', 'False').lower() == 'true'
+
     # --- Initialize Extensions ---
     db.init_app(app)
     migrate.init_app(app, db)
+    limiter.init_app(app)
+    csrf.init_app(app)
+    talisman.init_app(app, content_security_policy=None, force_https=not insecure_transport)
+
+    # --- Configure Logging (ECS format with rotation) ---
+    configure_logging(app)
+
+    # --- Custom 429 Error Handler with logging ---
+    @app.errorhandler(429)
+    def ratelimit_handler(e):
+        app.logger.warning(
+            "Rate limit excedido",
+            extra={
+                "event.action": "rate-limit",
+                "source.ip": get_remote_address(),
+                "http.request.method": request.method,
+                "url.path": request.path,
+                "error.message": e.description
+            }
+        )
+        return render_template('429.html', error=e.description), 429
     
     # --- REGISTER THE CUSTOM MARKDOWN FILTER ---
     @app.template_filter('markdown')
@@ -124,6 +213,16 @@ def create_app():
     app.register_blueprint(cost_centers_bp, url_prefix='/cost-centers')
     app.register_blueprint(links_bp, url_prefix='/links')
     app.register_blueprint(activities_bp, url_prefix='/security/activities')
+
+    # --- Google OAuth Blueprint ---
+    if app.config.get('GOOGLE_OAUTH_CLIENT_ID'):
+        google_bp = make_google_blueprint(
+            client_id=app.config['GOOGLE_OAUTH_CLIENT_ID'],
+            client_secret=app.config['GOOGLE_OAUTH_CLIENT_SECRET'],
+            scope=["profile", "email"],
+            redirect_to="main.google_callback"
+        )
+        app.register_blueprint(google_bp, url_prefix="/login")
 
 
     # --- Make user and role available in all templates ---

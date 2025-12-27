@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, current_app
-from werkzeug.utils import secure_filename
 from .main import login_required
+from .admin import admin_required
 from ..models.services import BusinessService, ServiceComponent
 from ..models.auth import User
 from ..models.core import CostCenter, Documentation, Link, Attachment
@@ -9,7 +9,6 @@ from ..models.procurement import Supplier, Subscription
 from ..models.policy import Policy
 from ..models.activities import SecurityActivity
 from ..extensions import db
-from datetime import datetime
 import os
 import uuid
 
@@ -122,6 +121,7 @@ def edit_service(id):
 
 @services_bp.route('/<int:id>/delete', methods=['POST'])
 @login_required
+@admin_required
 def delete_service(id):
     service = BusinessService.query.get_or_404(id)
     try:
@@ -136,6 +136,7 @@ def delete_service(id):
 
 @services_bp.route('/<int:id>/dependency/add', methods=['POST'])
 @login_required
+@admin_required
 def add_dependency(id):
     service = BusinessService.query.get_or_404(id)
     target_service_id = request.form.get('target_service_id')
@@ -179,6 +180,7 @@ def add_dependency(id):
 
 @services_bp.route('/<int:id>/dependency/remove/<int:target_id>', methods=['POST'])
 @login_required
+@admin_required
 def remove_dependency(id, target_id):
     service = BusinessService.query.get_or_404(id)
     target_service = BusinessService.query.get_or_404(target_id)
@@ -205,6 +207,7 @@ def remove_dependency(id, target_id):
 
 @services_bp.route('/<int:id>/component/add', methods=['POST'])
 @login_required
+@admin_required
 def add_component(id):
     service = BusinessService.query.get_or_404(id)
     comp_type = request.form.get('component_type')
@@ -235,6 +238,7 @@ def add_component(id):
 
 @services_bp.route('/component/<int:comp_id>/delete', methods=['POST'])
 @login_required
+@admin_required
 def delete_component(comp_id):
     comp = ServiceComponent.query.get_or_404(comp_id)
     service_id = comp.service_id
@@ -292,6 +296,7 @@ def search_components(component_type):
 
 @services_bp.route('/<int:id>/link-document', methods=['POST'])
 @login_required
+@admin_required
 def link_document(id):
     service = BusinessService.query.get_or_404(id)
     doc_id = request.form.get('document_id')
@@ -306,6 +311,7 @@ def link_document(id):
 
 @services_bp.route('/<int:id>/unlink-document/<int:doc_id>', methods=['POST'])
 @login_required
+@admin_required
 def unlink_document(id, doc_id):
     service = BusinessService.query.get_or_404(id)
     doc = Documentation.query.get(doc_id)
@@ -318,6 +324,7 @@ def unlink_document(id, doc_id):
 
 @services_bp.route('/<int:id>/link-policy', methods=['POST'])
 @login_required
+@admin_required
 def link_policy(id):
     service = BusinessService.query.get_or_404(id)
     policy_id = request.form.get('policy_id')
@@ -332,6 +339,7 @@ def link_policy(id):
 
 @services_bp.route('/<int:id>/unlink-policy/<int:policy_id>', methods=['POST'])
 @login_required
+@admin_required
 def unlink_policy(id, policy_id):
     service = BusinessService.query.get_or_404(id)
     policy = Policy.query.get(policy_id)
@@ -344,6 +352,7 @@ def unlink_policy(id, policy_id):
 
 @services_bp.route('/<int:id>/link-activity', methods=['POST'])
 @login_required
+@admin_required
 def link_activity(id):
     service = BusinessService.query.get_or_404(id)
     activity_id = request.form.get('activity_id')
@@ -358,6 +367,7 @@ def link_activity(id):
 
 @services_bp.route('/<int:id>/unlink-activity/<int:activity_id>', methods=['POST'])
 @login_required
+@admin_required
 def unlink_activity(id, activity_id):
     service = BusinessService.query.get_or_404(id)
     activity = SecurityActivity.query.get(activity_id)
@@ -370,6 +380,7 @@ def unlink_activity(id, activity_id):
 
 @services_bp.route('/<int:id>/add-link', methods=['POST'])
 @login_required
+@admin_required
 def add_link(id):
     service = BusinessService.query.get_or_404(id)
     name = request.form.get('name')
@@ -390,6 +401,7 @@ def add_link(id):
 
 @services_bp.route('/<int:id>/remove-link/<int:link_id>', methods=['POST'])
 @login_required
+@admin_required
 def remove_link(id, link_id):
     link = Link.query.get_or_404(link_id)
     if link.owner_type == 'BusinessService' and link.owner_id == id:
@@ -401,6 +413,7 @@ def remove_link(id, link_id):
 
 @services_bp.route('/<int:id>/upload-attachment', methods=['POST'])
 @login_required
+@admin_required
 def upload_attachment(id):
     service = BusinessService.query.get_or_404(id)
     
@@ -440,6 +453,7 @@ def upload_attachment(id):
 
 @services_bp.route('/<int:id>/remove-attachment/<int:att_id>', methods=['POST'])
 @login_required
+@admin_required
 def remove_attachment(id, att_id):
     attachment = Attachment.query.get_or_404(att_id)
     if attachment.linkable_type == 'BusinessService' and attachment.linkable_id == id:

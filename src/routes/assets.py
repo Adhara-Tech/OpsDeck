@@ -24,6 +24,7 @@ def archived_assets():
 
 @assets_bp.route('/<int:id>/archive', methods=['POST'])
 @login_required
+@admin_required
 def archive_asset(id):
     """Sets an asset's status to archived."""
     asset = Asset.query.get_or_404(id)
@@ -35,6 +36,7 @@ def archive_asset(id):
 
 @assets_bp.route('/<int:id>/unarchive', methods=['POST'])
 @login_required
+@admin_required
 def unarchive_asset(id):
     """Restores an archived asset to active."""
     asset = Asset.query.get_or_404(id)
@@ -220,6 +222,7 @@ def checkout_asset(id):
 
 @assets_bp.route('/<int:id>/checkin', methods=['POST'])
 @login_required
+@admin_required
 def checkin_asset(id):
     asset = Asset.query.get_or_404(id)
     if not asset.user:

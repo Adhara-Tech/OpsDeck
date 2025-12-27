@@ -1,5 +1,5 @@
 import pytest
-from src.models import Framework, FrameworkControl, Asset, ComplianceLink, User
+from src.models import Framework, FrameworkControl, Asset, ComplianceLink
 from src import db
 
 @pytest.fixture(scope='function')
@@ -50,14 +50,15 @@ def test_get_framework_controls(user_client, compliance_data):
     assert response.status_code == 400
     assert 'Framework is disabled' in response.json['error']
 
-def test_create_compliance_link(user_client, compliance_data):
+def test_create_compliance_link(auth_client, compliance_data):
+    # Changed user_client to auth_client (Admin)
     payload = {
         'framework_control_id': compliance_data['c1_id'],
         'linkable_id': compliance_data['asset_id'],
         'linkable_type': 'Asset',
         'description': 'Test Link'
     }
-    response = user_client.post('/compliance/link', json=payload)
+    response = auth_client.post('/compliance/link', json=payload)
     assert response.status_code == 201
     assert response.json['status'] == 'success'
 
@@ -66,7 +67,8 @@ def test_create_compliance_link(user_client, compliance_data):
     assert link is not None
     assert link.description == 'Test Link'
 
-def test_create_duplicate_link(user_client, compliance_data):
+def test_create_duplicate_link(auth_client, compliance_data):
+    # Changed user_client to auth_client (Admin)
     payload = {
         'framework_control_id': compliance_data['c1_id'],
         'linkable_id': compliance_data['asset_id'],
@@ -74,25 +76,27 @@ def test_create_duplicate_link(user_client, compliance_data):
         'description': 'Test Link'
     }
     # First creation
-    user_client.post('/compliance/link', json=payload)
+    auth_client.post('/compliance/link', json=payload)
     
     # Duplicate creation
-    response = user_client.post('/compliance/link', json=payload)
+    response = auth_client.post('/compliance/link', json=payload)
     assert response.status_code == 409
     assert 'Link already exists' in response.json['error']
 
-def test_link_to_disabled_framework(user_client, compliance_data):
+def test_link_to_disabled_framework(auth_client, compliance_data):
+    # Changed user_client to auth_client (Admin)
     payload = {
         'framework_control_id': compliance_data['c2_id'], # Belongs to inactive FW
         'linkable_id': compliance_data['asset_id'],
         'linkable_type': 'Asset',
         'description': 'Should fail'
     }
-    response = user_client.post('/compliance/link', json=payload)
+    response = auth_client.post('/compliance/link', json=payload)
     assert response.status_code == 400
     assert 'Framework is disabled' in response.json['error']
 
-def test_delete_compliance_link(user_client, compliance_data, app):
+def test_delete_compliance_link(auth_client, compliance_data, app):
+    # Changed user_client to auth_client (Admin)
     # Create link manually
     with app.app_context():
         link = ComplianceLink(
@@ -106,7 +110,7 @@ def test_delete_compliance_link(user_client, compliance_data, app):
         link_id = link.id
 
     # Delete
-    response = user_client.delete(f'/compliance/link/{link_id}')
+    response = auth_client.delete(f'/compliance/link/{link_id}')
     assert response.status_code == 200
     assert response.json['status'] == 'success'
 

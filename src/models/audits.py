@@ -3,9 +3,7 @@ from sqlalchemy import and_
 from sqlalchemy.orm import foreign
 from ..extensions import db
 from .core import Attachment
-from .security import Framework, FrameworkControl, ComplianceLink
-from .crm import Contact
-from .auth import User
+from .security import Framework
 
 # Association table for audit participants
 audit_participants = db.Table('audit_participants',

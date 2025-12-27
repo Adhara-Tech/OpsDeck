@@ -171,7 +171,7 @@ class RiskAffectedItem(db.Model):
         from .assets import Asset, Peripheral, Software, License, MaintenanceLog
         from .procurement import Supplier, Purchase, Budget, Subscription
         from .core import Link, Documentation
-        from .auth import User, Group
+        from .auth import Group
         from .policy import Policy
         from .training import Course
         from .bcdr import BCDRPlan

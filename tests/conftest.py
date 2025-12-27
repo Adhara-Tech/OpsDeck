@@ -1,13 +1,20 @@
 import pytest
 import os
 import tempfile
-from src import create_app, db
+from src import create_app, db, limiter
 from src.models import User
 
 @pytest.fixture(scope='session')
 def app():
     """Crea una instancia de la aplicación Flask para pruebas (scope session)."""
+    # Disable HTTPS for tests
+    os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+    
     app = create_app()
+    
+    # --- FIX: Explicitly disable the rate limiter extension ---
+    # This works even if the app was initialized with RATELIMIT_ENABLED=True
+    limiter.enabled = False
     
     # Crear un directorio temporal para uploads
     tmpdir = tempfile.mkdtemp()
@@ -16,8 +23,10 @@ def app():
         "TESTING": True,
         "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
         "WTF_CSRF_ENABLED": False,
+        "RATELIMIT_ENABLED": False, # Kept for consistency, though the line above does the heavy lifting
         "SECRET_KEY": "test-secret-key",
-        "UPLOAD_FOLDER": tmpdir
+        "UPLOAD_FOLDER": tmpdir,
+        "MFA_ENABLED": False
     })
 
     with app.app_context():

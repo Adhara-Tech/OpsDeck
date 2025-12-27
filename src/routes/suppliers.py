@@ -22,6 +22,7 @@ def archived_suppliers():
 
 @suppliers_bp.route('/<int:id>/archive', methods=['POST'])
 @login_required
+@admin_required
 def archive_supplier(id):
     supplier = Supplier.query.get_or_404(id)
     supplier.is_archived = True
@@ -32,6 +33,7 @@ def archive_supplier(id):
 
 @suppliers_bp.route('/<int:id>/unarchive', methods=['POST'])
 @login_required
+@admin_required
 def unarchive_supplier(id):
     supplier = Supplier.query.get_or_404(id)
     supplier.is_archived = False
@@ -91,6 +93,7 @@ def edit_supplier(id):
 
 @suppliers_bp.route('/<int:id>/delete', methods=['POST'])
 @login_required
+@admin_required
 def delete_supplier(id):
     supplier = Supplier.query.get_or_404(id)
     db.session.delete(supplier)

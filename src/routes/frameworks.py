@@ -6,7 +6,6 @@ from flask import (
 from .main import login_required
 from src.models import db, Framework, FrameworkControl
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy import or_
 from .admin import admin_required
 
 

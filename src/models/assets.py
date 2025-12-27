@@ -3,7 +3,6 @@ from dateutil.relativedelta import relativedelta
 from sqlalchemy.orm import foreign
 from sqlalchemy import and_
 from ..extensions import db
-from .core import Attachment
 from .auth import User, Group
 
 class Location(db.Model):

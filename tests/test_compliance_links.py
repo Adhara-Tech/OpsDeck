@@ -1,4 +1,3 @@
-import pytest
 from src.models import Asset, Policy, Supplier, Framework, FrameworkControl, ComplianceLink
 from src import db
 

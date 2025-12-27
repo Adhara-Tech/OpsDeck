@@ -26,8 +26,20 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-      
-      # Step 4: Run the tests!
+
+      # Step 4: Security Check (Trivy)
+      # Scans the filesystem for vulnerabilities in library dependencies (requirements.txt).
+      # It will ONLY fail the build (exit-code 1) if HIGH or CRITICAL severities are found.
+      - name: Security Check (Trivy)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          ignore-unfixed: true
+          format: 'table'
+          exit-code: '1' # Fail the pipeline if vulns are found
+          severity: 'CRITICAL,HIGH' # Only look for these severities
+
+      # Step 5: Run the tests!
       - name: Run tests (suppressing warnings)
         env:
           # This is critical: It respects your pytest.ini setting (pythonpath = . src)

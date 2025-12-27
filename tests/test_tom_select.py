@@ -1,4 +1,3 @@
-import pytest
 
 def test_tom_select_assets(auth_client):
     # The dashboard is at root '/'

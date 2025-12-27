@@ -134,6 +134,7 @@
             <a href="{{ url_for('attachments.download_file', attachment_id=att.id) }}">{{ att.filename }}</a>
             <form action="{{ url_for('attachments.delete_attachment', attachment_id=att.id) }}" method="POST"
                 onsubmit="return confirm('Are you sure?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
             </form>
         </li>
@@ -143,6 +144,7 @@
     </ul>
     <div class="card-body">
         <form action="{{ url_for('attachments.upload_file') }}" method="POST" enctype="multipart/form-data">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="subscription_id" value="{{ subscription.id }}">
             <div class="input-group">
                 <input type="file" class="form-control" name="file" required>

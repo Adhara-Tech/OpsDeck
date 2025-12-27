@@ -2,7 +2,6 @@
 Tests for the Audits Defense Room functionality.
 Covers snapshot isolation, SOA workflow, evidence management, and cascade deletion.
 """
-import pytest
 from src.models import db
 from src.models.audits import ComplianceAudit, AuditControlItem, AuditControlLink
 from src.models.security import Framework, FrameworkControl, ComplianceLink

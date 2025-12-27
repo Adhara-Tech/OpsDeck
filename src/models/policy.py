@@ -1,9 +1,7 @@
-from datetime import datetime, date
+from datetime import datetime
 from sqlalchemy.orm import foreign
 from sqlalchemy import and_
 from ..extensions import db
-from .core import Attachment
-from .auth import User, Group
 
 policy_version_users = db.Table('policy_version_users',
     db.Column('policy_version_id', db.Integer, db.ForeignKey('policy_version.id'), primary_key=True),

@@ -4,7 +4,6 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from src import create_app
 from src.models.security import Risk
-from src.extensions import db
 
 app = create_app()
 

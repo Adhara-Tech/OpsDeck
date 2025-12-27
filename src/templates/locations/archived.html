@@ -26,6 +26,7 @@
                         <td>{{ location.name }}</td>
                         <td>
                             <form action="{{ url_for('locations.unarchive_location', id=location.id) }}" method="POST" class="d-inline">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="btn btn-sm btn-outline-success" title="Restore">
                                     <i class="fas fa-undo"></i> Restore
                                 </button>

@@ -4,6 +4,7 @@ from flask import (
 from datetime import datetime
 from ..models import db, PaymentMethod
 from .main import login_required
+from .admin import admin_required
 
 payment_methods_bp = Blueprint('payment_methods', __name__)
 
@@ -21,6 +22,7 @@ def archived_payment_methods():
 
 @payment_methods_bp.route('/<int:id>/archive', methods=['POST'])
 @login_required
+@admin_required
 def archive_payment_method(id):
     method = PaymentMethod.query.get_or_404(id)
     method.is_archived = True
@@ -30,6 +32,7 @@ def archive_payment_method(id):
 
 @payment_methods_bp.route('/<int:id>/unarchive', methods=['POST'])
 @login_required
+@admin_required
 def unarchive_payment_method(id):
     method = PaymentMethod.query.get_or_404(id)
     method.is_archived = False
@@ -86,6 +89,7 @@ def edit_payment_method(id):
 
 @payment_methods_bp.route('/<int:id>/delete', methods=['POST'])
 @login_required
+@admin_required
 def delete_payment_method(id):
     method = PaymentMethod.query.get_or_404(id)
     db.session.delete(method)

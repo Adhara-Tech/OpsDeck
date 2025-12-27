@@ -1,5 +1,4 @@
-import pytest
-from src.models import Link, Tag, User, Group, Software
+from src.models import Link, Tag, Software
 from src import db
 
 def test_list_links_empty(auth_client):

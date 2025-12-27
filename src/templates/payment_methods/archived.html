@@ -27,6 +27,7 @@
                         <td>{{ method.details or '-' }}</td>
                         <td>
                             <form action="{{ url_for('payment_methods.unarchive_payment_method', id=method.id) }}" method="POST" class="d-inline">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="btn btn-sm btn-outline-success" title="Restore">
                                     <i class="fas fa-undo"></i> Restore
                                 </button>

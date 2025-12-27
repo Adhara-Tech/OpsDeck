@@ -5,11 +5,9 @@ Tests for features not covered in test_activities.py:
 - Attachments on ActivityExecution
 - Compliance links on SecurityActivity
 """
-import pytest
 import io
 from src.models import (
-    SecurityActivity, ActivityExecution, User, Attachment,
-    Framework, FrameworkControl
+    SecurityActivity, ActivityExecution, User, Framework, FrameworkControl
 )
 from src import db
 from datetime import date

@@ -11,6 +11,7 @@
 <div class="card">
     <div class="card-body">
         <form method="POST">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="mb-3">
                 <label for="title" class="form-label">Policy Title *</label>
                 <input type="text" class="form-control" id="title" name="title" required>

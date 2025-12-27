@@ -4,6 +4,7 @@ from flask import (
 from datetime import datetime
 from ..models import db, Opportunity, Activity, Supplier, Contact, Risk, Budget
 from .main import login_required
+from .admin import admin_required
 
 opportunities_bp = Blueprint('opportunities', __name__)
 
@@ -80,6 +81,7 @@ def edit_opportunity(id):
 
 @opportunities_bp.route('/<int:id>/add_activity', methods=['POST'])
 @login_required
+@admin_required
 def add_activity(id):
     opportunity = Opportunity.query.get_or_404(id)
     activity_type = request.form.get('type')
@@ -101,6 +103,7 @@ def add_activity(id):
 
 @opportunities_bp.route('/<int:opportunity_id>/add_task', methods=['POST'])
 @login_required
+@admin_required
 def add_task(opportunity_id):
     description = request.form.get('task_description')
     if description:
@@ -114,6 +117,7 @@ def add_task(opportunity_id):
 
 @opportunities_bp.route('/task/<int:task_id>/toggle', methods=['POST'])
 @login_required
+@admin_required
 def toggle_task(task_id):
     task = OpportunityTask.query.get_or_404(task_id)
     task.is_completed = not task.is_completed
@@ -123,6 +127,7 @@ def toggle_task(task_id):
 
 @opportunities_bp.route('/task/<int:task_id>/delete', methods=['POST'])
 @login_required
+@admin_required
 def delete_task(task_id):
     task = OpportunityTask.query.get_or_404(task_id)
     opportunity_id = task.opportunity_id

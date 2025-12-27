@@ -4,6 +4,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from ..extensions import db
 from ..models.core import CostCenter
 from ..models.services import BusinessService
+from .admin import admin_required
 
 cost_centers_bp = Blueprint('cost_centers', __name__)
 
@@ -128,6 +129,7 @@ def edit(id):
 
 @cost_centers_bp.route('/<int:id>/delete', methods=['POST'])
 @login_required
+@admin_required
 def delete(id):
     """Delete a cost center."""
     cost_center = CostCenter.query.get_or_404(id)

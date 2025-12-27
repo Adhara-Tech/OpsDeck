@@ -3,6 +3,7 @@ from flask import (
 )
 from ..models import db, Contact, Supplier
 from .main import login_required
+from .admin import admin_required
 
 contacts_bp = Blueprint('contacts', __name__)
 
@@ -20,6 +21,7 @@ def archived_contacts():
 
 @contacts_bp.route('/<int:id>/archive', methods=['POST'])
 @login_required
+@admin_required
 def archive_contact(id):
     contact = Contact.query.get_or_404(id)
     contact.is_archived = True
@@ -29,6 +31,7 @@ def archive_contact(id):
 
 @contacts_bp.route('/<int:id>/unarchive', methods=['POST'])
 @login_required
+@admin_required
 def unarchive_contact(id):
     contact = Contact.query.get_or_404(id)
     contact.is_archived = False
@@ -81,6 +84,7 @@ def edit_contact(id):
 
 @contacts_bp.route('/<int:id>/delete', methods=['POST'])
 @login_required
+@admin_required
 def delete_contact(id):
     contact = Contact.query.get_or_404(id)
     db.session.delete(contact)

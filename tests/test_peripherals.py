@@ -1,4 +1,4 @@
-from src.models import Peripheral, User, PeripheralAssignment
+from src.models import Peripheral, User
 from src import db # <-- 1. AÑADIR IMPORT
 
 def test_peripheral_lifecycle(auth_client, app):

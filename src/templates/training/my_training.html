@@ -31,6 +31,7 @@
             <hr>
             <h6>Mark as Complete</h6>
             <form action="{{ url_for('training.complete_course', assignment_id=assignment.id) }}" method="POST" enctype="multipart/form-data">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <div class="mb-3">
                     <label for="certificate-{{ assignment.id }}" class="form-label">Upload Certificate (Optional)</label>
                     <input class="form-control" type="file" id="certificate-{{ assignment.id }}" name="certificate">

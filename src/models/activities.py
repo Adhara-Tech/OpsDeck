@@ -2,7 +2,6 @@ from datetime import datetime, date
 from sqlalchemy.orm import foreign
 from sqlalchemy import and_
 from ..extensions import db
-from .core import Attachment
 
 # --- Association Tables for Security Activities ---
 

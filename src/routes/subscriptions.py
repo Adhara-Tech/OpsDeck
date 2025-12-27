@@ -5,6 +5,7 @@ from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
 from ..models import db, Subscription, Supplier, Contact, PaymentMethod, Tag, CostHistory, CURRENCY_RATES, Software, Budget
 from .main import login_required
+from .admin import admin_required
 
 subscriptions_bp = Blueprint('subscriptions', __name__)
 
@@ -234,6 +235,7 @@ def edit_subscription(id):
 
 @subscriptions_bp.route('/<int:id>/delete', methods=['POST'])
 @login_required
+@admin_required
 def delete_subscription(id):
     subscription = Subscription.query.get_or_404(id)
     db.session.delete(subscription)
@@ -249,6 +251,7 @@ def archived_subscriptions():
 
 @subscriptions_bp.route('/<int:id>/archive', methods=['POST'])
 @login_required
+@admin_required
 def archive_subscription(id):
     subscription = Subscription.query.get_or_404(id)
     subscription.is_archived = True
@@ -258,6 +261,7 @@ def archive_subscription(id):
 
 @subscriptions_bp.route('/<int:id>/unarchive', methods=['POST'])
 @login_required
+@admin_required
 def unarchive_subscription(id):
     subscription = Subscription.query.get_or_404(id)
     subscription.is_archived = False

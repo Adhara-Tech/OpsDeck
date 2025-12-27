@@ -38,6 +38,7 @@
                         <td>
                             <a href="{{ url_for('payment_methods.edit_payment_method', id=method.id) }}" class="btn btn-sm btn-outline-primary me-1" title="Edit"><i class="fas fa-edit"></i></a>
                             <form action="{{ url_for('payment_methods.delete_payment_method', id=method.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure?');">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></button>
                             </form>
                         </td>

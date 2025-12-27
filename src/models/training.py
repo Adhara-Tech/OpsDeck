@@ -2,8 +2,6 @@ from datetime import datetime, date
 from sqlalchemy.orm import foreign
 from sqlalchemy import and_
 from ..extensions import db
-from .core import Attachment
-from .auth import User
 
 class Course(db.Model):
     id = db.Column(db.Integer, primary_key=True)

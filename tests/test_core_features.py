@@ -1,7 +1,7 @@
 import io
 import os
 from src import db
-from src.models import Attachment, Supplier, User, Asset
+from src.models import Attachment, User, Asset
 
 # --- Test 10: Attachments ---
 

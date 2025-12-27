@@ -5,6 +5,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from datetime import datetime, date
 from ..models import db, SecurityActivity, ActivityExecution, User, Group, Tag, Attachment, ActivityRelatedObject
 from .main import login_required
+from .admin import admin_required
 
 activities_bp = Blueprint('activities', __name__)
 
@@ -22,6 +23,7 @@ def list_activities():
 
 @activities_bp.route('/new', methods=['GET', 'POST'])
 @login_required
+@admin_required
 def new_activity():
     """Creates a new security activity."""
     if request.method == 'POST':
@@ -74,6 +76,7 @@ def activity_detail(id):
 
 @activities_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
+@admin_required
 def edit_activity(id):
     """Edits an existing security activity."""
     activity = SecurityActivity.query.get_or_404(id)
@@ -114,6 +117,7 @@ def edit_activity(id):
 
 @activities_bp.route('/<int:id>/delete', methods=['POST'])
 @login_required
+@admin_required
 def delete_activity(id):
     """Deletes a security activity."""
     activity = SecurityActivity.query.get_or_404(id)
@@ -127,6 +131,7 @@ def delete_activity(id):
 
 @activities_bp.route('/<int:id>/execute', methods=['GET', 'POST'])
 @login_required
+@admin_required
 def execute_activity(id):
     """Records a new execution for a security activity."""
     activity = SecurityActivity.query.get_or_404(id)
@@ -187,6 +192,7 @@ def execution_detail(id):
 
 @activities_bp.route('/execution/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
+@admin_required
 def edit_execution(id):
     """Edits an existing execution."""
     execution = ActivityExecution.query.get_or_404(id)
@@ -282,6 +288,7 @@ def get_objects_by_type():
 
 @activities_bp.route('/<int:id>/link-object', methods=['POST'])
 @login_required
+@admin_required
 def link_object(id):
     """Links an object to a security activity."""
     activity = SecurityActivity.query.get_or_404(id)
@@ -319,6 +326,7 @@ def link_object(id):
 
 @activities_bp.route('/<int:id>/unlink-object/<int:link_id>', methods=['POST'])
 @login_required
+@admin_required
 def unlink_object(id, link_id):
     """Removes a link between an activity and an object."""
     activity = SecurityActivity.query.get_or_404(id)

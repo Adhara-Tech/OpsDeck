@@ -41,6 +41,7 @@
                 </button>
             {% else %}
                 <form action="{{ url_for('policies.acknowledge_version', id=version.id) }}" method="post" class="mt-3">
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-check"></i> I have read and understand the policy
                     </button>

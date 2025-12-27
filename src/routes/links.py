@@ -1,9 +1,6 @@
-import os
-import uuid
 from flask import (
-    Blueprint, render_template, request, redirect, url_for, flash, current_app
+    Blueprint, render_template, request, redirect, url_for, flash
 )
-from werkzeug.utils import secure_filename
 from ..models import db, Link, Tag, User, Group, Software
 from .main import login_required
 from .admin import admin_required

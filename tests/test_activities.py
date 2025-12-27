@@ -1,5 +1,4 @@
-import pytest
-from src.models import SecurityActivity, ActivityExecution, ActivityRelatedObject, User, Group, Tag, Asset, Attachment
+from src.models import SecurityActivity, ActivityExecution, ActivityRelatedObject, User, Group, Tag, Asset
 from src import db
 from datetime import date
 
