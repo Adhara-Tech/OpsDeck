@@ -93,7 +93,8 @@ flask init-db
 To run the application, use the Flask CLI:
 
 ```bash
-flask run
+# Running flask without debug forces HTTPS
+flask run --debug
 
 ```
 
