@@ -6,7 +6,7 @@ from .models import (
     MaintenanceLog, DisposalRecord,
     BCDRPlan, BCDRTestLog, Course, CourseAssignment, Group, Policy, PolicyVersion, Opportunity,
     Documentation, Link, Software, License, Framework, FrameworkControl, ComplianceLink,
-    BusinessService, ServiceComponent, ComplianceAudit, AuditControlItem, AuditControlLink
+    BusinessService, ComplianceAudit
 )
 from . import create_app
 

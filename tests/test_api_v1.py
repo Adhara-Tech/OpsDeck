@@ -1,5 +1,4 @@
-import pytest
-from src.models import User, Asset
+from src.models import User
 
 def test_api_security(client, app):
     """

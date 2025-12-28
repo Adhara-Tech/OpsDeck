@@ -1,6 +1,4 @@
 import pytest
-import os
-import tempfile
 from src.models import User, Supplier, Contact, Asset, Peripheral, Location
 from src.extensions import db
 

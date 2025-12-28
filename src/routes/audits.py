@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, jsonify
 from .main import login_required
 from ..extensions import db
-from ..models.audits import ComplianceAudit, AuditControlItem, AuditControlLink, audit_evidence
+from ..models.audits import ComplianceAudit, AuditControlItem, AuditControlLink
 from ..models.security import Framework
 from ..models.auth import User
 from ..models.onboarding import OnboardingProcess, OffboardingProcess

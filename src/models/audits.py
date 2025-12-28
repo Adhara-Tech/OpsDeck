@@ -324,7 +324,6 @@ class AuditControlLink(db.Model):
         from .bcdr import BCDRPlan
         from .security import SecurityIncident, SecurityAssessment, Risk, AssetInventory
         from .services import BusinessService
-        from .onboarding import OnboardingProcess, OffboardingProcess
         
         # Map types to models
         model_map = {

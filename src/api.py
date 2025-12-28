@@ -1,8 +1,7 @@
 # src/api.py
-from functools import wraps
 from flask import request, current_app
 from flask.views import MethodView
-from flask_smorest import Blueprint, Page, abort
+from flask_smorest import Blueprint, abort
 from .models import User, Asset, Peripheral, License, Subscription
 from .models.services import BusinessService
 from .schemas import (
