@@ -271,6 +271,58 @@
                 </div>
 
                 <hr class="text-white">
+                <h6 class="sidebar-heading" data-bs-toggle="collapse" data-bs-target="#hr-menu" aria-expanded="false">HR
+                    & People <i class="fa-fw fas fa-chevron-down float-end"></i></h6>
+                <div class="collapse" id="hr-menu" data-bs-parent="#sidebar-accordion">
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.endpoint == 'onboarding.index' or request.endpoint in ['onboarding.onboarding_detail', 'onboarding.offboarding_detail'] }}"
+                            href="{{ url_for('onboarding.index') }}">
+                            <i class="fas fa-fw fa-tachometer-alt"></i>
+                            <span>HR Dashboard</span>
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.endpoint == 'onboarding.new_onboarding' }}"
+                            href="{{ url_for('onboarding.new_onboarding') }}">
+                            <i class="fas fa-fw fa-user-plus"></i>
+                            <span>New Onboarding</span>
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.endpoint == 'onboarding.new_offboarding' }}"
+                            href="{{ url_for('onboarding.new_offboarding') }}">
+                            <i class="fas fa-fw fa-user-minus"></i>
+                            <span>New Offboarding</span>
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if 'pack' in request.endpoint }}"
+                            href="{{ url_for('onboarding.list_packs') }}">
+                            <i class="fas fa-fw fa-box-open"></i>
+                            <span>Role Profiles</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if 'template' in request.endpoint }}"
+                            href="{{ url_for('onboarding.list_templates') }}">
+                            <i class="fas fa-fw fa-clipboard-check"></i>
+                            <span>Global Templates</span>
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if 'history' in request.endpoint }}"
+                            href="{{ url_for('onboarding.history') }}">
+                            <i class="fas fa-fw fa-history"></i>
+                            <span>History</span>
+                        </a>
+                    </li>
+                </div>
+
+                <hr class="text-white">
                 <h6 class="sidebar-heading" data-bs-toggle="collapse" data-bs-target="#admin-menu"
                     aria-expanded="false">Administration <i class="fa-fw fas fa-chevron-down float-end"></i></h6>
                 <div class="collapse" id="admin-menu" data-bs-parent="#sidebar-accordion">
@@ -279,7 +331,8 @@
                             href="{{ url_for('users.users') }}"><i class="fa-fw fas fa-users"></i> Users</a></li>
                     <li class="nav-item"><a
                             class="nav-link {% if request.endpoint.startswith('groups.') %}active{% endif %}"
-                            href="{{ url_for('groups.list_groups') }}"><i class="fa-fw fas fa-users-cog"></i> Groups</a>
+                            href="{{ url_for('groups.list_groups') }}"><i class="fa-fw fas fa-users-cog"></i>
+                            Groups</a>
                     </li>
                     <li class="nav-item"><a
                             class="nav-link {% if request.endpoint.startswith('locations.') %}active{% endif %}"

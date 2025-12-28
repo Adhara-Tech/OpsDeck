@@ -1,0 +1,90 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-clipboard-list me-2"></i>Global Templates</h1>
+    <a href="{{ url_for('onboarding.index') }}" class="btn btn-outline-secondary">Back</a>
+</div>
+
+<div class="row">
+    <div class="col-md-4 mb-4">
+        <div class="card">
+            <div class="card-header bg-dark text-white">
+                New Global Task
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('onboarding.new_template_task') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+                    <div class="mb-3">
+                        <label class="form-label">Task Description</label>
+                        <input type="text" name="name" class="form-control"
+                            placeholder="e.g., Sign Confidentiality Agreement" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Applies to:</label>
+                        <select name="process_type" class="form-select">
+                            <option value="onboarding">🟢 All Onboardings</option>
+                            <option value="offboarding">🔴 All Offboardings</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn btn-dark w-100">Create Task</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                Active Task List
+            </div>
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Task</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for task in tasks %}
+                    <tr>
+                        <td>{{ task.name }}</td>
+                        <td>
+                            {% if task.process_type == 'onboarding' %}
+                            <span class="badge bg-success">Onboarding</span>
+                            {% else %}
+                            <span class="badge bg-danger">Offboarding</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if task.is_active %}
+                            <span class="badge bg-success">Active</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <form action="{{ url_for('onboarding.toggle_template_task', id=task.id) }}" method="POST">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                                <button class="btn btn-sm btn-link text-secondary">
+                                    <i class="fas fa-power-off"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="4" class="text-center text-muted">No global tasks configured.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

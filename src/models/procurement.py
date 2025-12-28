@@ -210,6 +210,8 @@ class PaymentMethod(db.Model):
     method_type = db.Column(db.String(50), nullable=False)  # e.g., "Credit Card", "Bank Transfer"
     details = db.Column(db.String(100))  # e.g., "Visa ending in 1234"
     expiry_date = db.Column(db.Date)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    user = db.relationship('User', backref='payment_methods')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_archived = db.Column(db.Boolean, default=False, nullable=False)
 
@@ -237,6 +239,10 @@ class Subscription(db.Model):
     # Cost information
     cost = db.Column(db.Float, nullable=False)
     currency = db.Column(db.String(3), default='EUR')
+
+    # User information
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    user = db.relationship('User', backref='subscriptions')
 
     # Licenses
     licenses = db.relationship('License', backref='subscription', lazy=True)

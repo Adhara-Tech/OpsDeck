@@ -1,0 +1,45 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container" style="max-width: 600px;">
+    <div class="card shadow">
+        <div class="card-header bg-success text-white">
+            <h4 class="mb-0"><i class="fas fa-user-plus me-2"></i>Start Onboarding</h4>
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+                <div class="mb-3">
+                    <label class="form-label">Employee Name (New Hire)</label>
+                    <input type="text" name="new_hire_name" class="form-control" placeholder="e.g., Jane Doe" required>
+                    <div class="form-text">If the user already has a corporate email, you can link it later.</div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Start Date</label>
+                    <input type="date" name="start_date" class="form-control" required>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label">Assign Role Profile</label>
+                    <select name="pack_id" class="form-select">
+                        <option value="">-- No Profile (Global tasks only) --</option>
+                        {% for pack in packs %}
+                        <option value="{{ pack.id }}">{{ pack.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="form-text">This will automatically add the necessary software and hardware to the
+                        checklist.
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-success btn-lg">Generate Checklist</button>
+                    <a href="{{ url_for('onboarding.index') }}" class="btn btn-outline-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
