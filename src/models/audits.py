@@ -4,11 +4,19 @@ from sqlalchemy.orm import foreign
 from ..extensions import db
 from .core import Attachment
 from .security import Framework
+from .onboarding import OnboardingProcess, OffboardingProcess
 
 # Association table for audit participants
 audit_participants = db.Table('audit_participants',
     db.Column('audit_id', db.Integer, db.ForeignKey('compliance_audit.id'), primary_key=True),
     db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True)
+)
+
+# Association table for linking audits to onboarding/offboarding processes (Evidence)
+audit_evidence = db.Table('audit_evidence',
+    db.Column('audit_id', db.Integer, db.ForeignKey('compliance_audit.id'), primary_key=True),
+    db.Column('onboarding_id', db.Integer, db.ForeignKey('onboarding_process.id'), nullable=True),
+    db.Column('offboarding_id', db.Integer, db.ForeignKey('offboarding_process.id'), nullable=True)
 )
 
 class ComplianceAudit(db.Model):
@@ -50,6 +58,9 @@ class ComplianceAudit(db.Model):
     internal_lead = db.relationship('User', foreign_keys=[internal_lead_id])
     
     participants = db.relationship('User', secondary=audit_participants, backref='audits_participating')
+    
+    onboardings = db.relationship('OnboardingProcess', secondary=audit_evidence, backref='audits')
+    offboardings = db.relationship('OffboardingProcess', secondary=audit_evidence, backref='audits')
     
     audit_items = db.relationship(
         'AuditControlItem',
@@ -289,8 +300,16 @@ class AuditControlLink(db.Model):
         if hasattr(obj, 'risk_description'):
             # Opcional: Truncar si es muy largo, ya que suelen ser textos
             return obj.risk_description 
+
+        # 3. Procesos de Onboarding
+        if self.linkable_type == 'Onboarding':
+            return f"Onboarding: {obj.new_hire_name or (obj.user.name if obj.user else 'Unknown')}"
+
+        # 4. Procesos de Offboarding
+        if self.linkable_type == 'Offboarding':
+            return f"Offboarding: {obj.user.name if obj.user else 'Unknown'}"
             
-        # 3. El resto (Assets, Users, etc.) usan 'name'
+        # 5. El resto (Assets, Users, etc.) usan 'name'
         return getattr(obj, 'name', str(obj))
     
     @property
@@ -305,6 +324,7 @@ class AuditControlLink(db.Model):
         from .bcdr import BCDRPlan
         from .security import SecurityIncident, SecurityAssessment, Risk, AssetInventory
         from .services import BusinessService
+        from .onboarding import OnboardingProcess, OffboardingProcess
         
         # Map types to models
         model_map = {
@@ -326,7 +346,9 @@ class AuditControlLink(db.Model):
             'SecurityAssessment': SecurityAssessment,
             'Risk': Risk,
             'AssetInventory': AssetInventory,
-            'BusinessService': BusinessService
+            'BusinessService': BusinessService,
+            'Onboarding': OnboardingProcess,
+            'Offboarding': OffboardingProcess
         }
         
         model = model_map.get(self.linkable_type)

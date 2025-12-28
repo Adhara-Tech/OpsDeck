@@ -1,0 +1,176 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1><i class="fas fa-user-astronaut me-2"></i>People Operations</h1>
+    <div>
+        <a href="{{ url_for('onboarding.new_onboarding') }}" class="btn btn-success">
+            <i class="fas fa-plus me-1"></i> New Onboarding
+        </a>
+        <a href="{{ url_for('onboarding.new_offboarding') }}" class="btn btn-danger ms-2">
+            <i class="fas fa-sign-out-alt me-1"></i> New Offboarding
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-9">
+
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">🚀 Onboardings in Progress</h5>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Name</th>
+                            <th>Profile</th>
+                            <th>Start Date</th>
+                            <th>Progress</th>
+                            <th>Status</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in onboardings %}
+                        <tr>
+                            <td class="fw-bold">{{ p.new_hire_name }}</td>
+                            <td>
+                                {% if p.pack %}
+                                <span class="badge bg-info text-dark">{{ p.pack.name }}</span>
+                                {% else %}
+                                <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ p.start_date.strftime('%Y-%m-%d') }}</td>
+                            <td style="width: 20%;">
+                                {% set completed = p.items|selectattr('is_completed')|list|length %}
+                                {% set total = p.items|length %}
+                                {% set pct = (completed / total * 100)|round|int if total > 0 else 0 %}
+                                <div class="progress" style="height: 10px;">
+                                    <div class="progress-bar bg-success" role="progressbar" style="width: {{ pct }}%">
+                                    </div>
+                                </div>
+                                <small class="text-muted">{{ completed }}/{{ total }} tasks</small>
+                            </td>
+                            <td><span class="badge bg-secondary">{{ p.status }}</span></td>
+                            <td class="text-end">
+                                <a href="{{ url_for('onboarding.onboarding_detail', id=p.id) }}"
+                                    class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-tasks me-1"></i>Checklist
+                                </a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center py-4 text-muted">No active onboardings at this time.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0">👋 Offboardings in Progress</h5>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>User</th>
+                            <th>Last Day</th>
+                            <th>Manager</th>
+                            <th>Progress</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in offboardings %}
+                        <tr>
+                            <td class="fw-bold">
+                                <i class="fas fa-user-times text-danger me-2"></i>{{ p.user.name }}
+                            </td>
+                            <td>{{ p.departure_date.strftime('%Y-%m-%d') }}</td>
+                            <td>{{ p.manager.name if p.manager else 'N/A' }}</td>
+                            <td style="width: 20%;">
+                                {% set completed = p.items|selectattr('is_completed')|list|length %}
+                                {% set total = p.items|length %}
+                                {% set pct = (completed / total * 100)|round|int if total > 0 else 0 %}
+                                <div class="progress" style="height: 10px;">
+                                    <div class="progress-bar bg-danger" role="progressbar" style="width: {{ pct }}%">
+                                    </div>
+                                </div>
+                                <small class="text-muted">{{ completed }}/{{ total }} tasks</small>
+                            </td>
+                            <td class="text-end">
+                                <a href="{{ url_for('onboarding.offboarding_detail', id=p.id) }}"
+                                    class="btn btn-sm btn-outline-danger">
+                                    <i class="fas fa-tasks me-1"></i>Manage
+                                </a>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center py-4 text-muted">No active offboardings.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="col-md-3">
+
+        <div class="card mb-4">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                <h6 class="mb-0">📦 Role Profiles</h6>
+            </div>
+            <div class="list-group list-group-flush">
+                {% for pack in packs %}
+                <a href="{{ url_for('onboarding.pack_detail', id=pack.id) }}"
+                    class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                    {{ pack.name }}
+                    <span class="badge bg-secondary rounded-pill">{{ pack.items|length }}</span>
+                </a>
+                {% endfor %}
+            </div>
+            <div class="card-body border-top">
+                <form action="{{ url_for('onboarding.new_pack') }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                    <div class="input-group">
+                        <input type="text" name="name" class="form-control form-control-sm" placeholder="New Profile..."
+                            required>
+                        <button class="btn btn-sm btn-outline-dark" type="submit" title="Quick Create"><i
+                                class="fas fa-plus"></i></button>
+                    </div>
+                </form>
+                <div class="mt-2 text-end">
+                    <a href="{{ url_for('onboarding.list_packs') }}" class="small text-muted">View full catalog
+                        &rarr;</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-header bg-light">
+                <h6 class="mb-0">⚙️ Management & Audit</h6>
+            </div>
+            <div class="list-group list-group-flush">
+                <a href="{{ url_for('onboarding.list_templates') }}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-tasks text-warning me-2"></i>Global Templates
+                </a>
+
+                <a href="{{ url_for('onboarding.history') }}" class="list-group-item list-group-item-action">
+                    <i class="fas fa-history text-secondary me-2"></i>Process History
+                </a>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

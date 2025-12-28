@@ -5,7 +5,8 @@ from .models import (
     Asset, Peripheral, Subscription, Risk, SecurityIncident,
     MaintenanceLog, DisposalRecord,
     BCDRPlan, BCDRTestLog, Course, CourseAssignment, Group, Policy, PolicyVersion, Opportunity,
-    Documentation, Link, Software, License, Framework, FrameworkControl, ComplianceLink
+    Documentation, Link, Software, License, Framework, FrameworkControl, ComplianceLink,
+    BusinessService, ServiceComponent, ComplianceAudit, AuditControlItem, AuditControlLink
 )
 from . import create_app
 
@@ -65,14 +66,25 @@ def seed_data():
         # 2. Create People, Groups
         print("Creating people and groups...")
         users = [
-            User(name='Alice Johnson', email='alice.j@example.com', department='Engineering', job_title='Lead Developer'),
-            User(name='Bob Williams', email='bob.w@example.com', department='Marketing', job_title='Marketing Director'),
-            User(name='Charlie Brown', email='charlie.b@example.com', department='Engineering', job_title='Frontend Developer'),
-            User(name='Diana Prince', email='diana.p@example.com', department='Design', job_title='UX/UI Designer'),
-            User(name='Ethan Hunt', email='ethan.h@example.com', department='Sales', job_title='Account Executive'),
-            User(name='Fiona Glenanne', email='fiona.g@example.com', department='Engineering', job_title='Backend Developer'),
+            # Executive / Leadership
+            User(name='Alice Johnson', email='alice.j@example.com', department='Engineering', job_title='VP of Engineering'),
+            User(name='Bob Williams', email='bob.w@example.com', department='Sales', job_title='VP of Sales'),
+            
+            # Management
+            User(name='Charlie Brown', email='charlie.b@example.com', department='Engineering', job_title='Engineering Manager'),
             User(name='George Costanza', email='george.c@example.com', department='Sales', job_title='Sales Manager'),
-            User(name='Heidi Klum', email='heidi.k@example.com', department='Design', job_title='Lead Designer'),
+            
+            # Individual Contributors - Engineering
+            User(name='Fiona Glenanne', email='fiona.g@example.com', department='Engineering', job_title='Senior Backend Developer'),
+            User(name='Diana Prince', email='diana.p@example.com', department='Design', job_title='Senior Product Designer'),
+            User(name='Heidi Klum', email='heidi.k@example.com', department='Design', job_title='UX Researcher'),
+            
+            # Individual Contributors - Sales
+            User(name='Ethan Hunt', email='ethan.h@example.com', department='Sales', job_title='Account Executive'),
+            
+            # New Hires (for Onboarding/Buddy scenarios)
+            User(name='Ian Malcolm', email='ian.m@example.com', department='Engineering', job_title='Junior DevOps Engineer'),
+            User(name='Julia Roberts', email='julia.r@example.com', department='Sales', job_title='Sales  Development Rep')
         ]
         db.session.add_all(users)
         db.session.commit()
@@ -370,6 +382,90 @@ def seed_data():
             ComplianceLink(framework_control_id=fake_controls[3].id, linkable_id=maintenance_log.id, linkable_type='MaintenanceLog', description="Regular maintenance performed on core systems.")
         ]
         db.session.add_all(compliance_links)
+        
+        # 11. User Hierarchy (Managers)
+        # 11. User Hierarchy (Managers & Buddies)
+        print("Assigning managers and buddies...")
+        
+        # Mapping for clarity:
+        # Alice (VP Eng) -> manages Charlie (Eng Mgr)
+        # Charlie (Eng Mgr) -> manages Fiona, Ian, Diana, Heidi (Design sits under Eng for this demo)
+        # Bob (VP Sales) -> manages George (Sales Mgr)
+        # George (Sales Mgr) -> manages Ethan, Julia
+
+        # Set Managers
+        users[2].manager = users[0]  # Charlie -> Alice
+        users[4].manager = users[0]  # Fiona -> Charlie (Wait, Index 4 is Fiona in new list? Let's check indices)
+        # Re-fetching to be safe or using variable names would be better, but utilizing list indices for now based on above order:
+        # 0: Alice, 1: Bob, 2: Charlie, 3: George, 4: Fiona, 5: Diana, 6: Heidi, 7: Ethan, 8: Ian, 9: Julia
+
+        # Engineering Tree
+        users[2].manager = users[0] # Charlie manages under Alice
+        users[4].manager = users[2] # Fiona manages under Charlie
+        users[5].manager = users[2] # Diana manages under Charlie
+        users[6].manager = users[2] # Heidi manages under Charlie
+        users[8].manager = users[2] # Ian manages under Charlie
+
+        # Sales Tree
+        users[3].manager = users[1] # George manages under Bob
+        users[7].manager = users[3] # Ethan manages under George
+        users[9].manager = users[3] # Julia manages under George
+
+        # Buddies (Mentors)
+        # Fiona mentors Ian (New Hire Eng)
+        users[8].buddy = users[4]
+        # Ethan mentors Julia (New Hire Sales)
+        users[9].buddy = users[7]
+
+        db.session.commit()
+
+        # 12. Business Services
+        # 12. Business Services
+        print("Creating business services...")
+        services = [
+            BusinessService(name="E-Commerce Platform", description="Main customer facing store.", owner=users[2], criticality="Tier 1 - Critical", status="Operational"),
+            BusinessService(name="Inventory System", description="Warehouse management and stock control.", owner=users[4], criticality="Tier 1 - Critical", status="Operational"),
+            BusinessService(name="Payment Gateway", description="External payment processing integration.", owner=users[2], criticality="Tier 1 - Critical", status="Operational"),
+            BusinessService(name="Internal HR Portal", description="Employee self-service and records.", owner=users[0], criticality="Tier 3 - Standard", status="Operational"),
+            BusinessService(name="Customer Support Portal", description="Ticket management for end-users.", owner=users[6], criticality="Tier 2 - High", status="Operational"),
+            BusinessService(name="Data Warehouse", description="Centralized analytics and reporting data.", owner=users[4], criticality="Tier 2 - High", status="Operational"),
+            BusinessService(name="Identity Provider (IdP)", description="Centralized authentication (SSO).", owner=users[0], criticality="Tier 1 - Critical", status="Operational"),
+            BusinessService(name="Logistics API", description="Integration with shipping providers.", owner=users[4], criticality="Tier 2 - High", status="Pipeline")
+        ]
+        db.session.add_all(services)
+        db.session.commit()
+
+        # Dependencies
+        # Architecture:
+        # E-Commerce -> Depends on: Inventory, Payment Gateway, Identity Provider
+        services[0].upstream_dependencies.append(services[1]) # Inventory
+        services[0].upstream_dependencies.append(services[2]) # Payment
+        services[0].upstream_dependencies.append(services[6]) # IdP
+
+        # Customer Support -> Depends on: Identity Provider, Inventory (to check order status)
+        services[4].upstream_dependencies.append(services[6]) # IdP
+        services[4].upstream_dependencies.append(services[1]) # Inventory
+
+        # Data Warehouse -> Depends on: E-Commerce (source), Inventory (source)
+        services[5].upstream_dependencies.append(services[0])
+        services[5].upstream_dependencies.append(services[1])
+
+        # Logistics API -> Depends on: Inventory
+        services[7].upstream_dependencies.append(services[1])
+
+        db.session.commit()
+
+        # 13. Compliance Audit (Defense Room)
+        print("Creating compliance audit...")
+        # Create a snapshot audit for GSS
+        audit = ComplianceAudit.create_snapshot(
+            framework_id=fake_framework.id, 
+            name="GSS Audit 2025", 
+            auditor_contact_id=None, 
+            internal_lead_id=users[2].id, # Charlie (Eng Mgr)
+            copy_links=True # Populate evidence from live links
+        )
+        audit.status = "Prep"
         db.session.commit()
 
         print("Database seeding complete!")

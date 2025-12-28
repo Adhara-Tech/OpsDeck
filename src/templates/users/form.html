@@ -11,24 +11,57 @@
 <div class="card">
     <div class="card-body">
         <form method="POST">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="mb-3">
                 <label for="name" class="form-label">Name *</label>
-                <input type="text" class="form-control" id="name" name="name" value="{{ user.name if user else '' }}" required>
+                <input type="text" class="form-control" id="name" name="name" value="{{ user.name if user else '' }}"
+                    required>
             </div>
             <div class="mb-3">
                 <label for="email" class="form-label">Email</label>
-                <input type="email" class="form-control" id="email" name="email" value="{{ user.email if user else '' }}">
+                <input type="email" class="form-control" id="email" name="email"
+                    value="{{ user.email if user else '' }}">
             </div>
             <div class="mb-3">
                 <label for="department" class="form-label">Department</label>
-                <input type="text" class="form-control" id="department" name="department" value="{{ user.department if user else '' }}">
+                <input type="text" class="form-control" id="department" name="department"
+                    value="{{ user.department if user else '' }}">
             </div>
             <div class="mb-3">
                 <label for="job_title" class="form-label">Job Title</label>
-                <input type="text" class="form-control" id="job_title" name="job_title" value="{{ user.job_title if user else '' }}">
+                <input type="text" class="form-control" id="job_title" name="job_title"
+                    value="{{ user.job_title if user else '' }}">
             </div>
-            
+
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Manager (Direct Report)</label>
+                    <select name="manager_id" class="form-select">
+                        <option value="">-- No Manager --</option>
+                        {% for u in users %}
+                        {% if not user or u.id != user.id %}
+                        <option value="{{ u.id }}" {% if user and user.manager_id==u.id %}selected{% endif %}>
+                            {{ u.name }}
+                        </option>
+                        {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Buddy / Mentor</label>
+                    <select name="buddy_id" class="form-select">
+                        <option value="">-- No Buddy --</option>
+                        {% for u in users %}
+                        {% if not user or u.id != user.id %}
+                        <option value="{{ u.id }}" {% if user and user.buddy_id==u.id %}selected{% endif %}>
+                            {{ u.name }}
+                        </option>
+                        {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
             <a href="{{ url_for('users.users') }}" class="btn btn-secondary">Cancel</a>
             <button type="submit" class="btn btn-primary">Save User</button>
         </form>

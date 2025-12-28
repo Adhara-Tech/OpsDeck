@@ -1,0 +1,142 @@
+{% extends "layout.html" %}
+
+{% block content %}
+{% set theme_color = 'success' if type == 'onboarding' else 'danger' %}
+{% set icon = 'user-plus' if type == 'onboarding' else 'user-minus' %}
+{% set title_text = 'Onboarding Process' if type == 'onboarding' else 'Offboarding Process' %}
+{% set user_name = process.new_hire_name if type == 'onboarding' else process.user.name %}
+
+<div class="row">
+    <div class="col-md-12 mb-4">
+        <div class="card border-{{ theme_color }} shadow-sm">
+            <div class="card-body d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="text-{{ theme_color }} mb-1">
+                        <i class="fas fa-{{ icon }} me-2"></i>{{ title_text }}: <strong>{{ user_name }}</strong>
+                    </h2>
+                    <p class="text-muted mb-0">
+                        <i class="far fa-calendar-alt me-1"></i> Key Date:
+                        <strong>
+                            {% if type == 'onboarding' %}
+                            {{ process.start_date.strftime('%d %b, %Y') }}
+                            {% else %}
+                            {{ process.departure_date.strftime('%d %b, %Y') }}
+                            {% endif %}
+                        </strong>
+                        {% if type == 'onboarding' and process.pack %}
+                        | <span class="badge bg-info text-dark">Profile: {{ process.pack.name }}</span>
+                        {% endif %}
+                    </p>
+                </div>
+
+                <div class="text-end">
+                    {% set completed = process.items|selectattr('is_completed')|list|length %}
+                    {% set total = process.items|length %}
+                    {% set pct = (completed / total * 100)|round|int if total > 0 else 0 %}
+
+                    <h3 class="mb-0">{{ pct }}%</h3>
+                    <div class="progress" style="width: 150px; height: 10px;">
+                        <div class="progress-bar bg-{{ theme_color }}" role="progressbar" style="width: {{ pct }}%">
+                        </div>
+                    </div>
+
+                    {% if pct == 100 and process.status != 'Completed' %}
+                    <form action="{{ url_for('onboarding.complete_process', type=type, id=process.id) }}" method="POST"
+                        class="mt-2">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                        <button class="btn btn-sm btn-{{ theme_color }}">
+                            <i class="fas fa-check-double me-1"></i> Complete Process
+                        </button>
+                    </form>
+                    {% elif process.status == 'Completed' %}
+                    <span class="badge bg-secondary mt-2">Completed</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">📋 Task Checklist</h5>
+            </div>
+            <ul class="list-group list-group-flush">
+                {% for item in process.items %}
+                <li
+                    class="list-group-item d-flex align-items-center {{ 'bg-light text-muted' if item.is_completed else '' }}">
+
+                    <form action="{{ url_for('onboarding.toggle_item', id=item.id) }}" method="POST" class="me-3">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                        <button type="submit" class="btn btn-link p-0 text-decoration-none">
+                            {% if item.is_completed %}
+                            <i class="fas fa-check-square text-{{ theme_color }} fa-lg"></i>
+                            {% else %}
+                            <i class="far fa-square text-secondary fa-lg"></i>
+                            {% endif %}
+                        </button>
+                    </form>
+
+                    <div class="flex-grow-1">
+                        <span class="{{ 'text-decoration-line-through' if item.is_completed else '' }}">
+                            {{ item.description }}
+                        </span>
+
+                        {% if item.item_type == 'Asset' %}
+                        <span class="badge bg-secondary ms-2" title="Physical Asset"><i
+                                class="fas fa-laptop"></i></span>
+                        {% elif item.item_type == 'License' %}
+                        <span class="badge bg-info text-dark ms-2" title="Software License"><i
+                                class="fas fa-key"></i></span>
+                        {% elif item.item_type == 'Software' %}
+                        <span class="badge bg-info text-dark ms-2" title="Provision Software"><i
+                                class="fas fa-cloud-download-alt"></i></span>
+                        {% endif %}
+                    </div>
+
+                    {% if item.linked_object_id %}
+                    {% if item.item_type == 'Asset' %}
+                    <a href="{{ url_for('assets.asset_detail', id=item.linked_object_id) }}"
+                        class="btn btn-sm btn-outline-secondary" target="_blank">
+                        <i class="fas fa-external-link-alt"></i> View Asset
+                    </a>
+                    {% elif item.item_type == 'License' %}
+                    <a href="{{ url_for('licenses.detail', id=item.linked_object_id) }}"
+                        class="btn btn-sm btn-outline-secondary" target="_blank">
+                        <i class="fas fa-external-link-alt"></i> View License
+                    </a>
+                    {% endif %}
+                    {% endif %}
+                </li>
+                {% else %}
+                <li class="list-group-item text-center text-muted py-4">
+                    This process has no assigned tasks.
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card mb-3">
+            <div class="card-header">
+                <h6 class="mb-0">ℹ️ Details</h6>
+            </div>
+            <div class="card-body">
+                {% if type == 'offboarding' %}
+                <p><strong>Responsible Manager:</strong><br> {{ process.manager.name if process.manager else 'N/A' }}
+                </p>
+                {% endif %}
+                <p><strong>Status:</strong><br> {{ process.status }}</p>
+                <p><strong>Created on:</strong><br> {{ process.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+            </div>
+        </div>
+
+        <div class="d-grid">
+            <a href="{{ url_for('onboarding.index') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

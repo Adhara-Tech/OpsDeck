@@ -1,0 +1,50 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container" style="max-width: 600px;">
+    <div class="card shadow border-danger">
+        <div class="card-header bg-danger text-white">
+            <h4 class="mb-0"><i class="fas fa-user-minus me-2"></i>Start Offboarding</h4>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                This will generate a return checklist based on all assets, peripherals, and licenses currently assigned
+                to the user.
+            </div>
+
+            <form method="POST" action="{{ url_for('onboarding.new_offboarding') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+                <div class="mb-3">
+                    <label class="form-label">Select User</label>
+                    <select name="user_id" id="user-select" class="form-select" required>
+                        <option value="">Search user...</option>
+                        {% for user in users %}
+                        <option value="{{ user.id }}">{{ user.name }} ({{ user.email }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label">Last Day</label>
+                    <input type="date" name="departure_date" class="form-control" required>
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-danger btn-lg">Generate Offboarding Checklist</button>
+                    <a href="{{ url_for('onboarding.index') }}" class="btn btn-outline-secondary">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        if (window.TomSelect) {
+            new TomSelect("#user-select", { create: false, sortField: { field: "text", direction: "asc" } });
+        }
+    });
+</script>
+{% endblock %}

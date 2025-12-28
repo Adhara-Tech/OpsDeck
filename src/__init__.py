@@ -181,6 +181,7 @@ def create_app():
     from .routes.frameworks import frameworks_bp
     from .routes.links import links_bp
     from .routes.activities import activities_bp
+    from .routes.onboarding import onboarding_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(assets_bp, url_prefix='/assets')
@@ -219,6 +220,7 @@ def create_app():
     app.register_blueprint(cost_centers_bp, url_prefix='/cost-centers')
     app.register_blueprint(links_bp, url_prefix='/links')
     app.register_blueprint(activities_bp, url_prefix='/security/activities')
+    app.register_blueprint(onboarding_bp, url_prefix='/onboarding')
 
     # --- Google OAuth Blueprint ---
     if app.config.get('GOOGLE_OAUTH_CLIENT_ID'):
