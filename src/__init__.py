@@ -12,6 +12,7 @@ from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from flask_dance.contrib.google import make_google_blueprint
 from flask_talisman import Talisman
+from flask_smorest import Api
 
 from .extensions import db, migrate
 from .models import User
@@ -22,7 +23,11 @@ from .seeder_prod import seed_production_frameworks
 import re
 
 # --- Rate Limiter (global instance for use in blueprints) ---
-limiter = Limiter(key_func=get_remote_address, storage_uri="memory://")
+limiter = Limiter(
+    key_func=get_remote_address,
+    storage_uri="memory://",
+    default_limits=["200 per day", "50 per hour"]
+)
 
 # --- CSRF Protection ---
 from flask_wtf.csrf import CSRFProtect
@@ -112,6 +117,25 @@ def create_app():
     app.config['DEFAULT_ADMIN_EMAIL'] = os.environ.get('DEFAULT_ADMIN_EMAIL', 'admin@example.com')
     app.config['DEFAULT_ADMIN_INITIAL_PASSWORD'] = os.environ.get('DEFAULT_ADMIN_INITIAL_PASSWORD', 'admin123')
 
+    # --- API Configuration ---
+    app.config["API_TITLE"] = "OpsDeck API"
+    app.config["API_VERSION"] = "v1"
+    app.config["OPENAPI_VERSION"] = "3.0.2"
+    app.config["OPENAPI_URL_PREFIX"] = "/"
+    app.config["OPENAPI_SWAGGER_UI_PATH"] = "/swagger-ui"
+    app.config["OPENAPI_SWAGGER_UI_URL"] = "https://cdn.jsdelivr.net/npm/swagger-ui-dist/"
+    app.config["API_SPEC_OPTIONS"] = {
+        "components": {
+            "securitySchemes": {
+                "bearerAuth": {
+                    "type": "http",
+                    "scheme": "bearer",
+                    "bearerFormat": "JWT"
+                }
+            }
+        }
+    }
+
     # --- Initialize Extensions ---
     db.init_app(app)
     migrate.init_app(app, db)
@@ -123,6 +147,11 @@ def create_app():
 
     # --- Configure Logging (ECS format with rotation) ---
     configure_logging(app)
+
+    # --- Initialize API ---
+    api = Api(app)
+    from .api import api_bp
+    api.register_blueprint(api_bp)
 
     # --- Custom 429 Error Handler with logging ---
     @app.errorhandler(429)

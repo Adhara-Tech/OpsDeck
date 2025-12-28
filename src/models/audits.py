@@ -59,8 +59,8 @@ class ComplianceAudit(db.Model):
     
     participants = db.relationship('User', secondary=audit_participants, backref='audits_participating')
     
-    onboardings = db.relationship('OnboardingProcess', secondary=audit_evidence, backref='audits')
-    offboardings = db.relationship('OffboardingProcess', secondary=audit_evidence, backref='audits')
+    onboardings = db.relationship('OnboardingProcess', secondary=audit_evidence, backref=db.backref('audits', overlaps="audits,onboardings,offboardings"), overlaps="audits,offboardings")
+    offboardings = db.relationship('OffboardingProcess', secondary=audit_evidence, backref=db.backref('audits', overlaps="audits,onboardings,offboardings"), overlaps="audits,onboardings")
     
     audit_items = db.relationship(
         'AuditControlItem',
