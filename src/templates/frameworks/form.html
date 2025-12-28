@@ -10,63 +10,62 @@
 
 <form method="POST"
     action="{% if framework %}{{ url_for('frameworks.edit', id=framework.id) }}{% else %}{{ url_for('frameworks.create') }}{% endif %}">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
     <div class="row">
         <div class="col-lg-8">
             <div class="card mb-3">
                 <div class="card-header">
-                    <h5 class="card-title mb-0">Detalles del Framework</h5>
+                    <h5 class="card-title mb-0">Framework Details</h5>
                 </div>
                 <div class="card-body">
                     {% set framework_disabled = (framework and not framework.is_custom) %}
-                    
+
                     {% if framework_disabled %}
                     <div class="alert alert-info">
-                        <i class="fa-solid fa-circle-info"></i> 
-                        Los detalles de los frameworks incorporados no se pueden modificar. 
+                        <i class="fa-solid fa-circle-info"></i>
+                        Details of built-in frameworks cannot be modified.
                         Solo puedes activar o desactivarlos.
                     </div>
                     {% endif %}
 
                     <div class="mb-3">
-                        <label for="name" class="form-label">Nombre del Framework</label>
+                        <label for="name" class="form-label">Framework Name</label>
                         <input type="text" class="form-control" id="name" name="name"
-                               value="{{ current_data.name if current_data else '' }}" 
-                               {% if framework_disabled %}disabled{% endif %}
-                               required>
+                            value="{{ current_data.name if current_data else '' }}" {% if framework_disabled
+                            %}disabled{% endif %} required>
                     </div>
 
                     <div class="mb-3">
-                        <label for="description" class="form-label">Descripción</label>
-                        <textarea class="form-control" id="description" name="description" rows="4"
-                                  {% if framework_disabled %}disabled{% endif %}
-                                  >{{ current_data.description if current_data else '' }}</textarea>
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="4" {% if
+                            framework_disabled %}disabled{% endif
+                            %}>{{ current_data.description if current_data else '' }}</textarea>
                     </div>
 
                     <div class="mb-3">
                         <label for="link" class="form-label">Enlace (Opcional)</label>
                         <input type="url" class="form-control" id="link" name="link"
-                               value="{{ current_data.link if current_data else '' }}"
-                               {% if framework_disabled %}disabled{% endif %}>
+                            value="{{ current_data.link if current_data else '' }}" {% if framework_disabled
+                            %}disabled{% endif %}>
                     </div>
-                    
+
                     <hr>
-                    
+
                     <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" id="is_active" name="is_active"
-                               {% if (current_data and current_data.is_active) or (not current_data) %}checked{% endif %}>
+                        <input class="form-check-input" type="checkbox" id="is_active" name="is_active" {% if
+                            (current_data and current_data.is_active) or (not current_data) %}checked{% endif %}>
                         <label class="form-check-label" for="is_active">
                             Activo
                         </label>
                         <div class="form-text">
-                            Los frameworks inactivos no se mostrarán al crear nuevas auditorías.
+                            Inactive frameworks will not be shown when creating new audits.
                         </div>
                     </div>
                 </div>
                 <div class="card-footer text-end">
-                    <a href="{{ url_for('frameworks.list') }}" class="btn btn-secondary">Cancelar</a>
-                    <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+                    <a href="{{ url_for('frameworks.list') }}" class="btn btn-secondary">Cancel</a>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
                 </div>
             </div>
 
@@ -75,10 +74,8 @@
                 <div class="card-header">
                     <div class="d-flex justify-content-between align-items-center">
                         <h5 class="card-title mb-0">Gestión de Controles</h5>
-                        <button type="button" class="btn btn-sm btn-success" 
-                                data-bs-toggle="modal" 
-                                data-bs-target="#controlModal"
-                                onclick="prepareAddModal()">
+                        <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal"
+                            data-bs-target="#controlModal" onclick="prepareAddModal()">
                             <i class="fa-solid fa-plus"></i> Añadir Control
                         </button>
                     </div>
@@ -89,8 +86,8 @@
                             <thead>
                                 <tr>
                                     <th>ID Control</th>
-                                    <th>Nombre</th>
-                                    <th>Acciones</th>
+                                    <th>Name</th>
+                                    <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -100,13 +97,12 @@
                                     <td>{{ control.name }}</td>
                                     <td>
                                         <button type="button" class="btn btn-sm btn-outline-primary"
-                                                data-bs-toggle="modal" data-bs-target="#controlModal"
-                                                data-control-id="{{ control.id }}"
-                                                onclick="prepareEditModal(this)">
+                                            data-bs-toggle="modal" data-bs-target="#controlModal"
+                                            data-control-id="{{ control.id }}" onclick="prepareEditModal(this)">
                                             <i class="fa-solid fa-pencil"></i>
                                         </button>
                                         <button type="button" class="btn btn-sm btn-outline-danger"
-                                                onclick="deleteControl(this, '{{ control.id }}')">
+                                            onclick="deleteControl(this, '{{ control.id }}')">
                                             <i class="fa-solid fa-trash"></i>
                                         </button>
                                     </td>
@@ -125,17 +121,18 @@
             </div>
             {% endif %}
 
-        </div> <div class="col-lg-4">
+        </div>
+        <div class="col-lg-4">
             {% if framework and framework.is_custom %}
             <div class="card border-danger">
                 <div class="card-header bg-danger text-white">
                     <h5 class="card-title mb-0">Zona de Peligro</h5>
                 </div>
                 <div class="card-body">
-                    <p>Eliminar este framework es una acción permanente.</p>
+                    <p>Deleting a framework is a permanent action.</p>
                     <button type="button" id="deleteFrameworkBtn" class="btn btn-danger w-100">
-                        <i class="fa-solid fa-triangle-exclamation"></i> 
-                        Eliminar Framework
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        Delete Framework
                     </button>
                 </div>
             </div>
@@ -144,7 +141,7 @@
 
     </div>
 </form> {% if framework and framework.is_custom %}
-    {% include 'frameworks/_control_modal.html' %}
+{% include 'frameworks/_control_modal.html' %}
 {% endif %}
 
 {% endblock %}
@@ -164,24 +161,24 @@
     const formFieldName = document.getElementById('modalName');
     const formFieldDesc = document.getElementById('modalDescription');
     const formFieldFwId = document.getElementById('modalFrameworkId');
-    
+
     // Prepara el modal para AÑADIR (sin cambios)
     function prepareAddModal() {
         modalForm.setAttribute('action', '{{ url_for("frameworks.add_control") }}');
-        modalTitle.textContent = 'Añadir Nuevo Control';
+        modalTitle.textContent = 'Add New Control';
         modalSubmitBtn.textContent = 'Añadir Control';
         formFieldControlId.value = '';
         formFieldName.value = '';
         formFieldDesc.value = '';
         formFieldFwId.value = '{{ framework.id }}';
     }
-    
+
     // Prepara el modal para EDITAR (sin cambios)
     async function prepareEditModal(button) {
         const controlId = button.getAttribute('data-control-id');
         modalForm.setAttribute('action', `/frameworks/control/${controlId}/edit`);
-        modalTitle.textContent = 'Editar Control';
-        modalSubmitBtn.textContent = 'Guardar Cambios';
+        modalTitle.textContent = 'Edit Control';
+        modalSubmitBtn.textContent = 'Save Changes';
         formFieldFwId.value = '{{ framework.id }}';
 
         try {
@@ -199,11 +196,11 @@
     }
 
     // Listener para el botón de Guardar del modal (sin cambios)
-    modalSubmitBtn.addEventListener('click', async function(e) {
-        
+    modalSubmitBtn.addEventListener('click', async function (e) {
+
         const url = modalForm.getAttribute('action');
-        const formData = new FormData(modalForm); 
-        
+        const formData = new FormData(modalForm);
+
         try {
             const response = await fetch(url, {
                 method: 'POST',
@@ -227,10 +224,10 @@
 
     // Listener para borrar control (sin cambios)
     async function deleteControl(button, controlId) {
-        if (!confirm('¿Estás seguro de que quieres eliminar este control?')) {
+        if (!confirm('Are you sure you want to delete this control?')) {
             return;
         }
-        
+
         try {
             const response = await fetch(`/frameworks/control/${controlId}/delete`, {
                 method: 'POST',
@@ -250,7 +247,7 @@
     // Listener para borrar framework (sin cambios)
     const deleteFrameworkBtn = document.getElementById('deleteFrameworkBtn');
     if (deleteFrameworkBtn) {
-        deleteFrameworkBtn.addEventListener('click', async function() {
+        deleteFrameworkBtn.addEventListener('click', async function () {
             if (!confirm('¿Estás SEGURO de que quieres eliminar este framework y todos sus controles? Esta acción es permanente.')) {
                 return;
             }

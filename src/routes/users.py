@@ -129,8 +129,8 @@ def generate_inventory(id):
     try:
         pdf_bytes = HTML(string=html_content).write_pdf()
     except Exception as e:
-        current_app.logger.error(f"Error al generar PDF con WeasyPrint: {e}")
-        flash('Error al generar el PDF. Revisa los logs.', 'danger')
+        current_app.logger.error(f"Error generating PDF with WeasyPrint: {e}")
+        flash('Error generating PDF. Check logs.', 'danger')
         return redirect(url_for('users.user_detail', id=id))
 
     # 3. Definir nombres de archivo
@@ -145,8 +145,8 @@ def generate_inventory(id):
         with open(save_path, 'wb') as f:
             f.write(pdf_bytes)
     except OSError as e:
-        current_app.logger.error(f"Error al guardar archivo PDF: {e}")
-        flash('Error al guardar el archivo de inventario.', 'danger')
+        current_app.logger.error(f"Error saving PDF file: {e}")
+        flash('Error saving inventory file.', 'danger')
         return redirect(url_for('users.user_detail', id=id))
 
     # 5. Crear el registro 'Attachment' en la BD
@@ -160,7 +160,7 @@ def generate_inventory(id):
     db.session.add(attachment)
     db.session.commit()
     
-    flash('Snapshot de inventario generado y guardado.', 'success')
+    flash('Inventory snapshot generated and saved.', 'success')
     return redirect(url_for('users.user_detail', id=id))
 
 @users_bp.route('/<int:id>/generate-token', methods=['POST'])

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Verificación de Seguridad - OpsDeck</title>
+    <title>Security Verification - OpsDeck</title>
     <link href="{{ url_for('static', filename='vendor/bootstrap/css/bootstrap.min.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='vendor/font-awesome/css/all.min.css') }}" rel="stylesheet">
     <style>
@@ -30,7 +30,7 @@
     <div class="mfa-container">
         <div class="card">
             <div class="card-header text-center bg-warning text-dark">
-                <h4><i class="fas fa-shield-alt"></i> Verificación de Seguridad</h4>
+                <h4><i class="fas fa-shield-alt"></i> Security Verification</h4>
             </div>
             <div class="card-body">
                 {% with messages = get_flashed_messages(with_categories=true) %}
@@ -46,22 +46,22 @@
                 {% endwith %}
 
                 <p class="text-center text-muted mb-4">
-                    <i class="fas fa-envelope"></i> Se ha detectado un nuevo dispositivo.<br>
+                    <i class="fas fa-envelope"></i> A new device has been detected.<br>
                     Introduce el código de 6 dígitos enviado a tu email.
                 </p>
 
                 <form method="POST" action="{{ url_for('main.mfa_verify') }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-4">
-                        <label for="code" class="form-label">Código de Verificación</label>
+                        <label for="code" class="form-label">Verification Code</label>
                         <input type="text" class="form-control code-input" id="code" name="code" maxlength="6"
                             autocomplete="off" required autofocus placeholder="000000" pattern="[0-9]{6}">
                     </div>
                     <button type="submit" class="btn btn-warning w-100 mb-2">
-                        <i class="fas fa-check"></i> Verificar
+                        <i class="fas fa-check"></i> Verify
                     </button>
                     <a href="{{ url_for('main.login') }}" class="btn btn-link w-100 text-muted">
-                        <i class="fas fa-arrow-left"></i> Volver al inicio
+                        <i class="fas fa-arrow-left"></i> Back to login
                     </a>
                 </form>
             </div>
