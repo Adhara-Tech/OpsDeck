@@ -11,7 +11,7 @@
 <div class="card">
     <div class="card-body">
         <form method="POST">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="row mb-3">
                 <div class="col-md-6">
                     <label for="name" class="form-label">Name *</label>
@@ -63,7 +63,7 @@
                 </div>
             </div>
             <div class="row mb-3">
-                <div class="col-md-12">
+                <div class="col-md-6">
                     <label for="budget_id" class="form-label">Budget</label>
                     <select class="form-select" id="budget_id" name="budget_id">
                         <option value="">Select a budget (Optional)...</option>
@@ -72,6 +72,18 @@
                             %}selected{% endif %}>
                             {{ budget.name }} ({{ budget.valid_from.strftime('%Y-%m-%d') }} - {{
                             budget.valid_until.strftime('%Y-%m-%d') }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Assigned User (Owner)</label>
+                    <select name="user_id" class="form-select">
+                        <option value="">-- Unassigned (General Use) --</option>
+                        {% for user in users %}
+                        <option value="{{ user.id }}" {% if subscription and subscription.user_id==user.id %}selected{%
+                            endif %}>
+                            {{ user.name }}
                         </option>
                         {% endfor %}
                     </select>

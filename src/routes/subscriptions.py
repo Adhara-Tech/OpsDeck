@@ -3,7 +3,7 @@ from flask import (
 )
 from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
-from ..models import db, Subscription, Supplier, Contact, PaymentMethod, Tag, CostHistory, CURRENCY_RATES, Software, Budget
+from ..models import db, Subscription, Supplier, Contact, PaymentMethod, Tag, CostHistory, CURRENCY_RATES, Software, Budget, User
 from .main import login_required
 from .admin import admin_required
 
@@ -83,6 +83,8 @@ def subscription_detail(id):
 def new_subscription():
     software_items = Software.query.filter_by(is_archived=False).order_by(Software.name).all()
 
+    users = User.query.filter_by(is_archived=False).all()
+
     if request.method == 'POST':
         renewal_date = datetime.strptime(request.form['renewal_date'], '%Y-%m-%d').date()
         budget_id = request.form.get('budget_id') or None
@@ -98,7 +100,10 @@ def new_subscription():
                                         payment_methods=PaymentMethod.query.order_by(PaymentMethod.name).all(),
                                         tags=Tag.query.order_by(Tag.name).all(),
                                         software_items=software_items,
-                                        budgets=Budget.query.order_by(Budget.name).all())
+                                        budgets=Budget.query.order_by(Budget.name).all(),
+                                        users=users)
+        
+        user_id = request.form.get('user_id')
         
         subscription = Subscription(
             name=request.form['name'],
@@ -112,7 +117,8 @@ def new_subscription():
             currency=request.form['currency'],
             supplier_id=request.form.get('supplier_id') or None,
             software_id=request.form.get('software_id') or None,
-            budget_id=budget_id
+            budget_id=budget_id,
+            user_id=int(user_id) if user_id else None
         )
 
         if subscription.renewal_period_type == 'monthly':
@@ -150,13 +156,16 @@ def new_subscription():
                             payment_methods=PaymentMethod.query.order_by(PaymentMethod.name).all(),
                             tags=Tag.query.order_by(Tag.name).all(),
                             software_items=software_items,
-                            budgets=Budget.query.order_by(Budget.name).all())
+                            budgets=Budget.query.order_by(Budget.name).all(),
+                            users=users)
 
 @subscriptions_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_subscription(id):
     subscription = Subscription.query.get_or_404(id)
     software_items = Software.query.filter_by(is_archived=False).order_by(Software.name).all()
+
+    users = User.query.filter_by(is_archived=False).all()
 
     if request.method == 'POST':
         renewal_date = datetime.strptime(request.form['renewal_date'], '%Y-%m-%d').date()
@@ -174,7 +183,8 @@ def edit_subscription(id):
                                         payment_methods=PaymentMethod.query.order_by(PaymentMethod.name).all(),
                                         tags=Tag.query.order_by(Tag.name).all(),
                                         software_items=software_items,
-                                        budgets=Budget.query.order_by(Budget.name).all())
+                                        budgets=Budget.query.order_by(Budget.name).all(),
+                                        users=users)
         
         new_cost = float(request.form['cost'])
         new_currency = request.form['currency']
@@ -197,6 +207,10 @@ def edit_subscription(id):
         subscription.supplier_id = request.form.get('supplier_id') or None
         subscription.software_id = request.form.get('software_id') or None
         subscription.budget_id = budget_id
+        
+        user_id = request.form.get('user_id')
+        subscription.user_id = int(user_id) if user_id else None
+        
         subscription.monthly_renewal_day = None
         if subscription.renewal_period_type == 'monthly':
             selector = request.form.get('monthly_renewal_day_selector')
@@ -231,7 +245,8 @@ def edit_subscription(id):
                             payment_methods=PaymentMethod.query.order_by(PaymentMethod.name).all(),
                             tags=Tag.query.order_by(Tag.name).all(),
                             software_items=software_items,
-                            budgets=Budget.query.order_by(Budget.name).all())
+                            budgets=Budget.query.order_by(Budget.name).all(),
+                            users=users)
 
 @subscriptions_bp.route('/<int:id>/delete', methods=['POST'])
 @login_required

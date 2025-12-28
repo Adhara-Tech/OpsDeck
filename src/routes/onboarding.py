@@ -90,11 +90,16 @@ def new_onboarding():
         pack_id = request.form.get('pack_id')
         start_date = datetime.strptime(request.form['start_date'], '%Y-%m-%d').date()
         
+        manager_id = request.form.get('manager_id')
+        buddy_id = request.form.get('buddy_id')
+
         # 1. Crear Proceso
         process = OnboardingProcess(
             new_hire_name=new_hire_name,
             pack_id=pack_id,
-            start_date=start_date
+            start_date=start_date,
+            assigned_manager_id=int(manager_id) if manager_id else None,
+            assigned_buddy_id=int(buddy_id) if buddy_id else None
         )
         db.session.add(process)
         db.session.commit()
@@ -119,22 +124,26 @@ def new_onboarding():
                     linked_object_id=p_item.software_id if p_item.item_type == 'Software' else None
                 ))
 
-        # 4. Social logic
-        if target_user.manager:
-            db.session.add(ProcessItem(
-                onboarding_process_id=process.id,
-                description=f"📅 Schedule 1:1 meeting with {target_user.manager.name}",
-                item_type='SocialTask',
-                linked_object_id=target_user.manager.id
-            ))
+        # 4. Social logic (Updated)
+        if process.assigned_manager_id:
+            manager = User.query.get(process.assigned_manager_id)
+            if manager:
+                db.session.add(ProcessItem(
+                    onboarding_process_id=process.id,
+                    description=f"📅 Schedule 1:1 meeting with {manager.name} (Manager)",
+                    item_type='SocialTask',
+                    linked_object_id=manager.id
+                ))
 
-        if target_user.buddy:
-            db.session.add(ProcessItem(
-                onboarding_process_id=process.id,
-                description=f"☕ Schedule welcome coffee with buddy: {target_user.buddy.name}",
-                item_type='SocialTask',
-                linked_object_id=target_user.buddy.id
-            ))
+        if process.assigned_buddy_id:
+            buddy = User.query.get(process.assigned_buddy_id)
+            if buddy:
+                db.session.add(ProcessItem(
+                    onboarding_process_id=process.id,
+                    description=f"☕ Schedule welcome coffee with buddy: {buddy.name}",
+                    item_type='SocialTask',
+                    linked_object_id=buddy.id
+                ))
         
         db.session.commit()
         flash(f'Onboarding started for {new_hire_name}.')

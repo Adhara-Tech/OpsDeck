@@ -320,6 +320,14 @@
                             <span>History</span>
                         </a>
                     </li>
+
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if 'org-chart' in request.endpoint }}"
+                            href="{{ url_for('users.org_chart') }}">
+                            <i class="fas fa-fw fa-sitemap"></i>
+                            <span>Org Chart</span>
+                        </a>
+                    </li>
                 </div>
 
                 <hr class="text-white">

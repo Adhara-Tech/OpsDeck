@@ -2,7 +2,7 @@ from flask import (
     Blueprint, render_template, request, redirect, url_for, flash
 )
 from datetime import datetime
-from ..models import db, PaymentMethod
+from ..models import db, PaymentMethod, User
 from .main import login_required
 from .admin import admin_required
 
@@ -50,28 +50,35 @@ def payment_method_detail(id):
 @payment_methods_bp.route('/new', methods=['GET', 'POST'])
 @login_required
 def new_payment_method():
+    users = User.query.filter_by(is_archived=False).all()
+    
     if request.method == 'POST':
         expiry_date = None
         if request.form.get('expiry_date'):
             expiry_date = datetime.strptime(request.form['expiry_date'], '%m/%y').date()
 
+        user_id = request.form.get('user_id')
+
         method = PaymentMethod(
             name=request.form['name'],
             method_type=request.form['method_type'],
             details=request.form.get('details'),
-            expiry_date=expiry_date
+            expiry_date=expiry_date,
+            user_id=int(user_id) if user_id else None
         )
         db.session.add(method)
         db.session.commit()
         flash('Payment method created successfully!')
         return redirect(url_for('payment_methods.payment_methods'))
 
-    return render_template('payment_methods/form.html')
+    return render_template('payment_methods/form.html', users=users)
 
 @payment_methods_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_payment_method(id):
     method = PaymentMethod.query.get_or_404(id)
+    users = User.query.filter_by(is_archived=False).all()
+
     if request.method == 'POST':
         expiry_date = None
         if request.form.get('expiry_date'):
@@ -81,11 +88,15 @@ def edit_payment_method(id):
         method.method_type = request.form['method_type']
         method.details = request.form.get('details')
         method.expiry_date = expiry_date
+        
+        user_id = request.form.get('user_id')
+        method.user_id = int(user_id) if user_id else None
+
         db.session.commit()
         flash('Payment method updated successfully!')
         return redirect(url_for('payment_methods.payment_methods'))
 
-    return render_template('payment_methods/form.html', method=method)
+    return render_template('payment_methods/form.html', method=method, users=users)
 
 @payment_methods_bp.route('/<int:id>/delete', methods=['POST'])
 @login_required

@@ -1,9 +1,10 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, send_file, jsonify
 from .main import login_required
 from ..extensions import db
-from ..models.audits import ComplianceAudit, AuditControlItem, AuditControlLink
+from ..models.audits import ComplianceAudit, AuditControlItem, AuditControlLink, audit_evidence
 from ..models.security import Framework
 from ..models.auth import User
+from ..models.onboarding import OnboardingProcess, OffboardingProcess
 from ..models.crm import Contact
 from ..models.core import Attachment
 from weasyprint import HTML
@@ -115,6 +116,11 @@ def view_audit(id):
     
     progress = (compliant_count / total_items * 100) if total_items > 0 else 0
     
+    # Fetch completed processes for evidence linking
+    completed_onboardings = OnboardingProcess.query.filter_by(status='Completed').order_by(OnboardingProcess.created_at.desc()).all()
+    # Offboarding status is 'Completed' (based on model default 'In Progress', assuming 'Completed' is final)
+    completed_offboardings = OffboardingProcess.query.filter_by(status='Completed').order_by(OffboardingProcess.created_at.desc()).all()
+    
     return render_template('audits/detail.html', 
                          audit=audit, 
                          progress=round(progress),
@@ -122,7 +128,9 @@ def view_audit(id):
                          compliant_count=compliant_count,
                          gap_count=gap_count,
                          observation_count=observation_count,
-                         users=users)
+                         users=users,
+                         completed_onboardings=completed_onboardings,
+                         completed_offboardings=completed_offboardings)
 
 @audits_bp.route('/<int:id>/header', methods=['POST'])
 @login_required
@@ -372,6 +380,67 @@ def delete_item_link(id, item_id, link_id):
     flash('Link removed.', 'success')
     return redirect(url_for('audits.view_audit', id=id))
 
+@audits_bp.route('/<int:id>/link_evidence', methods=['POST'])
+@login_required
+@admin_required
+def link_evidence(id):
+    audit = ComplianceAudit.query.get_or_404(id)
+    
+    # Lock check
+    if audit.is_locked:
+        flash('Audit is locked.', 'warning')
+        return redirect(url_for('audits.view_audit', id=id))
+
+    ev_type = request.form.get('type') # 'onboarding' or 'offboarding'
+    ev_id = request.form.get('process_id')
+    
+    if not ev_id:
+        flash('No process selected.', 'warning')
+        return redirect(url_for('audits.view_audit', id=id))
+
+    if ev_type == 'onboarding':
+        proc = OnboardingProcess.query.get(ev_id)
+        if proc and proc not in audit.onboardings:
+            audit.onboardings.append(proc)
+            db.session.commit()
+            flash('Onboarding evidence linked.', 'success')
+    elif ev_type == 'offboarding':
+        proc = OffboardingProcess.query.get(ev_id)
+        if proc and proc not in audit.offboardings:
+            audit.offboardings.append(proc)
+            db.session.commit()
+            flash('Offboarding evidence linked.', 'success')
+
+    return redirect(url_for('audits.view_audit', id=id))
+
+@audits_bp.route('/<int:id>/unlink_evidence', methods=['POST'])
+@login_required
+@admin_required
+def unlink_evidence(id):
+    audit = ComplianceAudit.query.get_or_404(id)
+    
+    if audit.is_locked:
+        flash('Audit is locked.', 'warning')
+        return redirect(url_for('audits.view_audit', id=id))
+
+    ev_type = request.form.get('type')
+    ev_id = request.form.get('process_id')
+    
+    if ev_type == 'onboarding':
+        proc = OnboardingProcess.query.get(ev_id)
+        if proc and proc in audit.onboardings:
+            audit.onboardings.remove(proc)
+            db.session.commit()
+            flash('Onboarding evidence removed.', 'success')
+    elif ev_type == 'offboarding':
+        proc = OffboardingProcess.query.get(ev_id)
+        if proc and proc in audit.offboardings:
+            audit.offboardings.remove(proc)
+            db.session.commit()
+            flash('Offboarding evidence removed.', 'success')
+            
+    return redirect(url_for('audits.view_audit', id=id))
+
 # ============================================================================
 # API: AJAX Status Update
 # ============================================================================
@@ -571,5 +640,29 @@ def search_linkable_api():
             q = q.filter(BusinessService.name.ilike(f'%{query}%'))
         items = q.limit(limit).all()
         results = [{'id': item.id, 'name': item.name, 'type': 'Service'} for item in items]
+
+    elif object_type == 'Onboarding':
+        from ..models import OnboardingProcess, User
+        q = OnboardingProcess.query
+        if query:
+            # Search by new_hire_name for processes without user, or by user name if user exists
+            # Optimized simple search: just filter by new_hire_name OR (join user and filter by user.name)
+            # For simplicity in this step, let's just search new_hire_name + try to search linked user name
+            # Note: This might be complex with a single query, so let's stick to new_hire_name for now or do a join if needed.
+            # Using new_hire_name is safer as it's always populated initially.
+            q = q.filter(OnboardingProcess.new_hire_name.ilike(f'%{query}%'))
+        
+        items = q.limit(limit).all()
+        results = [{'id': item.id, 'name': f"{item.new_hire_name} ({item.start_date})", 'type': 'Onboarding'} for item in items]
+
+    elif object_type == 'Offboarding':
+        from ..models import OffboardingProcess, User
+        # Offboarding always has a user_id
+        q = OffboardingProcess.query.join(OffboardingProcess.user)
+        if query:
+            q = q.filter(User.name.ilike(f'%{query}%'))
+        
+        items = q.limit(limit).all()
+        results = [{'id': item.id, 'name': f"{item.user.name} ({item.departure_date})", 'type': 'Offboarding'} for item in items]
     
     return jsonify(results)

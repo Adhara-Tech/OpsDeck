@@ -134,18 +134,28 @@
                     </div>
                     <div class="card-body text-center">
                         <div class="mermaid">
-                            graph TD;
-                            style ME fill:#f9f,stroke:#333,stroke-width:4px
-                            ME["{{ service.name }}"]
+                            graph TD
+                            %% Styles
+                            classDef default fill:#f9f9f9,stroke:#333,stroke-width:1px;
+                            classDef focus fill:#ff9f43,stroke:#333,stroke-width:4px,color:white;
 
-                            {% for parent in service.upstream_dependencies %}
-                            UP_{{ parent.id }}["{{ parent.name }}"] --> ME
-                            click UP_{{ parent.id }} "{{ url_for('services.detail', id=parent.id) }}"
-                            {% endfor %}
+                            %% Central Node
+                            id{{ service.id }}("{{ service.name }}"):::focus
 
-                            {% for child in service.downstream_dependencies %}
-                            ME --> DOWN_{{ child.id }}["{{ child.name }}"]
-                            click DOWN_{{ child.id }} "{{ url_for('services.detail', id=child.id) }}"
+                            %% Unified Edges
+                            {% for edge in dependency_map %}
+                            id{{ edge.from }}["{{ edge.from_name }}"] --> id{{ edge.to }}["{{ edge.to_name }}"]
+
+                            click id{{ edge.from }} "{{ url_for('services.detail', id=edge.from) }}"
+                            click id{{ edge.to }} "{{ url_for('services.detail', id=edge.to) }}"
+
+                            {% if edge.from == service.id %}
+                            style id{{ edge.from }} fill:#ff9f43,stroke-width:4px,color:white
+                            {% endif %}
+
+                            {% if edge.to == service.id %}
+                            style id{{ edge.to }} fill:#ff9f43,stroke-width:4px,color:white
+                            {% endif %}
                             {% endfor %}
                         </div>
                     </div>

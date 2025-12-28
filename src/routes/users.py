@@ -17,6 +17,12 @@ def users():
     users = User.query.filter_by(is_archived=False).all()
     return render_template('users/list.html', users=users)
 
+@users_bp.route('/org-chart')
+@login_required
+def org_chart():
+    users = User.query.filter_by(is_archived=False).all()
+    return render_template('users/org_chart.html', users=users)
+
 @users_bp.route('/archived')
 @login_required
 def archived_users():
@@ -55,19 +61,26 @@ def user_detail(id):
 @login_required
 @admin_required
 def new_user():
+    users = User.query.filter_by(is_archived=False).all()
+
     if request.method == 'POST':
+        manager_id = request.form.get('manager_id')
+        buddy_id = request.form.get('buddy_id')
+
         user = User(
             name=request.form['name'],
             email=request.form.get('email'),
             department=request.form.get('department'),
-            job_title=request.form.get('job_title')
+            job_title=request.form.get('job_title'),
+            manager_id=int(manager_id) if manager_id else None,
+            buddy_id=int(buddy_id) if buddy_id else None
         )
         db.session.add(user)
         db.session.commit()
         flash('User created successfully!')
         return redirect(url_for('users.users'))
 
-    return render_template('users/form.html')
+    return render_template('users/form.html', users=users)
 
 @users_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -75,16 +88,25 @@ def new_user():
 def edit_user(id):
     user = User.query.get_or_404(id)
 
+    users = User.query.filter_by(is_archived=False).all()
+
     if request.method == 'POST':
         user.name = request.form['name']
         user.email = request.form.get('email')
         user.department = request.form.get('department')
         user.job_title = request.form.get('job_title')
+        
+        manager_id = request.form.get('manager_id')
+        user.manager_id = int(manager_id) if manager_id else None
+        
+        buddy_id = request.form.get('buddy_id')
+        user.buddy_id = int(buddy_id) if buddy_id else None
+        
         db.session.commit()
         flash('User updated successfully!')
         return redirect(url_for('users.users'))
 
-    return render_template('users/form.html', user=user)
+    return render_template('users/form.html', user=user, users=users)
 
 @users_bp.route('/<int:id>/inventory/generate', methods=['POST'])
 @login_required

@@ -49,9 +49,16 @@ class OnboardingProcess(db.Model):
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
+    # Pre-assignment of roles (Manager & Buddy)
+    assigned_manager_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    assigned_buddy_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+
+    assigned_manager = db.relationship('User', foreign_keys=[assigned_manager_id])
+    assigned_buddy = db.relationship('User', foreign_keys=[assigned_buddy_id])
+    
     # Relación con los items del checklist
     items = db.relationship('ProcessItem', backref='onboarding_process', lazy=True, cascade='all, delete-orphan')
-    user = db.relationship('User')
+    user = db.relationship('User', foreign_keys=[user_id])
 
 class OffboardingProcess(db.Model):
     """Registro de una salida."""

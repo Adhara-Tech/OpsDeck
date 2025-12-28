@@ -34,6 +34,27 @@
                     </div>
                 </div>
 
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <label class="form-label">Assign Manager</label>
+                        <select name="manager_id" class="form-select">
+                            <option value="">-- Choose Manager --</option>
+                            {% for u in users %}
+                            <option value="{{ u.id }}">{{ u.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Assign Buddy</label>
+                        <select name="buddy_id" class="form-select">
+                            <option value="">-- Choose Buddy --</option>
+                            {% for u in users %}
+                            <option value="{{ u.id }}">{{ u.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
                 <div class="d-grid gap-2">
                     <button type="submit" class="btn btn-success btn-lg">Generate Checklist</button>
                     <a href="{{ url_for('onboarding.index') }}" class="btn btn-outline-secondary">Cancel</a>

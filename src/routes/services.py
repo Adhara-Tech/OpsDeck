@@ -9,6 +9,7 @@ from ..models.procurement import Supplier, Subscription
 from ..models.policy import Policy
 from ..models.activities import SecurityActivity
 from ..extensions import db
+from ..utils.dependency_graph import get_full_dependency_tree
 import os
 import uuid
 
@@ -74,8 +75,24 @@ def detail(id):
     service_links = Link.query.filter_by(owner_type='BusinessService', owner_id=id).all()
     service_attachments = Attachment.query.filter_by(linkable_type='BusinessService', linkable_id=id).all()
     
+    # Generate full dependency maps
+    upstream_map = get_full_dependency_tree(service, 'upstream')
+    downstream_map = get_full_dependency_tree(service, 'downstream')
+
+    # Unify and remove duplicates
+    unique_edges = {}
+    for edge in upstream_map + downstream_map:
+        key = (edge['from'], edge['to'])
+        if key not in unique_edges:
+            unique_edges[key] = edge
+            
+    dependency_map = list(unique_edges.values())
+
     return render_template('services/detail.html', 
         service=service, 
+        dependency_map=dependency_map,
+        upstream_map=upstream_map,
+        downstream_map=downstream_map,
         all_services=all_services,
         all_documents=all_documents,
         all_policies=all_policies,
