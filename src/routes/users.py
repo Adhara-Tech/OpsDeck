@@ -162,3 +162,26 @@ def generate_inventory(id):
     
     flash('Snapshot de inventario generado y guardado.', 'success')
     return redirect(url_for('users.user_detail', id=id))
+
+@users_bp.route('/<int:id>/generate-token', methods=['POST'])
+@login_required
+@admin_required
+def generate_token(id):
+    """Generates a new API token for the user."""
+    user = User.query.get_or_404(id)
+    token = user.generate_token()
+    db.session.commit()
+    
+    # Log the action
+    current_app.logger.info(
+        f"API Token generated for user {user.email}",
+        extra={
+            "event.action": "user.token_generated",
+            "user.id": user.id,
+            "user.email": user.email,
+            "source.ip": request.remote_addr
+        }
+    )
+    
+    flash('New API Token generated successfully.', 'success')
+    return redirect(url_for('users.user_detail', id=id))

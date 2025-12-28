@@ -1,6 +1,7 @@
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from ..extensions import db
+import secrets
 
 user_groups = db.Table('user_groups',
     db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
@@ -19,6 +20,7 @@ class User(db.Model): # Add UserMixin here if using Flask-Login
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(100), unique=True, nullable=False) # Make email unique and required for login
     password_hash = db.Column(db.String(120)) # Can be nullable for users who don't log in
+    api_token = db.Column(db.String(64), unique=True, nullable=True, index=True)
     role = db.Column(db.String(50), default='user') # e.g., 'user', 'editor', 'admin'
     department = db.Column(db.String(100))
     job_title = db.Column(db.String(100))
@@ -67,6 +69,10 @@ class User(db.Model): # Add UserMixin here if using Flask-Login
         if self.password_hash:
             return check_password_hash(self.password_hash, password)
         return False
+
+    def generate_token(self):
+        self.api_token = secrets.token_hex(32)
+        return self.api_token
 
 
 class UserKnownIP(db.Model):

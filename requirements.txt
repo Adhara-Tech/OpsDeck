@@ -17,3 +17,5 @@ flask-limiter
 Flask-Dance
 Flask-WTF
 flask-talisman
+flask-smorest
+marshmallow-sqlalchemy
