@@ -64,7 +64,6 @@ class ComplianceLink(db.Model):
             'SecurityIncident': SecurityIncident,
             'SecurityAssessment': SecurityAssessment,
             'Risk': Risk,
-            'Risk': Risk,
             'AssetInventory': AssetInventory,
             'SecurityActivity': SecurityActivity,
             'ActivityExecution': ActivityExecution,

@@ -83,7 +83,7 @@ def edit_opportunity(id):
 @login_required
 @admin_required
 def add_activity(id):
-    opportunity = Opportunity.query.get_or_404(id)
+    Opportunity.query.get_or_404(id)
     activity_type = request.form.get('type')
     notes = request.form.get('notes')
 

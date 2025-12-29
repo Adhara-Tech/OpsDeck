@@ -169,7 +169,7 @@ def generate_inventory(id):
 def generate_token(id):
     """Generates a new API token for the user."""
     user = User.query.get_or_404(id)
-    token = user.generate_token()
+    user.generate_token()
     db.session.commit()
     
     # Log the action

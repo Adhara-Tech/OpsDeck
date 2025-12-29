@@ -388,12 +388,12 @@ def dashboard():
     
     # Query only non-archived items with warranty info
     expiring_assets = Asset.query.filter(
-        Asset.is_archived == False,
+        not Asset.is_archived,
         Asset.purchase_date.isnot(None), 
         Asset.warranty_length.isnot(None)
     ).all()
     expiring_peripherals = Peripheral.query.filter(
-        Peripheral.is_archived == False,
+        not Peripheral.is_archived,
         Peripheral.purchase_date.isnot(None), 
         Peripheral.warranty_length.isnot(None)
     ).all()
@@ -408,7 +408,7 @@ def dashboard():
     ninety_days_from_now = today + timedelta(days=90)
     expiring_payment_methods = []
     all_payment_methods = PaymentMethod.query.filter(
-        PaymentMethod.is_archived == False,
+        not PaymentMethod.is_archived,
         PaymentMethod.expiry_date.isnot(None)
     ).order_by(PaymentMethod.expiry_date).all()
 
@@ -476,7 +476,7 @@ def search():
     limit = 5
 
     # Search Subscriptions
-    subscriptions = Subscription.query.filter(Subscription.name.ilike(search_term), Subscription.is_archived == False).limit(limit).all()
+    subscriptions = Subscription.query.filter(Subscription.name.ilike(search_term), not Subscription.is_archived).limit(limit).all()
     for item in subscriptions:
         results.append({
             'name': item.name,
@@ -489,7 +489,7 @@ def search():
         or_(
             Asset.name.ilike(search_term),
             Asset.serial_number.ilike(search_term)
-        ), Asset.is_archived == False
+        ), not Asset.is_archived
     ).limit(limit).all()
     for item in assets:
         results.append({
@@ -499,7 +499,7 @@ def search():
         })
 
     # Search Suppliers
-    suppliers = Supplier.query.filter(Supplier.name.ilike(search_term), Supplier.is_archived == False).limit(limit).all()
+    suppliers = Supplier.query.filter(Supplier.name.ilike(search_term), not Supplier.is_archived).limit(limit).all()
     for item in suppliers:
         results.append({
             'name': item.name,
@@ -508,7 +508,7 @@ def search():
         })
 
     # Search Contacts
-    contacts = Contact.query.filter(Contact.name.ilike(search_term), Contact.is_archived == False).limit(limit).all()
+    contacts = Contact.query.filter(Contact.name.ilike(search_term), not Contact.is_archived).limit(limit).all()
     for item in contacts:
         results.append({
             'name': f"{item.name} ({item.supplier.name})",
@@ -530,7 +530,7 @@ def search():
         or_(
             Peripheral.name.ilike(search_term),
             Peripheral.serial_number.ilike(search_term)
-        ), Peripheral.is_archived == False
+        ), not Peripheral.is_archived
     ).limit(limit).all()
     for item in peripherals:
         results.append({

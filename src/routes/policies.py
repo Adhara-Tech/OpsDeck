@@ -241,7 +241,7 @@ def acknowledge_version(id):
 @login_required
 @admin_required
 def remove_user_from_policy(policy_id, user_id):
-    policy = Policy.query.get_or_404(policy_id)
+    Policy.query.get_or_404(policy_id)
     latest_version = PolicyVersion.query.filter_by(policy_id=policy_id).order_by(PolicyVersion.effective_date.desc()).first()
     if latest_version:
         user = User.query.get_or_404(user_id)
@@ -255,7 +255,7 @@ def remove_user_from_policy(policy_id, user_id):
 @login_required
 @admin_required
 def remove_group_from_policy(policy_id, group_id):
-    policy = Policy.query.get_or_404(policy_id)
+    Policy.query.get_or_404(policy_id)
     latest_version = PolicyVersion.query.filter_by(policy_id=policy_id).order_by(PolicyVersion.effective_date.desc()).first()
     if latest_version:
         group = Group.query.get_or_404(group_id)

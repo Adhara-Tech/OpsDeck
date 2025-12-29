@@ -291,7 +291,7 @@ def get_objects_by_type():
 @admin_required
 def link_object(id):
     """Links an object to a security activity."""
-    activity = SecurityActivity.query.get_or_404(id)
+    SecurityActivity.query.get_or_404(id)
     
     object_type = request.form.get('object_type')
     object_id = request.form.get('object_id')
@@ -329,7 +329,7 @@ def link_object(id):
 @admin_required
 def unlink_object(id, link_id):
     """Removes a link between an activity and an object."""
-    activity = SecurityActivity.query.get_or_404(id)
+    SecurityActivity.query.get_or_404(id)
     link = ActivityRelatedObject.query.get_or_404(link_id)
     
     # Verify the link belongs to this activity

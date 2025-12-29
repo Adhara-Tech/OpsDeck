@@ -43,7 +43,7 @@ def subscription_reports():
     available_years = [int(y[0]) for y in available_years_query if y[0]] # Filter out None years
 
     # Chart 2: Subscriptions by type
-    subscriptions_by_type = db.session.query(Subscription.subscription_type, func.count(Subscription.id)).filter(Subscription.is_archived == False).group_by(Subscription.subscription_type).order_by(func.count(Subscription.id).desc()).all()
+    subscriptions_by_type = db.session.query(Subscription.subscription_type, func.count(Subscription.id)).filter(not Subscription.is_archived).group_by(Subscription.subscription_type).order_by(func.count(Subscription.id).desc()).all()
     type_labels = [item[0].title() for item in subscriptions_by_type]
     type_data = [item[1] for item in subscriptions_by_type]
 
@@ -121,15 +121,15 @@ def subscription_reports():
 @reports_bp.route('/asset-reports')
 @login_required
 def asset_reports():
-    assets_by_brand = db.session.query(Asset.brand, func.count(Asset.id)).filter(Asset.is_archived == False).group_by(Asset.brand).all()
+    assets_by_brand = db.session.query(Asset.brand, func.count(Asset.id)).filter(not Asset.is_archived).group_by(Asset.brand).all()
     brand_labels = [item[0] or 'N/A' for item in assets_by_brand]
     brand_data = [item[1] for item in assets_by_brand]
 
-    assets_by_supplier = db.session.query(Supplier.name, func.count(Asset.id)).join(Asset).filter(Asset.is_archived == False).group_by(Supplier.name).all()
+    assets_by_supplier = db.session.query(Supplier.name, func.count(Asset.id)).join(Asset).filter(not Asset.is_archived).group_by(Supplier.name).all()
     supplier_labels = [item[0] or 'N/A' for item in assets_by_supplier]
     supplier_data = [item[1] for item in assets_by_supplier]
 
-    assets_by_status = db.session.query(Asset.status, func.count(Asset.id)).filter(Asset.is_archived == False).group_by(Asset.status).all()
+    assets_by_status = db.session.query(Asset.status, func.count(Asset.id)).filter(not Asset.is_archived).group_by(Asset.status).all()
     status_labels = [item[0] for item in assets_by_status]
     status_data = [item[1] for item in assets_by_status]
 
@@ -137,7 +137,7 @@ def asset_reports():
     today = date.today()
     # Query only non-archived items with purchase_date and warranty_length
     all_assets_with_warranty = Asset.query.filter(
-        Asset.is_archived == False,
+        not Asset.is_archived,
         Asset.purchase_date.isnot(None),
         Asset.warranty_length.isnot(None)
     ).all()
@@ -177,8 +177,8 @@ def spend_analysis():
     locations = Location.query.filter_by(is_archived=False).order_by(Location.name).all()
 
     # Get a distinct list of brands from assets and peripherals
-    asset_brands = db.session.query(Asset.brand).filter(Asset.brand.isnot(None), Asset.is_archived == False).distinct()
-    peripheral_brands = db.session.query(Peripheral.brand).filter(Peripheral.brand.isnot(None), Peripheral.is_archived == False).distinct()
+    asset_brands = db.session.query(Asset.brand).filter(Asset.brand.isnot(None), not Asset.is_archived).distinct()
+    peripheral_brands = db.session.query(Peripheral.brand).filter(Peripheral.brand.isnot(None), not Peripheral.is_archived).distinct()
     all_brands = sorted([b[0] for b in asset_brands.union(peripheral_brands) if b[0]]) # Filter out None/empty brands
 
     # --- Get filter criteria from URL arguments ---
@@ -192,10 +192,10 @@ def spend_analysis():
     location_id = request.args.get('location_id', type=int) # Only applies to Assets
 
     # --- Build the queries ---
-    assets_query = Asset.query.filter(Asset.is_archived == False)
-    peripherals_query = Peripheral.query.filter(Peripheral.is_archived == False)
+    assets_query = Asset.query.filter(not Asset.is_archived)
+    peripherals_query = Peripheral.query.filter(not Peripheral.is_archived)
     licenses_query = License.query.filter(
-        License.is_archived == False,      # Also filter archived licenses
+        not License.is_archived,      # Also filter archived licenses
         License.subscription_id.is_(None), # Only perpetual/standalone
         License.cost.isnot(None)          # Only those with a cost
     )
@@ -283,8 +283,8 @@ def depreciation_report():
     groups = Group.query.order_by(Group.name).all()
     locations = Location.query.filter_by(is_archived=False).order_by(Location.name).all()
 
-    asset_brands = db.session.query(Asset.brand).filter(Asset.brand.isnot(None), Asset.is_archived == False).distinct()
-    peripheral_brands = db.session.query(Peripheral.brand).filter(Peripheral.brand.isnot(None), Peripheral.is_archived == False).distinct()
+    asset_brands = db.session.query(Asset.brand).filter(Asset.brand.isnot(None), not Asset.is_archived).distinct()
+    peripheral_brands = db.session.query(Peripheral.brand).filter(Peripheral.brand.isnot(None), not Peripheral.is_archived).distinct()
     all_brands = sorted([b[0] for b in asset_brands.union(peripheral_brands) if b[0]]) # Filter out None/empty brands
 
     # --- Get filter criteria from URL arguments ---
@@ -302,8 +302,8 @@ def depreciation_report():
 
     # --- Build the queries ---
     # Only include non-archived items with cost and purchase date for depreciation
-    assets_query = Asset.query.filter(Asset.is_archived == False, Asset.cost.isnot(None), Asset.purchase_date.isnot(None))
-    peripherals_query = Peripheral.query.filter(Peripheral.is_archived == False, Peripheral.cost.isnot(None), Peripheral.purchase_date.isnot(None))
+    assets_query = Asset.query.filter(not Asset.is_archived, Asset.cost.isnot(None), Asset.purchase_date.isnot(None))
+    peripherals_query = Peripheral.query.filter(not Peripheral.is_archived, Peripheral.cost.isnot(None), Peripheral.purchase_date.isnot(None))
 
     # Apply date filters
     if start_date:

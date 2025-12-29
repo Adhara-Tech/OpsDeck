@@ -399,7 +399,7 @@ def unlink_activity(id, activity_id):
 @login_required
 @admin_required
 def add_link(id):
-    service = BusinessService.query.get_or_404(id)
+    BusinessService.query.get_or_404(id)
     name = request.form.get('name')
     url = request.form.get('url')
     
@@ -432,7 +432,7 @@ def remove_link(id, link_id):
 @login_required
 @admin_required
 def upload_attachment(id):
-    service = BusinessService.query.get_or_404(id)
+    BusinessService.query.get_or_404(id)
     
     if 'file' not in request.files:
         flash('No file selected.', 'warning')
