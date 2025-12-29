@@ -66,7 +66,6 @@ def test_audit_snapshot_isolation(auth_client, app):
             internal_lead_id=lead_id,
             copy_links=True
         )
-        audit_id = audit.id
         
         # Verify: AuditControlItem created with correct text
         item = audit.audit_items.first()
@@ -146,7 +145,6 @@ def test_audit_defense_workflow(auth_client, app):
             internal_lead_id=lead_id,
             copy_links=False
         )
-        audit_id = audit.id
         
         # Verify auditor is assigned
         assert audit.auditor is not None
@@ -202,7 +200,6 @@ def test_audit_evidence_management(auth_client, app):
         asset2 = Asset(name='New Audit Asset', serial_number='EVI-002')
         db.session.add_all([asset1, asset2])
         db.session.commit()
-        asset1_id = asset1.id
         asset2_id = asset2.id
         
         # Create Internal Lead
@@ -218,7 +215,6 @@ def test_audit_evidence_management(auth_client, app):
             internal_lead_id=lead_id,
             copy_links=False
         )
-        audit_id = audit.id
         item = audit.audit_items.first()
         item_id = item.id
 
@@ -232,7 +228,6 @@ def test_audit_evidence_management(auth_client, app):
         )
         db.session.add(attachment)
         db.session.commit()
-        attachment_id = attachment.id
 
     # Action: Add new AuditControlLink to a different Asset
     with app.app_context():
@@ -244,7 +239,6 @@ def test_audit_evidence_management(auth_client, app):
         )
         db.session.add(audit_link)
         db.session.commit()
-        audit_link_id = audit_link.id
 
     # Verification: Evidence is associated with Audit, NOT Framework
     with app.app_context():
@@ -361,3 +355,74 @@ def test_audit_deletion(auth_client, app):
         asset = Asset.query.get(asset_id)
         assert asset is not None, "Asset was incorrectly deleted!"
         assert asset.name == 'Linked Asset'
+
+
+def test_audit_control_link(auth_client, app):
+    """
+    Test AuditControlLink model creation and display_name property.
+    Migrated from test_missing_coverage.py
+    """
+    from src.models import Policy
+    
+    with app.app_context():
+        # Setup: Framework, Control, Audit, AuditItem
+        fw = Framework(name='Demo FW', is_custom=True)
+        ctrl = FrameworkControl(control_id='C.1', name='Control 1')
+        fw.framework_controls.append(ctrl)
+        
+        db.session.add(fw)
+        db.session.commit()
+        
+        lead = User.query.first()
+        audit = ComplianceAudit.create_snapshot(
+            framework_id=fw.id,
+            name='Audit 2025',
+            auditor_contact_id=None,
+            internal_lead_id=lead.id,
+            copy_links=False
+        )
+        
+        item = audit.audit_items.first()
+        if not item:
+            item = AuditControlItem(
+                audit_id=audit.id,
+                control_code='C.1',
+                control_title='Control 1'
+            )
+            db.session.add(item)
+            db.session.commit()
+
+        # Create Linkable Object
+        asset = Asset(name='Test Asset for Link', serial_number='LINK-002')
+        db.session.add(asset)
+        db.session.commit()
+
+        # Create AuditControlLink
+        audit_link = AuditControlLink(
+            audit_item_id=item.id,
+            linkable_type='Asset',
+            linkable_id=asset.id,
+            description='Evidence 1'
+        )
+        db.session.add(audit_link)
+        db.session.commit()
+        
+        assert audit_link.linked_object == asset
+        assert audit_link.display_name == 'Test Asset for Link'
+        
+        # Test Policy Display Name logic
+        policy = Policy(title='Security Policy', description='...')
+        db.session.add(policy)
+        db.session.commit()
+        
+        link_policy = AuditControlLink(
+            audit_item_id=item.id,
+            linkable_type='Policy',
+            linkable_id=policy.id
+        )
+        assert link_policy.display_name == 'Security Policy'
+        
+        # Test Fallback
+        link_fail = AuditControlLink(audit_item_id=item.id, linkable_type='Unknown', linkable_id=999)
+        assert link_fail.display_name == 'Elemento no encontrado'
+

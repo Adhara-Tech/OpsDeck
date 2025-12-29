@@ -35,7 +35,7 @@ def test_api_security(client, app):
     # default Page pagination returns:
     # { "items": [...], "meta": {...} } or list?
     # Inspect response structure
-    data = response.get_json()
+    response.get_json()
     # It seems flask-smorest pagination defaults might wrap it. 
     # But let's check basic success first.
 

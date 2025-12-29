@@ -45,4 +45,4 @@ def test_contact_lifecycle(auth_client, app):
     # Verifica que el contacto está archivado
     with app.app_context():
         contact = Contact.query.get(1)
-        assert contact.is_archived == True
+        assert contact.is_archived

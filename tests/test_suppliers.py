@@ -53,7 +53,7 @@ def test_supplier_lifecycle(auth_client, app):
     # Verifica en la BD
     with app.app_context():
         supplier = db.session.get(Supplier, 1)
-        assert supplier.is_archived == True
+        assert supplier.is_archived
 
 def test_supplier_attachment_upload(auth_client, app):
     """

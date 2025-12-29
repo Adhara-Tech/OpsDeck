@@ -100,7 +100,7 @@ def test_onboarding_process_flow(auth_client, app):
     
     with app.app_context():
         item = ProcessItem.query.get(item_id)
-        assert item.is_completed == True
+        assert item.is_completed
 
     # 4. Complete Process
     response = auth_client.post(f'/onboarding/process/onboarding/{process_id}/complete', follow_redirects=True)
@@ -171,4 +171,4 @@ def test_offboarding_process_flow(auth_client, app):
         
         # Verify User Archived
         user = User.query.get(user_id)
-        assert user.is_archived == True
+        assert user.is_archived

@@ -58,7 +58,7 @@ def test_user_lifecycle(auth_client, app):
     # Verifica que el usuario está archivado en la BD
     with app.app_context():
         user = User.query.get(2)
-        assert user.is_archived == True
+        assert user.is_archived
         
     # Verifica que ya no aparece en la lista principal
     response = auth_client.get('/users/')
@@ -67,3 +67,23 @@ def test_user_lifecycle(auth_client, app):
     # Verifica que sí aparece en la lista de archivados
     response = auth_client.get('/users/archived')
     assert b'Test User (Edited)' in response.data
+
+
+def test_user_known_ip(init_database):
+    """Test UserKnownIP model creation and repr."""
+    from src.models import UserKnownIP
+    
+    db = init_database
+    user = User(name="IP User", email="ip@test.com")
+    db.session.add(user)
+    db.session.commit()
+    
+    known_ip = UserKnownIP(
+        user_id=user.id,
+        ip_address="192.168.1.100"
+    )
+    db.session.add(known_ip)
+    db.session.commit()
+    
+    assert repr(known_ip) == f"<UserKnownIP 192.168.1.100 for User {user.id}>"
+    assert user.known_ips[0] == known_ip
