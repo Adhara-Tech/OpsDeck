@@ -6,7 +6,7 @@ from .models import (
     MaintenanceLog, DisposalRecord,
     BCDRPlan, BCDRTestLog, Course, CourseAssignment, Group, Policy, PolicyVersion, Opportunity,
     Documentation, Link, Software, License, Framework, FrameworkControl, ComplianceLink,
-    BusinessService, ComplianceAudit
+    BusinessService, ComplianceAudit, Contact
 )
 from . import create_app
 
@@ -41,6 +41,17 @@ def seed_data():
             Supplier(name='Palo Alto Networks', email='sales@paloaltonetworks.com')
         ]
         db.session.add_all(suppliers)
+        db.session.commit()
+        
+        # Add Contacts
+        print("Creating contacts...")
+        contacts = [
+            Contact(name='John Adobe', email='john@adobe.com', phone='555-0101', role='Account Manager', supplier=suppliers[0]),
+            Contact(name='Jane Microsoft', email='jane@microsoft.com', phone='555-0102', role='Sales Rep', supplier=suppliers[1]),
+            Contact(name='Bob Dell', email='bob@dell.com', phone='555-0103', role='Support Lead', supplier=suppliers[2]),
+            Contact(name='Alice Slack', email='alice@slack.com', phone='555-0104', role='CSM', supplier=suppliers[3])
+        ]
+        db.session.add_all(contacts)
         db.session.commit()
 
         locations = [

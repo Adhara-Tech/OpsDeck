@@ -8,7 +8,7 @@
 </div>
 
 <form method="POST" novalidate>
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="row">
         <div class="col-md-8">
             <div class="card mb-4">
@@ -32,6 +32,29 @@
                     <div class="tab-content" id="riskTabsContent">
                         <!-- Definition Tab -->
                         <div class="tab-pane fade show active" id="definition" role="tabpanel">
+                            <div class="mb-3">
+                                <label for="threat_type_id" class="form-label">Threat Source (Amenaza)</label>
+                                <select class="form-select" id="threat_type_id" name="threat_type_id">
+                                    <option value="">Select a Threat Type...</option>
+                                    {# Asumimos que threat_types está ordenado por categoría #}
+                                    {% set current_cat = namespace(value=None) %}
+                                    {% for threat in threat_types %}
+                                    {% if threat.category != current_cat.value %}
+                                    {% if current_cat.value is not none %}</optgroup>{% endif %}
+                                    <optgroup label="{{ threat.category }}">
+                                        {% set current_cat.value = threat.category %}
+                                        {% endif %}
+                                        <option value="{{ threat.id }}" {% if risk and risk.threat_type_id==threat.id
+                                            %}selected{% endif %}>
+                                            {{ threat.name }}
+                                        </option>
+                                        {% endfor %}
+                                        {% if current_cat.value is not none %}
+                                    </optgroup>{% endif %}
+                                </select>
+                                <div class="form-text">What is the primary cause or agent of this risk?</div>
+                            </div>
+
                             <div class="mb-3">
                                 <label for="risk_description" class="form-label">Risk Description</label>
                                 <textarea class="form-control" id="risk_description" name="risk_description" rows="3"

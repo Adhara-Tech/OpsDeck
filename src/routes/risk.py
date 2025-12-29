@@ -225,17 +225,22 @@ def detail(id):
     risk = Risk.query.get_or_404(id)
     return render_template('risk/detail.html', risk=risk)
 
+from ..models.security import RiskReference, ThreatType
+
 @risk_bp.route('/new', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def new_risk():
     if request.method == 'POST':
         # Extract form data
+        threat_type_id = request.form.get('threat_type_id')
+        
         risk = Risk(
             risk_description=request.form['risk_description'],
             owner_id=request.form.get('owner_id'),
             status=request.form.get('status'),
             treatment_strategy=request.form.get('treatment_strategy'),
+            threat_type_id=int(threat_type_id) if threat_type_id else None,
             
             inherent_impact=int(request.form.get('inherent_impact', 5)),
             inherent_likelihood=int(request.form.get('inherent_likelihood', 5)),
@@ -283,8 +288,11 @@ def new_risk():
 
     users = User.query.filter_by(is_archived=False).all()
     activities = SecurityActivity.query.order_by(SecurityActivity.name).all()
+    threat_types = ThreatType.query.order_by(ThreatType.category, ThreatType.name).all()
+    
     return render_template('risk/form.html', users=users, activities=activities,
-                           risk_categories=RISK_CATEGORIES, category_colors=RISK_CATEGORY_COLORS)
+                           risk_categories=RISK_CATEGORIES, category_colors=RISK_CATEGORY_COLORS,
+                           threat_types=threat_types)
 
 @risk_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -296,6 +304,9 @@ def edit_risk(id):
         risk.owner_id = request.form.get('owner_id')
         risk.status = request.form.get('status')
         risk.treatment_strategy = request.form.get('treatment_strategy')
+        
+        threat_type_id = request.form.get('threat_type_id')
+        risk.threat_type_id = int(threat_type_id) if threat_type_id else None
         
         risk.inherent_impact = int(request.form.get('inherent_impact', 5))
         risk.inherent_likelihood = int(request.form.get('inherent_likelihood', 5))
@@ -335,8 +346,11 @@ def edit_risk(id):
 
     users = User.query.filter_by(is_archived=False).all()
     activities = SecurityActivity.query.order_by(SecurityActivity.name).all()
+    threat_types = ThreatType.query.order_by(ThreatType.category, ThreatType.name).all()
+    
     return render_template('risk/form.html', risk=risk, users=users, activities=activities,
-                           risk_categories=RISK_CATEGORIES, category_colors=RISK_CATEGORY_COLORS)
+                           risk_categories=RISK_CATEGORIES, category_colors=RISK_CATEGORY_COLORS,
+                           threat_types=threat_types)
 
 @risk_bp.route('/<int:id>/affected_items/add', methods=['POST'])
 @login_required

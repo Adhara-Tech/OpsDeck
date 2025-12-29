@@ -327,8 +327,10 @@ def create_app():
 
     @app.cli.command('seed-db-prod')
     def seed_prod_command():
-        """Carga los datos maestros de producción (Frameworks)."""
+        """Carga los datos maestros de producción (Frameworks & Threats)."""
         seed_production_frameworks()
+        from .seeder_prod import seed_threats
+        seed_threats()
 
     # --- Importar CLI Commands (Data Import) ---
     from . import cli

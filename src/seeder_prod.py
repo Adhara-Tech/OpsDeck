@@ -2,6 +2,61 @@
 
 from src.extensions import db
 from src.models import Framework, FrameworkControl
+from src.models.security import ThreatType
+
+# Lista de amenazas comunes (Category, Name, Description)
+common_threats = [
+    # Ciberataques / Adversarial
+    ("Adversarial", "Malware / Ransomware", "Malicious software designed to disrupt, damage, or gain unauthorized access."),
+    ("Adversarial", "Phishing / Social Engineering", "Psychological manipulation of people into performing actions or divulging confidential information."),
+    ("Adversarial", "DDoS Attack", "Malicious attempt to disrupt the normal traffic of a targeted server, service or network."),
+    ("Adversarial", "Insider Threat (Malicious)", "Employee or contractor who intentionally uses their authorized access to harm the organization."),
+    ("Adversarial", "Credential Theft", "Compromise of passwords or access keys."),
+    ("Adversarial", "SQL Injection / Web Exploit", "Exploitation of vulnerabilities in web applications."),
+    
+    # Accidental / Human Error
+    ("Accidental", "Configuration Error", "Incorrect configuration of security systems or servers."),
+    ("Accidental", "Accidental Data Disclosure", "Sending sensitive information to wrong recipients or unintended public publishing."),
+    ("Accidental", "Device Loss/Theft", "Physical loss of laptops, mobiles, or storage media."),
+    ("Accidental", "Patching Failure", "Failure to apply critical security updates."),
+
+    # Structural / Technical Failure
+    ("Structural", "Hardware Failure", "Physical breakdown of servers, hard drives, or network equipment."),
+    ("Structural", "Software Failure / Bug", "Errors in code causing interruptions or unexpected behavior."),
+    ("Structural", "Service Outage (ISP/Power)", "Interruption of critical third-party services (internet, power)."),
+
+    # Environmental
+    ("Environmental", "Fire", "Physical damage due to fire in the facility."),
+    ("Environmental", "Flood / Water Damage", "Damage caused by leaks, heavy rains, or flooding."),
+    ("Environmental", "Natural Disaster", "Earthquakes, severe storms, or other natural phenomena.")
+]
+
+# --- ENS (Esquema Nacional de Seguridad) ---
+ens_controls = [
+    ("op.acc.1", "Identificación", "El sistema debe asegurar la identificación inequívoca de los usuarios."),
+    ("op.acc.2", "Autenticación", "Se debe verificar la identidad de los usuarios antes de permitir el acceso."),
+    ("op.acc.3", "Gestión de privilegios", "Los derechos de acceso se asignarán según el principio de mínimo privilegio."),
+    ("op.exp.1", "Gestión de incidentes", "Debe existir un procedimiento para la notificación y gestión de incidentes de seguridad."),
+    ("op.exp.2", "Gestión de la configuración", "Se mantendrá un inventario actualizado de los componentes del sistema."),
+    ("op.exp.3", "Gestión de cambios", "Todos los cambios en el sistema deben ser planificados y probados."),
+    ("mp.s.1", "Protección de las instalaciones", "Las instalaciones estarán protegidas contra acceso físico no autorizado."),
+    ("mp.info.1", "Protección de la información", "La información almacenada y en tránsito estará protegida criptográficamente."),
+    ("mp.serv.1", "Continuidad del servicio", "Se establecerán planes para recuperar el servicio en caso de desastre.")
+]
+
+def seed_threats():
+    print("Seeding threat types...")
+    for category, name, description in common_threats:
+        if not ThreatType.query.filter_by(name=name).first():
+            threat = ThreatType(name=name, category=category, description=description)
+            db.session.add(threat)
+    
+    try:
+        db.session.commit()
+        print("Threat types seeded successfully.")
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error seeding threats: {e}")
 
 # --- ISO 27001:2022 (English) ---
 iso_27001_controls = [
@@ -350,31 +405,53 @@ def seed_production_frameworks():
         print("Creating Framework NIST CSF 2.0...")
         nist_framework = Framework(
             name='NIST CSF 2.0',
-            description='NIST Cybersecurity Framework 2.0. Provides a high-level taxonomy of cybersecurity outcomes (Govern, Identify, Protect, Detect, Respond, Recover).',
+            description='National Institute of Standards and Technology Cybersecurity Framework.',
             link='https://www.nist.gov/cyberframework',
             is_custom=False,
             is_active=False
         )
         
-        # Add the 6 Functions
         for control_id, name, description in nist_csf_functions:
-            nist_framework.framework_controls.append(FrameworkControl(
-                control_id=control_id, 
+            control = FrameworkControl(
+                control_id=control_id,
                 name=name,
                 description=description
-            ))
-
+            )
+            nist_framework.framework_controls.append(control)
+        
         db.session.add(nist_framework)
-        frameworks_added = True
         print(f"NIST CSF 2.0 added with {len(nist_csf_functions)} functions.")
+        frameworks_added = True
 
-    # --- Commit to database ---
+    # --- ENS (Esquema Nacional de Seguridad) ---
+    if not Framework.query.filter_by(name='ENS (Spanish)').first():
+        print("Creating Framework ENS (Spanish)...")
+        ens_framework = Framework(
+            name='ENS (Spanish)',
+            description='Esquema Nacional de Seguridad (España)',
+            link='https://www.ccn-cert.cni.es/ens.html',
+            is_custom=False,
+            is_active=False
+        )
+        
+        for control_id, name, description in ens_controls:
+            control = FrameworkControl(
+                control_id=control_id,
+                name=name,
+                description=description
+            )
+            ens_framework.framework_controls.append(control)
+            
+        db.session.add(ens_framework)
+        print(f"ENS (Spanish) added with {len(ens_controls)} controls.")
+        frameworks_added = True
+
     if frameworks_added:
         try:
             db.session.commit()
             print("Production frameworks seeded successfully.")
         except Exception as e:
             db.session.rollback()
-            print(f"Error seeding production frameworks: {e}")
+            print(f"Error seeding frameworks: {e}")
     else:
-        print("Production frameworks already exist. No action taken.")
+        print("Production frameworks already exist. No changes made.")

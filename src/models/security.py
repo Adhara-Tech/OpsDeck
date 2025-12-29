@@ -267,9 +267,27 @@ risk_mitigation_activities = db.Table('risk_mitigation_activities',
     db.Column('activity_id', db.Integer, db.ForeignKey('security_activity.id'), primary_key=True)
 )
 
+class ThreatType(db.Model):
+    """
+    Catálogo de tipos de amenazas estandarizadas (ej. Ransomware, Incendio, Error Humano).
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True, nullable=False)
+    category = db.Column(db.String(50)) # Ej: 'Adversarial', 'Accidental', 'Structural', 'Environmental'
+    description = db.Column(db.Text)
+    
+    # Relación inversa
+    risks = db.relationship('Risk', backref='threat_type', lazy=True)
+
+    def __repr__(self):
+        return f'<ThreatType {self.name}>'
+
 class Risk(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     risk_description = db.Column(db.Text, nullable=False)
+    
+    # --- NUEVO CAMPO: Amenaza ---
+    threat_type_id = db.Column(db.Integer, db.ForeignKey('threat_type.id'), nullable=True)
     
     # Management
     owner_id = db.Column(db.Integer, db.ForeignKey('user.id'))
