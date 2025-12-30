@@ -94,6 +94,26 @@
                         {% endif %}
                     </div>
 
+                    {% if item.item_type == 'CreateUser' %}
+                    <div class="ms-auto">
+                        {% if not item.is_completed %}
+                        <form
+                            action="{{ url_for('onboarding.create_user_account', process_id=process.id, item_id=item.id) }}"
+                            method="POST" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-primary">
+                                <i class="fas fa-user-plus me-1"></i> Create User
+                            </button>
+                        </form>
+                        {% elif process.user_id %}
+                        <a href="{{ url_for('users.edit_user', id=process.user_id) }}"
+                            class="btn btn-sm btn-outline-success" target="_blank">
+                            <i class="fas fa-user me-1"></i> View User
+                        </a>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
                     {% if item.linked_object_id %}
                     {% if item.item_type == 'Asset' %}
                     <a href="{{ url_for('assets.asset_detail', id=item.linked_object_id) }}"
@@ -221,6 +241,24 @@
                     </div>
                     {% elif type == 'offboarding' and item.is_completed %}
                     <span class="badge bg-success"><i class="fas fa-check"></i> Transferred</span>
+                    {% endif %}
+
+                    {% elif item.item_type == 'RevokeAccess' %}
+                    <a href="{{ url_for('services.detail', id=item.linked_object_id) }}"
+                        class="btn btn-sm btn-outline-secondary me-1" target="_blank">View Service</a>
+
+                    {% if type == 'offboarding' and not item.is_completed %}
+                    <form
+                        action="{{ url_for('onboarding.revoke_service_access', process_id=process.id, item_id=item.id) }}"
+                        method="POST" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-sm btn-danger"
+                            onclick="return confirm('Revoke access for this user and mark as done?');">
+                            <i class="fas fa-user-times"></i> Revoke Access
+                        </button>
+                    </form>
+                    {% elif type == 'offboarding' and item.is_completed %}
+                    <span class="badge bg-success"><i class="fas fa-check"></i> Access Revoked</span>
                     {% endif %}
 
                     {% elif item.item_type == 'PaymentMethod' and payment_methods and item.linked_object_id and

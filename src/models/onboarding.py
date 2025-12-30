@@ -32,6 +32,9 @@ class PackItem(db.Model):
     software_id = db.Column(db.Integer, db.ForeignKey('software.id'), nullable=True)
     software = db.relationship('Software')
 
+    service_id = db.Column(db.Integer, db.ForeignKey('business_service.id'), nullable=True)
+    service = db.relationship('BusinessService')
+
 
 # --- PROCESOS DE EJECUCIÓN ---
 

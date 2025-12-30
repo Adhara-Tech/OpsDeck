@@ -56,32 +56,48 @@
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
 
                     <div class="mb-3">
-                        <label class="form-label">Resource Type</label>
-                        <select name="item_type" id="itemTypeSelect" class="form-select"
-                            onchange="toggleSoftwareField()">
-                            <option value="Task">Generic Task (Check)</option>
-                            <option value="Hardware">Hardware (Laptop, Monitor...)</option>
-                            <option value="Software">Software Access</option>
+                        <label class="form-label">Item Type</label>
+                        <select class="form-select" name="item_type" id="itemTypeSelect" onchange="toggleLinkedField()">
+                            <option value="Task">Task (Generic)</option>
+                            <option value="Software">Software Provisioning</option>
+                            <option value="Hardware">Hardware Provisioning</option>
+                            <option value="ServiceAccess">Service Access (Application)</option>
                         </select>
                     </div>
 
-                    <div class="mb-3 d-none" id="softwareField">
+                    <div class="mb-3" id="softwareField" style="display:none;">
                         <label class="form-label">Linked Software</label>
-                        <select name="software_id" class="form-select">
-                            <option value="">-- Select Software --</option>
-                            {% for soft in software_list %}
-                            <option value="{{ soft.id }}">{{ soft.name }}</option>
+                        <select class="form-select" name="software_id">
+                            <option value="">Select Software...</option>
+                            {% for sw in all_software %}
+                            <option value="{{ sw.id }}">{{ sw.name }}</option>
                             {% endfor %}
                         </select>
-                        <div class="form-text">This will help automate license assignment in the future.</div>
+                    </div>
+
+                    <div class="mb-3" id="serviceField" style="display:none;">
+                        <label class="form-label">Linked Service (Application)</label>
+                        <select class="form-select" name="service_id">
+                            <option value="">Select Service...</option>
+                            {% for srv in all_services %}
+                            <option value="{{ srv.id }}">{{ srv.name }}</option>
+                            {% endfor %}
+                        </select>
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label">Description</label>
-                        <input type="text" name="description" class="form-control"
-                            placeholder="e.g., Deliver MacBook Pro 14-inch" required>
+                        <input type="text" class="form-control" name="description" required>
+                        <small class="text-muted">For ServiceAccess, e.g. "Grant user access to App X"</small>
                     </div>
 
+                    <script>
+                        function toggleLinkedField() {
+                            const type = document.getElementById('itemTypeSelect').value;
+                            document.getElementById('softwareField').style.display = (type === 'Software') ? 'block' : 'none';
+                            document.getElementById('serviceField').style.display = (type === 'ServiceAccess') ? 'block' : 'none';
+                        }
+                    </script>
                     <button type="submit" class="btn btn-primary w-100">Add to Profile</button>
                 </form>
             </div>

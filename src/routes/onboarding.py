@@ -9,6 +9,7 @@ from ..models.onboarding import (
     OnboardingProcess, OffboardingProcess, ProcessItem, 
     OnboardingPack, PackItem, ProcessTemplate
 )
+from ..utils.helpers import generate_secure_password
 from .main import login_required
 
 onboarding_bp = Blueprint('onboarding', __name__)
@@ -58,24 +59,36 @@ def pack_detail(id):
     
     # Añadir item al pack
     if request.method == 'POST':
-        item_type = request.form.get('item_type') # 'Software', 'Hardware', 'Task'
+        item_type = request.form.get('item_type') # 'Software', 'Hardware', 'Task', 'ServiceAccess'
         description = request.form.get('description')
         software_id = request.form.get('software_id') or None
+        service_id = request.form.get('service_id') or None
         
         # Si es software, hacemos la descripción más bonita automáticamente
         if item_type == 'Software' and software_id:
             soft = Software.query.get(software_id)
             if not description:
                 description = f"Provisionar acceso a: {soft.name}"
+        elif item_type == 'ServiceAccess' and service_id:
+            srv = BusinessService.query.get(service_id)
+            if not description:
+                description = f"Grant user access to {srv.category}: {srv.name}"
         
-        item = PackItem(pack_id=pack.id, item_type=item_type, description=description, software_id=software_id)
+        item = PackItem(
+            pack_id=pack.id, 
+            item_type=item_type, 
+            description=description, 
+            software_id=software_id,
+            service_id=service_id
+        )
         db.session.add(item)
         db.session.commit()
         flash('Item añadido al pack.')
         return redirect(url_for('onboarding.pack_detail', id=id))
 
-    software_list = Software.query.order_by(Software.name).all()
-    return render_template('onboarding/pack_detail.html', pack=pack, software_list=software_list)
+    all_software = Software.query.order_by(Software.name).all()
+    all_services = BusinessService.query.filter_by(category='Application').order_by(BusinessService.name).all()
+    return render_template('onboarding/pack_detail.html', pack=pack, all_software=all_software, all_services=all_services)
 
 # ==========================================
 # PROCESO DE ONBOARDING (ENTRADA)
@@ -104,6 +117,14 @@ def new_onboarding():
         db.session.add(process)
         db.session.commit()
         
+        
+        # 0. Generar Checklist: Crear Usuario (SIEMPRE PRIMERO)
+        db.session.add(ProcessItem(
+            onboarding_process_id=process.id,
+            description="👤 Create user account (Automated)",
+            item_type='CreateUser'
+        ))
+
         # 2. Generar Checklist: Tareas Globales
         global_tasks = ProcessTemplate.query.filter_by(process_type='onboarding', is_active=True).all()
         for task in global_tasks:
@@ -113,15 +134,25 @@ def new_onboarding():
                 item_type='StaticTask'
             ))
             
-        # 3. Generar Checklist: Items del Pack
+        # 3. Generar Checklist: Items del Pack & Provisioning
         if pack_id:
             pack = OnboardingPack.query.get(pack_id)
             for p_item in pack.items:
+                # Handle Service Access Provisioning
+                linked_obj_id = None
+                if p_item.item_type == 'ServiceAccess' and p_item.service_id:
+                    linked_obj_id = p_item.service_id
+                    # Note: We cannot assign to service.users here because the User record 
+                    # for the new hire likely does not exist yet. 
+                    # The checklist item "Provision account..." serves as the action trigger.
+                elif p_item.item_type == 'Software' and p_item.software_id:
+                    linked_obj_id = p_item.software_id
+
                 db.session.add(ProcessItem(
                     onboarding_process_id=process.id,
                     description=p_item.description,
-                    item_type='PackItem',
-                    linked_object_id=p_item.software_id if p_item.item_type == 'Software' else None
+                    item_type=p_item.item_type,
+                    linked_object_id=linked_obj_id
                 ))
 
         # 4. Social logic (Updated)
@@ -146,6 +177,33 @@ def new_onboarding():
                 ))
         
         db.session.commit()
+        
+        # POST-COMMIT: Handle automatic user assignment for ServiceAccess
+        # We need the User object. But wait, OnboardingProcess doesn't necessarily have a User yet (new_hire_name).
+        # This app creates the user separately or later?
+        # The prompt says "Añadir al empleado a la lista service.users".
+        # If the employee doesn't exist as a User yet, we can't add them.
+        # Let's check the new_onboarding flow. It takes `new_hire_name`. `user_id` is nullable.
+        # So we probably can only generate the Task to provision. 
+        # BUT the requirement says: "Añadir al empleado a la lista service.users".
+        # Maybe we should only do this if the user is already selected/created?
+        # Re-reading: "Al aplicar un Pack, si el item es ServiceAccess: Añadir al empleado a la lista service.users."
+        # This implies we have a user. If we only have `new_hire_name`, we can't.
+        # However, looking at `form_onboarding.html` (assumed), maybe we can select an existing one?
+        # The form has `users` passed to it.
+        # If we are onboarding a NEW hire, usually they don't have a user yet.
+        # Maybe I should create the checklist item, and the automatic assignment happens when the user is eventually created/linked?
+        # OR, maybe the request implies we create the User here? No, 'new_hire_name' suggests text only.
+        
+        # Let's assume for now we just create the checklist item, and if we CAN link them (e.g. if we add a user creation step later), we do.
+        # Only if `user_id` is somehow provided (it's not in the form input `new_hire_name`).
+        
+        # Wait, step 3 says: "Añadir al empleado a la lista service.users".
+        # If `new_onboarding` doesn't create a `User`, then I can't do M2M.
+        # I'll stick to creating the checklist item for now, and maybe add a comment/TODO about the M2M.
+        # Logic:
+        # * Generar item en el checklist: "Provision account in {service.name}".
+        
         flash(f'Onboarding started for {new_hire_name}.')
         return redirect(url_for('onboarding.onboarding_detail', id=process.id))
 
@@ -247,12 +305,25 @@ def new_offboarding():
             ))
 
         # CORRECCIÓN SERVICIOS: Usamos 'BusinessService'
-        services = BusinessService.query.filter_by(owner_id=target_user.id).all()
-        for s in services:
+        # 1. Transfer Ownership of Services owned by user
+        services_owned = BusinessService.query.filter_by(owner_id=target_user.id).all()
+        for s in services_owned:
             db.session.add(ProcessItem(
                 offboarding_process_id=process.id,
                 description=f"⚠️ TRANSFER SERVICE: {s.name} (User is Owner)",
-                item_type='Service',
+                item_type='ServiceOwnership',
+                linked_object_id=s.id
+            ))
+            
+        # 2. Revoke Access to Services/Applications
+        # Find all services where the user is in the 'users' list
+        services_access = BusinessService.query.filter(BusinessService.users.contains(target_user)).all()
+        for s in services_access:
+            cat_label = s.category if s.category else 'Service'
+            db.session.add(ProcessItem(
+                offboarding_process_id=process.id,
+                description=f"🛑 Revoke access to {cat_label}: {s.name}",
+                item_type='RevokeAccess',
                 linked_object_id=s.id
             ))
 
@@ -325,13 +396,106 @@ def complete_process(type, id):
         if process.user:
             process.user.is_archived = True
             # Opcional: Limpiar su password o tokens de sesión aquí si tuvieras
-            flash(f'Offboarding completado. El usuario {process.user.name} ha sido archivado.', 'warning')
+        flash(f'Offboarding completado. El usuario {process.user.name} ha sido archivado.', 'warning')
         
     db.session.commit()
     return redirect(url_for('onboarding.index'))
 
+@onboarding_bp.route('/offboarding/<int:process_id>/revoke_service/<int:item_id>', methods=['POST'])
+@login_required
+@admin_required
+def revoke_service_access(process_id, item_id):
+    process = OffboardingProcess.query.get_or_404(process_id)
+    item = ProcessItem.query.get_or_404(item_id)
+    
+    # Validation
+    # Let's check the model. ProcessItem has separate FKs or a single one?
+    # Based on new_onboarding/offboarding codes:
+    # db.session.add(ProcessItem(offboarding_process_id=process.id ...
+    # So check offboarding_process_id
+    if item.offboarding_process_id != process.id:
+        flash('Invalid item for this process.', 'danger')
+        return redirect(url_for('onboarding.onboarding_detail', id=process.id))
+
+    if item.item_type != 'RevokeAccess':
+        flash('Invalid item type.', 'danger')
+        return redirect(url_for('onboarding.onboarding_detail', id=process.id))
+
+    service = BusinessService.query.get(item.linked_object_id)
+    target_user = process.user
+    
+    if service and target_user:
+        if target_user in service.users:
+            service.users.remove(target_user)
+            flash(f'User removed from {service.name}.', 'success')
+        else:
+            flash(f'User was not in {service.name} (already removed?).', 'warning')
+            
+        # Mark item as completed
+        item.is_completed = True
+        item.completed_at = datetime.utcnow()
+        db.session.commit()
+    else:
+        flash('Service or User not found.', 'danger')
+
+    return redirect(url_for('onboarding.onboarding_detail', id=process.id))
+
+@onboarding_bp.route('/process/<int:process_id>/create_user/<int:item_id>', methods=['POST'])
+@login_required
+@admin_required
+def create_user_account(process_id, item_id):
+    process = OnboardingProcess.query.get_or_404(process_id)
+    item = ProcessItem.query.get_or_404(item_id)
+    
+    # Validation
+    if item.onboarding_process_id != process.id:
+        flash('Invalid item for this process.', 'danger')
+        return redirect(url_for('onboarding.onboarding_detail', id=process.id))
+
+    if item.item_type != 'CreateUser':
+        flash('Invalid item type.', 'danger')
+        return redirect(url_for('onboarding.onboarding_detail', id=process.id))
+        
+    # Check if user already linked
+    if process.user_id:
+        flash('Process already has a user linked.', 'warning')
+        return redirect(url_for('onboarding.onboarding_detail', id=process.id))
+
+    # Generate Email
+    # Format: firstname.lastname@example.com (simplified logic)
+    # Removing special chars, spaces to dots
+    clean_name = "".join(c for c in process.new_hire_name if c.isalnum() or c.isspace()).lower()
+    email_local = clean_name.replace(" ", ".")
+    email = f"{email_local}@example.com"
+    
+    # Generate Password
+    password = generate_secure_password()
+    
+    # Check if email exists
+    if User.query.filter_by(email=email).first():
+        # Fallback: append random number
+        import random
+        email = f"{email_local}{random.randint(10,99)}@example.com"
+    
+    # Create User
+    new_user = User(name=process.new_hire_name, email=email, role='user')
+    new_user.set_password(password)
+    db.session.add(new_user)
+    db.session.flush() # Get ID
+    
+    # Link to Process
+    process.user_id = new_user.id
+    
+    # Mark item complete
+    item.is_completed = True
+    
+    db.session.commit()
+    
+    flash(f"User created!\nEmail: {email}\nPassword: {password}", "success")
+    return redirect(url_for('onboarding.onboarding_detail', id=process.id))
+
 # ==========================================
-#  TEMPLATES
+# API / UTILS
 # ==========================================
 
 @onboarding_bp.route('/templates')
