@@ -1,11 +1,12 @@
 {% extends 'layout.html' %}
 
-{% block title %}Risk Details{% endblock %}
+{% block title %}{{ risk.risk_description|truncate(50) }}{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <div>
-        <h1 class="h2">Risk #{{ risk.id }}</h1>
+        <h1 class="h2" title="{{ risk.risk_description }}">{{ risk.risk_description|truncate(60) }}</h1>
+        <small class="text-muted">Risk #{{ risk.id }}</small>
         <div class="d-flex align-items-center gap-2 mt-1">
             <span
                 class="badge bg-{{ 'danger' if risk.criticality_level == 'Critical' else 'warning text-dark' if risk.criticality_level == 'High' else 'info' if risk.criticality_level == 'Medium' else 'success' }}">
@@ -76,7 +77,11 @@
                                 </span>
                             </div>
                             <div class="card-body">
-                                <p class="lead">{{ risk.risk_description }}</p>
+                                {% if risk.extended_description %}
+                                <p class="lead">{{ risk.extended_description }}</p>
+                                {% else %}
+                                <p class="text-muted fst-italic">No extended description provided.</p>
+                                {% endif %}
 
                                 {% if risk.threat_type %}
                                 <div class="mb-3">
@@ -104,12 +109,14 @@
                                         <strong>Status:</strong> {{ risk.status }}
                                     </div>
                                     <div class="col-md-6">
-                                        <strong>Owner:</strong> {{ risk.owner.name if risk.owner else 'Unassigned' }}
+                                        <strong>Owner:</strong> {{ risk.owner.name if risk.owner else 'Unassigned'
+                                        }}
                                     </div>
                                     <div class="col-md-6">
                                         <strong>Next Review:</strong>
                                         <span class="{{ 'text-danger fw-bold' if risk.is_overdue else '' }}">
-                                            {{ risk.next_review_date.strftime('%Y-%m-%d') if risk.next_review_date else
+                                            {{ risk.next_review_date.strftime('%Y-%m-%d') if risk.next_review_date
+                                            else
                                             'Not set' }}
                                         </span>
                                     </div>
@@ -149,6 +156,18 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Mitigation Plan (GRC: Treatment Response) -->
+                        {% if risk.mitigation_plan %}
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="mb-0"><i class="fas fa-tasks"></i> Mitigation Plan</h5>
+                            </div>
+                            <div class="card-body">
+                                <p class="mb-0">{{ risk.mitigation_plan }}</p>
+                            </div>
+                        </div>
+                        {% endif %}
                     </div>
 
                     <div class="col-md-4">
@@ -183,18 +202,8 @@
                 </div>
             </div>
 
-            <!-- Treatment Tab -->
+            <!-- Roadmap Tab (Mitigation Activities) -->
             <div class="tab-pane fade" id="treatment" role="tabpanel">
-                <div class="card mb-4">
-                    <div class="card-header">
-                        <h5 class="mb-0">Strategy & Plan</h5>
-                    </div>
-                    <div class="card-body">
-                        <p><strong>Strategy:</strong> {{ risk.treatment_strategy or 'Undefined' }}</p>
-                        <h6>Mitigation Plan:</h6>
-                        <p>{{ risk.mitigation_plan or 'No mitigation plan defined.' }}</p>
-                    </div>
-                </div>
 
                 <div class="card mb-4">
                     <div class="card-header">
@@ -463,7 +472,8 @@
                                     {% endif %}
                                     {% else %}
                                     <tr>
-                                        <td colspan="4" class="text-muted p-3">No assessment history available for this
+                                        <td colspan="4" class="text-muted p-3">No assessment history available for
+                                            this
                                             risk.</td>
                                     </tr>
                                     {% endfor %}

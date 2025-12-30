@@ -284,7 +284,8 @@ class ThreatType(db.Model):
 
 class Risk(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    risk_description = db.Column(db.Text, nullable=False)
+    risk_description = db.Column(db.Text, nullable=False)  # Short name/title
+    extended_description = db.Column(db.Text, nullable=True)  # Detailed explanation
     
     # --- NUEVO CAMPO: Amenaza ---
     threat_type_id = db.Column(db.Integer, db.ForeignKey('threat_type.id'), nullable=True)

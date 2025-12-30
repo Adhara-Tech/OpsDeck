@@ -289,6 +289,7 @@ def new_risk():
         
         risk = Risk(
             risk_description=request.form['risk_description'],
+            extended_description=request.form.get('extended_description'),
             owner_id=request.form.get('owner_id'),
             status=request.form.get('status', 'Draft'),
             treatment_strategy=request.form.get('treatment_strategy'),
@@ -355,6 +356,7 @@ def edit_risk(id):
     risk = Risk.query.get_or_404(id)
     if request.method == 'POST':
         risk.risk_description = request.form['risk_description']
+        risk.extended_description = request.form.get('extended_description')
         risk.owner_id = request.form.get('owner_id')
         risk.status = request.form.get('status')
         risk.treatment_strategy = request.form.get('treatment_strategy')

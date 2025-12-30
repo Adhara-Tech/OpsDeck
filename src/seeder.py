@@ -196,7 +196,8 @@ def seed_data():
         print("Creating compliance and governance entities...")
         risks = [
             Risk(
-                risk_description="Unauthorized access to cloud infrastructure due to weak passwords", 
+                risk_description="Unauthorized access to cloud infrastructure", 
+                extended_description="Attackers or unauthorized users could gain access to cloud resources (AWS, Azure, GCP) due to weak passwords, stolen credentials, or lack of multi-factor authentication. This could result in data breaches, service disruption, and significant financial/reputational damage.",
                 status="Assessed", 
                 inherent_likelihood=4, inherent_impact=5, 
                 residual_likelihood=2, residual_impact=5,
@@ -206,7 +207,8 @@ def seed_data():
                 mitigation_plan="Enforce MFA and rotate keys quarterly."
             ),
             Risk(
-                risk_description="Data loss due to hardware failure of primary database server", 
+                risk_description="Data loss from database hardware failure", 
+                extended_description="The primary database server could experience a hardware failure (disk crash, power supply failure, etc.) leading to loss of critical business data. Without proper backups, this could cause significant operational disruption and potential regulatory non-compliance.",
                 status="In Treatment", 
                 inherent_likelihood=2, inherent_impact=4, 
                 residual_likelihood=1, residual_impact=4,
@@ -216,7 +218,8 @@ def seed_data():
                 mitigation_plan="Implement daily backups to a secondary location."
             ),
             Risk(
-                risk_description="Malware infection on end-user devices", 
+                risk_description="Malware infection on endpoints", 
+                extended_description="End-user devices (laptops, workstations) could become infected with malware through phishing emails, malicious downloads, or drive-by downloads. Malware could lead to data theft, ransomware attacks, or lateral movement within the network.",
                 status="Identified", 
                 inherent_likelihood=5, inherent_impact=3, 
                 residual_likelihood=3, residual_impact=3,
@@ -226,7 +229,8 @@ def seed_data():
                 mitigation_plan="Deploy EDR solution."
             ),
             Risk(
-                risk_description="Third-party supplier fails to meet security obligations", 
+                risk_description="Third-party supplier security failure", 
+                extended_description="Critical suppliers (SaaS vendors, cloud providers) may fail to meet security obligations, experience data breaches, or become unavailable. This creates supply chain risk that could impact our operations and expose our data.",
                 status="Assessed", 
                 inherent_likelihood=3, inherent_impact=5, 
                 residual_likelihood=2, residual_impact=4,
@@ -236,7 +240,8 @@ def seed_data():
                 mitigation_plan="Include strict SLAs and penalties in contracts."
             ),
             Risk(
-                risk_description="Sensitive data leakage via email", 
+                risk_description="Data leakage via email", 
+                extended_description="Employees could accidentally or intentionally send sensitive data (customer PII, financial data, trade secrets) via email to unauthorized recipients. This could violate GDPR, contractual obligations, and cause reputational damage.",
                 status="Identified", 
                 inherent_likelihood=4, inherent_impact=4, 
                 residual_likelihood=3, residual_impact=4,
@@ -246,7 +251,8 @@ def seed_data():
                 mitigation_plan="Implement DLP rules for email."
             ),
             Risk(
-                risk_description="Lack of regular access control reviews", 
+                risk_description="Inadequate access control reviews", 
+                extended_description="User access rights may accumulate over time (privilege creep) or remain active for terminated employees. Without regular reviews, this creates excessive permissions and potential for unauthorized access to sensitive systems and data.",
                 status="In Treatment", 
                 inherent_likelihood=3, inherent_impact=3, 
                 residual_likelihood=1, residual_impact=3,
@@ -257,7 +263,8 @@ def seed_data():
             ),
             # New Risks for Dashboard Variety
             Risk(
-                risk_description="Legacy system vulnerability exploitation", 
+                risk_description="Legacy system vulnerabilities", 
+                extended_description="Legacy systems that are no longer supported may contain known vulnerabilities that cannot be patched. These systems are attractive targets for attackers and may be difficult to monitor.",
                 status="Accepted", 
                 inherent_likelihood=2, inherent_impact=3, 
                 residual_likelihood=2, residual_impact=3,
@@ -267,7 +274,8 @@ def seed_data():
                 mitigation_plan="System is air-gapped; risk accepted until decommissioning in 2026."
             ),
             Risk(
-                risk_description="Insider threat (disgruntled employee)", 
+                risk_description="Insider threat from employees", 
+                extended_description="Disgruntled, negligent, or compromised employees could misuse their authorized access to steal data, sabotage systems, or facilitate external attacks. Insider threats are difficult to detect and can cause significant damage.",
                 status="Assessed", 
                 inherent_likelihood=2, inherent_impact=5, 
                 residual_likelihood=1, residual_impact=5,
@@ -278,6 +286,7 @@ def seed_data():
             ),
             Risk(
                 risk_description="DDoS attack on public website", 
+                extended_description="Our public-facing website and APIs could be targeted by distributed denial-of-service attacks, making services unavailable to legitimate users. This impacts revenue, customer trust, and operational efficiency.",
                 status="Mitigated", 
                 inherent_likelihood=4, inherent_impact=4, 
                 residual_likelihood=1, residual_impact=2,
@@ -287,7 +296,8 @@ def seed_data():
                 mitigation_plan="Use Cloudflare DDoS protection."
             ),
             Risk(
-                risk_description="Regulatory non-compliance (GDPR)", 
+                risk_description="GDPR regulatory non-compliance", 
+                extended_description="Failure to comply with GDPR requirements for processing EU citizen data could result in significant fines (up to 4% of global revenue), legal action, and reputational damage. This includes consent management, data subject rights, and breach notification.",
                 status="Assessed", 
                 inherent_likelihood=3, inherent_impact=5, 
                 residual_likelihood=2, residual_impact=5,
@@ -297,7 +307,8 @@ def seed_data():
                 mitigation_plan="Do not process data of EU citizens until compliant."
             ),
              Risk(
-                risk_description="Critical API Key Exposure", 
+                risk_description="API key exposure in code repositories", 
+                extended_description="API keys, database credentials, or other secrets may be accidentally committed to source code repositories (public or private). Exposed credentials can be harvested by attackers and used to access systems, exfiltrate data, or incur costs.",
                 status="Assessed", 
                 inherent_likelihood=5, inherent_impact=5, 
                 residual_likelihood=5, residual_impact=5,

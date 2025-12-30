@@ -56,10 +56,19 @@
                             </div>
 
                             <div class="mb-3">
-                                <label for="risk_description" class="form-label">Risk Description</label>
-                                <textarea class="form-control" id="risk_description" name="risk_description" rows="3"
-                                    required>{{ risk.risk_description if risk else '' }}</textarea>
-                                <div class="form-text">Describe the risk scenario clearly.</div>
+                                <label for="risk_description" class="form-label">Risk Name / Title</label>
+                                <input type="text" class="form-control" id="risk_description" name="risk_description"
+                                    value="{{ risk.risk_description if risk else '' }}" required>
+                                <div class="form-text">A short, concise name for this risk.</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="extended_description" class="form-label">Extended Description
+                                    (Optional)</label>
+                                <textarea class="form-control" id="extended_description" name="extended_description"
+                                    rows="3">{{ risk.extended_description if risk else '' }}</textarea>
+                                <div class="form-text">Provide a detailed explanation of the risk scenario, impact, and
+                                    context.</div>
                             </div>
 
                             <div class="mb-3">
