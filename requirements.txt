@@ -19,3 +19,4 @@ Flask-WTF
 flask-talisman
 flask-smorest
 marshmallow-sqlalchemy
+psycopg2-binary

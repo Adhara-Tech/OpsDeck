@@ -1,0 +1,15 @@
+# docker-compose.sqlite.yml
+# Use this file for SQLite deployments: docker compose -f docker-compose.sqlite.yml up
+services:
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./data:/app/data
+      - ./data/attachments:/app/data/attachments
+    environment:
+      - DATABASE_URL=sqlite:///data/renewals.db
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+    env_file:
+      - .env

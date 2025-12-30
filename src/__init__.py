@@ -83,8 +83,18 @@ def create_app():
 
     # --- Configuration ---
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-change-this')
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///../data/renewals.db')
+    
+    # Database configuration - supports SQLite or PostgreSQL
+    database_url = os.environ.get('DATABASE_URL', 'sqlite:///../data/renewals.db')
+    # Handle Heroku-style postgres:// URLs (SQLAlchemy requires postgresql://)
+    if database_url.startswith('postgres://'):
+        database_url = database_url.replace('postgres://', 'postgresql://', 1)
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    
+    # Log which database backend is being used
+    is_postgres = 'postgresql' in database_url
+    app.config['IS_POSTGRES'] = is_postgres
 
     # --- CORRECT UPLOAD FOLDER CONFIG ---
     # Define the project's root directory (where run.py is)
