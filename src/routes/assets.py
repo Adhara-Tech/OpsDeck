@@ -229,9 +229,11 @@ def checkout_asset(id):
 @admin_required
 def checkin_asset(id):
     asset = Asset.query.get_or_404(id)
+    redirect_url = request.form.get('redirect_url')
+    
     if not asset.user:
         flash('This asset is already checked in.', 'warning')
-        return redirect(url_for('assets.asset_detail', id=id))
+        return redirect(redirect_url or url_for('assets.asset_detail', id=id))
 
     assignment = AssetAssignment.query.filter_by(asset_id=id, checked_in_date=None).order_by(AssetAssignment.checked_out_date.desc()).first()
     
@@ -243,9 +245,19 @@ def checkin_asset(id):
     
     asset.user = None
     
+    # Auto-complete related offboarding item if exists
+    from ..models.onboarding import ProcessItem
+    offboarding_item = ProcessItem.query.filter_by(
+        item_type='Asset', 
+        linked_object_id=id, 
+        is_completed=False
+    ).first()
+    if offboarding_item and offboarding_item.offboarding_process_id:
+        offboarding_item.is_completed = True
+    
     db.session.commit()
-    flash(f'Asset "{asset.name}" has been checked in.')
-    return redirect(url_for('assets.asset_detail', id=id))
+    flash(f'Asset "{asset.name}" has been checked in.', 'success')
+    return redirect(redirect_url or url_for('assets.asset_detail', id=id))
 
 @assets_bp.route('/warranties')
 @login_required

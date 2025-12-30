@@ -230,7 +230,8 @@ def new_offboarding():
             db.session.add(ProcessItem(
                 offboarding_process_id=process.id,
                 description=desc,
-                item_type='PaymentMethod'
+                item_type='PaymentMethod',
+                linked_object_id=pm.id
             ))
 
         # CORRECCIÓN RIESGOS: Usamos 'risk_description' que es el campo real en tu modelo
@@ -241,7 +242,8 @@ def new_offboarding():
             db.session.add(ProcessItem(
                 offboarding_process_id=process.id,
                 description=f"⚠️ TRANSFER RISK: {short_desc}",
-                item_type='Risk'
+                item_type='Risk',
+                linked_object_id=r.id
             ))
 
         # CORRECCIÓN SERVICIOS: Usamos 'BusinessService'
@@ -250,7 +252,8 @@ def new_offboarding():
             db.session.add(ProcessItem(
                 offboarding_process_id=process.id,
                 description=f"⚠️ TRANSFER SERVICE: {s.name} (User is Owner)",
-                item_type='Service'
+                item_type='Service',
+                linked_object_id=s.id
             ))
 
         # 4. TAREAS GLOBALES
@@ -273,7 +276,16 @@ def new_offboarding():
 @login_required
 def offboarding_detail(id):
     process = OffboardingProcess.query.get_or_404(id)
-    return render_template('onboarding/process_detail.html', process=process, type='offboarding')
+    users = User.query.filter_by(is_archived=False).order_by(User.name).all()
+    
+    # Pre-fetch payment methods for the template
+    pm_ids = [item.linked_object_id for item in process.items if item.item_type == 'PaymentMethod' and item.linked_object_id]
+    payment_methods = {}
+    if pm_ids:
+        pms = PaymentMethod.query.filter(PaymentMethod.id.in_(pm_ids)).all()
+        payment_methods = {pm.id: pm for pm in pms}
+        
+    return render_template('onboarding/process_detail.html', process=process, type='offboarding', users=users, payment_methods=payment_methods)
 
 # ==========================================
 # ACCIONES COMUNES (CHECKLIST)
@@ -366,3 +378,65 @@ def history():
     return render_template('onboarding/history.html', 
                            onboardings=completed_onboardings,
                            offboardings=completed_offboardings)
+
+# ==========================================
+#  OFFBOARDING TRANSFERS
+# ==========================================
+
+@onboarding_bp.route('/transfer/risk/<int:id>', methods=['POST'])
+@login_required
+@admin_required
+def transfer_risk(id):
+    risk = Risk.query.get_or_404(id)
+    new_owner_id = request.form.get('new_owner_id')
+    redirect_url = request.form.get('redirect_url')
+    
+    # Update owner (None if empty, meaning unassigned)
+    risk.owner_id = int(new_owner_id) if new_owner_id else None
+    
+    # Auto-complete related offboarding item if exists
+    offboarding_item = ProcessItem.query.filter_by(
+        item_type='Risk', 
+        linked_object_id=id, 
+        is_completed=False
+    ).first()
+    if offboarding_item and offboarding_item.offboarding_process_id:
+        offboarding_item.is_completed = True
+        
+    db.session.commit()
+    
+    if risk.owner:
+        flash(f'Risk "{risk.risk_description[:30]}..." transferred to {risk.owner.name}.', 'success')
+    else:
+        flash(f'Risk "{risk.risk_description[:30]}..." is now unassigned.', 'info')
+        
+    return redirect(redirect_url or request.referrer)
+
+@onboarding_bp.route('/transfer/service/<int:id>', methods=['POST'])
+@login_required
+@admin_required
+def transfer_service(id):
+    service = BusinessService.query.get_or_404(id)
+    new_owner_id = request.form.get('new_owner_id')
+    redirect_url = request.form.get('redirect_url')
+    
+    # Update owner
+    service.owner_id = int(new_owner_id) if new_owner_id else None
+    
+    # Auto-complete related offboarding item if exists
+    offboarding_item = ProcessItem.query.filter_by(
+        item_type='Service', 
+        linked_object_id=id, 
+        is_completed=False
+    ).first()
+    if offboarding_item and offboarding_item.offboarding_process_id:
+        offboarding_item.is_completed = True
+        
+    db.session.commit()
+    
+    if service.owner:
+        flash(f'Service "{service.name}" transferred to {service.owner.name}.', 'success')
+    else:
+        flash(f'Service "{service.name}" is now unassigned.', 'info')
+        
+    return redirect(redirect_url or request.referrer)

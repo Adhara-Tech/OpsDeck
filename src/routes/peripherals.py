@@ -138,9 +138,11 @@ def checkout_peripheral(id):
 @admin_required
 def checkin_peripheral(id):
     peripheral = Peripheral.query.get_or_404(id)
+    redirect_url = request.form.get('redirect_url')
+    
     if not peripheral.user:
         flash('This peripheral is already checked in.', 'warning')
-        return redirect(url_for('peripherals.peripheral_detail', id=id))
+        return redirect(redirect_url or url_for('peripherals.peripheral_detail', id=id))
 
     assignment = PeripheralAssignment.query.filter_by(peripheral_id=id, checked_in_date=None).order_by(PeripheralAssignment.checked_out_date.desc()).first()
     
@@ -149,8 +151,19 @@ def checkin_peripheral(id):
 
     flash(f'Peripheral "{peripheral.name}" has been checked in from {peripheral.user.name}.', 'success')
     peripheral.user = None
+    
+    # Auto-complete related offboarding item if exists
+    from ..models.onboarding import ProcessItem
+    offboarding_item = ProcessItem.query.filter_by(
+        item_type='Peripheral', 
+        linked_object_id=id, 
+        is_completed=False
+    ).first()
+    if offboarding_item and offboarding_item.offboarding_process_id:
+        offboarding_item.is_completed = True
+    
     db.session.commit()
-    return redirect(url_for('peripherals.peripheral_detail', id=id))
+    return redirect(redirect_url or url_for('peripherals.peripheral_detail', id=id))
 
 
 @peripherals_bp.route('/archived')

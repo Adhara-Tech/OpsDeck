@@ -97,14 +97,182 @@
                     {% if item.linked_object_id %}
                     {% if item.item_type == 'Asset' %}
                     <a href="{{ url_for('assets.asset_detail', id=item.linked_object_id) }}"
-                        class="btn btn-sm btn-outline-secondary" target="_blank">
-                        <i class="fas fa-external-link-alt"></i> View Asset
+                        class="btn btn-sm btn-outline-secondary me-1" target="_blank">
+                        <i class="fas fa-external-link-alt"></i> View
                     </a>
+                    {% if type == 'offboarding' and not item.is_completed %}
+                    <form action="{{ url_for('assets.checkin_asset', id=item.linked_object_id) }}" method="POST"
+                        class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                        <input type="hidden" name="redirect_url" value="{{ request.url }}" />
+                        <button type="submit" class="btn btn-sm btn-warning"
+                            onclick="return confirm('Check in this asset?');">
+                            <i class="fas fa-undo"></i> Check In
+                        </button>
+                    </form>
+                    {% elif type == 'offboarding' and item.is_completed %}
+                    <span class="badge bg-success"><i class="fas fa-check"></i> Checked In</span>
+                    {% endif %}
+                    {% elif item.item_type == 'Peripheral' %}
+                    <a href="{{ url_for('peripherals.peripheral_detail', id=item.linked_object_id) }}"
+                        class="btn btn-sm btn-outline-secondary me-1" target="_blank">
+                        <i class="fas fa-external-link-alt"></i> View
+                    </a>
+                    {% if type == 'offboarding' and not item.is_completed %}
+                    <form action="{{ url_for('peripherals.checkin_peripheral', id=item.linked_object_id) }}"
+                        method="POST" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                        <input type="hidden" name="redirect_url" value="{{ request.url }}" />
+                        <button type="submit" class="btn btn-sm btn-warning"
+                            onclick="return confirm('Check in this peripheral?');">
+                            <i class="fas fa-undo"></i> Check In
+                        </button>
+                    </form>
+                    {% elif type == 'offboarding' and item.is_completed %}
+                    <span class="badge bg-success"><i class="fas fa-check"></i> Checked In</span>
+                    {% endif %}
                     {% elif item.item_type == 'License' %}
                     <a href="{{ url_for('licenses.detail', id=item.linked_object_id) }}"
                         class="btn btn-sm btn-outline-secondary" target="_blank">
                         <i class="fas fa-external-link-alt"></i> View License
                     </a>
+
+                    {% elif item.item_type == 'Risk' %}
+                    <a href="{{ url_for('risk.detail', id=item.linked_object_id) }}"
+                        class="btn btn-sm btn-outline-secondary me-1" target="_blank">View</a>
+                    {% if type == 'offboarding' and not item.is_completed %}
+                    <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal"
+                        data-bs-target="#transferRiskModal{{ item.id }}">
+                        <i class="fas fa-exchange-alt"></i> Transfer
+                    </button>
+                    <!-- Modal for Risk Transfer -->
+                    <div class="modal fade" id="transferRiskModal{{ item.id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <form action="{{ url_for('onboarding.transfer_risk', id=item.linked_object_id) }}"
+                                method="POST">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="redirect_url" value="{{ request.url }}">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Transfer Risk Ownership</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                            aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <p>Select the new owner for this risk.</p>
+                                        <select class="form-select" name="new_owner_id">
+                                            <option value="">-- No Owner (Unassigned) --</option>
+                                            {% for user in users %}
+                                            <option value="{{ user.id }}">{{ user.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary"
+                                            data-bs-dismiss="modal">Cancel</button>
+                                        <button type="submit" class="btn btn-primary">Transfer Risk</button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                    {% elif type == 'offboarding' and item.is_completed %}
+                    <span class="badge bg-success"><i class="fas fa-check"></i> Transferred</span>
+                    {% endif %}
+
+                    {% elif item.item_type == 'Service' %}
+                    <a href="{{ url_for('services.detail', id=item.linked_object_id) }}"
+                        class="btn btn-sm btn-outline-secondary me-1" target="_blank">View</a>
+                    {% if type == 'offboarding' and not item.is_completed %}
+                    <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal"
+                        data-bs-target="#transferServiceModal{{ item.id }}">
+                        <i class="fas fa-exchange-alt"></i> Transfer
+                    </button>
+                    <!-- Modal for Service Transfer -->
+                    <div class="modal fade" id="transferServiceModal{{ item.id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <form action="{{ url_for('onboarding.transfer_service', id=item.linked_object_id) }}"
+                                method="POST">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="redirect_url" value="{{ request.url }}">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Transfer Service Ownership</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                            aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <p>Select the new owner for this service.</p>
+                                        <select class="form-select" name="new_owner_id">
+                                            <option value="">-- No Owner (Unassigned) --</option>
+                                            {% for user in users %}
+                                            <option value="{{ user.id }}">{{ user.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary"
+                                            data-bs-dismiss="modal">Cancel</button>
+                                        <button type="submit" class="btn btn-primary">Transfer Service</button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                    {% elif type == 'offboarding' and item.is_completed %}
+                    <span class="badge bg-success"><i class="fas fa-check"></i> Transferred</span>
+                    {% endif %}
+
+                    {% elif item.item_type == 'PaymentMethod' and payment_methods and item.linked_object_id and
+                    item.linked_object_id in payment_methods %}
+                    {% set pm = payment_methods[item.linked_object_id] %}
+                    {% set count = pm.subscriptions|length + pm.purchases|length %}
+                    <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal"
+                        data-bs-target="#pmModal{{ item.id }}">
+                        <i class="fas fa-list"></i> View Affected Items ({{ count }})
+                    </button>
+                    <!-- Modal for Payment Method Items -->
+                    <div class="modal fade" id="pmModal{{ item.id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Items using {{ pm.name }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                        aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <h6 class="fw-bold">Subscriptions</h6>
+                                    <ul class="mb-3">
+                                        {% for sub in pm.subscriptions %}
+                                        <li>
+                                            <a href="{{ url_for('subscriptions.subscription_detail', id=sub.id) }}"
+                                                target="_blank">{{ sub.name }}</a>
+                                            ({{ sub.cost }} {{ sub.currency }})
+                                        </li>
+                                        {% else %}
+                                        <li class="text-muted">No subscriptions linked.</li>
+                                        {% endfor %}
+                                    </ul>
+                                    <h6 class="fw-bold">Purchases</h6>
+                                    <ul>
+                                        {% for purch in pm.purchases %}
+                                        <li>
+                                            {{ purch.description }} ({{ "%.2f"|format(purch.total_cost) }} EUR) - {{
+                                            purch.purchase_date }}
+                                        </li>
+                                        {% else %}
+                                        <li class="text-muted">No purchases linked.</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary"
+                                        data-bs-dismiss="modal">Close</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     {% endif %}
                     {% endif %}
                 </li>
