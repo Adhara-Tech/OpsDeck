@@ -503,6 +503,13 @@ class Framework(db.Model):
         return f'<Framework {self.id}: {self.name} ({status})>'
 
 
+# Association table for cross-framework control mappings (self-referential)
+control_mappings = db.Table('control_mappings',
+    db.Column('source_control_id', db.Integer, db.ForeignKey('framework_control.id'), primary_key=True),
+    db.Column('target_control_id', db.Integer, db.ForeignKey('framework_control.id'), primary_key=True)
+)
+
+
 class FrameworkControl(db.Model):
     """
     Representa un control individual o práctica dentro de un Framework.
@@ -520,8 +527,21 @@ class FrameworkControl(db.Model):
     # Descripción específica del control
     description = db.Column(db.Text)
     
-    # Relación futura con los controles de una auditoría específica
-    # audit_controls = db.relationship('AuditControl', backref='base_control', lazy='dynamic')
+    # Cross-Framework Mappings: Controls this one maps to (e.g., DORA -> ISO)
+    mapped_targets = db.relationship(
+        'FrameworkControl',
+        secondary=control_mappings,
+        primaryjoin="FrameworkControl.id==control_mappings.c.source_control_id",
+        secondaryjoin="FrameworkControl.id==control_mappings.c.target_control_id",
+        backref=db.backref('mapped_sources', lazy='dynamic')
+    )
+
+    def get_all_mappings(self):
+        """Devuelve una lista combinada de controles relacionados (entrantes y salientes)."""
+        targets = self.mapped_targets
+        sources = list(self.mapped_sources)
+        # Combine and deduplicate
+        return list(set(targets + sources))
 
     def __repr__(self):
         return f'<FrameworkControl {self.id}: {self.control_id}>'

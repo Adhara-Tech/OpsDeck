@@ -248,3 +248,121 @@ def delete_control(id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'Error al eliminar el control: {e}'}), 500
+
+
+# --- Cross-Framework Control Mapping Routes ---
+
+@frameworks_bp.route('/control/<int:id>/detail')
+@login_required
+def control_detail(id):
+    """Displays control detail with cross-mappings."""
+    control = FrameworkControl.query.get_or_404(id)
+    all_frameworks = Framework.query.order_by(Framework.name).all()
+    return render_template(
+        'frameworks/control_detail.html',
+        control=control,
+        all_frameworks=all_frameworks
+    )
+
+
+@frameworks_bp.route('/control/<int:id>/map', methods=['POST'])
+@login_required
+@admin_required
+def map_control(id):
+    """Links a control to another control (cross-framework mapping)."""
+    control = FrameworkControl.query.get_or_404(id)
+    target_control_id = request.form.get('target_control_id')
+    
+    if not target_control_id:
+        flash('Please select a target control.', 'warning')
+        return redirect(url_for('frameworks.control_detail', id=id))
+    
+    target_control = FrameworkControl.query.get(target_control_id)
+    if not target_control:
+        flash('Target control not found.', 'danger')
+        return redirect(url_for('frameworks.control_detail', id=id))
+    
+    if target_control.id == control.id:
+        flash('Cannot map a control to itself.', 'warning')
+        return redirect(url_for('frameworks.control_detail', id=id))
+    
+    # Check if already mapped
+    if target_control in control.mapped_targets or control in target_control.mapped_targets:
+        flash('These controls are already mapped.', 'info')
+        return redirect(url_for('frameworks.control_detail', id=id))
+    
+    try:
+        control.mapped_targets.append(target_control)
+        db.session.commit()
+        flash(f'Mapped to {target_control.framework.name} {target_control.control_id}.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error creating mapping: {e}', 'danger')
+    
+    return redirect(url_for('frameworks.control_detail', id=id))
+
+
+@frameworks_bp.route('/control/<int:id>/unmap/<int:target_id>', methods=['POST'])
+@login_required
+@admin_required
+def unmap_control(id, target_id):
+    """Removes a cross-framework mapping between two controls."""
+    control = FrameworkControl.query.get_or_404(id)
+    target_control = FrameworkControl.query.get_or_404(target_id)
+    
+    try:
+        # Check both directions since mapping can be in either direction
+        if target_control in control.mapped_targets:
+            control.mapped_targets.remove(target_control)
+        elif control in target_control.mapped_targets:
+            target_control.mapped_targets.remove(control)
+        else:
+            flash('Mapping not found.', 'warning')
+            return redirect(url_for('frameworks.control_detail', id=id))
+        
+        db.session.commit()
+        flash('Mapping removed.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error removing mapping: {e}', 'danger')
+    
+    return redirect(url_for('frameworks.control_detail', id=id))
+
+
+@frameworks_bp.route('/api/search-controls')
+@login_required
+def search_controls():
+    """API to search controls for cross-mapping (for TomSelect)."""
+    q = request.args.get('q', '').strip().lower()
+    framework_id = request.args.get('framework_id', type=int)
+    exclude_id = request.args.get('exclude_id', type=int)  # Current control to exclude
+    
+    query = FrameworkControl.query
+    
+    # Filter by framework if specified
+    if framework_id:
+        query = query.filter(FrameworkControl.framework_id == framework_id)
+    
+    # Exclude current control
+    if exclude_id:
+        query = query.filter(FrameworkControl.id != exclude_id)
+    
+    # Search in control_id and name
+    if q:
+        query = query.filter(
+            db.or_(
+                FrameworkControl.control_id.ilike(f'%{q}%'),
+                FrameworkControl.name.ilike(f'%{q}%')
+            )
+        )
+    
+    controls = query.limit(50).all()
+    
+    results = []
+    for ctrl in controls:
+        results.append({
+            'id': ctrl.id,
+            'text': f"[{ctrl.framework.name}] {ctrl.control_id} - {ctrl.name[:50]}"
+        })
+    
+    return jsonify(results)

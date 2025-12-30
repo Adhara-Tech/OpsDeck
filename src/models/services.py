@@ -65,6 +65,34 @@ class BusinessService(db.Model):
     def __repr__(self):
         return f'<BusinessService {self.name}>'
 
+    @property
+    def aggregated_risk_score(self):
+        """
+        Calcula el riesgo máximo heredado de sus componentes de infraestructura.
+        Si un componente tiene un max_risk_score alto, el servicio lo hereda.
+        """
+        max_score = 0
+        
+        # Revisar Componentes (Infraestructura)
+        for comp in self.components:
+            linked_obj = comp.linked_object
+            # Verificamos si el objeto tiene la propiedad 'max_risk_score' (como Asset)
+            if linked_obj and hasattr(linked_obj, 'max_risk_score'):
+                score = linked_obj.max_risk_score
+                if score and score > max_score:
+                    max_score = score
+        
+        return max_score
+
+    @property
+    def risk_status_color(self):
+        """Devuelve el color semántico para la UI/Gráficos basado en el riesgo."""
+        score = self.aggregated_risk_score
+        if score >= 20: return '#dc3545'  # Danger (Red)
+        if score >= 12: return '#fd7e14'  # Orange
+        if score >= 5:  return '#ffc107'  # Warning (Yellow)
+        return '#198754'  # Success (Green)
+
 class ServiceComponent(db.Model):
     """
     Polymorphic link to infrastructure components (Assets, Software, etc.)

@@ -664,5 +664,13 @@ def search_linkable_api():
         
         items = q.limit(limit).all()
         results = [{'id': item.id, 'name': f"{item.user.name} ({item.departure_date})", 'type': 'Offboarding'} for item in items]
+
+    elif object_type == 'OrgChartSnapshot':
+        from ..models import OrgChartSnapshot
+        q = OrgChartSnapshot.query.order_by(OrgChartSnapshot.created_at.desc())
+        if query:
+            q = q.filter(OrgChartSnapshot.name.ilike(f'%{query}%'))
+        items = q.limit(limit).all()
+        results = [{'id': item.id, 'name': item.name, 'type': 'Org Chart Snapshot'} for item in items]
     
     return jsonify(results)

@@ -1,0 +1,267 @@
+{% extends 'layout.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <div>
+        <h1 class="h2">{{ assessment.name }}</h1>
+        <span
+            class="badge {% if assessment.status == 'Locked' %}bg-secondary{% else %}bg-warning text-dark{% endif %} me-2">
+            {{ assessment.status }}
+        </span>
+        <span class="text-muted">Created: {{ assessment.created_at.strftime('%Y-%m-%d') }}</span>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('risk_assessment.list_assessments') }}" class="btn btn-sm btn-outline-secondary me-2">
+            <i class="fas fa-arrow-left"></i> Back
+        </a>
+        <a href="{{ url_for('risk_assessment.export_pdf', id=assessment.id) }}"
+            class="btn btn-sm btn-outline-dark me-2">
+            <i class="fas fa-file-pdf"></i> Export PDF
+        </a>
+        {% if assessment.status != 'Locked' %}
+        <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#lockModal">
+            <i class="fas fa-lock"></i> Lock Assessment
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-light">
+            <div class="card-body text-center">
+                <h6 class="card-subtitle mb-2 text-muted">Total Residual Risk</h6>
+                <h2 class="card-title text-primary">{{ assessment.current_total_risk }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-light">
+            <div class="card-body text-center">
+                <h6 class="card-subtitle mb-2 text-muted">Items Assessed</h6>
+                <h2 class="card-title">{{ assessment.items|length }}</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">Assessment Items</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle" id="itemsTable">
+                <thead class="table-light">
+                    <tr>
+                        <th>Risk / Threat</th>
+                        <th>Inherent</th>
+                        <th>Residual</th>
+                        <th>Strategy</th>
+                        <th>Notes / Evidence</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in assessment.items %}
+                    {% set live_risk = item.original_risk %}
+                    {% set has_change = live_risk and item.residual_score != live_risk.residual_score %}
+                    {% set score_improved = live_risk and item.residual_score < live_risk.residual_score %} {% set
+                        score_worsened=live_risk and item.residual_score> live_risk.residual_score %}
+                        <tr>
+                            <td style="max-width: 300px;">
+                                <div class="fw-bold text-truncate" title="{{ item.risk_description }}">{{
+                                    item.risk_description }}</div>
+                                <small class="text-muted">{{ item.threat_type_name }}</small>
+                                <div class="d-flex flex-wrap gap-1 mt-1">
+                                    {% for cat in (item.category_list or '').split(',') %}
+                                    {% if cat %}
+                                    <span class="badge bg-light text-dark border">{{ cat }}</span>
+                                    {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-secondary"
+                                    title="Impact: {{ item.inherent_impact }}, Likelihood: {{ item.inherent_likelihood }}">
+                                    Score: {{ item.inherent_score }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center gap-1">
+                                    <span
+                                        class="badge {% if item.residual_score > 15 %}bg-danger{% elif item.residual_score > 8 %}bg-warning text-dark{% else %}bg-success{% endif %}"
+                                        title="Impact: {{ item.residual_impact }}, Likelihood: {{ item.residual_likelihood }}">
+                                        Score: {{ item.residual_score }}
+                                    </span>
+                                    {% if has_change and assessment.status != 'Locked' %}
+                                    <span class="ms-1"
+                                        title="Live Score: {{ live_risk.residual_score }} → Assessment: {{ item.residual_score }} (Will update on lock if sync enabled)"
+                                        data-bs-toggle="tooltip">
+                                        {% if score_improved %}
+                                        <i class="fas fa-arrow-down text-success"></i>
+                                        {% elif score_worsened %}
+                                        <i class="fas fa-arrow-up text-danger"></i>
+                                        {% endif %}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>{{ item.treatment_strategy }}</td>
+                            <td>
+                                {% if item.mitigation_notes %}
+                                <div class="small mb-1"><i class="fas fa-sticky-note text-warning"></i> {{
+                                    item.mitigation_notes|truncate(50) }}</div>
+                                {% endif %}
+                                <small class="text-muted">{{ item.evidence|length }} Evidence</small>
+                            </td>
+                            <td class="text-end">
+                                {% if assessment.status != 'Locked' %}
+                                <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
+                                    data-bs-target="#editItemModal{{ item.id }}">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                {% endif %}
+                            </td>
+                        </tr>
+
+                        <!-- Edit Modal -->
+                        <div class="modal fade" id="editItemModal{{ item.id }}" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <form action="{{ url_for('risk_assessment.edit_assessment_item', id=item.id) }}"
+                                        method="POST">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input type="hidden" name="risk_description"
+                                            value="{{ item.risk_description }}">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">Edit Assessment Item</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <div class="mb-3">
+                                                <label class="form-label">Mitigation Notes</label>
+                                                <textarea class="form-control" name="mitigation_notes"
+                                                    rows="3">{{ item.mitigation_notes or '' }}</textarea>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-md-6 mb-3">
+                                                    <label class="form-label">Residual Impact (1-5)</label>
+                                                    <input type="number" class="form-control" name="residual_impact"
+                                                        value="{{ item.residual_impact }}" min="1" max="5" required>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <label class="form-label">Residual Likelihood (1-5)</label>
+                                                    <input type="number" class="form-control" name="residual_likelihood"
+                                                        value="{{ item.residual_likelihood }}" min="1" max="5" required>
+                                                </div>
+                                            </div>
+                                            <div class="alert alert-info py-2 small">
+                                                <i class="fas fa-info-circle"></i> Changes here are isolated to this
+                                                assessment until you lock with "Sync to live risks" enabled.
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary"
+                                                data-bs-dismiss="modal">Close</button>
+                                            <button type="submit" class="btn btn-primary">Save Changes</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Lock Assessment Modal -->
+{% if assessment.status != 'Locked' %}
+<div class="modal fade" id="lockModal" tabindex="-1" aria-labelledby="lockModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('risk_assessment.lock_assessment', id=assessment.id) }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="lockModalLabel"><i class="fas fa-lock"></i> Lock Assessment</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>This action is permanent.</strong> Once locked, this assessment cannot be edited.
+                    </div>
+
+                    <p class="mb-3">Do you want to update the live risks with the results of this assessment?</p>
+
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" name="sync_to_live" id="syncToLive">
+                        <label class="form-check-label" for="syncToLive">
+                            <strong>Yes, update Residual Scores and Status</strong>
+                        </label>
+                        <div class="form-text">
+                            This will update the live risk register with the residual scores from this assessment.
+                            Status will be set to "Mitigated" for scores &lt;5 or "In Treatment" for scores ≥15.
+                        </div>
+                    </div>
+
+                    {% set items_with_changes = [] %}
+                    {% for item in assessment.items %}
+                    {% if item.original_risk and item.residual_score != item.original_risk.residual_score %}
+                    {% set _ = items_with_changes.append(item) %}
+                    {% endif %}
+                    {% endfor %}
+
+                    {% if items_with_changes %}
+                    <div class="card bg-light">
+                        <div class="card-body py-2">
+                            <small class="text-muted d-block mb-2">
+                                <i class="fas fa-info-circle"></i> {{ items_with_changes|length }} item(s) have score
+                                changes:
+                            </small>
+                            <ul class="list-unstyled mb-0 small">
+                                {% for item in items_with_changes[:5] %}
+                                <li>
+                                    <strong>{{ item.risk_description|truncate(30) }}:</strong>
+                                    {{ item.original_risk.residual_score }} → {{ item.residual_score }}
+                                    {% if item.residual_score < item.original_risk.residual_score %} <span
+                                        class="text-success"><i class="fas fa-arrow-down"></i></span>
+                                        {% else %}
+                                        <span class="text-danger"><i class="fas fa-arrow-up"></i></span>
+                                        {% endif %}
+                                </li>
+                                {% endfor %}
+                                {% if items_with_changes|length > 5 %}
+                                <li class="text-muted">...and {{ items_with_changes|length - 5 }} more</li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-lock"></i> Lock Assessment
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% block scripts_extra %}
+<script>
+    // Initialize tooltips
+    document.addEventListener('DOMContentLoaded', function () {
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.forEach(function (el) {
+            new bootstrap.Tooltip(el);
+        });
+    });
+</script>
+{% endblock %}
+{% endblock %}

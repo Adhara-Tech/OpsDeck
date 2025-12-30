@@ -6,7 +6,7 @@ import pytest
 from datetime import date, timedelta
 from src import db
 from src.models import (
-    Subscription, Supplier, User, CostCenter, PaymentMethod, Contact, 
+    Subscription, Supplier, PaymentMethod, Contact, 
     Budget, Software
 )
 

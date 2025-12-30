@@ -6,7 +6,7 @@ from .models import (
     MaintenanceLog, DisposalRecord,
     BCDRPlan, BCDRTestLog, Course, CourseAssignment, Group, Policy, PolicyVersion, Opportunity,
     Documentation, Link, Software, License, Framework, FrameworkControl, ComplianceLink,
-    BusinessService, ComplianceAudit, Contact
+    BusinessService, ComplianceAudit, Contact, RiskAssessment
 )
 from . import create_app
 
@@ -477,6 +477,30 @@ def seed_data():
             copy_links=True # Populate evidence from live links
         )
         audit.status = "Prep"
+        db.session.commit()
+
+        # 14. Historical Risk Assessments
+        print("Creating historical risk assessments...")
+        
+        # Q3 2024 Assessment (Higher Risk)
+        q3_assessment = RiskAssessment(
+            name="Q3 2024 Security Assessment",
+            status="Locked",
+            created_at=date(2024, 9, 30),
+            locked_at=date(2024, 10, 1),
+            total_residual_risk=150 # Simulated higher risk
+        )
+        db.session.add(q3_assessment)
+        
+        # Q4 2024 Assessment (Improved)
+        q4_assessment = RiskAssessment(
+            name="Q4 2024 Security Assessment",
+            status="Locked",
+            created_at=date(2024, 12, 31),
+            locked_at=date(2025, 1, 1),
+            total_residual_risk=120 # Simulated improvement
+        )
+        db.session.add(q4_assessment)
         db.session.commit()
 
         print("Database seeding complete!")

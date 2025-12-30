@@ -65,7 +65,9 @@ def new_asset():
             user_id=request.form.get('user_id'),
             location_id=request.form.get('location_id'),
             supplier_id=request.form.get('supplier_id'),
-            purchase_id=request.form.get('purchase_id')
+            purchase_id=request.form.get('purchase_id'),
+            is_critical=request.form.get('is_critical') == 'on',
+            is_virtual=request.form.get('is_virtual') == 'on'
         )
         db.session.add(asset)
         db.session.commit()
@@ -165,6 +167,8 @@ def edit_asset(id):
         asset.location_id = location_id
         asset.supplier_id = supplier_id
         asset.purchase_id = purchase_id
+        asset.is_critical = request.form.get('is_critical') == 'on'
+        asset.is_virtual = request.form.get('is_virtual') == 'on'
 
         db.session.commit()
         flash('Asset updated successfully!')

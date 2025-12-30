@@ -2,7 +2,6 @@
 Tests for CostCenter routes
 Migrated from test_zero_coverage_routes.py
 """
-import pytest
 from src.models import CostCenter
 
 

@@ -21,6 +21,12 @@
             <span class="badge bg-secondary fs-6 align-middle">{{ service.criticality|default('Standard', true)
                 }}</span>
             {% endif %}
+            {% if service.aggregated_risk_score > 0 %}
+            <span class="badge rounded-pill fs-6 align-middle ms-2"
+                style="background-color: {{ service.risk_status_color }};">
+                <i class="fas fa-biohazard"></i> Risk: {{ service.aggregated_risk_score }}
+            </span>
+            {% endif %}
         </h1>
         <p class="text-muted mb-0">{{ service.description }}</p>
     </div>
@@ -138,6 +144,9 @@
                             %% Styles
                             classDef default fill:#f9f9f9,stroke:#333,stroke-width:1px;
                             classDef focus fill:#ff9f43,stroke:#333,stroke-width:4px,color:white;
+                            classDef riskCritical fill:#dc3545,stroke:#333,stroke-width:2px,color:white;
+                            classDef riskHigh fill:#fd7e14,stroke:#333,stroke-width:2px,color:white;
+                            classDef riskMed fill:#ffc107,stroke:#333,stroke-width:2px,color:black;
 
                             %% Central Node
                             id{{ service.id }}("{{ service.name }}"):::focus
@@ -148,15 +157,21 @@
 
                             click id{{ edge.from }} "{{ url_for('services.detail', id=edge.from) }}"
                             click id{{ edge.to }} "{{ url_for('services.detail', id=edge.to) }}"
+                            {% endfor %}
 
-                            {% if edge.from == service.id %}
-                            style id{{ edge.from }} fill:#ff9f43,stroke-width:4px,color:white
-                            {% endif %}
-
-                            {% if edge.to == service.id %}
-                            style id{{ edge.to }} fill:#ff9f43,stroke-width:4px,color:white
+                            %% Apply risk styles to nodes
+                            {% for srv_id, color in node_styles.items() %}
+                            {% if color == '#dc3545' %}
+                            class id{{ srv_id }} riskCritical
+                            {% elif color == '#fd7e14' %}
+                            class id{{ srv_id }} riskHigh
+                            {% elif color == '#ffc107' %}
+                            class id{{ srv_id }} riskMed
                             {% endif %}
                             {% endfor %}
+
+                            %% Highlight current service (focus overrides risk if same node)
+                            class id{{ service.id }} focus
                         </div>
                     </div>
                 </div>
@@ -237,6 +252,7 @@
                             <tr>
                                 <th>Type</th>
                                 <th>Item</th>
+                                <th>Risk</th>
                                 <th>Notes</th>
                                 <th>Actions</th>
                             </tr>
@@ -250,8 +266,24 @@
                                     {# Helper to guess display name #}
                                     {{ comp.linked_object.name or comp.linked_object.title or
                                     comp.linked_object.hostname or 'Item #' ~ comp.component_id }}
+                                    {% if comp.linked_object.is_critical|default(false) %}
+                                    <span class="badge bg-danger ms-1">Critical</span>
+                                    {% endif %}
+                                    {% if comp.linked_object.is_virtual|default(false) %}
+                                    <span class="badge bg-info ms-1">Virtual</span>
+                                    {% endif %}
                                     {% else %}
                                     <span class="text-danger">Item Not Found (ID: {{ comp.component_id }})</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if comp.linked_object and comp.linked_object.max_risk_score|default(0) > 0 %}
+                                    <span
+                                        class="badge {% if comp.linked_object.max_risk_score > 15 %}bg-danger{% elif comp.linked_object.max_risk_score > 8 %}bg-warning text-dark{% else %}bg-success{% endif %}">
+                                        {{ comp.linked_object.max_risk_score }}
+                                    </span>
+                                    {% else %}
+                                    <span class="badge bg-success"><i class="fas fa-check"></i></span>
                                     {% endif %}
                                 </td>
                                 <td>{{ comp.notes }}</td>
@@ -268,7 +300,7 @@
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="4" class="text-center text-muted">No infrastructure components linked.</td>
+                                <td colspan="5" class="text-center text-muted">No infrastructure components linked.</td>
                             </tr>
                             {% endfor %}
                         </tbody>

@@ -324,9 +324,11 @@ class AuditControlLink(db.Model):
         from .bcdr import BCDRPlan
         from .security import SecurityIncident, SecurityAssessment, Risk, AssetInventory
         from .services import BusinessService
+        from .auth import OrgChartSnapshot
         
         # Map types to models
         model_map = {
+            'OrgChartSnapshot': OrgChartSnapshot,
             'Asset': Asset,
             'Peripheral': Peripheral,
             'Software': Software,

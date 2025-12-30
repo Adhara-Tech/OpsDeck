@@ -88,9 +88,23 @@ def detail(id):
             
     dependency_map = list(unique_edges.values())
 
+    # Create risk node styles for Mermaid graph coloring
+    related_service_ids = set()
+    related_service_ids.add(service.id)
+    for edge in dependency_map:
+        related_service_ids.add(edge['from'])
+        related_service_ids.add(edge['to'])
+    
+    node_styles = {}
+    related_services = BusinessService.query.filter(BusinessService.id.in_(related_service_ids)).all()
+    for srv in related_services:
+        if srv.aggregated_risk_score > 0:
+            node_styles[srv.id] = srv.risk_status_color
+
     return render_template('services/detail.html', 
         service=service, 
         dependency_map=dependency_map,
+        node_styles=node_styles,
         upstream_map=upstream_map,
         downstream_map=downstream_map,
         all_services=all_services,

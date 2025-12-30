@@ -44,6 +44,14 @@ ens_controls = [
     ("mp.serv.1", "Continuidad del servicio", "Se establecerán planes para recuperar el servicio en caso de desastre.")
 ]
 
+dora_controls = [
+    ("ICT.1", "ICT Risk Management", "Financial entities shall have a sound, comprehensive and well-documented ICT risk management framework as part of their overall risk management system, enabling them to address ICT risk quickly, efficiently and comprehensively and to ensure a high level of digital operational resilience."),
+    ("ICT.2", "ICT-related Incident Management", "Financial entities shall stream-line the reporting of major ICT-related incidents to the relevant competent authority and shall establish a management process to monitor and log ICT-related incidents."),
+    ("ICT.3", "Digital Operational Resilience Testing", "Financial entities shall maintain and update a sound and comprehensive digital operational resilience testing programme as an integral part of the ICT risk management framework."),
+    ("ICT.4", "ICT Third-Party Risk Management", "Financial entities shall monitor ICT third-party risk covering the full life cycle of ICT third-party relationships, including specific requirements for the contractual arrangements between financial entities and ICT third-party service providers."),
+    ("ICT.5", "Information Sharing", "Financial entities may exchange amongst themselves cyber threat information and intelligence, including indicators of compromise, tactics, techniques, and procedures, cyber security alerts and configuration tools, to the extent that such information sharing enhances their digital operational resilience.")
+]
+
 def seed_threats():
     print("Seeding threat types...")
     for category, name, description in common_threats:
@@ -444,6 +452,29 @@ def seed_production_frameworks():
             
         db.session.add(ens_framework)
         print(f"ENS (Spanish) added with {len(ens_controls)} controls.")
+        frameworks_added = True
+
+    # --- DORA (Digital Operational Resilience Act) ---
+    if not Framework.query.filter_by(name='DORA').first():
+        print("Creating Framework DORA...")
+        dora_framework = Framework(
+            name='DORA',
+            description='European Union regulation on digital operational resilience for the financial sector.',
+            link='https://www.iop.europa.eu/',
+            is_custom=False,
+            is_active=False
+        )
+        
+        for control_id, name, description in dora_controls:
+            control = FrameworkControl(
+                control_id=control_id,
+                name=name,
+                description=description
+            )
+            dora_framework.framework_controls.append(control)
+        
+        db.session.add(dora_framework)
+        print(f"DORA added with {len(dora_controls)} controls.")
         frameworks_added = True
 
     if frameworks_added:

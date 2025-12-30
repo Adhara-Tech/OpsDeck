@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+
+        body {
+            font-family: sans-serif;
+            font-size: 10pt;
+            background: #fff;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2cm;
+            border-bottom: 2px solid #333;
+            padding-bottom: 1cm;
+        }
+
+        h1 {
+            font-size: 24pt;
+            margin: 0;
+        }
+
+        .meta {
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .summary-box {
+            border: 1px solid #ddd;
+            padding: 15px;
+            background: #f9f9f9;
+            margin-bottom: 1cm;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1cm;
+        }
+
+        th,
+        td {
+            border: 1px solid #ccc;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background: #eee;
+        }
+
+        .risk-high {
+            background-color: #ffe6e6;
+        }
+
+        .risk-med {
+            background-color: #fff3cd;
+        }
+
+        .risk-low {
+            background-color: #e6fffa;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>Risk Assessment Report</h1>
+        <div class="meta">{{ assessment.name }}</div>
+        <div class="meta">Generated: {{ now.strftime('%Y-%m-%d') }} | Created: {{
+            assessment.created_at.strftime('%Y-%m-%d') }}</div>
+    </div>
+
+    <div class="summary-box">
+        <h3>Executive Summary</h3>
+        <p><strong>Status:</strong> {{ assessment.status }}</p>
+        <p><strong>Total Residual Risk Score:</strong> {{ assessment.current_total_risk }}</p>
+        <p><strong>Items Assessed:</strong> {{ assessment.items|length }}</p>
+    </div>
+
+    <h3>Detailed Risk Register</h3>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 40%">Risk Description</th>
+                <th style="width: 20%">Threat Type</th>
+                <th style="width: 10%">Residual Score</th>
+                <th style="width: 30%">Mitigation Notes</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in assessment.items %}
+            <tr>
+                <td>{{ item.risk_description }}</td>
+                <td>{{ item.threat_type_name }}</td>
+                <td
+                    class="{% if item.residual_score > 15 %}risk-high{% elif item.residual_score > 8 %}risk-med{% else %}risk-low{% endif %}">
+                    {{ item.residual_score }}
+                </td>
+                <td>{{ item.mitigation_notes }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+
+</html>

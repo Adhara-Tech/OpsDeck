@@ -204,6 +204,29 @@
                             <div class="accordion-body">
                                 <p class="text-muted small mb-3">{{ item.control_description }}</p>
 
+                                {% if item.original_control and item.original_control.get_all_mappings() %}
+                                <div class="alert alert-info border-info mb-3 py-2">
+                                    <h6 class="alert-heading mb-2">
+                                        <i class="fas fa-diagram-project"></i> Cross-Framework Intelligence
+                                    </h6>
+                                    <p class="mb-2 small">This control is mapped to standards you already manage:</p>
+                                    <ul class="mb-0 small">
+                                        {% for mapped in item.original_control.get_all_mappings() %}
+                                        <li>
+                                            <span class="badge bg-secondary">{{ mapped.framework.name }}</span>
+                                            <strong>{{ mapped.control_id }}</strong>: {{ mapped.name[:60] }}{% if
+                                            mapped.name|length > 60 %}...{% endif %}
+                                            <a href="{{ url_for('frameworks.control_detail', id=mapped.id) }}"
+                                                class="btn btn-xs btn-outline-dark ms-1" target="_blank"
+                                                title="View Control">
+                                                <i class="fas fa-external-link-alt"></i>
+                                            </a>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                                {% endif %}
+
                                 <div class="row">
                                     <div class="col-md-6">
                                         <h6 class="text-primary border-bottom pb-2 mb-3"><i class="fas fa-chess"></i>
@@ -699,6 +722,7 @@
                             <option value="Link">Link</option>
                             <option value="Course">Training Course</option>
                             <option value="Risk">Risk</option>
+                            <option value="OrgChartSnapshot">Organizational Chart</option>
                             <option value="Software">Software</option>
                             <option value="Supplier">Supplier</option>
                             <option value="BusinessService">Service</option>

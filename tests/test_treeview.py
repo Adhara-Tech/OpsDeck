@@ -6,7 +6,7 @@ import pytest
 from datetime import date, timedelta
 from src import db
 from src.models import (
-    Location, User, Asset, Peripheral, License, Supplier, Subscription, Purchase
+    Location, User, Asset, Peripheral, License, Supplier, Subscription
 )
 
 @pytest.fixture

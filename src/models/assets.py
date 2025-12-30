@@ -30,6 +30,10 @@ class Asset(db.Model):
     warranty_length = db.Column(db.Integer) # in months
     is_archived = db.Column(db.Boolean, default=False, nullable=False)
     
+    # --- NEW FIELDS: Critical and Virtual indicators ---
+    is_critical = db.Column(db.Boolean, default=False, nullable=False)
+    is_virtual = db.Column(db.Boolean, default=False, nullable=False)
+    
     # Relationships
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     location_id = db.Column(db.Integer, db.ForeignKey('location.id'))
@@ -62,6 +66,30 @@ class Asset(db.Model):
         if self.purchase_date and self.warranty_length:
             return self.purchase_date + relativedelta(months=+self.warranty_length)
         return None
+
+    @property
+    def linked_risks(self):
+        """Returns all active risks linked to this asset via RiskAffectedItem."""
+        from .security import RiskAffectedItem, Risk
+        items = RiskAffectedItem.query.filter_by(
+            linkable_type='Asset',
+            linkable_id=self.id
+        ).all()
+        risk_ids = [item.risk_id for item in items]
+        if not risk_ids:
+            return []
+        return Risk.query.filter(
+            Risk.id.in_(risk_ids),
+            Risk.status != 'Closed'
+        ).all()
+
+    @property
+    def max_risk_score(self):
+        """Returns the highest residual_score among linked risks, or 0 if none."""
+        risks = self.linked_risks
+        if not risks:
+            return 0
+        return max(r.residual_score for r in risks)
 
 class AssetAssignment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
