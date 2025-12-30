@@ -397,6 +397,76 @@ class RiskCategory(db.Model):
     risk_id = db.Column(db.Integer, db.ForeignKey('risk.id'), nullable=False)
     category = db.Column(db.String(50), nullable=False)
 
+
+class RiskHistory(db.Model):
+    """
+    Audit trail for tracking changes to Risk fields.
+    Automatically populated via SQLAlchemy event listener.
+    """
+    __tablename__ = 'risk_history'
+    id = db.Column(db.Integer, primary_key=True)
+    risk_id = db.Column(db.Integer, db.ForeignKey('risk.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    field_changed = db.Column(db.String(100), nullable=False)
+    old_value = db.Column(db.String(500))
+    new_value = db.Column(db.String(500))
+
+    # Relationships
+    risk = db.relationship('Risk', backref=db.backref('history', lazy='dynamic', order_by='RiskHistory.timestamp.desc()'))
+    user = db.relationship('User')
+
+    def __repr__(self):
+        return f'<RiskHistory {self.risk_id}: {self.field_changed} {self.old_value} -> {self.new_value}>'
+
+
+# --- Event Listener for Risk Audit Trail ---
+from sqlalchemy import event
+from sqlalchemy.orm import Session
+from flask import session as flask_session, has_request_context
+
+# Fields to track for audit
+RISK_TRACKED_FIELDS = [
+    'inherent_impact', 'inherent_likelihood', 
+    'residual_impact', 'residual_likelihood',
+    'status', 'treatment_strategy'
+]
+
+@event.listens_for(Risk, 'before_update')
+def risk_before_update(mapper, connection, target):
+    """
+    Capture changes to tracked fields and insert audit records.
+    Uses raw connection to avoid session conflicts.
+    """
+    state = db.inspect(target)
+    
+    for field in RISK_TRACKED_FIELDS:
+        hist = state.attrs[field].history
+        if hist.has_changes():
+            old_val = hist.deleted[0] if hist.deleted else None
+            new_val = hist.added[0] if hist.added else getattr(target, field)
+            
+            # Skip if values are actually the same (type coercion edge case)
+            if str(old_val) == str(new_val):
+                continue
+            
+            # Get current user from Flask session if available
+            user_id = None
+            if has_request_context():
+                user_id = flask_session.get('user_id')
+            
+            # Insert directly via connection to avoid session issues
+            connection.execute(
+                RiskHistory.__table__.insert().values(
+                    risk_id=target.id,
+                    user_id=user_id,
+                    field_changed=field,
+                    old_value=str(old_val) if old_val is not None else None,
+                    new_value=str(new_val) if new_val is not None else None
+                )
+            )
+
+
 class SecurityAssessment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     assessment_date = db.Column(db.Date, nullable=False, default=date.today)

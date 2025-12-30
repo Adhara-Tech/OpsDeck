@@ -479,28 +479,100 @@ def seed_data():
         audit.status = "Prep"
         db.session.commit()
 
-        # 14. Historical Risk Assessments
-        print("Creating historical risk assessments...")
+        # 14. Historical Risk Assessments with Items
+        print("Creating historical risk assessments with items...")
+        from .models import RiskAssessmentItem, RiskAssessmentEvidence
+        from datetime import datetime as dt
         
-        # Q3 2024 Assessment (Higher Risk)
+        # Q3 2024 Assessment - Higher initial residual scores
         q3_assessment = RiskAssessment(
             name="Q3 2024 Security Assessment",
             status="Locked",
-            created_at=date(2024, 9, 30),
-            locked_at=date(2024, 10, 1),
-            total_residual_risk=150 # Simulated higher risk
+            created_at=dt(2024, 9, 30),
+            locked_at=dt(2024, 10, 1)
         )
         db.session.add(q3_assessment)
+        db.session.flush()  # Get ID
         
-        # Q4 2024 Assessment (Improved)
+        # Create items for Q3 - snapshot of risks at that time (higher residual)
+        q3_items_data = [
+            # (risk_index, inherent_i, inherent_l, residual_i, residual_l, notes)
+            (0, 5, 4, 5, 3, "Initial controls in place but MFA adoption only at 60%."),
+            (1, 4, 2, 4, 2, "Backup system operational but recovery time untested."),
+            (2, 3, 5, 3, 4, "EDR deployment in progress, 50% coverage."),
+            (3, 5, 3, 4, 3, "Supplier assessments pending for 2 vendors."),
+            (4, 4, 4, 4, 4, "DLP solution not yet deployed."),
+            (5, 3, 3, 3, 2, "Manual access reviews ongoing.")
+        ]
+        
+        for risk_idx, inh_i, inh_l, res_i, res_l, notes in q3_items_data:
+            risk = risks[risk_idx]
+            item = RiskAssessmentItem(
+                assessment_id=q3_assessment.id,
+                original_risk_id=risk.id,
+                risk_description=risk.risk_description,
+                threat_type_name=risk.threat_type.name if risk.threat_type else None,
+                category_list=",".join([c.category for c in risk.categories]) if risk.categories else "",
+                inherent_impact=inh_i,
+                inherent_likelihood=inh_l,
+                residual_impact=res_i,
+                residual_likelihood=res_l,
+                treatment_strategy=risk.treatment_strategy,
+                mitigation_notes=notes
+            )
+            db.session.add(item)
+        
+        q3_assessment.calculate_total_risk()
+        
+        # Q4 2024 Assessment - Lower residual scores (improvement!)
         q4_assessment = RiskAssessment(
             name="Q4 2024 Security Assessment",
             status="Locked",
-            created_at=date(2024, 12, 31),
-            locked_at=date(2025, 1, 1),
-            total_residual_risk=120 # Simulated improvement
+            created_at=dt(2024, 12, 31),
+            locked_at=dt(2025, 1, 2)
         )
         db.session.add(q4_assessment)
+        db.session.flush()
+        
+        # Create items for Q4 - shows improvement from controls
+        q4_items_data = [
+            # (risk_index, inherent_i, inherent_l, residual_i, residual_l, notes)
+            (0, 5, 4, 5, 2, "MFA enforced company-wide. Key rotation automated."),
+            (1, 4, 2, 4, 1, "Disaster recovery test successful. RTO < 30 min achieved."),
+            (2, 3, 5, 3, 3, "EDR deployed to 95% of endpoints."),
+            (3, 5, 3, 4, 2, "All critical vendors assessed. DPAs signed."),
+            (4, 4, 4, 4, 3, "DLP rules deployed for email. Monitoring active."),
+            (5, 3, 3, 3, 1, "Automated quarterly access reviews implemented."),
+            (8, 4, 4, 2, 1, "Cloudflare fully operational. DDoS mitigated."),  # DDoS risk
+        ]
+        
+        for risk_idx, inh_i, inh_l, res_i, res_l, notes in q4_items_data:
+            risk = risks[risk_idx]
+            item = RiskAssessmentItem(
+                assessment_id=q4_assessment.id,
+                original_risk_id=risk.id,
+                risk_description=risk.risk_description,
+                threat_type_name=risk.threat_type.name if risk.threat_type else None,
+                category_list=",".join([c.category for c in risk.categories]) if risk.categories else "",
+                inherent_impact=inh_i,
+                inherent_likelihood=inh_l,
+                residual_impact=res_i,
+                residual_likelihood=res_l,
+                treatment_strategy=risk.treatment_strategy,
+                mitigation_notes=notes
+            )
+            db.session.add(item)
+            db.session.flush()
+            
+            # Add evidence links to some items (policies, docs)
+            if risk_idx == 0:  # MFA risk - link to security policy
+                ev = RiskAssessmentEvidence(item_id=item.id, linkable_type='Policy', linkable_id=policy.id, notes='MFA mandated in policy')
+                db.session.add(ev)
+            if risk_idx == 1:  # Backup risk - link to BCDR plan
+                ev = RiskAssessmentEvidence(item_id=item.id, linkable_type='BCDRPlan', linkable_id=bcdr_plan.id, notes='DR plan tested successfully')
+                db.session.add(ev)
+        
+        q4_assessment.calculate_total_risk()
         db.session.commit()
 
         print("Database seeding complete!")

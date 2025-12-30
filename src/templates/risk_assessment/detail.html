@@ -113,10 +113,41 @@
                                 <div class="small mb-1"><i class="fas fa-sticky-note text-warning"></i> {{
                                     item.mitigation_notes|truncate(50) }}</div>
                                 {% endif %}
-                                <small class="text-muted">{{ item.evidence|length }} Evidence</small>
+                                {% if item.evidence %}
+                                <div class="d-flex flex-wrap gap-1">
+                                    {% for ev in item.evidence %}
+                                    <span class="badge bg-light text-dark border" title="{{ ev.notes or 'No notes' }}">
+                                        {% if ev.attachment_id %}
+                                        <i class="fas fa-paperclip"></i>
+                                        {% else %}
+                                        <i class="fas fa-link"></i>
+                                        {% endif %}
+                                        {{ ev.display_name|truncate(15) }}
+                                        {% if assessment.status != 'Locked' %}
+                                        <form
+                                            action="{{ url_for('risk_assessment.delete_evidence', id=assessment.id, evidence_id=ev.id) }}"
+                                            method="POST" class="d-inline"
+                                            onsubmit="return confirm('Remove this evidence?');">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn btn-link btn-sm p-0 ms-1 text-danger"
+                                                style="font-size: 0.7rem;">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                    </span>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <small class="text-muted">No evidence</small>
+                                {% endif %}
                             </td>
                             <td class="text-end">
                                 {% if assessment.status != 'Locked' %}
+                                <button class="btn btn-sm btn-outline-success me-1" data-bs-toggle="modal"
+                                    data-bs-target="#addEvidenceModal{{ item.id }}" title="Add Evidence">
+                                    <i class="fas fa-plus"></i>
+                                </button>
                                 <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
                                     data-bs-target="#editItemModal{{ item.id }}">
                                     <i class="fas fa-edit"></i>
@@ -167,6 +198,95 @@
                                             <button type="submit" class="btn btn-primary">Save Changes</button>
                                         </div>
                                     </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Add Evidence Modal -->
+                        <div class="modal fade" id="addEvidenceModal{{ item.id }}" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title"><i class="fas fa-file-alt"></i> Add Evidence</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <!-- Tabs -->
+                                        <ul class="nav nav-pills nav-fill mb-3" id="evidenceTabs{{ item.id }}">
+                                            <li class="nav-item">
+                                                <button class="nav-link active" data-bs-toggle="pill"
+                                                    data-bs-target="#uploadTab{{ item.id }}">
+                                                    <i class="fas fa-upload"></i> Upload File
+                                                </button>
+                                            </li>
+                                            <li class="nav-item">
+                                                <button class="nav-link" data-bs-toggle="pill"
+                                                    data-bs-target="#linkTab{{ item.id }}">
+                                                    <i class="fas fa-link"></i> Link Object
+                                                </button>
+                                            </li>
+                                        </ul>
+                                        <div class="tab-content">
+                                            <!-- Upload Tab -->
+                                            <div class="tab-pane fade show active" id="uploadTab{{ item.id }}">
+                                                <form
+                                                    action="{{ url_for('risk_assessment.upload_evidence', id=assessment.id, item_id=item.id) }}"
+                                                    method="POST" enctype="multipart/form-data">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                    <div class="mb-3">
+                                                        <label class="form-label">File</label>
+                                                        <input type="file" class="form-control" name="file" required>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Notes (optional)</label>
+                                                        <input type="text" class="form-control" name="notes"
+                                                            placeholder="e.g., Security scan report">
+                                                    </div>
+                                                    <button type="submit" class="btn btn-primary w-100">
+                                                        <i class="fas fa-upload"></i> Upload Evidence
+                                                    </button>
+                                                </form>
+                                            </div>
+                                            <!-- Link Tab -->
+                                            <div class="tab-pane fade" id="linkTab{{ item.id }}">
+                                                <form
+                                                    action="{{ url_for('risk_assessment.link_evidence', id=assessment.id, item_id=item.id) }}"
+                                                    method="POST">
+                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Object Type</label>
+                                                        <select class="form-select" name="linkable_type"
+                                                            id="linkType{{ item.id }}"
+                                                            onchange="loadLinkableObjects({{ item.id }}, this.value)"
+                                                            required>
+                                                            <option value="">Select type...</option>
+                                                            <option value="Policy">Policy</option>
+                                                            <option value="Asset">Asset</option>
+                                                            <option value="Documentation">Documentation</option>
+                                                            <option value="Software">Software</option>
+                                                            <option value="Supplier">Supplier</option>
+                                                            <option value="Course">Training Course</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Select Object</label>
+                                                        <select class="form-select" name="linkable_id"
+                                                            id="linkObject{{ item.id }}" required>
+                                                            <option value="">Select type first...</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Notes (optional)</label>
+                                                        <input type="text" class="form-control" name="notes"
+                                                            placeholder="e.g., Implements control XYZ">
+                                                    </div>
+                                                    <button type="submit" class="btn btn-primary w-100">
+                                                        <i class="fas fa-link"></i> Link Evidence
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -262,6 +382,33 @@
             new bootstrap.Tooltip(el);
         });
     });
+
+    // Load linkable objects for evidence modal
+    function loadLinkableObjects(itemId, linkableType) {
+        const select = document.getElementById('linkObject' + itemId);
+        select.innerHTML = '<option value="">Loading...</option>';
+
+        if (!linkableType) {
+            select.innerHTML = '<option value="">Select type first...</option>';
+            return;
+        }
+
+        fetch('/risk-assessments/api/linkable-objects/' + linkableType)
+            .then(response => response.json())
+            .then(data => {
+                select.innerHTML = '<option value="">Select ' + linkableType + '...</option>';
+                data.forEach(function (obj) {
+                    const option = document.createElement('option');
+                    option.value = obj.id;
+                    option.textContent = obj.name;
+                    select.appendChild(option);
+                });
+            })
+            .catch(error => {
+                console.error('Error loading objects:', error);
+                select.innerHTML = '<option value="">Error loading objects</option>';
+            });
+    }
 </script>
 {% endblock %}
 {% endblock %}

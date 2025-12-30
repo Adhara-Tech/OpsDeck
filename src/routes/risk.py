@@ -290,15 +290,17 @@ def new_risk():
         risk = Risk(
             risk_description=request.form['risk_description'],
             owner_id=request.form.get('owner_id'),
-            status=request.form.get('status'),
+            status=request.form.get('status', 'Draft'),
             treatment_strategy=request.form.get('treatment_strategy'),
             threat_type_id=int(threat_type_id) if threat_type_id else None,
             
             inherent_impact=int(request.form.get('inherent_impact', 5)),
             inherent_likelihood=int(request.form.get('inherent_likelihood', 5)),
             
-            residual_impact=int(request.form.get('residual_impact', 5)),
-            residual_likelihood=int(request.form.get('residual_likelihood', 5)),
+            # INTEGRITY RULE: Residual = Inherent on creation
+            # Residual values can only be modified via Risk Assessments
+            residual_impact=int(request.form.get('inherent_impact', 5)),
+            residual_likelihood=int(request.form.get('inherent_likelihood', 5)),
             
             mitigation_plan=request.form.get('mitigation_plan'),
             link=request.form.get('link')

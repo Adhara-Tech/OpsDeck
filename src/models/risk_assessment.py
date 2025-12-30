@@ -62,27 +62,56 @@ class RiskAssessmentItem(db.Model):
 
 class RiskAssessmentEvidence(db.Model):
     """
-    Polymorphic table to link evidence (Policies, Assets, etc.) to an assessment item.
-    Similar to AuditControlLink.
+    Polymorphic table to link evidence (Policies, Assets, etc.) or file attachments to an assessment item.
+    Either (linkable_type + linkable_id) OR attachment_id should be set.
     """
     id = db.Column(db.Integer, primary_key=True)
     item_id = db.Column(db.Integer, db.ForeignKey('risk_assessment_item.id'), nullable=False)
     
-    linkable_type = db.Column(db.String(50), nullable=False)
-    linkable_id = db.Column(db.Integer, nullable=False)
+    # Option 1: Link to OpsDeck object (Policy, Asset, etc.)
+    linkable_type = db.Column(db.String(50), nullable=True)
+    linkable_id = db.Column(db.Integer, nullable=True)
+    
+    # Option 2: Link to uploaded file
+    attachment_id = db.Column(db.Integer, db.ForeignKey('attachment.id'), nullable=True)
+    attachment = db.relationship('Attachment')
+    
     notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     @property
-    def item_object(self):
+    def display_name(self):
+        """Returns a readable name for the evidence item."""
+        if self.attachment_id and self.attachment:
+            return self.attachment.filename
+        elif self.linkable_type and self.linked_object:
+            obj = self.linked_object
+            if hasattr(obj, 'title'):
+                return obj.title
+            elif hasattr(obj, 'name'):
+                return obj.name
+            return f"{self.linkable_type} #{self.linkable_id}"
+        return "Unknown Evidence"
+
+    @property
+    def linked_object(self):
         """Resolves the linked object dynamically."""
-        from . import Policy, Asset, Documentation, Link, BCDRPlan
+        if not self.linkable_type:
+            return None
+            
+        from . import Policy, Asset, Documentation, Link, BCDRPlan, Software, Supplier, Course
+        from .services import BusinessService
         
         model_map = {
             'Policy': Policy,
             'Asset': Asset,
             'Documentation': Documentation,
             'Link': Link,
-            'BCDRPlan': BCDRPlan
+            'BCDRPlan': BCDRPlan,
+            'Software': Software,
+            'Supplier': Supplier,
+            'Course': Course,
+            'BusinessService': BusinessService
         }
         
         model = model_map.get(self.linkable_type)

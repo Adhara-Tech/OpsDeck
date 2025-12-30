@@ -4,7 +4,24 @@
 
 {% block content %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2">Risk #{{ risk.id }}</h1>
+    <div>
+        <h1 class="h2">Risk #{{ risk.id }}</h1>
+        <div class="d-flex align-items-center gap-2 mt-1">
+            <span
+                class="badge bg-{{ 'danger' if risk.criticality_level == 'Critical' else 'warning text-dark' if risk.criticality_level == 'High' else 'info' if risk.criticality_level == 'Medium' else 'success' }}">
+                {{ risk.criticality_level }} ({{ risk.residual_score }})
+            </span>
+            <span class="badge bg-secondary">{{ risk.status }}</span>
+            {% if risk.treatment_strategy %}
+            <span
+                class="badge bg-{{ 'success' if risk.treatment_strategy == 'Accept' else 'primary' if risk.treatment_strategy == 'Mitigate' else 'info' if risk.treatment_strategy == 'Transfer' else 'dark' }}">
+                <i
+                    class="fas fa-{{ 'check-circle' if risk.treatment_strategy == 'Accept' else 'shield-alt' if risk.treatment_strategy == 'Mitigate' else 'exchange-alt' if risk.treatment_strategy == 'Transfer' else 'ban' }}"></i>
+                {{ risk.treatment_strategy }}
+            </span>
+            {% endif %}
+        </div>
+    </div>
     <div class="btn-toolbar mb-2 mb-md-0">
         <a href="{{ url_for('risk.edit_risk', id=risk.id) }}" class="btn btn-sm btn-outline-secondary me-2">
             <i class="bi bi-pencil"></i> Edit
@@ -25,7 +42,7 @@
             </li>
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="treatment-tab" data-bs-toggle="tab" data-bs-target="#treatment"
-                    type="button" role="tab">Treatment</button>
+                    type="button" role="tab">Roadmap</button>
             </li>
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="affected-tab" data-bs-toggle="tab" data-bs-target="#affected" type="button"
@@ -453,6 +470,47 @@
                                 </tbody>
                             </table>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Audit Log -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="bi bi-journal-text"></i> Audit Log</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <p class="text-muted small px-3 pt-3 mb-2">
+                            Technical log of manual field changes made to this risk record.
+                        </p>
+                        {% if risk.history.count() > 0 %}
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Timestamp</th>
+                                        <th>User</th>
+                                        <th>Field Changed</th>
+                                        <th>Old Value</th>
+                                        <th>New Value</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for entry in risk.history.limit(50) %}
+                                    <tr>
+                                        <td class="small">{{ entry.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+                                        <td class="small">{{ entry.user.name if entry.user else 'System' }}</td>
+                                        <td><code>{{ entry.field_changed }}</code></td>
+                                        <td class="text-muted small">{{ entry.old_value or '-' }}</td>
+                                        <td class="small">{{ entry.new_value or '-' }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="p-3 text-muted">No audit log entries yet. Changes to inherent/residual scores,
+                            status, and treatment strategy will be logged here.</div>
+                        {% endif %}
                     </div>
                 </div>
             </div>

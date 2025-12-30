@@ -137,3 +137,160 @@ def export_pdf(id):
         as_attachment=True,
         download_name=f'Assessment_{assessment.name.replace(" ", "_")}.pdf'
     )
+
+
+# --- Evidence Management Routes ---
+
+@risk_assessment_bp.route('/<int:id>/item/<int:item_id>/upload', methods=['POST'])
+@login_required
+@admin_required
+def upload_evidence(id, item_id):
+    """Upload a file as evidence for an assessment item."""
+    from ..models import Attachment, RiskAssessmentEvidence
+    from werkzeug.utils import secure_filename
+    from flask import current_app
+    import uuid
+    import os
+    
+    assessment = RiskAssessment.query.get_or_404(id)
+    item = RiskAssessmentItem.query.get_or_404(item_id)
+    
+    if item.assessment_id != assessment.id:
+        flash('Invalid item for this assessment.', 'danger')
+        return redirect(url_for('risk_assessment.view_assessment', id=id))
+    
+    if assessment.status == 'Locked':
+        flash('Cannot add evidence to a locked assessment.', 'warning')
+        return redirect(url_for('risk_assessment.view_assessment', id=id))
+    
+    file = request.files.get('file')
+    if not file or file.filename == '':
+        flash('No file selected.', 'warning')
+        return redirect(url_for('risk_assessment.view_assessment', id=id))
+    
+    # Save file
+    original_filename = secure_filename(file.filename)
+    unique_filename = f"{uuid.uuid4().hex}_{original_filename}"
+    save_path = os.path.join(current_app.config['UPLOAD_FOLDER'], unique_filename)
+    file.save(save_path)
+    
+    # Create Attachment record
+    attachment = Attachment(
+        filename=original_filename,
+        secure_filename=unique_filename,
+        linkable_type='RiskAssessmentItem',
+        linkable_id=item_id
+    )
+    db.session.add(attachment)
+    db.session.flush()
+    
+    # Create Evidence record
+    notes = request.form.get('notes', '')
+    evidence = RiskAssessmentEvidence(
+        item_id=item_id,
+        attachment_id=attachment.id,
+        notes=notes
+    )
+    db.session.add(evidence)
+    db.session.commit()
+    
+    flash(f'Evidence file "{original_filename}" uploaded successfully.', 'success')
+    return redirect(url_for('risk_assessment.view_assessment', id=id))
+
+
+@risk_assessment_bp.route('/<int:id>/item/<int:item_id>/link', methods=['POST'])
+@login_required
+@admin_required
+def link_evidence(id, item_id):
+    """Link an existing OpsDeck object as evidence for an assessment item."""
+    from ..models import RiskAssessmentEvidence
+    
+    assessment = RiskAssessment.query.get_or_404(id)
+    item = RiskAssessmentItem.query.get_or_404(item_id)
+    
+    if item.assessment_id != assessment.id:
+        flash('Invalid item for this assessment.', 'danger')
+        return redirect(url_for('risk_assessment.view_assessment', id=id))
+    
+    if assessment.status == 'Locked':
+        flash('Cannot add evidence to a locked assessment.', 'warning')
+        return redirect(url_for('risk_assessment.view_assessment', id=id))
+    
+    linkable_type = request.form.get('linkable_type')
+    linkable_id = request.form.get('linkable_id')
+    notes = request.form.get('notes', '')
+    
+    if not linkable_type or not linkable_id:
+        flash('Please select an object to link.', 'warning')
+        return redirect(url_for('risk_assessment.view_assessment', id=id))
+    
+    evidence = RiskAssessmentEvidence(
+        item_id=item_id,
+        linkable_type=linkable_type,
+        linkable_id=int(linkable_id),
+        notes=notes
+    )
+    db.session.add(evidence)
+    db.session.commit()
+    
+    flash(f'{linkable_type} linked as evidence successfully.', 'success')
+    return redirect(url_for('risk_assessment.view_assessment', id=id))
+
+
+@risk_assessment_bp.route('/<int:id>/evidence/<int:evidence_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def delete_evidence(id, evidence_id):
+    """Remove an evidence item from an assessment."""
+    from ..models import RiskAssessmentEvidence
+    
+    assessment = RiskAssessment.query.get_or_404(id)
+    evidence = RiskAssessmentEvidence.query.get_or_404(evidence_id)
+    
+    if evidence.item.assessment_id != assessment.id:
+        flash('Invalid evidence for this assessment.', 'danger')
+        return redirect(url_for('risk_assessment.view_assessment', id=id))
+    
+    if assessment.status == 'Locked':
+        flash('Cannot remove evidence from a locked assessment.', 'warning')
+        return redirect(url_for('risk_assessment.view_assessment', id=id))
+    
+    db.session.delete(evidence)
+    db.session.commit()
+    
+    flash('Evidence removed successfully.', 'success')
+    return redirect(url_for('risk_assessment.view_assessment', id=id))
+
+
+@risk_assessment_bp.route('/api/linkable-objects/<linkable_type>')
+@login_required
+def get_linkable_objects(linkable_type):
+    """API endpoint to get objects of a specific type for linking as evidence."""
+    from flask import jsonify
+    from ..models import Policy, Asset, Documentation, Software, Supplier, Course, BCDRPlan
+    
+    model_map = {
+        'Policy': (Policy, 'title'),
+        'Asset': (Asset, 'name'),
+        'Documentation': (Documentation, 'title'),
+        'Software': (Software, 'name'),
+        'Supplier': (Supplier, 'name'),
+        'Course': (Course, 'title'),
+        'BCDRPlan': (BCDRPlan, 'name'),
+    }
+    
+    if linkable_type not in model_map:
+        return jsonify([])
+    
+    model, name_field = model_map[linkable_type]
+    
+    # Filter out archived items if the model has is_archived
+    if hasattr(model, 'is_archived'):
+        objects = model.query.filter_by(is_archived=False).all()
+    elif hasattr(model, 'status'):
+        objects = model.query.filter(model.status != 'Archived').all()
+    else:
+        objects = model.query.all()
+    
+    result = [{'id': obj.id, 'name': getattr(obj, name_field, f'#{obj.id}')} for obj in objects]
+    return jsonify(result)

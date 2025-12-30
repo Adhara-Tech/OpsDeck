@@ -90,21 +90,29 @@
                         <!-- Assessment Tab -->
                         <div class="tab-pane fade" id="assessment" role="tabpanel">
                             <h5 class="mb-3">Inherent Risk (Pre-Mitigation)</h5>
+                            {% if risk %}
+                            <div class="alert alert-warning py-2 mb-3" id="inherentChangeWarning"
+                                style="display: none;">
+                                <i class="fas fa-exclamation-triangle"></i> <strong>Audit Notice:</strong> Changes to
+                                inherent risk scores will be logged in the audit trail.
+                            </div>
+                            {% endif %}
                             <div class="row g-3 mb-4">
                                 <div class="col-md-6">
                                     <label for="inherent_likelihood" class="form-label">Likelihood (1-5)</label>
-                                    <input type="range" class="form-range" min="1" max="5" step="1"
+                                    <input type="range" class="form-range inherent-slider" min="1" max="5" step="1"
                                         id="inherent_likelihood" name="inherent_likelihood"
                                         value="{{ risk.inherent_likelihood if risk else 5 }}"
-                                        oninput="updateOutput('inh_like_val', this.value)">
+                                        oninput="updateOutput('inh_like_val', this.value); showInherentWarning();">
                                     <div class="text-center fw-bold" id="inh_like_val">{{ risk.inherent_likelihood if
                                         risk else 5 }}</div>
                                 </div>
                                 <div class="col-md-6">
                                     <label for="inherent_impact" class="form-label">Impact (1-5)</label>
-                                    <input type="range" class="form-range" min="1" max="5" step="1" id="inherent_impact"
-                                        name="inherent_impact" value="{{ risk.inherent_impact if risk else 5 }}"
-                                        oninput="updateOutput('inh_imp_val', this.value)">
+                                    <input type="range" class="form-range inherent-slider" min="1" max="5" step="1"
+                                        id="inherent_impact" name="inherent_impact"
+                                        value="{{ risk.inherent_impact if risk else 5 }}"
+                                        oninput="updateOutput('inh_imp_val', this.value); showInherentWarning();">
                                     <div class="text-center fw-bold" id="inh_imp_val">{{ risk.inherent_impact if risk
                                         else 5 }}</div>
                                 </div>
@@ -113,13 +121,20 @@
                             <hr>
 
                             <h5 class="mb-3">Residual Risk (Post-Mitigation)</h5>
+                            {% if risk %}
+                            <div class="alert alert-info py-2 mb-3">
+                                <i class="fas fa-lock"></i> <strong>Read-Only:</strong> Residual risk is managed via
+                                Risk Assessments only. Create or update an assessment to modify these values.
+                            </div>
+                            {% endif %}
                             <div class="row g-3">
                                 <div class="col-md-6">
                                     <label for="residual_likelihood" class="form-label">Likelihood (1-5)</label>
                                     <input type="range" class="form-range" min="1" max="5" step="1"
                                         id="residual_likelihood" name="residual_likelihood"
                                         value="{{ risk.residual_likelihood if risk else 5 }}"
-                                        oninput="updateOutput('res_like_val', this.value)">
+                                        oninput="updateOutput('res_like_val', this.value)" {% if risk %}disabled{% endif
+                                        %}>
                                     <div class="text-center fw-bold" id="res_like_val">{{ risk.residual_likelihood if
                                         risk else 5 }}</div>
                                 </div>
@@ -127,7 +142,8 @@
                                     <label for="residual_impact" class="form-label">Impact (1-5)</label>
                                     <input type="range" class="form-range" min="1" max="5" step="1" id="residual_impact"
                                         name="residual_impact" value="{{ risk.residual_impact if risk else 5 }}"
-                                        oninput="updateOutput('res_imp_val', this.value)">
+                                        oninput="updateOutput('res_imp_val', this.value)" {% if risk %}disabled{% endif
+                                        %}>
                                     <div class="text-center fw-bold" id="res_imp_val">{{ risk.residual_impact if risk
                                         else 5 }}</div>
                                 </div>
@@ -140,6 +156,8 @@
                                 <div class="col-md-6">
                                     <label for="status" class="form-label">Status</label>
                                     <select class="form-select" id="status" name="status">
+                                        <option value="Draft" {% if risk and risk.status=='Draft' %}selected{% endif %}>
+                                            Draft</option>
                                         <option value="Identified" {% if risk and risk.status=='Identified' %}selected{%
                                             endif %}>Identified</option>
                                         <option value="Assessed" {% if risk and risk.status=='Assessed' %}selected{%
@@ -224,6 +242,13 @@
 <script>
     function updateOutput(id, value) {
         document.getElementById(id).innerText = value;
+    }
+
+    function showInherentWarning() {
+        const warning = document.getElementById('inherentChangeWarning');
+        if (warning) {
+            warning.style.display = 'block';
+        }
     }
 </script>
 {% endblock %}
