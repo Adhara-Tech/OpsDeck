@@ -423,7 +423,6 @@ class RiskHistory(db.Model):
 
 # --- Event Listener for Risk Audit Trail ---
 from sqlalchemy import event
-from sqlalchemy.orm import Session
 from flask import session as flask_session, has_request_context
 
 # Fields to track for audit
