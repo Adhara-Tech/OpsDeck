@@ -3,7 +3,6 @@ Tests for model functionality - Software, License, CostCenter, Subscription,
 BusinessService, ServiceComponent.
 Migrated from test_missing_coverage.py
 """
-import pytest
 from datetime import date, timedelta
 from src.models import (
     Software, License, CostCenter, Subscription, Supplier,

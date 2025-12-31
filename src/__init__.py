@@ -83,8 +83,18 @@ def create_app():
 
     # --- Configuration ---
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-change-this')
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///../data/renewals.db')
+    
+    # Database configuration - supports SQLite or PostgreSQL
+    database_url = os.environ.get('DATABASE_URL', 'sqlite:///../data/renewals.db')
+    # Handle Heroku-style postgres:// URLs (SQLAlchemy requires postgresql://)
+    if database_url.startswith('postgres://'):
+        database_url = database_url.replace('postgres://', 'postgresql://', 1)
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    
+    # Log which database backend is being used
+    is_postgres = 'postgresql' in database_url
+    app.config['IS_POSTGRES'] = is_postgres
 
     # --- CORRECT UPLOAD FOLDER CONFIG ---
     # Define the project's root directory (where run.py is)
@@ -138,6 +148,13 @@ def create_app():
 
     # --- Initialize Extensions ---
     db.init_app(app)
+    from .extensions import login_manager
+    login_manager.init_app(app)
+
+    @login_manager.user_loader
+    def load_user(user_id):
+        return User.query.get(int(user_id))
+
     migrate.init_app(app, db)
     limiter.init_app(app)
     csrf.init_app(app)
@@ -250,6 +267,8 @@ def create_app():
     app.register_blueprint(links_bp, url_prefix='/links')
     app.register_blueprint(activities_bp, url_prefix='/security/activities')
     app.register_blueprint(onboarding_bp, url_prefix='/onboarding')
+    from .routes.risk_assessment import risk_assessment_bp
+    app.register_blueprint(risk_assessment_bp)
 
     # --- Google OAuth Blueprint ---
     if app.config.get('GOOGLE_OAUTH_CLIENT_ID'):
@@ -311,8 +330,8 @@ def create_app():
                 print(f"Admin user '{email}' already exists. Skipping creation.")
                 return
             
-            # Create the admin user
-            admin_user = User(name='Administrator', email=email, role='admin')
+            # Create the admin user (hidden from org chart as it's a break-glass account)
+            admin_user = User(name='Administrator', email=email, role='admin', hide_from_org_chart=True)
             admin_user.set_password(password)
             db.session.add(admin_user)
             db.session.commit()
@@ -327,8 +346,10 @@ def create_app():
 
     @app.cli.command('seed-db-prod')
     def seed_prod_command():
-        """Carga los datos maestros de producción (Frameworks)."""
+        """Carga los datos maestros de producción (Frameworks & Threats)."""
         seed_production_frameworks()
+        from .seeder_prod import seed_threats
+        seed_threats()
 
     # --- Importar CLI Commands (Data Import) ---
     from . import cli

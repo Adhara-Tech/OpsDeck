@@ -6,7 +6,7 @@ from .models import (
     MaintenanceLog, DisposalRecord,
     BCDRPlan, BCDRTestLog, Course, CourseAssignment, Group, Policy, PolicyVersion, Opportunity,
     Documentation, Link, Software, License, Framework, FrameworkControl, ComplianceLink,
-    BusinessService, ComplianceAudit
+    BusinessService, ComplianceAudit, Contact, RiskAssessment
 )
 from . import create_app
 
@@ -41,6 +41,17 @@ def seed_data():
             Supplier(name='Palo Alto Networks', email='sales@paloaltonetworks.com')
         ]
         db.session.add_all(suppliers)
+        db.session.commit()
+        
+        # Add Contacts
+        print("Creating contacts...")
+        contacts = [
+            Contact(name='John Adobe', email='john@adobe.com', phone='555-0101', role='Account Manager', supplier=suppliers[0]),
+            Contact(name='Jane Microsoft', email='jane@microsoft.com', phone='555-0102', role='Sales Rep', supplier=suppliers[1]),
+            Contact(name='Bob Dell', email='bob@dell.com', phone='555-0103', role='Support Lead', supplier=suppliers[2]),
+            Contact(name='Alice Slack', email='alice@slack.com', phone='555-0104', role='CSM', supplier=suppliers[3])
+        ]
+        db.session.add_all(contacts)
         db.session.commit()
 
         locations = [
@@ -185,7 +196,8 @@ def seed_data():
         print("Creating compliance and governance entities...")
         risks = [
             Risk(
-                risk_description="Unauthorized access to cloud infrastructure due to weak passwords", 
+                risk_description="Unauthorized access to cloud infrastructure", 
+                extended_description="Attackers or unauthorized users could gain access to cloud resources (AWS, Azure, GCP) due to weak passwords, stolen credentials, or lack of multi-factor authentication. This could result in data breaches, service disruption, and significant financial/reputational damage.",
                 status="Assessed", 
                 inherent_likelihood=4, inherent_impact=5, 
                 residual_likelihood=2, residual_impact=5,
@@ -195,7 +207,8 @@ def seed_data():
                 mitigation_plan="Enforce MFA and rotate keys quarterly."
             ),
             Risk(
-                risk_description="Data loss due to hardware failure of primary database server", 
+                risk_description="Data loss from database hardware failure", 
+                extended_description="The primary database server could experience a hardware failure (disk crash, power supply failure, etc.) leading to loss of critical business data. Without proper backups, this could cause significant operational disruption and potential regulatory non-compliance.",
                 status="In Treatment", 
                 inherent_likelihood=2, inherent_impact=4, 
                 residual_likelihood=1, residual_impact=4,
@@ -205,7 +218,8 @@ def seed_data():
                 mitigation_plan="Implement daily backups to a secondary location."
             ),
             Risk(
-                risk_description="Malware infection on end-user devices", 
+                risk_description="Malware infection on endpoints", 
+                extended_description="End-user devices (laptops, workstations) could become infected with malware through phishing emails, malicious downloads, or drive-by downloads. Malware could lead to data theft, ransomware attacks, or lateral movement within the network.",
                 status="Identified", 
                 inherent_likelihood=5, inherent_impact=3, 
                 residual_likelihood=3, residual_impact=3,
@@ -215,7 +229,8 @@ def seed_data():
                 mitigation_plan="Deploy EDR solution."
             ),
             Risk(
-                risk_description="Third-party supplier fails to meet security obligations", 
+                risk_description="Third-party supplier security failure", 
+                extended_description="Critical suppliers (SaaS vendors, cloud providers) may fail to meet security obligations, experience data breaches, or become unavailable. This creates supply chain risk that could impact our operations and expose our data.",
                 status="Assessed", 
                 inherent_likelihood=3, inherent_impact=5, 
                 residual_likelihood=2, residual_impact=4,
@@ -225,7 +240,8 @@ def seed_data():
                 mitigation_plan="Include strict SLAs and penalties in contracts."
             ),
             Risk(
-                risk_description="Sensitive data leakage via email", 
+                risk_description="Data leakage via email", 
+                extended_description="Employees could accidentally or intentionally send sensitive data (customer PII, financial data, trade secrets) via email to unauthorized recipients. This could violate GDPR, contractual obligations, and cause reputational damage.",
                 status="Identified", 
                 inherent_likelihood=4, inherent_impact=4, 
                 residual_likelihood=3, residual_impact=4,
@@ -235,7 +251,8 @@ def seed_data():
                 mitigation_plan="Implement DLP rules for email."
             ),
             Risk(
-                risk_description="Lack of regular access control reviews", 
+                risk_description="Inadequate access control reviews", 
+                extended_description="User access rights may accumulate over time (privilege creep) or remain active for terminated employees. Without regular reviews, this creates excessive permissions and potential for unauthorized access to sensitive systems and data.",
                 status="In Treatment", 
                 inherent_likelihood=3, inherent_impact=3, 
                 residual_likelihood=1, residual_impact=3,
@@ -246,7 +263,8 @@ def seed_data():
             ),
             # New Risks for Dashboard Variety
             Risk(
-                risk_description="Legacy system vulnerability exploitation", 
+                risk_description="Legacy system vulnerabilities", 
+                extended_description="Legacy systems that are no longer supported may contain known vulnerabilities that cannot be patched. These systems are attractive targets for attackers and may be difficult to monitor.",
                 status="Accepted", 
                 inherent_likelihood=2, inherent_impact=3, 
                 residual_likelihood=2, residual_impact=3,
@@ -256,7 +274,8 @@ def seed_data():
                 mitigation_plan="System is air-gapped; risk accepted until decommissioning in 2026."
             ),
             Risk(
-                risk_description="Insider threat (disgruntled employee)", 
+                risk_description="Insider threat from employees", 
+                extended_description="Disgruntled, negligent, or compromised employees could misuse their authorized access to steal data, sabotage systems, or facilitate external attacks. Insider threats are difficult to detect and can cause significant damage.",
                 status="Assessed", 
                 inherent_likelihood=2, inherent_impact=5, 
                 residual_likelihood=1, residual_impact=5,
@@ -267,6 +286,7 @@ def seed_data():
             ),
             Risk(
                 risk_description="DDoS attack on public website", 
+                extended_description="Our public-facing website and APIs could be targeted by distributed denial-of-service attacks, making services unavailable to legitimate users. This impacts revenue, customer trust, and operational efficiency.",
                 status="Mitigated", 
                 inherent_likelihood=4, inherent_impact=4, 
                 residual_likelihood=1, residual_impact=2,
@@ -276,7 +296,8 @@ def seed_data():
                 mitigation_plan="Use Cloudflare DDoS protection."
             ),
             Risk(
-                risk_description="Regulatory non-compliance (GDPR)", 
+                risk_description="GDPR regulatory non-compliance", 
+                extended_description="Failure to comply with GDPR requirements for processing EU citizen data could result in significant fines (up to 4% of global revenue), legal action, and reputational damage. This includes consent management, data subject rights, and breach notification.",
                 status="Assessed", 
                 inherent_likelihood=3, inherent_impact=5, 
                 residual_likelihood=2, residual_impact=5,
@@ -286,7 +307,8 @@ def seed_data():
                 mitigation_plan="Do not process data of EU citizens until compliant."
             ),
              Risk(
-                risk_description="Critical API Key Exposure", 
+                risk_description="API key exposure in code repositories", 
+                extended_description="API keys, database credentials, or other secrets may be accidentally committed to source code repositories (public or private). Exposed credentials can be harvested by attackers and used to access systems, exfiltrate data, or incur costs.",
                 status="Assessed", 
                 inherent_likelihood=5, inherent_impact=5, 
                 residual_likelihood=5, residual_impact=5,
@@ -466,6 +488,102 @@ def seed_data():
             copy_links=True # Populate evidence from live links
         )
         audit.status = "Prep"
+        db.session.commit()
+
+        # 14. Historical Risk Assessments with Items
+        print("Creating historical risk assessments with items...")
+        from .models import RiskAssessmentItem, RiskAssessmentEvidence
+        from datetime import datetime as dt
+        
+        # Q3 2024 Assessment - Higher initial residual scores
+        q3_assessment = RiskAssessment(
+            name="Q3 2024 Security Assessment",
+            status="Locked",
+            created_at=dt(2024, 9, 30),
+            locked_at=dt(2024, 10, 1)
+        )
+        db.session.add(q3_assessment)
+        db.session.flush()  # Get ID
+        
+        # Create items for Q3 - snapshot of risks at that time (higher residual)
+        q3_items_data = [
+            # (risk_index, inherent_i, inherent_l, residual_i, residual_l, notes)
+            (0, 5, 4, 5, 3, "Initial controls in place but MFA adoption only at 60%."),
+            (1, 4, 2, 4, 2, "Backup system operational but recovery time untested."),
+            (2, 3, 5, 3, 4, "EDR deployment in progress, 50% coverage."),
+            (3, 5, 3, 4, 3, "Supplier assessments pending for 2 vendors."),
+            (4, 4, 4, 4, 4, "DLP solution not yet deployed."),
+            (5, 3, 3, 3, 2, "Manual access reviews ongoing.")
+        ]
+        
+        for risk_idx, inh_i, inh_l, res_i, res_l, notes in q3_items_data:
+            risk = risks[risk_idx]
+            item = RiskAssessmentItem(
+                assessment_id=q3_assessment.id,
+                original_risk_id=risk.id,
+                risk_description=risk.risk_description,
+                threat_type_name=risk.threat_type.name if risk.threat_type else None,
+                category_list=",".join([c.category for c in risk.categories]) if risk.categories else "",
+                inherent_impact=inh_i,
+                inherent_likelihood=inh_l,
+                residual_impact=res_i,
+                residual_likelihood=res_l,
+                treatment_strategy=risk.treatment_strategy,
+                mitigation_notes=notes
+            )
+            db.session.add(item)
+        
+        q3_assessment.calculate_total_risk()
+        
+        # Q4 2024 Assessment - Lower residual scores (improvement!)
+        q4_assessment = RiskAssessment(
+            name="Q4 2024 Security Assessment",
+            status="Locked",
+            created_at=dt(2024, 12, 31),
+            locked_at=dt(2025, 1, 2)
+        )
+        db.session.add(q4_assessment)
+        db.session.flush()
+        
+        # Create items for Q4 - shows improvement from controls
+        q4_items_data = [
+            # (risk_index, inherent_i, inherent_l, residual_i, residual_l, notes)
+            (0, 5, 4, 5, 2, "MFA enforced company-wide. Key rotation automated."),
+            (1, 4, 2, 4, 1, "Disaster recovery test successful. RTO < 30 min achieved."),
+            (2, 3, 5, 3, 3, "EDR deployed to 95% of endpoints."),
+            (3, 5, 3, 4, 2, "All critical vendors assessed. DPAs signed."),
+            (4, 4, 4, 4, 3, "DLP rules deployed for email. Monitoring active."),
+            (5, 3, 3, 3, 1, "Automated quarterly access reviews implemented."),
+            (8, 4, 4, 2, 1, "Cloudflare fully operational. DDoS mitigated."),  # DDoS risk
+        ]
+        
+        for risk_idx, inh_i, inh_l, res_i, res_l, notes in q4_items_data:
+            risk = risks[risk_idx]
+            item = RiskAssessmentItem(
+                assessment_id=q4_assessment.id,
+                original_risk_id=risk.id,
+                risk_description=risk.risk_description,
+                threat_type_name=risk.threat_type.name if risk.threat_type else None,
+                category_list=",".join([c.category for c in risk.categories]) if risk.categories else "",
+                inherent_impact=inh_i,
+                inherent_likelihood=inh_l,
+                residual_impact=res_i,
+                residual_likelihood=res_l,
+                treatment_strategy=risk.treatment_strategy,
+                mitigation_notes=notes
+            )
+            db.session.add(item)
+            db.session.flush()
+            
+            # Add evidence links to some items (policies, docs)
+            if risk_idx == 0:  # MFA risk - link to security policy
+                ev = RiskAssessmentEvidence(item_id=item.id, linkable_type='Policy', linkable_id=policy.id, notes='MFA mandated in policy')
+                db.session.add(ev)
+            if risk_idx == 1:  # Backup risk - link to BCDR plan
+                ev = RiskAssessmentEvidence(item_id=item.id, linkable_type='BCDRPlan', linkable_id=bcdr_plan.id, notes='DR plan tested successfully')
+                db.session.add(ev)
+        
+        q4_assessment.calculate_total_risk()
         db.session.commit()
 
         print("Database seeding complete!")

@@ -4,7 +4,30 @@ services:
     ports:
       - "5000:5000"
     volumes:
-      - ./data:/app/data
       - ./data/attachments:/app/data/attachments
+    environment:
+      - DATABASE_URL=postgresql://opsdeck:opsdeck@db:5432/opsdeck
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
     env_file:
       - .env
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: opsdeck
+      POSTGRES_PASSWORD: opsdeck
+      POSTGRES_DB: opsdeck
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U opsdeck -d opsdeck" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

@@ -9,17 +9,27 @@ service_dependencies = db.Table('service_dependencies',
     db.Column('child_id', db.Integer, db.ForeignKey('business_service.id'), primary_key=True)
 )
 
+# Association table for User Access (M2M)
+service_users = db.Table('service_users',
+    db.Column('service_id', db.Integer, db.ForeignKey('business_service.id'), primary_key=True),
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True)
+)
+
 class BusinessService(db.Model):
     __tablename__ = 'business_service'
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text)
+    category = db.Column(db.String(50), default='Business Service') # 'Application', 'Business Service', 'Infrastructure', 'Capability'
     
     # Ownership
     owner_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     owner = db.relationship('User', foreign_keys=[owner_id])
     
+    # User Access (New)
+    users = db.relationship('User', secondary=service_users, backref='access_services')
+
     # Classification
     criticality = db.Column(db.String(50)) # 'Tier 1 - Critical', 'Tier 2 - High', 'Tier 3 - Standard'
     status = db.Column(db.String(50), default='Operational') # 'Pipeline', 'Operational', 'Retired'
@@ -64,6 +74,34 @@ class BusinessService(db.Model):
     
     def __repr__(self):
         return f'<BusinessService {self.name}>'
+
+    @property
+    def aggregated_risk_score(self):
+        """
+        Calcula el riesgo máximo heredado de sus componentes de infraestructura.
+        Si un componente tiene un max_risk_score alto, el servicio lo hereda.
+        """
+        max_score = 0
+        
+        # Revisar Componentes (Infraestructura)
+        for comp in self.components:
+            linked_obj = comp.linked_object
+            # Verificamos si el objeto tiene la propiedad 'max_risk_score' (como Asset)
+            if linked_obj and hasattr(linked_obj, 'max_risk_score'):
+                score = linked_obj.max_risk_score
+                if score and score > max_score:
+                    max_score = score
+        
+        return max_score
+
+    @property
+    def risk_status_color(self):
+        """Devuelve el color semántico para la UI/Gráficos basado en el riesgo."""
+        score = self.aggregated_risk_score
+        if score >= 20: return '#dc3545'  # Danger (Red)
+        if score >= 12: return '#fd7e14'  # Orange
+        if score >= 5:  return '#ffc107'  # Warning (Yellow)
+        return '#198754'  # Success (Green)
 
 class ServiceComponent(db.Model):
     """

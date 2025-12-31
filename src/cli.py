@@ -2,19 +2,13 @@ import click
 import csv
 import os
 import secrets
-import string
+from .utils.helpers import generate_secure_password
 from datetime import datetime
 from .extensions import db
 # Import all necessary models
 from .models import User, Asset, Peripheral, Location, Supplier, Contact
 
-def generate_secure_password(length=12):
-    """Generates a secure random password."""
-    alphabet = string.ascii_letters + string.digits + "!@#$%"
-    return ''.join(secrets.choice(alphabet) for i in range(length))
-
 def register_commands(app):
-    """Registers the CLI command groups in the application."""
     
     @app.cli.group()
     def data_import():

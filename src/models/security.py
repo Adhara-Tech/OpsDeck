@@ -267,9 +267,28 @@ risk_mitigation_activities = db.Table('risk_mitigation_activities',
     db.Column('activity_id', db.Integer, db.ForeignKey('security_activity.id'), primary_key=True)
 )
 
+class ThreatType(db.Model):
+    """
+    Catálogo de tipos de amenazas estandarizadas (ej. Ransomware, Incendio, Error Humano).
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), unique=True, nullable=False)
+    category = db.Column(db.String(50)) # Ej: 'Adversarial', 'Accidental', 'Structural', 'Environmental'
+    description = db.Column(db.Text)
+    
+    # Relación inversa
+    risks = db.relationship('Risk', backref='threat_type', lazy=True)
+
+    def __repr__(self):
+        return f'<ThreatType {self.name}>'
+
 class Risk(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    risk_description = db.Column(db.Text, nullable=False)
+    risk_description = db.Column(db.Text, nullable=False)  # Short name/title
+    extended_description = db.Column(db.Text, nullable=True)  # Detailed explanation
+    
+    # --- NUEVO CAMPO: Amenaza ---
+    threat_type_id = db.Column(db.Integer, db.ForeignKey('threat_type.id'), nullable=True)
     
     # Management
     owner_id = db.Column(db.Integer, db.ForeignKey('user.id'))
@@ -379,6 +398,75 @@ class RiskCategory(db.Model):
     risk_id = db.Column(db.Integer, db.ForeignKey('risk.id'), nullable=False)
     category = db.Column(db.String(50), nullable=False)
 
+
+class RiskHistory(db.Model):
+    """
+    Audit trail for tracking changes to Risk fields.
+    Automatically populated via SQLAlchemy event listener.
+    """
+    __tablename__ = 'risk_history'
+    id = db.Column(db.Integer, primary_key=True)
+    risk_id = db.Column(db.Integer, db.ForeignKey('risk.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    field_changed = db.Column(db.String(100), nullable=False)
+    old_value = db.Column(db.String(500))
+    new_value = db.Column(db.String(500))
+
+    # Relationships
+    risk = db.relationship('Risk', backref=db.backref('history', lazy='dynamic', order_by='RiskHistory.timestamp.desc()'))
+    user = db.relationship('User')
+
+    def __repr__(self):
+        return f'<RiskHistory {self.risk_id}: {self.field_changed} {self.old_value} -> {self.new_value}>'
+
+
+# --- Event Listener for Risk Audit Trail ---
+from sqlalchemy import event
+from flask import session as flask_session, has_request_context
+
+# Fields to track for audit
+RISK_TRACKED_FIELDS = [
+    'inherent_impact', 'inherent_likelihood', 
+    'residual_impact', 'residual_likelihood',
+    'status', 'treatment_strategy'
+]
+
+@event.listens_for(Risk, 'before_update')
+def risk_before_update(mapper, connection, target):
+    """
+    Capture changes to tracked fields and insert audit records.
+    Uses raw connection to avoid session conflicts.
+    """
+    state = db.inspect(target)
+    
+    for field in RISK_TRACKED_FIELDS:
+        hist = state.attrs[field].history
+        if hist.has_changes():
+            old_val = hist.deleted[0] if hist.deleted else None
+            new_val = hist.added[0] if hist.added else getattr(target, field)
+            
+            # Skip if values are actually the same (type coercion edge case)
+            if str(old_val) == str(new_val):
+                continue
+            
+            # Get current user from Flask session if available
+            user_id = None
+            if has_request_context():
+                user_id = flask_session.get('user_id')
+            
+            # Insert directly via connection to avoid session issues
+            connection.execute(
+                RiskHistory.__table__.insert().values(
+                    risk_id=target.id,
+                    user_id=user_id,
+                    field_changed=field,
+                    old_value=str(old_val) if old_val is not None else None,
+                    new_value=str(new_val) if new_val is not None else None
+                )
+            )
+
+
 class SecurityAssessment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     assessment_date = db.Column(db.Date, nullable=False, default=date.today)
@@ -485,6 +573,13 @@ class Framework(db.Model):
         return f'<Framework {self.id}: {self.name} ({status})>'
 
 
+# Association table for cross-framework control mappings (self-referential)
+control_mappings = db.Table('control_mappings',
+    db.Column('source_control_id', db.Integer, db.ForeignKey('framework_control.id'), primary_key=True),
+    db.Column('target_control_id', db.Integer, db.ForeignKey('framework_control.id'), primary_key=True)
+)
+
+
 class FrameworkControl(db.Model):
     """
     Representa un control individual o práctica dentro de un Framework.
@@ -502,8 +597,21 @@ class FrameworkControl(db.Model):
     # Descripción específica del control
     description = db.Column(db.Text)
     
-    # Relación futura con los controles de una auditoría específica
-    # audit_controls = db.relationship('AuditControl', backref='base_control', lazy='dynamic')
+    # Cross-Framework Mappings: Controls this one maps to (e.g., DORA -> ISO)
+    mapped_targets = db.relationship(
+        'FrameworkControl',
+        secondary=control_mappings,
+        primaryjoin="FrameworkControl.id==control_mappings.c.source_control_id",
+        secondaryjoin="FrameworkControl.id==control_mappings.c.target_control_id",
+        backref=db.backref('mapped_sources', lazy='dynamic')
+    )
+
+    def get_all_mappings(self):
+        """Devuelve una lista combinada de controles relacionados (entrantes y salientes)."""
+        targets = self.mapped_targets
+        sources = list(self.mapped_sources)
+        # Combine and deduplicate
+        return list(set(targets + sources))
 
     def __repr__(self):
         return f'<FrameworkControl {self.id}: {self.control_id}>'

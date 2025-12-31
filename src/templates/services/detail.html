@@ -13,6 +13,17 @@
     <div>
         <h1 class="h2">
             {{ service.name }}
+            {% if service.category == 'Application' %}
+            <span class="badge bg-primary fs-6 align-middle">{{ service.category }}</span>
+            {% elif service.category == 'Infrastructure' %}
+            <span class="badge bg-info text-dark fs-6 align-middle">{{ service.category }}</span>
+            {% elif service.category == 'Capability' %}
+            <span class="badge bg-secondary fs-6 align-middle">{{ service.category }}</span>
+            {% else %}
+            <span class="badge bg-success fs-6 align-middle">{{ service.category|default('Business Service', true)
+                }}</span>
+            {% endif %}
+
             {% if 'Tier 1' in service.criticality|default('', true) %}
             <span class="badge bg-danger fs-6 align-middle">{{ service.criticality }}</span>
             {% elif 'Tier 2' in service.criticality|default('', true) %}
@@ -20,6 +31,12 @@
             {% else %}
             <span class="badge bg-secondary fs-6 align-middle">{{ service.criticality|default('Standard', true)
                 }}</span>
+            {% endif %}
+            {% if service.aggregated_risk_score > 0 %}
+            <span class="badge rounded-pill fs-6 align-middle ms-2"
+                style="background-color: {{ service.risk_status_color }};">
+                <i class="fas fa-biohazard"></i> Risk: {{ service.aggregated_risk_score }}
+            </span>
             {% endif %}
         </h1>
         <p class="text-muted mb-0">{{ service.description }}</p>
@@ -113,6 +130,12 @@
         <button class="nav-link active" id="topology-tab" data-bs-toggle="tab" data-bs-target="#topology" type="button"
             role="tab">Topology & Dependencies</button>
     </li>
+    {% if service.category == 'Application' %}
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button"
+            role="tab">User Access</button>
+    </li>
+    {% endif %}
     <li class="nav-item" role="presentation">
         <button class="nav-link" id="infrastructure-tab" data-bs-toggle="tab" data-bs-target="#infrastructure"
             type="button" role="tab">Infrastructure Components</button>
@@ -138,6 +161,9 @@
                             %% Styles
                             classDef default fill:#f9f9f9,stroke:#333,stroke-width:1px;
                             classDef focus fill:#ff9f43,stroke:#333,stroke-width:4px,color:white;
+                            classDef riskCritical fill:#dc3545,stroke:#333,stroke-width:2px,color:white;
+                            classDef riskHigh fill:#fd7e14,stroke:#333,stroke-width:2px,color:white;
+                            classDef riskMed fill:#ffc107,stroke:#333,stroke-width:2px,color:black;
 
                             %% Central Node
                             id{{ service.id }}("{{ service.name }}"):::focus
@@ -148,15 +174,21 @@
 
                             click id{{ edge.from }} "{{ url_for('services.detail', id=edge.from) }}"
                             click id{{ edge.to }} "{{ url_for('services.detail', id=edge.to) }}"
+                            {% endfor %}
 
-                            {% if edge.from == service.id %}
-                            style id{{ edge.from }} fill:#ff9f43,stroke-width:4px,color:white
-                            {% endif %}
-
-                            {% if edge.to == service.id %}
-                            style id{{ edge.to }} fill:#ff9f43,stroke-width:4px,color:white
+                            %% Apply risk styles to nodes
+                            {% for srv_id, color in node_styles.items() %}
+                            {% if color == '#dc3545' %}
+                            class id{{ srv_id }} riskCritical
+                            {% elif color == '#fd7e14' %}
+                            class id{{ srv_id }} riskHigh
+                            {% elif color == '#ffc107' %}
+                            class id{{ srv_id }} riskMed
                             {% endif %}
                             {% endfor %}
+
+                            %% Highlight current service (focus overrides risk if same node)
+                            class id{{ service.id }} focus
                         </div>
                     </div>
                 </div>
@@ -222,6 +254,63 @@
         </div>
     </div>
 
+    <div class="tab-pane fade" id="users" role="tabpanel">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">User Access ({{ service.users|length }})</h6>
+                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addUserAccessModal">
+                    <i class="fas fa-user-plus"></i> Add User
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in service.users %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="avatar-circle bg-secondary text-white me-2"
+                                            style="width:32px; height:32px; line-height:32px; text-align:center; border-radius:50%;">
+                                            {{ user.name[:2].upper() }}
+                                        </div>
+                                        {{ user.name }}
+                                    </div>
+                                </td>
+                                <td>{{ user.email }}</td>
+                                <td>
+                                    <form
+                                        action="{{ url_for('services.remove_user_access', id=service.id, user_id=user.id) }}"
+                                        method="POST" class="d-inline"
+                                        onsubmit="return confirm('Revoke access for {{ user.name }}?');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-sm btn-danger">
+                                            <i class="fas fa-trash"></i> Revoke
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="3" class="text-center text-muted py-4">
+                                    No users have been assigned access to this application yet.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="tab-pane fade" id="infrastructure" role="tabpanel">
         <div class="card shadow mb-4">
             <div class="card-header py-3 d-flex justify-content-between align-items-center">
@@ -237,6 +326,7 @@
                             <tr>
                                 <th>Type</th>
                                 <th>Item</th>
+                                <th>Risk</th>
                                 <th>Notes</th>
                                 <th>Actions</th>
                             </tr>
@@ -250,8 +340,24 @@
                                     {# Helper to guess display name #}
                                     {{ comp.linked_object.name or comp.linked_object.title or
                                     comp.linked_object.hostname or 'Item #' ~ comp.component_id }}
+                                    {% if comp.linked_object.is_critical|default(false) %}
+                                    <span class="badge bg-danger ms-1">Critical</span>
+                                    {% endif %}
+                                    {% if comp.linked_object.is_virtual|default(false) %}
+                                    <span class="badge bg-info ms-1">Virtual</span>
+                                    {% endif %}
                                     {% else %}
                                     <span class="text-danger">Item Not Found (ID: {{ comp.component_id }})</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if comp.linked_object and comp.linked_object.max_risk_score|default(0) > 0 %}
+                                    <span
+                                        class="badge {% if comp.linked_object.max_risk_score > 15 %}bg-danger{% elif comp.linked_object.max_risk_score > 8 %}bg-warning text-dark{% else %}bg-success{% endif %}">
+                                        {{ comp.linked_object.max_risk_score }}
+                                    </span>
+                                    {% else %}
+                                    <span class="badge bg-success"><i class="fas fa-check"></i></span>
                                     {% endif %}
                                 </td>
                                 <td>{{ comp.notes }}</td>
@@ -268,7 +374,7 @@
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="4" class="text-center text-muted">No infrastructure components linked.</td>
+                                <td colspan="5" class="text-center text-muted">No infrastructure components linked.</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -447,6 +553,35 @@
                     </ul>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addUserAccessModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('services.add_user_access', id=service.id) }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Grant User Access</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Select User</label>
+                        <select class="form-select tom-select" name="user_id" required>
+                            <option value="">Search users...</option>
+                            {% for user in all_users %}
+                            <option value="{{ user.id }}">{{ user.name }} ({{ user.email }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Grant Access</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>

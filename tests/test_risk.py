@@ -2,8 +2,6 @@
 Tests for Risk module - models and routes
 Migrated from test_missing_coverage.py and test_zero_coverage_routes.py
 """
-import pytest
-from datetime import date, timedelta
 from src.models import (
     Risk, RiskAffectedItem, RiskReference, Framework, FrameworkControl, 
     ComplianceLink, Asset, User, Documentation

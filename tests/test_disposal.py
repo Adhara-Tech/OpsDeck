@@ -5,7 +5,7 @@ Covers: list_disposals, disposal_detail, record_disposal, edit_disposal
 import pytest
 from datetime import date, timedelta
 from src import db
-from src.models import Asset, Peripheral, DisposalRecord, User
+from src.models import Asset, Peripheral, DisposalRecord
 
 
 @pytest.fixture

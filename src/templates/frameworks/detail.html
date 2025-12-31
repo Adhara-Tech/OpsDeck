@@ -66,10 +66,21 @@
             <div class="card-body p-0">
                 <ul class="list-group list-group-flush">
                     {% for control in controls %}
-                    <li class="list-group-item">
-                        <strong class="text-primary">{{ control.control_id }}</strong> - {{ control.name }}
-                        {% if control.description %}
-                        <p class="text-muted small mb-0">{{ control.description }}</p>
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <a href="{{ url_for('frameworks.control_detail', id=control.id) }}"
+                                class="text-decoration-none">
+                                <strong class="text-primary">{{ control.control_id }}</strong>
+                            </a>
+                            - {{ control.name }}
+                            {% if control.description %}
+                            <p class="text-muted small mb-0">{{ control.description }}</p>
+                            {% endif %}
+                        </div>
+                        {% if control.get_all_mappings() %}
+                        <span class="badge bg-info" title="Has cross-framework mappings">
+                            <i class="fas fa-link"></i> {{ control.get_all_mappings()|length }}
+                        </span>
                         {% endif %}
                     </li>
                     {% else %}

@@ -4,7 +4,6 @@ Covers: list_logs, log_detail, new_log, edit_log
 """
 import pytest
 from datetime import date, timedelta
-from io import BytesIO
 from src import db
 from src.models import MaintenanceLog, Asset, Peripheral, User
 

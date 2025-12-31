@@ -4,7 +4,7 @@ from datetime import datetime
 from flask import (
     Blueprint, render_template, request, redirect, url_for, flash, current_app
 )
-from ..models import db, User, Attachment
+from ..models import db, User, Attachment, OrgChartSnapshot
 from .main import login_required
 from weasyprint import HTML
 from .admin import admin_required
@@ -20,7 +20,7 @@ def users():
 @users_bp.route('/org-chart')
 @login_required
 def org_chart():
-    users = User.query.filter_by(is_archived=False).all()
+    users = User.query.filter_by(is_archived=False, hide_from_org_chart=False).all()
     return render_template('users/org_chart.html', users=users)
 
 @users_bp.route('/archived')
@@ -101,6 +101,9 @@ def edit_user(id):
         
         buddy_id = request.form.get('buddy_id')
         user.buddy_id = int(buddy_id) if buddy_id else None
+        
+        # Handle org chart visibility toggle
+        user.hide_from_org_chart = request.form.get('hide_from_org_chart') == 'on'
         
         db.session.commit()
         flash('User updated successfully!')
@@ -185,3 +188,59 @@ def generate_token(id):
     
     flash('New API Token generated successfully.', 'success')
     return redirect(url_for('users.user_detail', id=id))
+
+@users_bp.route('/org-chart/snapshot', methods=['POST'])
+@login_required
+@admin_required
+def create_org_snapshot():
+    if request.method == 'POST':
+        name = request.form.get('name') or f'Org Chart - {datetime.utcnow().strftime("%Y-%m-%d")}'
+        notes = request.form.get('notes')
+        
+        # 1. Build hierarchy (filter out hidden users)
+        users = User.query.filter_by(is_archived=False, hide_from_org_chart=False).all()
+        
+        data_list = []
+        for u in users:
+            data_list.append({
+                'id': u.id,
+                'name': u.name,
+                'title': u.job_title,
+                'manager_id': u.manager_id,
+                'department': u.department,
+                'email': u.email
+            })
+        
+        # 2. Save to DB
+        snapshot = OrgChartSnapshot(
+            name=name,
+            chart_data=data_list,
+            created_by_id=1, # FIXME: session.get('user_id') but ensuring it's an int
+            notes=notes
+        )
+        # Handle user_id from session safely
+        if 'user_id' in from_flask_session_proxy():
+             snapshot.created_by_id = from_flask_session_proxy()['user_id']
+
+        db.session.add(snapshot)
+        db.session.commit()
+        
+        flash('Organizational structure snapshot saved successfully.', 'success')
+        return redirect(url_for('users.list_org_snapshots'))
+    return redirect(url_for('users.org_chart'))
+
+def from_flask_session_proxy():
+    from flask import session
+    return session
+
+@users_bp.route('/org-chart/snapshots')
+@login_required
+def list_org_snapshots():
+    snapshots = OrgChartSnapshot.query.order_by(OrgChartSnapshot.created_at.desc()).all()
+    return render_template('users/org_snapshots_list.html', snapshots=snapshots)
+
+@users_bp.route('/org-chart/snapshots/<int:id>')
+@login_required
+def view_org_snapshot(id):
+    snapshot = OrgChartSnapshot.query.get_or_404(id)
+    return render_template('users/org_snapshot_detail.html', snapshot=snapshot)

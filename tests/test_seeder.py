@@ -2,7 +2,6 @@
 Tests for the seeder functionality.
 Migrated from test_missing_coverage.py
 """
-import pytest
 from src.models import User, Supplier, Asset
 
 

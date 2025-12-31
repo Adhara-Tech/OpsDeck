@@ -177,7 +177,8 @@
                                 class="fa-fw fas fa-clipboard-check"></i>
                             Asset Inventory</a>
                     </li>
-                    <li class="nav-item"><a class="nav-link {% if 'assessment' in request.endpoint %}active{% endif %}"
+                    <li class="nav-item"><a
+                            class="nav-link {% if 'list_assessments' in request.endpoint %}active{% endif %}"
                             href="{{ url_for('compliance.list_assessments') }}"><i
                                 class="fa-fw fas fa-clipboard-list"></i>
                             Assessments</a></li>
@@ -220,6 +221,11 @@
                             class="nav-link {% if request.endpoint.startswith('risk.') and request.endpoint != 'risk.dashboard' %}active{% endif %}"
                             href="{{ url_for('risk.list_risks') }}"><i class="fa-fw fas fa-exclamation-triangle"></i>
                             Risk Register</a></li>
+                    <li class="nav-item"><a
+                            class="nav-link {% if request.blueprint == 'risk_assessment' %}active{% endif %}"
+                            href="{{ url_for('risk_assessment.list_assessments') }}"><i
+                                class="fa-fw fas fa-clipboard-check"></i>
+                            Risk Assessments</a></li>
                     <li class="nav-item"><a class="nav-link {% if 'incident' in request.endpoint %}active{% endif %}"
                             href="{{ url_for('compliance.list_incidents') }}"><i
                                 class="fa-fw fas fa-exclamation-circle"></i> Incidents</a></li>
@@ -322,7 +328,7 @@
                     </li>
 
                     <li class="nav-item">
-                        <a class="nav-link {{ 'active' if 'org-chart' in request.endpoint }}"
+                        <a class="nav-link {{ 'active' if 'org_chart' in request.endpoint or 'org_snapshot' in request.endpoint }}"
                             href="{{ url_for('users.org_chart') }}">
                             <i class="fas fa-fw fa-sitemap"></i>
                             <span>Org Chart</span>

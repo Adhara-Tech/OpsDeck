@@ -44,7 +44,8 @@ def create_service():
             status=status,
             sla_response_hours=int(sla_response) if sla_response else None,
             sla_resolution_hours=int(sla_resolution) if sla_resolution else None,
-            cost_center_id=int(cost_center_id) if cost_center_id else None
+            cost_center_id=int(cost_center_id) if cost_center_id else None,
+            category=request.form.get('category')
         )
         
         try:
@@ -88,9 +89,26 @@ def detail(id):
             
     dependency_map = list(unique_edges.values())
 
+    # Create risk node styles for Mermaid graph coloring
+    related_service_ids = set()
+    related_service_ids.add(service.id)
+    for edge in dependency_map:
+        related_service_ids.add(edge['from'])
+        related_service_ids.add(edge['to'])
+    
+    node_styles = {}
+    related_services = BusinessService.query.filter(BusinessService.id.in_(related_service_ids)).all()
+    for srv in related_services:
+        if srv.aggregated_risk_score > 0:
+            node_styles[srv.id] = srv.risk_status_color
+
+    # User list for Access Management
+    all_users = User.query.filter_by(is_archived=False).order_by(User.name).all()
+
     return render_template('services/detail.html', 
         service=service, 
         dependency_map=dependency_map,
+        node_styles=node_styles,
         upstream_map=upstream_map,
         downstream_map=downstream_map,
         all_services=all_services,
@@ -100,7 +118,8 @@ def detail(id):
         service_links=service_links,
         service_attachments=service_attachments,
         service_policies=service.policies,
-        service_activities=service.activities
+        service_activities=service.activities,
+        all_users=all_users
     )
 
 @services_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
@@ -123,6 +142,8 @@ def edit_service(id):
         
         cost_center_id = request.form.get('cost_center_id')
         service.cost_center_id = int(cost_center_id) if cost_center_id else None
+
+        service.category = request.form.get('category')
         
         try:
             db.session.commit()
@@ -485,4 +506,38 @@ def remove_attachment(id, att_id):
         db.session.delete(attachment)
         db.session.commit()
         flash('Attachment removed.', 'success')
+    return redirect(url_for('services.detail', id=id))
+
+# ==========================================
+# USER ACCESS MANAGEMENT
+# ==========================================
+
+@services_bp.route('/<int:id>/users/add', methods=['POST'])
+@login_required
+@admin_required
+def add_user_access(id):
+    service = BusinessService.query.get_or_404(id)
+    user_id = request.form.get('user_id')
+    
+    if user_id:
+        user = User.query.get(user_id)
+        if user and user not in service.users:
+            service.users.append(user)
+            db.session.commit()
+            flash(f'User {user.name} added to {service.name}.', 'success')
+            
+    return redirect(url_for('services.detail', id=id))
+
+@services_bp.route('/<int:id>/users/remove/<int:user_id>', methods=['POST'])
+@login_required
+@admin_required
+def remove_user_access(id, user_id):
+    service = BusinessService.query.get_or_404(id)
+    user = User.query.get_or_404(user_id)
+    
+    if user in service.users:
+        service.users.remove(user)
+        db.session.commit()
+        flash(f'User {user.name} removed from {service.name}.', 'warning')
+        
     return redirect(url_for('services.detail', id=id))

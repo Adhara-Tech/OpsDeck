@@ -1,7 +1,8 @@
 from flask import (
     Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 )
-from ..models import db, Risk, User, Asset, RiskCategory, RISK_CATEGORIES, RISK_CATEGORY_COLORS, RiskAffectedItem
+from ..models import db, Risk, User, Asset, RiskCategory, RISK_CATEGORIES, RISK_CATEGORY_COLORS, RiskAffectedItem, RiskAssessment, ThreatType
+
 from ..models.security import RiskReference
 from ..models.activities import SecurityActivity
 from ..models.auth import Group
@@ -11,6 +12,57 @@ from ..models.core import Documentation, Link
 from .main import login_required
 from .admin import admin_required
 from datetime import datetime
+
+risk_bp = Blueprint('risk', __name__)
+
+@risk_bp.route('/dashboard')
+@login_required
+def dashboard():
+    # 1. KPIs
+    all_risks = Risk.query.all()
+    total_risks = len(all_risks)
+    
+    critical_risks_count = sum(1 for r in all_risks if r.residual_score >= 20)
+    risk_exposure = sum(r.residual_score for r in all_risks)
+    
+    # 2. Risk Matrix Data
+    # Group risks by (impact, likelihood)
+    matrix = {}
+    for r in all_risks:
+        key = (r.residual_impact, r.residual_likelihood)
+        if key not in matrix:
+            matrix[key] = []
+        matrix[key].append(r)
+        
+    # 3. Historical Burn-down Data
+    assessments = RiskAssessment.query.filter(RiskAssessment.total_residual_risk.isnot(None)).order_by(RiskAssessment.created_at).all()
+    
+    burn_down_labels = [a.created_at.strftime('%b %Y') for a in assessments]
+    burn_down_data = [a.total_residual_risk for a in assessments]
+    
+    # Add Current State
+    burn_down_labels.append('Current')
+    burn_down_data.append(risk_exposure)
+    
+    # 4. Threat Type Distribution
+    threat_counts = {}
+    for r in all_risks:
+        cat = r.threat_type.category if r.threat_type else 'Uncategorized'
+        threat_counts[cat] = threat_counts.get(cat, 0) + 1
+        
+    threat_labels = list(threat_counts.keys())
+    threat_data = list(threat_counts.values())
+
+    return render_template('risk/dashboard.html', 
+                           total_risks=total_risks,
+                           critical_risks_count=critical_risks_count,
+                           risk_exposure=risk_exposure,
+                           matrix=matrix,
+                           burn_down_labels=burn_down_labels,
+                           burn_down_data=burn_down_data,
+                           threat_labels=threat_labels,
+                           threat_data=threat_data)
+from .main import login_required
 
 risk_bp = Blueprint('risk', __name__)
 
@@ -225,23 +277,31 @@ def detail(id):
     risk = Risk.query.get_or_404(id)
     return render_template('risk/detail.html', risk=risk)
 
+from ..models.security import ThreatType
+
 @risk_bp.route('/new', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def new_risk():
     if request.method == 'POST':
         # Extract form data
+        threat_type_id = request.form.get('threat_type_id')
+        
         risk = Risk(
             risk_description=request.form['risk_description'],
+            extended_description=request.form.get('extended_description'),
             owner_id=request.form.get('owner_id'),
-            status=request.form.get('status'),
+            status=request.form.get('status', 'Draft'),
             treatment_strategy=request.form.get('treatment_strategy'),
+            threat_type_id=int(threat_type_id) if threat_type_id else None,
             
             inherent_impact=int(request.form.get('inherent_impact', 5)),
             inherent_likelihood=int(request.form.get('inherent_likelihood', 5)),
             
-            residual_impact=int(request.form.get('residual_impact', 5)),
-            residual_likelihood=int(request.form.get('residual_likelihood', 5)),
+            # INTEGRITY RULE: Residual = Inherent on creation
+            # Residual values can only be modified via Risk Assessments
+            residual_impact=int(request.form.get('inherent_impact', 5)),
+            residual_likelihood=int(request.form.get('inherent_likelihood', 5)),
             
             mitigation_plan=request.form.get('mitigation_plan'),
             link=request.form.get('link')
@@ -283,8 +343,11 @@ def new_risk():
 
     users = User.query.filter_by(is_archived=False).all()
     activities = SecurityActivity.query.order_by(SecurityActivity.name).all()
+    threat_types = ThreatType.query.order_by(ThreatType.category, ThreatType.name).all()
+    
     return render_template('risk/form.html', users=users, activities=activities,
-                           risk_categories=RISK_CATEGORIES, category_colors=RISK_CATEGORY_COLORS)
+                           risk_categories=RISK_CATEGORIES, category_colors=RISK_CATEGORY_COLORS,
+                           threat_types=threat_types)
 
 @risk_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -293,9 +356,13 @@ def edit_risk(id):
     risk = Risk.query.get_or_404(id)
     if request.method == 'POST':
         risk.risk_description = request.form['risk_description']
+        risk.extended_description = request.form.get('extended_description')
         risk.owner_id = request.form.get('owner_id')
         risk.status = request.form.get('status')
         risk.treatment_strategy = request.form.get('treatment_strategy')
+        
+        threat_type_id = request.form.get('threat_type_id')
+        risk.threat_type_id = int(threat_type_id) if threat_type_id else None
         
         risk.inherent_impact = int(request.form.get('inherent_impact', 5))
         risk.inherent_likelihood = int(request.form.get('inherent_likelihood', 5))
@@ -335,8 +402,11 @@ def edit_risk(id):
 
     users = User.query.filter_by(is_archived=False).all()
     activities = SecurityActivity.query.order_by(SecurityActivity.name).all()
+    threat_types = ThreatType.query.order_by(ThreatType.category, ThreatType.name).all()
+    
     return render_template('risk/form.html', risk=risk, users=users, activities=activities,
-                           risk_categories=RISK_CATEGORIES, category_colors=RISK_CATEGORY_COLORS)
+                           risk_categories=RISK_CATEGORIES, category_colors=RISK_CATEGORY_COLORS,
+                           threat_types=threat_types)
 
 @risk_bp.route('/<int:id>/affected_items/add', methods=['POST'])
 @login_required

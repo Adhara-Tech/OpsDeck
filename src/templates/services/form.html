@@ -15,7 +15,7 @@
         <div class="card shadow">
             <div class="card-body">
                 <form method="POST">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
                         <label for="name" class="form-label">Service Name <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" id="name" name="name"
@@ -26,6 +26,21 @@
                         <label for="description" class="form-label">Description</label>
                         <textarea class="form-control" id="description" name="description"
                             rows="3">{{ service.description if service else '' }}</textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="category" class="form-label">Category</label>
+                        <select class="form-select" id="category" name="category">
+                            <option value="Application" {% if service and service.category=='Application' %}selected{%
+                                endif %}>Application (SaaS/Tool)</option>
+                            <option value="Business Service" {% if service and service.category=='Business Service'
+                                %}selected{% endif %}>Business Service (e.g. Payroll)</option>
+                            <option value="Infrastructure" {% if service and service.category=='Infrastructure'
+                                %}selected{% endif %}>Infrastructure (Server/Network)</option>
+                            <option value="Capability" {% if service and service.category=='Capability' %}selected{%
+                                endif %}>Capability (Abstract)</option>
+                        </select>
+                        <div class="form-text">Choose 'Application' if this service requires user accounts.</div>
                     </div>
 
                     <div class="row">
@@ -112,7 +127,7 @@
                 <p>Deleting this service is irreversible.</p>
                 <form action="{{ url_for('services.delete_service', id=service.id) }}" method="POST"
                     onsubmit="return confirm('Are you sure you want to delete this service?');">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="btn btn-danger">Delete Service</button>
                 </form>
             </div>

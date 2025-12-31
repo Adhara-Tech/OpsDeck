@@ -31,6 +31,7 @@ class User(db.Model): # Add UserMixin here if using Flask-Login
     licenses = db.relationship('License', backref='user', lazy=True)
     
     is_archived = db.Column(db.Boolean, default=False, nullable=False)
+    hide_from_org_chart = db.Column(db.Boolean, default=False, nullable=False)
     
     acknowledgements = db.relationship('PolicyAcknowledgement', backref='user', lazy=True, cascade='all, delete-orphan')
     
@@ -93,3 +94,31 @@ class UserKnownIP(db.Model):
     
     def __repr__(self):
         return f'<UserKnownIP {self.ip_address} for User {self.user_id}>'
+
+class OrgChartSnapshot(db.Model):
+    """
+    Representa una fotografía estática de la estructura organizativa en una fecha.
+    Se usa como evidencia de cumplimiento (ej. ISO 27001 A.5.2 Roles y Responsabilidades).
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), nullable=False) # Ej: "Organigrama Q1 2024"
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    
+    # Aquí guardamos el árbol completo en formato JSON
+    # SQLite < 3.9 no soporta JSON nativo, pero SQLAlchemy con JSON type suele manejar la serialización
+    # Si da problemas en SQLite antiguo, cambiar a db.Text y usar json.loads/dumps manual.
+    # Asumimos que el entorno soporta JSON o que SQLAlchemy hace el fallback.
+    chart_data = db.Column(db.JSON, nullable=False) 
+    
+    notes = db.Column(db.Text)
+    
+    created_by = db.relationship('User')
+
+    # Relación inversa para Auditorías (Evidence)
+    # Esto permite ver desde el Snapshot en qué auditorías se usó
+    audit_links = db.relationship('AuditControlLink',
+        primaryjoin="and_(OrgChartSnapshot.id==foreign(AuditControlLink.linkable_id), "
+                    "AuditControlLink.linkable_type=='OrgChartSnapshot')",
+        lazy='dynamic'
+    )
