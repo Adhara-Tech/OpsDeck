@@ -6,6 +6,7 @@ from datetime import datetime
 
 # Import the models needed for the notification logic
 from .models import Subscription, NotificationSetting
+from .models.credentials import Credential, CredentialSecret
 
 # --- Notification Functions ---
 
@@ -114,3 +115,107 @@ def check_upcoming_renewals(app):
                 send_webhook(app, settings.webhook_url, webhook_data)
         else:
             app.logger.info("No subscriptions require notification today.")
+
+def check_credential_expirations(app):
+    """
+    Checks for credentials with active secrets expiring soon and sends 
+    notifications to owners at 30, 14, and 7 days before expiry.
+    """
+    with app.app_context():
+        # Notification thresholds (days before expiry)
+        NOTIFY_DAYS = [30, 14, 7]
+        
+        today = datetime.now().date()
+        credentials_to_notify = []
+        
+        # Query all active secrets with expiry dates
+        active_secrets = CredentialSecret.query.filter(
+            CredentialSecret.is_active == True,
+            CredentialSecret.expires_at.isnot(None)
+        ).all()
+        
+        # Check each secret for notification threshold
+        for secret in active_secrets:
+            days_until_expiry = (secret.expires_at.date() - today).days
+            
+            # Only notify on specific days (30, 14, 7)
+            if days_until_expiry in NOTIFY_DAYS:
+                credential = secret.credential
+                credentials_to_notify.append({
+                    'credential': credential,
+                    'secret': secret,
+                    'days_until_expiry': days_until_expiry
+                })
+        
+        # Send notifications if any credentials are expiring
+        if credentials_to_notify:
+            # Group by owner for consolidated emails
+            notifications_by_owner = {}
+            
+            for item in credentials_to_notify:
+                credential = item['credential']
+                owner = credential.owner
+                
+                if not owner or not owner.email:
+                    app.logger.warning(f"Credential '{credential.name}' has no valid owner email")
+                    continue
+                
+                if owner.email not in notifications_by_owner:
+                    notifications_by_owner[owner.email] = {
+                        'owner_name': owner.name,
+                        'credentials': []
+                    }
+                
+                notifications_by_owner[owner.email]['credentials'].append(item)
+            
+            # Send email to each owner
+            for email, data in notifications_by_owner.items():
+                html_content = f"""
+                <h2>Credential Expiration Alert</h2>
+                <p>Hello {data['owner_name']},</p>
+                <p>The following credentials under your ownership are expiring soon:</p>
+                <ul>
+                """
+                
+                for item in data['credentials']:
+                    cred = item['credential']
+                    secret = item['secret']
+                    days = item['days_until_expiry']
+                    
+                    # Determine urgency level
+                    urgency = "⚠️ URGENT" if days <= 7 else "⚡ WARNING" if days <= 14 else "ℹ️ NOTICE"
+                    
+                    # Build credential description
+                    target = cred.target_name if cred.target_name != "N/A" else "No linked service"
+                    
+                    html_content += f"""
+                    <li>
+                        <strong>{urgency} - {cred.name}</strong> ({cred.type})<br>
+                        Target: {target}<br>
+                        Masked Value: <code>{secret.masked_value}</code><br>
+                        Expires: {secret.expires_at.strftime('%Y-%m-%d')} ({days} days remaining)<br>
+                        {'<span style="color: red;">⚠️ CRITICAL INFRASTRUCTURE</span><br>' if cred.break_glass else ''}
+                        <em>Please rotate this credential as soon as possible.</em>
+                    </li>
+                    """
+                
+                html_content += """
+                </ul>
+                <p>To rotate a credential, visit the OpsDeck Credentials section and use the "Rotate Secret" button.</p>
+                <p><strong>Security Reminder:</strong> Never share your credentials or store them in plain text.</p>
+                """
+                
+                # Send the email
+                success = send_email(
+                    app,
+                    f"Credential Expiration Alert - {len(data['credentials'])} credential(s) expiring soon",
+                    html_content,
+                    [email]
+                )
+                
+                if success:
+                    app.logger.info(f"Sent credential expiration notification to {email} for {len(data['credentials'])} credential(s)")
+                else:
+                    app.logger.error(f"Failed to send credential expiration notification to {email}")
+        else:
+            app.logger.info("No credentials require expiration notification today.")

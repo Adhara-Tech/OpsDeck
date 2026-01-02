@@ -1,5 +1,6 @@
 {% extends "layout.html" %}
 {% from "components/compliance_link_macro.html" import compliance_links %}
+{% from "components/credential_list_macro.html" import credential_list %}
 
 {% block title %}{{ service.name }} - Service Detail{% endblock %}
 
@@ -130,12 +131,10 @@
         <button class="nav-link active" id="topology-tab" data-bs-toggle="tab" data-bs-target="#topology" type="button"
             role="tab">Topology & Dependencies</button>
     </li>
-    {% if service.category == 'Application' %}
     <li class="nav-item" role="presentation">
         <button class="nav-link" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button"
             role="tab">User Access</button>
     </li>
-    {% endif %}
     <li class="nav-item" role="presentation">
         <button class="nav-link" id="infrastructure-tab" data-bs-toggle="tab" data-bs-target="#infrastructure"
             type="button" role="tab">Infrastructure Components</button>
@@ -143,6 +142,10 @@
     <li class="nav-item" role="presentation">
         <button class="nav-link" id="context-tab" data-bs-toggle="tab" data-bs-target="#context" type="button"
             role="tab">Service Context</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="credentials-tab" data-bs-toggle="tab" data-bs-target="#credentials" type="button"
+            role="tab">Credentials</button>
     </li>
 </ul>
 
@@ -555,6 +558,15 @@
             </div>
         </div>
     </div>
+</div>
+
+<div class="tab-pane fade" id="credentials" role="tabpanel">
+    <div class="row">
+        <div class="col-12">
+            {{ credential_list(service.credentials) }}
+        </div>
+    </div>
+</div>
 </div>
 
 <div class="modal fade" id="addUserAccessModal" tabindex="-1">

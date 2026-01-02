@@ -228,6 +228,7 @@ def create_app():
     from .routes.links import links_bp
     from .routes.activities import activities_bp
     from .routes.onboarding import onboarding_bp
+    from .routes.credentials import credentials_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(assets_bp, url_prefix='/assets')
@@ -269,6 +270,7 @@ def create_app():
     app.register_blueprint(onboarding_bp, url_prefix='/onboarding')
     from .routes.risk_assessment import risk_assessment_bp
     app.register_blueprint(risk_assessment_bp)
+    app.register_blueprint(credentials_bp)
 
     # --- Google OAuth Blueprint ---
     if app.config.get('GOOGLE_OAUTH_CLIENT_ID'):
@@ -302,6 +304,12 @@ def create_app():
     scheduler = BackgroundScheduler()
     scheduler.add_job(
         func=notifications.check_upcoming_renewals,
+        args=[app],
+        trigger="interval",
+        days=1
+    )
+    scheduler.add_job(
+        func=notifications.check_credential_expirations,
         args=[app],
         trigger="interval",
         days=1
