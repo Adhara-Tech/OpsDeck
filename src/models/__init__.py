@@ -11,6 +11,7 @@ from .services import BusinessService, ServiceComponent
 from .audits import *
 from .activities import *
 from .onboarding import *
+from .configuration import *
 from .risk_assessment import *
 
 

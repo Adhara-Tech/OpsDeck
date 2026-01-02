@@ -163,6 +163,11 @@
                             class="nav-link {% if request.endpoint == 'credentials.list_credentials' %}active{% endif %}"
                             href="{{ url_for('credentials.list_credentials') }}"><i class="fa-fw fas fa-key"></i>
                             Credentials</a></li>
+
+                    <li class="nav-item"><a
+                            class="nav-link {% if request.blueprint == 'configuration' %}active{% endif %}"
+                            href="{{ url_for('configuration.index') }}"><i class="fa-fw fas fa-sliders-h"></i>
+                            Configurations</a></li>
                 </div>
 
                 <hr class="text-white">

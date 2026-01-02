@@ -1,0 +1,309 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container-fluid mb-5">
+    {# Header #}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0 text-gray-800">{{ configuration.name }}</h1>
+            <p class="text-muted mb-0">Version {{ version_number }} (Latest)</p>
+        </div>
+        <div class="d-flex gap-2">
+            <div class="dropdown">
+                <button class="btn btn-secondary dropdown-toggle" type="button" id="compareDropdown"
+                    data-bs-toggle="dropdown">
+                    <i class="fas fa-history me-1"></i> History & Compare
+                </button>
+                <ul class="dropdown-menu">
+                    <li>
+                        <h6 class="dropdown-header">Compare with previous</h6>
+                    </li>
+                    {% if version_number > 1 %}
+                    <li>
+                        <a class="dropdown-item"
+                            href="{{ url_for('configuration.compare', id=configuration.id, v1=version_number-1, v2=version_number) }}">
+                            v{{ version_number-1 }} vs v{{ version_number }}
+                        </a>
+                    </li>
+                    {% else %}
+                    <li><a class="dropdown-item disabled" href="#">No previous version</a></li>
+                    {% endif %}
+                    <li>
+                        <hr class="dropdown-divider">
+                    </li>
+                    <li>
+                        <a class="dropdown-item" href="{{ url_for('configuration.history', id=configuration.id) }}">
+                            View Full History
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#saveModal">
+                <i class="fas fa-save me-1"></i> Save as New Version
+            </button>
+        </div>
+    </div>
+
+    {# Editor Area #}
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
+            <h6 class="m-0 font-weight-bold text-primary">Configuration Editor</h6>
+            <button class="btn btn-sm btn-outline-primary" onclick="addGroup()">
+                <i class="fas fa-plus me-1"></i> Add Group (Tab)
+            </button>
+        </div>
+        <div class="card-body">
+
+            {# Tabs Navigation #}
+            <ul class="nav nav-tabs" id="configTabs" role="tablist">
+                {# Populated by JS #}
+            </ul>
+
+            {# Tabs Content #}
+            <div class="tab-content pt-3" id="configTabsContent">
+                {# Populated by JS #}
+            </div>
+
+            {# Empty State #}
+            <div id="emptyState" class="text-center py-5 d-none">
+                <p class="text-gray-500 mb-3">No groups defined yet.</p>
+                <button class="btn btn-primary" onclick="addGroup()">Add First Group</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Save Modal #}
+<div class="modal fade" id="saveModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('configuration.snapshot', id=configuration.id) }}" method="POST" id="saveForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="config_data" id="configDataInput">
+
+                <div class="modal-header">
+                    <h5 class="modal-title">Save New Version</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Commit Message</label>
+                        <input type="text" class="form-control" name="commit_message"
+                            placeholder="e.g. Updated firewall rules" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="submitSave()">Save Snapshot</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{# Scripts #}
+<script>
+    // Initial Data from Server
+    let configData = {{ data | tojson | safe }};
+
+    // Ensure it's an object
+    if (!configData || typeof configData !== 'object' || Array.isArray(configData)) {
+        configData = {};
+    }
+
+    const tabsList = document.getElementById('configTabs');
+    const tabsContent = document.getElementById('configTabsContent');
+    const emptyState = document.getElementById('emptyState');
+
+    function render() {
+        tabsList.innerHTML = '';
+        tabsContent.innerHTML = '';
+
+        const groups = Object.keys(configData);
+
+        if (groups.length === 0) {
+            emptyState.classList.remove('d-none');
+            return;
+        } else {
+            emptyState.classList.add('d-none');
+        }
+
+        let first = true;
+        groups.forEach((group, index) => {
+            const safeGroup = group.replace(/[^a-zA-Z0-9]/g, '_') + '_' + index;
+
+            // Tab Header
+            const li = document.createElement('li');
+            li.className = 'nav-item';
+            li.innerHTML = `
+                <button class="nav-link ${first ? 'active' : ''}" id="tab-${safeGroup}" data-bs-toggle="tab" data-bs-target="#content-${safeGroup}" type="button" role="tab">
+                    ${group}
+                    <i class="fas fa-times ms-2 text-danger small" onclick="removeGroup('${group}', event)" title="Remove Group"></i>
+                </button>
+            `;
+            tabsList.appendChild(li);
+
+            // Tab Content
+            const div = document.createElement('div');
+            div.className = `tab-pane fade ${first ? 'show active' : ''}`;
+            div.id = `content-${safeGroup}`;
+            div.role = 'tabpanel';
+
+            // Render Key-Values table
+            let rowsHtml = '';
+            const entries = configData[group];
+            if (typeof entries === 'object' && entries !== null) {
+                Object.keys(entries).forEach(key => {
+                    const value = entries[key];
+                    rowsHtml += `
+                        <tr>
+                            <td>
+                                <input type="text" class="form-control form-control-sm" value="${key}" onchange="renameKey('${group}', '${key}', this.value)" placeholder="Key">
+                            </td>
+                            <td>
+                                <input type="text" class="form-control form-control-sm" value="${value}" onchange="updateValue('${group}', '${key}', this.value)" placeholder="Value">
+                            </td>
+                            <td class="text-center">
+                                <button class="btn btn-sm btn-outline-danger" onclick="removeKey('${group}', '${key}')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            }
+
+            div.innerHTML = `
+                <table class="table table-bordered table-sm">
+                    <thead class="bg-light">
+                        <tr>
+                            <th style="width: 30%">Key</th>
+                            <th style="width: 60%">Value</th>
+                            <th style="width: 10%">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${rowsHtml}
+                        <tr>
+                            <td colspan="3" class="text-center">
+                                <button class="btn btn-sm btn-outline-secondary" onclick="addKey('${group}')">
+                                    <i class="fas fa-plus me-1"></i> Add Key
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            `;
+
+            tabsContent.appendChild(div);
+
+            first = false;
+        });
+    }
+
+    // --- Actions ---
+
+    function addGroup() {
+        const name = prompt("Enter new Group name (e.g. 'Network Settings'):");
+        if (name) {
+            if (configData[name]) {
+                alert("Group already exists!");
+                return;
+            }
+            configData[name] = {};
+            render();
+            // Switch to last tab (the new one)
+            setTimeout(() => {
+                const lastTab = tabsList.lastElementChild.querySelector('button');
+                const bsTab = new bootstrap.Tab(lastTab);
+                bsTab.show();
+            }, 50);
+        }
+    }
+
+    function removeGroup(group, event) {
+        event.stopPropagation(); // prevent tab switching
+        if (confirm(`Delete group "${group}" and all its settings?`)) {
+            delete configData[group];
+            render();
+        }
+    }
+
+    function addKey(group) {
+        // Find stored keys to avoid collision
+        let i = 1;
+        let newKey = "New Key";
+        while (configData[group][newKey]) {
+            newKey = "New Key " + i++;
+        }
+        configData[group][newKey] = "";
+        render();
+        // Keep current tab active is handled by render re-creating DOM but usually resets to first.
+        // Ideally we should preserve active tab. I'll fix that below.
+        restoreActiveTab(group);
+    }
+
+    function removeKey(group, key) {
+        delete configData[group][key];
+        render();
+        restoreActiveTab(group);
+    }
+
+    function updateValue(group, key, newValue) {
+        configData[group][key] = newValue;
+    }
+
+    function renameKey(group, oldKey, newKey) {
+        if (oldKey === newKey) return;
+        if (configData[group][newKey] !== undefined) {
+            alert("Key already exists!");
+            // Revert change in DOM would be hard without re-render. 
+            // Simplest is to re-render.
+            render();
+            restoreActiveTab(group);
+            return;
+        }
+
+        // Preserve order
+        const newObj = {};
+        Object.keys(configData[group]).forEach(k => {
+            if (k === oldKey) {
+                newObj[newKey] = configData[group][oldKey];
+            } else {
+                newObj[k] = configData[group][k];
+            }
+        });
+        configData[group] = newObj;
+        render();
+        restoreActiveTab(group);
+    }
+
+    function restoreActiveTab(groupName) {
+        // Wait for DOM
+        setTimeout(() => {
+            // Find index
+            const groups = Object.keys(configData);
+            const index = groups.indexOf(groupName);
+            if (index >= 0) {
+                const safeGroup = groupName.replace(/[^a-zA-Z0-9]/g, '_') + '_' + index;
+                const tabBtn = document.getElementById(`tab-${safeGroup}`);
+                if (tabBtn) {
+                    const bsTab = new bootstrap.Tab(tabBtn);
+                    bsTab.show();
+                }
+            }
+        }, 50);
+    }
+
+    function submitSave() {
+        document.getElementById('configDataInput').value = JSON.stringify(configData);
+        document.getElementById('saveForm').submit();
+    }
+
+    // Initial render
+    document.addEventListener('DOMContentLoaded', () => {
+        render();
+    });
+
+</script>
+{% endblock %}

@@ -150,6 +150,7 @@ def create_app():
     db.init_app(app)
     from .extensions import login_manager
     login_manager.init_app(app)
+    login_manager.login_view = 'main.login'
 
     @login_manager.user_loader
     def load_user(user_id):
@@ -271,6 +272,9 @@ def create_app():
     from .routes.risk_assessment import risk_assessment_bp
     app.register_blueprint(risk_assessment_bp)
     app.register_blueprint(credentials_bp)
+    
+    from .routes.configuration import configuration_bp
+    app.register_blueprint(configuration_bp, url_prefix='/configuration')
 
     # --- Google OAuth Blueprint ---
     if app.config.get('GOOGLE_OAUTH_CLIENT_ID'):

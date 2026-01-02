@@ -1,0 +1,71 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container-fluid mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0 text-gray-800">Compare Versions</h1>
+            <p class="text-muted mb-0">Configuration: <strong>{{ configuration.name }}</strong></p>
+        </div>
+        <div>
+            <a href="{{ url_for('configuration.detail', id=configuration.id) }}" class="btn btn-secondary btn-sm">
+                <i class="fas fa-arrow-left me-1"></i> Back to Editor
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        {# Left Side: Version A #}
+        <div class="col-md-6 mb-3">
+            <div class="card border-left-primary h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Version {{ v1.version_number }} (Old)</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {{ v1.created_at.strftime('%Y-%m-%d %H:%M') }}
+                            </div>
+                            <small class="text-muted">By {{ v1.created_by.name }}</small>
+                            <p class="mt-2 mb-0 small text-gray-600 bg-light p-2 rounded">
+                                {{ v1.commit_message or 'No message' }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# Right Side: Version B #}
+        <div class="col-md-6 mb-3">
+            <div class="card border-left-success h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Version {{ v2.version_number }} (New)</div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {{ v2.created_at.strftime('%Y-%m-%d %H:%M') }}
+                            </div>
+                            <small class="text-muted">By {{ v2.created_by.name }}</small>
+                            <p class="mt-2 mb-0 small text-gray-600 bg-light p-2 rounded">
+                                {{ v2.commit_message or 'No message' }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# Diff Viewer #}
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Change Log</h6>
+        </div>
+        <div class="card-body">
+            {% include "components/diff_viewer.html" %}
+        </div>
+    </div>
+</div>
+{% endblock %}
