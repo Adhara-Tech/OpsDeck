@@ -87,7 +87,7 @@ def pack_detail(id):
         return redirect(url_for('onboarding.pack_detail', id=id))
 
     all_software = Software.query.order_by(Software.name).all()
-    all_services = BusinessService.query.filter_by(category='Application').order_by(BusinessService.name).all()
+    all_services = BusinessService.query.order_by(BusinessService.name).all()
     return render_template('onboarding/pack_detail.html', pack=pack, all_software=all_software, all_services=all_services)
 
 # ==========================================
@@ -100,6 +100,7 @@ def pack_detail(id):
 def new_onboarding():
     if request.method == 'POST':
         new_hire_name = request.form['new_hire_name']
+        target_email = request.form.get('target_email')
         pack_id = request.form.get('pack_id')
         start_date = datetime.strptime(request.form['start_date'], '%Y-%m-%d').date()
         
@@ -109,6 +110,7 @@ def new_onboarding():
         # 1. Crear Proceso
         process = OnboardingProcess(
             new_hire_name=new_hire_name,
+            target_email=target_email,
             pack_id=pack_id,
             start_date=start_date,
             assigned_manager_id=int(manager_id) if manager_id else None,
@@ -327,6 +329,18 @@ def new_offboarding():
                 linked_object_id=s.id
             ))
 
+        # 3. CREDENTIALS
+        # Import Credential model
+        from ..models.credentials import Credential
+        credentials_owned = Credential.query.filter_by(owner_id=target_user.id, owner_type='User').all()
+        for cred in credentials_owned:
+            db.session.add(ProcessItem(
+                offboarding_process_id=process.id,
+                description=f"🔑 REASSIGN CREDENTIAL: {cred.name} ({cred.type})",
+                item_type='Credential',
+                linked_object_id=cred.id
+            ))
+
         # 4. TAREAS GLOBALES
         static_tasks = ProcessTemplate.query.filter_by(process_type='offboarding', is_active=True).all()
         for task in static_tasks:
@@ -366,7 +380,21 @@ def offboarding_detail(id):
 @login_required
 def toggle_item(id):
     item = ProcessItem.query.get_or_404(id)
-    item.is_completed = not item.is_completed
+    target_state = not item.is_completed
+    item.is_completed = target_state
+
+    # Automation: If ServiceAccess item completed, link user to service
+    if target_state and item.item_type == 'ServiceAccess' and item.linked_object_id and item.onboarding_process_id:
+        process = item.onboarding_process
+        if process and process.user: # Requires User to be created/linked first
+            service = BusinessService.query.get(item.linked_object_id)
+            if service:
+                if process.user not in service.users:
+                    service.users.append(process.user)
+                    flash(f'User automatically added to service access list: {service.name}', 'success')
+                else:
+                    flash(f'User already has access to {service.name}.', 'info')
+
     db.session.commit()
     
     # Redirigir inteligentemente
@@ -462,11 +490,15 @@ def create_user_account(process_id, item_id):
         return redirect(url_for('onboarding.onboarding_detail', id=process.id))
 
     # Generate Email
+    # Generate Email
     # Format: firstname.lastname@example.com (simplified logic)
-    # Removing special chars, spaces to dots
-    clean_name = "".join(c for c in process.new_hire_name if c.isalnum() or c.isspace()).lower()
-    email_local = clean_name.replace(" ", ".")
-    email = f"{email_local}@example.com"
+    if process.target_email:
+        email = process.target_email
+    else:
+        # Removing special chars, spaces to dots
+        clean_name = "".join(c for c in process.new_hire_name if c.isalnum() or c.isspace()).lower()
+        email_local = clean_name.replace(" ", ".")
+        email = f"{email_local}@example.com"
     
     # Generate Password
     password = generate_secure_password()
@@ -492,6 +524,40 @@ def create_user_account(process_id, item_id):
     db.session.commit()
     
     flash(f"User created!\nEmail: {email}\nPassword: {password}", "success")
+    return redirect(url_for('onboarding.onboarding_detail', id=process.id))
+
+@onboarding_bp.route('/process/<int:process_id>/add_to_service/<int:item_id>', methods=['POST'])
+@login_required
+@admin_required
+def add_user_to_service(process_id, item_id):
+    process = OnboardingProcess.query.get_or_404(process_id)
+    item = ProcessItem.query.get_or_404(item_id)
+    
+    if item.item_type != 'ServiceAccess' or not item.linked_object_id:
+        flash('Invalid item type.', 'danger')
+        return redirect(url_for('onboarding.onboarding_detail', id=process.id))
+
+    service = BusinessService.query.get(item.linked_object_id)
+    if not service:
+        flash('Service not found.', 'danger')
+        return redirect(url_for('onboarding.onboarding_detail', id=process.id))
+        
+    if not process.user:
+        flash('No user linked to this onboarding process yet. Create the user first.', 'warning')
+        return redirect(url_for('onboarding.onboarding_detail', id=process.id))
+        
+    if process.user not in service.users:
+        service.users.append(process.user)
+        # Avoid double flash if toggle also triggers? No, toggle triggers on is_completed change.
+        # This button is manual. It also marks completed.
+        flash(f'User {process.user.name} added to {service.name}.', 'success')
+        item.is_completed = True
+        db.session.commit()
+    else:
+        flash(f'User already in {service.name}.', 'info')
+        item.is_completed = True
+        db.session.commit()
+        
     return redirect(url_for('onboarding.onboarding_detail', id=process.id))
 
 # ==========================================
@@ -602,5 +668,40 @@ def transfer_service(id):
         flash(f'Service "{service.name}" transferred to {service.owner.name}.', 'success')
     else:
         flash(f'Service "{service.name}" is now unassigned.', 'info')
+        
+    return redirect(redirect_url or request.referrer)
+
+@onboarding_bp.route('/transfer/credential/<int:id>', methods=['POST'])
+@login_required
+@admin_required
+def transfer_credential(id):
+    from ..models.credentials import Credential
+    
+    credential = Credential.query.get_or_404(id)
+    new_owner_id = request.form.get('new_owner_id')
+    redirect_url = request.form.get('redirect_url')
+    
+    # Update owner
+    if new_owner_id:
+        credential.owner_id = int(new_owner_id)
+        credential.owner_type = 'User'  # Ensure it's set to User
+    else:
+        credential.owner_id = None
+    
+    # Auto-complete related offboarding item if exists
+    offboarding_item = ProcessItem.query.filter_by(
+        item_type='Credential', 
+        linked_object_id=id, 
+        is_completed=False
+    ).first()
+    if offboarding_item and offboarding_item.offboarding_process_id:
+        offboarding_item.is_completed = True
+        
+    db.session.commit()
+    
+    if credential.owner:
+        flash(f'Credential "{credential.name}" transferred to {credential.owner.name}.', 'success')
+    else:
+        flash(f'Credential "{credential.name}" is now unassigned.', 'info')
         
     return redirect(redirect_url or request.referrer)

@@ -158,6 +158,11 @@
                             class="nav-link {% if request.endpoint == 'reports.asset_reports' %}active{% endif %}"
                             href="{{ url_for('reports.asset_reports') }}"><i class="fa-fw fas fa-chart-bar"></i> Asset
                             Reports</a></li>
+                    <!-- Add the credentials screen -->
+                    <li class="nav-item"><a
+                            class="nav-link {% if request.endpoint == 'credentials.list_credentials' %}active{% endif %}"
+                            href="{{ url_for('credentials.list_credentials') }}"><i class="fa-fw fas fa-key"></i>
+                            Credentials</a></li>
                 </div>
 
                 <hr class="text-white">

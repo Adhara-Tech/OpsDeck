@@ -1,5 +1,6 @@
 {% extends "layout.html" %}
 {% from "components/compliance_link_macro.html" import compliance_links %}
+{% from "components/credential_list_macro.html" import credential_list %}
 
 {% block title %}{{ asset.name }} - {{ super() }}{% endblock %}
 
@@ -98,6 +99,8 @@
         {% endif %}
     </div>
 </div>
+
+{{ credential_list(asset.credentials) }}
 
 <!-- Risk Profile Card -->
 {% set risks = asset.linked_risks %}

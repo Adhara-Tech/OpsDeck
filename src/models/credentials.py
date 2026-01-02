@@ -1,0 +1,199 @@
+from datetime import datetime
+from sqlalchemy import and_
+from sqlalchemy.orm import foreign
+from ..extensions import db
+from .auth import User
+
+class Credential(db.Model):
+    """
+    Credential lifecycle tracker.
+    Stores metadata about credentials (API keys, OAuth tokens, etc.)
+    but NEVER stores the actual secret values - only masked representations.
+    """
+    __tablename__ = 'credentials'
+    
+    # Indexes for efficient queries
+    __table_args__ = (
+        db.Index('idx_credential_owner', 'owner_type', 'owner_id'),
+        db.Index('idx_credential_service', 'service_id'),
+        db.Index('idx_credential_software', 'software_id'),
+    )
+    
+    # ==========================================
+    # PRIMARY FIELDS
+    # ==========================================
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False)
+    type = db.Column(db.String(50), nullable=False)  # 'API Key', 'OAuth', 'Service Account', 'SSH Key', 'Password', 'Certificate'
+    break_glass = db.Column(db.Boolean, default=False, nullable=False)  # Critical/High Privilege marker
+    description = db.Column(db.Text)
+    
+    # ==========================================
+    # POLYMORPHIC OWNERSHIP
+    # ==========================================
+    owner_id = db.Column(db.Integer, nullable=False)
+    owner_type = db.Column(db.String(50), nullable=False)  # 'User', 'Group'
+    
+    # ==========================================
+    # ASSOCIATIONS (Nullable FKs)
+    # ==========================================
+    # Note: These FKs reference tables that may not exist yet in this codebase
+    # They are nullable and will be used when those features are implemented
+    service_id = db.Column(db.Integer, db.ForeignKey('business_service.id'), nullable=True)
+    software_id = db.Column(db.Integer, db.ForeignKey('software.id'), nullable=True)
+    license_id = db.Column(db.Integer, db.ForeignKey('license.id'), nullable=True)
+    asset_id = db.Column(db.Integer, db.ForeignKey('asset.id'), nullable=True)
+    
+    # Relationships for reverse visibility
+    service = db.relationship('BusinessService', backref=db.backref('credentials', lazy='dynamic'))
+    software = db.relationship('Software', backref=db.backref('credentials', lazy='dynamic'))
+    license = db.relationship('License', backref=db.backref('credentials', lazy='dynamic'))
+    asset = db.relationship('Asset', backref=db.backref('credentials', lazy='dynamic'))
+    
+    # ==========================================
+    # TIMESTAMPS
+    # ==========================================
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    
+    # ==========================================
+    # RELATIONSHIPS
+    # ==========================================
+    secrets = db.relationship(
+        'CredentialSecret',
+        backref='credential',
+        lazy='dynamic',
+        cascade='all, delete-orphan',
+        order_by='CredentialSecret.created_at.desc()'
+    )
+    
+    # ==========================================
+    # PROPERTIES
+    # ==========================================
+    @property
+    def active_secret(self):
+        """Returns the currently active CredentialSecret (is_active=True)"""
+        return self.secrets.filter_by(is_active=True).first()
+    
+    @property
+    def owner(self):
+        """Returns the owner object based on polymorphic relationship"""
+        if self.owner_type == 'User':
+            return User.query.get(self.owner_id)
+        # Add other owner types as needed (Group, etc.)
+        return None
+    
+    @property
+    def target_name(self):
+        """Returns a human-readable target name (Service/Software/License/Asset)"""
+        if self.service_id:
+            from .services import BusinessService
+            service = BusinessService.query.get(self.service_id)
+            return service.name if service else f"Service #{self.service_id}"
+        elif self.software_id:
+            from .assets import Software
+            software = Software.query.get(self.software_id)
+            return software.name if software else f"Software #{self.software_id}"
+        elif self.license_id:
+            from .assets import License
+            license = License.query.get(self.license_id)
+            return license.name if license else f"License #{self.license_id}"
+        elif self.asset_id:
+            from .assets import Asset
+            asset = Asset.query.get(self.asset_id)
+            return asset.name if asset else f"Asset #{self.asset_id}"
+        return "N/A"
+    
+    def __repr__(self):
+        return f'<Credential {self.name} ({self.type})>'
+class CredentialSecret(db.Model):
+    """
+    Stores masked secret values with expiration tracking.
+    NEVER stores full secret values - only masked representations.
+    """
+    __tablename__ = 'credential_secrets'
+    
+    # Indexes for efficient queries
+    __table_args__ = (
+        db.Index('idx_secret_credential', 'credential_id', 'is_active'),
+        db.Index('idx_secret_expiry', 'expires_at', 'is_active'),
+    )
+    
+    # ==========================================
+    # PRIMARY FIELDS
+    # ==========================================
+    id = db.Column(db.Integer, primary_key=True)
+    credential_id = db.Column(db.Integer, db.ForeignKey('credentials.id'), nullable=False)
+    
+    # Masked value (e.g., "********1234")
+    masked_value = db.Column(db.String(255), nullable=False)
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=True)
+    
+    # Active flag (only one secret should be active per credential)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    
+    # ==========================================
+    # METHODS
+    # ==========================================
+    def set_secret(self, raw_value):
+        """
+        Masks the secret value and stores only the masked representation.
+        NEVER stores the full value.
+        
+        Args:
+            raw_value (str): The raw secret value to mask
+            
+        Logic:
+            - If len(raw_value) <= 4: stores "****"
+            - Else: stores asterisks + last 4 characters
+            
+        Example:
+            "mySecretKey1234" -> "***********1234"
+            "abc" -> "****"
+        """
+        if not raw_value:
+            self.masked_value = "****"
+            return
+        
+        if len(raw_value) <= 4:
+            self.masked_value = "****"
+        else:
+            # Create masked value: asterisks + last 4 chars
+            num_asterisks = len(raw_value) - 4
+            self.masked_value = ('*' * num_asterisks) + raw_value[-4:]
+    
+    @property
+    def is_expired(self):
+        """Check if this secret has expired"""
+        if not self.expires_at:
+            return False
+        return datetime.utcnow() > self.expires_at
+    
+    @property
+    def days_until_expiry(self):
+        """Calculate days until expiration (negative if expired)"""
+        if not self.expires_at:
+            return None
+        delta = self.expires_at - datetime.utcnow()
+        return delta.days
+    
+    @property
+    def expiry_status(self):
+        """Returns status: 'active', 'expiring_soon', 'expired'"""
+        if not self.expires_at:
+            return 'active'
+        
+        days = self.days_until_expiry
+        if days < 0:
+            return 'expired'
+        elif days <= 7:
+            return 'expiring_soon'
+        elif days <= 30:
+            return 'expiring_warning'
+        return 'active'
+    
+    def __repr__(self):
+        return f'<CredentialSecret {self.masked_value} (Active: {self.is_active})>'

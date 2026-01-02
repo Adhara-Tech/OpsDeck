@@ -1,5 +1,6 @@
 {% extends "layout.html" %}
 {% from "components/compliance_link_macro.html" import compliance_links %}
+{% from "components/credential_list_macro.html" import credential_list %}
 {% block title %}{{ software.name }} - {{ super() }}{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -25,6 +26,8 @@
         <p><strong>Description:</strong> {{ software.description or 'N/A' }}</p>
     </div>
 </div>
+
+{{ credential_list(software.credentials) }}
 
 <div class="card mt-4 mb-4">
     <div class="card-header">

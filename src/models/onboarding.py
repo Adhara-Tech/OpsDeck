@@ -44,6 +44,9 @@ class OnboardingProcess(db.Model):
     new_hire_name = db.Column(db.String(100), nullable=False) # Nombre temporal si aún no hay User
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True) # Se enlaza al crear el usuario
     
+    # Optional: Email to use when creating the user, overrides auto-generation
+    target_email = db.Column(db.String(120), nullable=True)
+
     start_date = db.Column(db.Date, nullable=False)
     status = db.Column(db.String(50), default='Provisioning') # Provisioning, Completed
     
