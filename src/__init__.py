@@ -231,6 +231,13 @@ def create_app():
     from .routes.onboarding import onboarding_bp
     from .routes.credentials import credentials_bp
 
+    # --- Favicon Route ---
+    from flask import send_from_directory
+    @app.route('/favicon.ico')
+    def favicon():
+        return send_from_directory(os.path.join(app.root_path, 'static'),
+                                   'favicon.ico', mimetype='image/vnd.microsoft.icon')
+
     app.register_blueprint(main_bp)
     app.register_blueprint(assets_bp, url_prefix='/assets')
     app.register_blueprint(peripherals_bp, url_prefix='/peripherals')
