@@ -16,7 +16,7 @@ def subscriptions():
     tag_filter = request.args.get('tag_id', type=int)
     month_filter = request.args.get('month')
 
-    query = Subscription.query.join(Supplier).filter(not Subscription.is_archived)
+    query = Subscription.query.join(Supplier).filter(Subscription.is_archived == False)
 
     if subscription_type_filter and subscription_type_filter != 'all':
         query = query.filter(Subscription.subscription_type == subscription_type_filter)
