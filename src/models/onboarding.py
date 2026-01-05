@@ -35,6 +35,9 @@ class PackItem(db.Model):
     service_id = db.Column(db.Integer, db.ForeignKey('business_service.id'), nullable=True)
     service = db.relationship('BusinessService')
 
+    subscription_id = db.Column(db.Integer, db.ForeignKey('subscription.id'), nullable=True)
+    subscription = db.relationship('Subscription')
+
 
 # --- PROCESOS DE EJECUCIÓN ---
 

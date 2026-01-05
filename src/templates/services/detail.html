@@ -260,7 +260,7 @@
     <div class="tab-pane fade" id="users" role="tabpanel">
         <div class="card shadow mb-4">
             <div class="card-header py-3 d-flex justify-content-between align-items-center">
-                <h6 class="m-0 font-weight-bold text-primary">User Access ({{ service.users|length }})</h6>
+                <h6 class="m-0 font-weight-bold text-primary">User Access ({{ effective_users|length }})</h6>
                 <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addUserAccessModal">
                     <i class="fas fa-user-plus"></i> Add User
                 </button>
@@ -270,40 +270,73 @@
                     <table class="table table-bordered table-hover">
                         <thead>
                             <tr>
-                                <th>Name</th>
+                                <th>User</th>
                                 <th>Email</th>
+                                <th>Access Source</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for user in service.users %}
+                            {% set user_access_map = {} %}
+                            {% for access in effective_users %}
+                            {% set uid = access.user.id %}
+                            {% if uid not in user_access_map %}
+                            {% set _ = user_access_map.update({uid: []}) %}
+                            {% endif %}
+                            {% set _ = user_access_map[uid].append(access) %}
+                            {% endfor %}
+
+                            {% for user_id, accesses in user_access_map.items() %}
                             <tr>
                                 <td>
                                     <div class="d-flex align-items-center">
                                         <div class="avatar-circle bg-secondary text-white me-2"
                                             style="width:32px; height:32px; line-height:32px; text-align:center; border-radius:50%;">
-                                            {{ user.name[:2].upper() }}
+                                            {{ accesses[0].user.name[:2].upper() }}
                                         </div>
-                                        {{ user.name }}
+                                        {{ accesses[0].user.name }}
                                     </div>
                                 </td>
-                                <td>{{ user.email }}</td>
+                                <td>{{ accesses[0].user.email }}</td>
                                 <td>
+                                    {% for access in accesses %}
+                                    {% if access.source == 'direct' %}
+                                    <span class="badge bg-success me-1 mb-1">
+                                        <i class="fas fa-user-check"></i> Manual Assignment
+                                    </span>
+                                    {% elif access.source == 'subscription' %}
+                                    <span class="badge bg-info me-1 mb-1">
+                                        <i class="fas fa-sync-alt"></i> Via Subscription: {{ access.ref.name }}
+                                    </span>
+                                    {% elif access.source == 'license' %}
+                                    <span class="badge bg-warning text-dark me-1 mb-1">
+                                        <i class="fas fa-key"></i> Via License: {{ access.ref.name }}
+                                    </span>
+                                    {% endif %}
+                                    {% endfor %}
+                                </td>
+                                <td>
+                                    {% set has_direct = accesses|selectattr('source', 'equalto', 'direct')|list|length >
+                                    0 %}
+                                    {% if has_direct %}
                                     <form
-                                        action="{{ url_for('services.remove_user_access', id=service.id, user_id=user.id) }}"
+                                        action="{{ url_for('services.remove_user_access', id=service.id, user_id=accesses[0].user.id) }}"
                                         method="POST" class="d-inline"
-                                        onsubmit="return confirm('Revoke access for {{ user.name }}?');">
+                                        onsubmit="return confirm('Revoke direct access for {{ accesses[0].user.name }}?');">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button type="submit" class="btn btn-sm btn-danger">
-                                            <i class="fas fa-trash"></i> Revoke
+                                            <i class="fas fa-trash"></i> Revoke Direct
                                         </button>
                                     </form>
+                                    {% else %}
+                                    <span class="text-muted small">Inherited only</span>
+                                    {% endif %}
                                 </td>
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="3" class="text-center text-muted py-4">
-                                    No users have been assigned access to this application yet.
+                                <td colspan="4" class="text-center text-muted py-4">
+                                    No users have access to this service yet.
                                 </td>
                             </tr>
                             {% endfor %}
@@ -875,6 +908,47 @@
     // Reinitialize when type changes
     document.getElementById('componentTypeSelect').addEventListener('change', function () {
         initComponentSelect(this.value);
+    });
+
+    // Soft-lock for user access assignment
+    document.addEventListener('DOMContentLoaded', function () {
+        const addUserForm = document.querySelector('#addUserAccessModal form');
+        const userSelect = addUserForm.querySelector('select[name="user_id"]');
+
+        addUserForm.addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const userId = userSelect.value;
+            if (!userId) {
+                this.submit();
+                return;
+            }
+
+            try {
+                // Check if user already has inherited access
+                const response = await fetch(`{{ url_for('services.detail', id=service.id) }}/check_access/${userId}`);
+                const data = await response.json();
+
+                if (data.exists) {
+                    const sources = data.sources.join('\n• ');
+                    const confirmed = confirm(
+                        `⚠️ Advertencia: Este usuario ya tiene acceso a través de:\n• ${sources}\n\n` +
+                        `¿Deseas asignarlo manualmente de todas formas? Esto podría generar duplicidades.`
+                    );
+
+                    if (!confirmed) {
+                        return;
+                    }
+                }
+
+                // Proceed with submission
+                this.submit();
+            } catch (error) {
+                console.error('Error checking user access:', error);
+                // On error, allow submission to proceed
+                this.submit();
+            }
+        });
     });
 </script>
 {% endblock %}

@@ -103,6 +103,54 @@ class BusinessService(db.Model):
         if score >= 5:  return '#ffc107'  # Warning (Yellow)
         return '#198754'  # Success (Green)
 
+    def get_effective_users(self):
+        """
+        Returns a unified list of all users with access to this service,
+        including direct assignments and inherited access via components.
+        
+        Returns:
+            List[dict]: [{'user': User, 'source': str, 'ref': object}, ...]
+                source: 'direct', 'subscription', 'license'
+                ref: Reference object (Subscription/License) or None for direct
+        """
+        from .auth import User
+        
+        access_list = []
+        
+        # 1. Direct assignments
+        for user in self.users:
+            access_list.append({
+                'user': user,
+                'source': 'direct',
+                'ref': None
+            })
+        
+        # 2. Via components
+        for component in self.components:
+            linked_obj = component.linked_object
+            
+            if component.component_type == 'Subscription' and linked_obj:
+                # Subscription has many users
+                for user in linked_obj.users:
+                    access_list.append({
+                        'user': user,
+                        'source': 'subscription',
+                        'ref': linked_obj
+                    })
+            
+            elif component.component_type == 'License' and linked_obj:
+                # License has one user
+                if linked_obj.user_id:
+                    user = User.query.get(linked_obj.user_id)
+                    if user:
+                        access_list.append({
+                            'user': user,
+                            'source': 'license',
+                            'ref': linked_obj
+                        })
+        
+        return access_list
+
 class ServiceComponent(db.Model):
     """
     Polymorphic link to infrastructure components (Assets, Software, etc.)

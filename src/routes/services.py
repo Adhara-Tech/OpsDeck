@@ -104,6 +104,9 @@ def detail(id):
 
     # User list for Access Management
     all_users = User.query.filter_by(is_archived=False).order_by(User.name).all()
+    
+    # Get unified access list (direct + inherited)
+    effective_users = service.get_effective_users()
 
     return render_template('services/detail.html', 
         service=service, 
@@ -119,7 +122,8 @@ def detail(id):
         service_attachments=service_attachments,
         service_policies=service.policies,
         service_activities=service.activities,
-        all_users=all_users
+        all_users=all_users,
+        effective_users=effective_users
     )
 
 @services_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
@@ -541,3 +545,34 @@ def remove_user_access(id, user_id):
         flash(f'User {user.name} removed from {service.name}.', 'warning')
         
     return redirect(url_for('services.detail', id=id))
+
+@services_bp.route('/<int:id>/check_access/<int:user_id>')
+@login_required
+def check_user_access(id, user_id):
+    """
+    API endpoint to check if a user already has access to a service
+    through inherited sources (subscriptions/licenses).
+    
+    Returns JSON: {'exists': bool, 'sources': [str]}
+    """
+    service = BusinessService.query.get_or_404(id)
+    user = User.query.get_or_404(user_id)
+    
+    inherited_sources = []
+    
+    # Check components for inherited access
+    for component in service.components:
+        linked_obj = component.linked_object
+        
+        if component.component_type == 'Subscription' and linked_obj:
+            if user in linked_obj.users:
+                inherited_sources.append(f"Subscription: {linked_obj.name}")
+        
+        elif component.component_type == 'License' and linked_obj:
+            if linked_obj.user_id == user.id:
+                inherited_sources.append(f"License: {linked_obj.name}")
+    
+    return jsonify({
+        'exists': len(inherited_sources) > 0,
+        'sources': inherited_sources
+    })
