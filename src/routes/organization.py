@@ -1,0 +1,34 @@
+from flask import (
+    Blueprint, render_template, request, redirect, url_for, flash
+)
+from ..models import db, OrganizationSettings
+from .main import login_required
+from .admin import admin_required
+
+organization_bp = Blueprint('organization', __name__)
+
+
+@organization_bp.route('/', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def settings():
+    """View/update organization settings (singleton pattern)."""
+    # Get or create the singleton settings record
+    org_settings = OrganizationSettings.query.first()
+    if not org_settings:
+        org_settings = OrganizationSettings()
+        db.session.add(org_settings)
+        db.session.commit()
+
+    if request.method == 'POST':
+        org_settings.legal_name = request.form.get('legal_name', '').strip()
+        org_settings.tax_id = request.form.get('tax_id', '').strip()
+        org_settings.primary_domain = request.form.get('primary_domain', '').strip()
+        org_settings.email_domains = request.form.get('email_domains', '').strip()
+        # Logo upload would be handled separately if needed
+        
+        db.session.commit()
+        flash('Organization settings updated successfully!', 'success')
+        return redirect(url_for('organization.settings'))
+
+    return render_template('organization/settings.html', settings=org_settings)

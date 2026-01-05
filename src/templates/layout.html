@@ -168,7 +168,7 @@
                     <li class="nav-item"><a
                             class="nav-link {% if request.endpoint.startswith('certificates.') %}active{% endif %}"
                             href="{{ url_for('certificates.list_certificates') }}"><i
-                                class="fa-fw fas fa-file-certificate"></i>
+                                class="fa-fw fas fa-certificate"></i>
                             Certificates</a></li>
 
                     <li class="nav-item"><a
@@ -329,10 +329,10 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {{ 'active' if 'template' in request.endpoint }}"
+                        <a class="nav-link {{ 'active' if 'onboarding.list_templates' in request.endpoint and request.blueprint == 'onboarding' }}"
                             href="{{ url_for('onboarding.list_templates') }}">
                             <i class="fas fa-fw fa-clipboard-check"></i>
-                            <span>Global Templates</span>
+                            <span>Global Checklists</span>
                         </a>
                     </li>
 
@@ -365,7 +365,7 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {{ 'active' if request.blueprint == 'admin_communications' }}"
+                        <a class="nav-link {{ 'active' if 'admin_communications.list_templates' in request.endpoint }}"
                             href="{{ url_for('admin_communications.list_templates') }}">
                             <i class="fas fa-fw fa-envelope-open-text"></i>
                             <span>Email Templates</span>
@@ -403,6 +403,10 @@
                 <h6 class="sidebar-heading" data-bs-toggle="collapse" data-bs-target="#settings-menu"
                     aria-expanded="false">Settings <i class="fa-fw fas fa-chevron-down float-end"></i></h6>
                 <div class="collapse" id="settings-menu" data-bs-parent="#sidebar-accordion">
+                    <li class="nav-item"><a
+                            class="nav-link {% if request.endpoint == 'organization.settings' %}active{% endif %}"
+                            href="{{ url_for('organization.settings') }}"><i class="fa-fw fas fa-building"></i>
+                            Organization</a></li>
                     <li class="nav-item"><a
                             class="nav-link {% if request.endpoint == 'main.notification_settings' %}active{% endif %}"
                             href="{{ url_for('main.notification_settings') }}"><i class="fa-fw fas fa-bell"></i>

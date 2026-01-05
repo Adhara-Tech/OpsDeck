@@ -1,0 +1,70 @@
+{% extends "layout.html" %}
+
+{% block title %}Organization Settings - {{ super() }}{% endblock %}
+
+{% block content %}
+<h2><i class="fas fa-building"></i> Organization Settings</h2>
+<hr>
+
+<div class="card">
+    <div class="card-body">
+        <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <h5 class="card-title"><i class="fas fa-gavel me-2"></i>Legal Information</h5>
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <label for="legal_name" class="form-label">Legal Name</label>
+                    <input type="text" class="form-control" id="legal_name" name="legal_name"
+                        value="{{ settings.legal_name or '' }}" placeholder="OpsDeck S.L.">
+                    <small class="text-muted">Used in contracts, delivery notes, and official documents.</small>
+                </div>
+                <div class="col-md-6">
+                    <label for="tax_id" class="form-label">Tax ID (CIF/NIF)</label>
+                    <input type="text" class="form-control" id="tax_id" name="tax_id"
+                        value="{{ settings.tax_id or '' }}" placeholder="B-12345678">
+                    <small class="text-muted">Used in invoices and waste management documentation.</small>
+                </div>
+            </div>
+
+            <hr>
+
+            <h5 class="card-title"><i class="fas fa-globe me-2"></i>Domain Configuration</h5>
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <label for="primary_domain" class="form-label">Primary Domain</label>
+                    <input type="text" class="form-control" id="primary_domain" name="primary_domain"
+                        value="{{ settings.primary_domain or '' }}" placeholder="opsdeck.com">
+                    <small class="text-muted">Main website/company domain.</small>
+                </div>
+                <div class="col-md-6">
+                    <label for="email_domains" class="form-label">Email Domains</label>
+                    <input type="text" class="form-control" id="email_domains" name="email_domains"
+                        value="{{ settings.email_domains or '' }}" placeholder="empresa.com, empresa.es">
+                    <small class="text-muted">Comma-separated list. Used for auto-completing user email
+                        addresses.</small>
+                </div>
+            </div>
+
+            <hr>
+            <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i> Save Settings</button>
+        </form>
+    </div>
+</div>
+
+{% if settings.email_domains_list %}
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-at me-2"></i>Configured Email Domains</h5>
+    </div>
+    <div class="card-body">
+        <p class="text-muted">These domains will be available when creating new users:</p>
+        <div class="d-flex flex-wrap gap-2">
+            {% for domain in settings.email_domains_list %}
+            <span class="badge bg-primary fs-6">@{{ domain }}</span>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

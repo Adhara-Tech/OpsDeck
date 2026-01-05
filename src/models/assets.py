@@ -12,6 +12,27 @@ class Location(db.Model):
     assets = db.relationship('Asset', backref='location', lazy=True)
     is_archived = db.Column(db.Boolean, default=False, nullable=False)
 
+    # Physical address fields (optional - if filled, this is a physical site)
+    address = db.Column(db.String(255))
+    city = db.Column(db.String(100))
+    zip_code = db.Column(db.String(20))
+    country = db.Column(db.String(100))
+
+    # Timezone for scheduled tasks respecting local time
+    timezone = db.Column(db.String(50))  # e.g., 'Europe/Madrid', 'America/New_York'
+
+    # Legal override (for subsidiaries with different tax ID)
+    tax_id_override = db.Column(db.String(50))
+
+    # Contact info
+    phone = db.Column(db.String(50))
+    reception_email = db.Column(db.String(120))
+
+    @property
+    def is_physical_site(self):
+        """Returns True if this location has physical address info."""
+        return bool(self.address or self.city or self.country)
+
 class Asset(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)

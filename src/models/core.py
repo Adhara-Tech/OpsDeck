@@ -162,3 +162,26 @@ service_activities = db.Table('service_activities',
     db.Column('service_id', db.Integer, db.ForeignKey('business_service.id'), primary_key=True),
     db.Column('activity_id', db.Integer, db.ForeignKey('security_activity.id'), primary_key=True)
 )
+
+
+class OrganizationSettings(db.Model):
+    """Singleton for global organization configuration."""
+    __tablename__ = 'organization_settings'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    legal_name = db.Column(db.String(255))           # "OpsDeck S.L."
+    tax_id = db.Column(db.String(50))                # CIF/NIF
+    primary_domain = db.Column(db.String(255))       # "opsdeck.com"
+    logo_filename = db.Column(db.String(255))        # For PDF reports
+    email_domains = db.Column(db.String(500))        # Comma-separated: "empresa.com,empresa.es"
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<OrganizationSettings {self.legal_name}>'
+    
+    @property
+    def email_domains_list(self):
+        """Returns email_domains as a list."""
+        if self.email_domains:
+            return [d.strip() for d in self.email_domains.split(',') if d.strip()]
+        return []
