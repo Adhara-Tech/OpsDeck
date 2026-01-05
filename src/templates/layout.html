@@ -155,8 +155,9 @@
                             href="{{ url_for('assets.warranties') }}"><i class="fa-fw fas fa-shield-alt"></i>
                             Warranties</a></li>
                     <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint == 'reports.asset_reports' %}active{% endif %}"
-                            href="{{ url_for('reports.asset_reports') }}"><i class="fa-fw fas fa-chart-bar"></i> Asset
+                            class="nav-link {% if request.endpoint == 'reports.assets_dashboard' %}active{% endif %}"
+                            href="{{ url_for('reports.assets_dashboard') }}"><i class="fa-fw fas fa-chart-bar"></i>
+                            Asset
                             Reports</a></li>
                     <!-- Add the credentials screen -->
                     <li class="nav-item"><a

@@ -155,6 +155,60 @@ def test_asset_reports_contains_chart_data(auth_client, reports_data):
     assert b'chart' in response.data.lower()
 
 
+# --- Assets Dashboard ---
+
+def test_assets_dashboard_loads(auth_client, reports_data):
+    """Test that assets dashboard page loads successfully."""
+    response = auth_client.get('/reports/assets-dashboard')
+    assert response.status_code == 200
+    assert b'Asset Operations Dashboard' in response.data
+    assert b'Total Fleet Size' in response.data
+    assert b'Dead Stock Rate' in response.data
+
+
+def test_assets_dashboard_contains_kpis(auth_client, reports_data):
+    """Test that assets dashboard contains all KPI cards."""
+    response = auth_client.get('/reports/assets-dashboard')
+    assert response.status_code == 200
+    # Check for KPI labels
+    assert b'Total Fleet Size' in response.data
+    assert b'Fleet Value' in response.data
+    assert b'Average Fleet Age' in response.data
+    assert b'Dead Stock Rate' in response.data
+
+
+def test_assets_dashboard_contains_charts(auth_client, reports_data):
+    """Test that assets dashboard includes Chart.js scripts."""
+    response = auth_client.get('/reports/assets-dashboard')
+    assert response.status_code == 200
+    assert b'statusChart' in response.data
+    assert b'breakdownChart' in response.data
+    assert b'assets_dashboard.js' in response.data
+
+
+def test_assets_dashboard_pdf_export(auth_client, reports_data):
+    """Test PDF export generates successfully."""
+    response = auth_client.get('/reports/assets-dashboard/pdf')
+    assert response.status_code == 200
+    assert response.headers['Content-Type'] == 'application/pdf'
+    assert 'attachment' in response.headers['Content-Disposition']
+    assert 'assets_dashboard.pdf' in response.headers['Content-Disposition']
+
+
+def test_assets_dashboard_with_no_assets(auth_client, app):
+    """Test dashboard handles empty asset list gracefully."""
+    with app.app_context():
+        # Archive all assets
+        from src.models import Asset
+        Asset.query.update({Asset.is_archived: True})
+        db.session.commit()
+    
+    response = auth_client.get('/reports/assets-dashboard')
+    assert response.status_code == 200
+    # Should still render without errors
+    assert b'Asset Operations Dashboard' in response.data
+
+
 # --- Spend Analysis ---
 
 def test_spend_analysis_loads(auth_client, reports_data):

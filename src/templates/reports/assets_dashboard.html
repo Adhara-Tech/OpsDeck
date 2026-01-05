@@ -1,0 +1,231 @@
+{% extends "layout.html" %}
+
+{% block title %}Asset Operations Dashboard - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2"><i class="fas fa-server"></i> Asset Operations Dashboard</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{{ url_for('reports.assets_dashboard_pdf') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-file-earmark-pdf"></i> Export PDF
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- KPI Cards Row -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-white bg-primary h-100">
+            <div class="card-body">
+                <h5 class="card-title">Total Fleet Size</h5>
+                <p class="card-text display-4">{{ total_fleet }}</p>
+                <small>Active Assets</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div
+            class="card text-white {% if (total_current_value / total_capex * 100) < 50 %}bg-warning{% else %}bg-info{% endif %} h-100">
+            <div class="card-body">
+                <h5 class="card-title">Fleet Value</h5>
+                <p class="card-text display-6">€{{ "{:,.0f}".format(total_current_value) }}</p>
+                <small>CAPEX: €{{ "{:,.0f}".format(total_capex) }} | Depreciated: {{ "{:.1f}".format((1 -
+                    total_current_value / total_capex) * 100 if total_capex > 0 else 0) }}%</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-secondary h-100">
+            <div class="card-body">
+                <h5 class="card-title">Average Fleet Age</h5>
+                <p class="card-text display-4">{{ avg_fleet_age }}</p>
+                <small>Years</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white {% if dead_stock_rate > 10 %}bg-danger{% else %}bg-success{% endif %} h-100">
+            <div class="card-body">
+                <h5 class="card-title">Dead Stock Rate</h5>
+                <p class="card-text display-4">{{ dead_stock_rate }}%</p>
+                <small>{% if dead_stock_rate > 10 %}<i class="fas fa-exclamation-triangle"></i> Critical{% else %}<i
+                        class="fas fa-check"></i> Healthy{% endif %}</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row mb-4">
+    <!-- Status Distribution Chart -->
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5>Fleet Distribution by Status</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="statusChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Breakdown Rate by Brand Chart -->
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5>Breakdown Rate by Brand <span class="badge bg-warning">Last 12 Months</span></h5>
+            </div>
+            <div class="card-body">
+                <canvas id="breakdownChart"></canvas>
+                <div class="text-center mt-2">
+                    <small class="text-muted">Overall Breakdown Rate: <strong>{{ breakdown_rate }}%</strong></small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Action Tables Row -->
+<div class="row">
+    <!-- Warranty Expiring Soon -->
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-shield-alt"></i> Warranty Expiring Soon</h5>
+                <div>
+                    <span class="badge bg-danger">{{ warranty_30_days }} in 30d</span>
+                    <span class="badge bg-warning">{{ warranty_60_days }} in 60d</span>
+                    <span class="badge bg-info">{{ warranty_90_days }} in 90d</span>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-striped table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th>Asset</th>
+                                <th>Brand</th>
+                                <th>Warranty Ends</th>
+                                <th>Days Left</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in warranty_expiring_soon %}
+                            <tr>
+                                <td><a href="{{ url_for('assets.asset_detail', id=item.asset.id) }}">{{ item.asset.name
+                                        }}</a>
+                                </td>
+                                <td>{{ item.asset.brand or 'N/A' }}</td>
+                                <td>{{ item.asset.warranty_end_date.strftime('%Y-%m-%d') if item.asset.warranty_end_date
+                                    else '-' }}</td>
+                                <td>
+                                    {% if item.days_remaining <= 30 %} <span class="badge bg-danger">{{
+                                        item.days_remaining }} days</span>
+                                        {% elif item.days_remaining <= 60 %} <span class="badge bg-warning">{{
+                                            item.days_remaining }} days</span>
+                                            {% else %}
+                                            <span class="badge bg-info">{{ item.days_remaining }} days</span>
+                                            {% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center">No warranties expiring in the next 90 days.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top 5 "Lemons" -->
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-wrench"></i> Top Problematic Assets ("The Lemons")</h5>
+                <span class="badge bg-secondary">Most Repairs</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-striped table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th>Asset</th>
+                                <th>Brand</th>
+                                <th>Status</th>
+                                <th>Incidents</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for lemon in lemons %}
+                            <tr>
+                                <td><a href="{{ url_for('assets.asset_detail', id=lemon.asset.id) }}">{{
+                                        lemon.asset.name
+                                        }}</a></td>
+                                <td>{{ lemon.asset.brand or 'N/A' }}</td>
+                                <td>{{ lemon.asset.status }}</td>
+                                <td>
+                                    <span class="badge bg-danger">{{ lemon.incident_count }}</span>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center">No maintenance incidents recorded.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Additional Metrics Row -->
+<div class="row">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-info-circle"></i> Additional Insights</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <h6>EOL Candidates</h6>
+                        <p class="lead">{{ eol_candidates_count }} assets</p>
+                        <small class="text-muted">Assets older than 5 years requiring replacement consideration</small>
+                    </div>
+                    <div class="col-md-4">
+                        <h6>Breakdown Rate</h6>
+                        <p class="lead">{{ breakdown_rate }}%</p>
+                        <small class="text-muted">Percentage of fleet with repairs in last 12 months</small>
+                    </div>
+                    <div class="col-md-4">
+                        <h6>Depreciation Impact</h6>
+                        <p class="lead">€{{ "{:,.0f}".format(total_capex - total_current_value) }}</p>
+                        <small class="text-muted">Total value lost to depreciation</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts_extra %}
+<script src="{{ url_for('static', filename='vendor/chart.js/chart.js') }}"></script>
+<script src="{{ url_for('static', filename='js/assets_dashboard.js') }}"></script>
+<script>
+    // Pass data to external JS file
+    window.assetsDashboardData = {
+        statusLabels: {{ status_labels | tojson }},
+    statusData: { { status_data | tojson } },
+    brandLabels: { { brand_labels | tojson } },
+    brandBreakdownRates: { { brand_breakdown_rates | tojson } }
+    };
+</script>
+{% endblock %}
