@@ -11,7 +11,8 @@ const assets = [
     { src: 'fullcalendar/index.global.js', dest: 'fullcalendar/js/fullcalendar.js' },
     { src: 'simple-datatables/dist', dest: 'simple-datatables' },
     { src: 'sortablejs/Sortable.min.js', dest: 'sortablejs/Sortable.min.js' },
-    { src: 'tom-select/dist', dest: 'tom-select' }
+    { src: 'tom-select/dist', dest: 'tom-select' },
+    { src: 'mermaid/dist/mermaid.min.js', dest: 'mermaid/mermaid.min.js' }
 ];
 
 const targetBase = path.join(__dirname, 'src/static/vendor');

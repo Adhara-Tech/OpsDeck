@@ -3,7 +3,7 @@
 {% block title %}Org Chart - {{ super() }}{% endblock %}
 
 {% block head_extra %}
-<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.0/dist/mermaid.min.js"></script>
+<script src="{{ url_for('static', filename='vendor/mermaid/mermaid.min.js') }}"></script>
 <script>mermaid.initialize({ startOnLoad: true, securityLevel: 'loose' });</script>
 {% endblock %}
 

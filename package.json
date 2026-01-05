@@ -15,6 +15,7 @@
         "fullcalendar": "^6.1.0",
         "simple-datatables": "^9.0.0",
         "sortablejs": "^1.15.0",
-        "tom-select": "^2.3.0"
+        "tom-select": "^2.3.0",
+        "mermaid": "^10.9.0"
     }
 }
