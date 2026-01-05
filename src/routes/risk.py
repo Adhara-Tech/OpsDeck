@@ -349,12 +349,17 @@ def new_risk():
                            risk_categories=RISK_CATEGORIES, category_colors=RISK_CATEGORY_COLORS,
                            threat_types=threat_types)
 
+from src.utils.logger import log_audit
+
 @risk_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def edit_risk(id):
     risk = Risk.query.get_or_404(id)
     if request.method == 'POST':
+        # Capture old values for audit
+        old_score = risk.residual_score
+        
         risk.risk_description = request.form['risk_description']
         risk.extended_description = request.form.get('extended_description')
         risk.owner_id = request.form.get('owner_id')
@@ -397,6 +402,15 @@ def edit_risk(id):
                 risk.mitigation_activities.append(activity)
 
         db.session.commit()
+        
+        log_audit(
+            event_type='risk.updated',
+            action='update',
+            target_object=f"Risk:{risk.id}",
+            old_residual_score=old_score,
+            new_residual_score=risk.residual_score
+        )
+        
         flash('Risk has been updated.', 'success')
         return redirect(url_for('risk.detail', id=risk.id))
 

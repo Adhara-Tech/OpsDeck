@@ -126,6 +126,8 @@ def detail(id):
         effective_users=effective_users
     )
 
+from src.utils.logger import log_audit
+
 @services_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
 def edit_service(id):
@@ -151,6 +153,14 @@ def edit_service(id):
         
         try:
             db.session.commit()
+            
+            log_audit(
+                event_type='service.updated',
+                action='update',
+                target_object=f"Service:{service.id}",
+                target_info=service.name
+            )
+            
             flash('Service updated successfully!', 'success')
             return redirect(url_for('services.detail', id=service.id))
         except Exception as e:
@@ -167,8 +177,17 @@ def edit_service(id):
 def delete_service(id):
     service = BusinessService.query.get_or_404(id)
     try:
+        service_info = service.name
         db.session.delete(service)
         db.session.commit()
+        
+        log_audit(
+            event_type='service.deleted',
+            action='delete',
+            target_object=f"Service:{id}",
+            target_info=service_info
+        )
+        
         flash('Service deleted successfully.', 'success')
         return redirect(url_for('services.list_services'))
     except Exception as e:

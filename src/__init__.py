@@ -60,11 +60,9 @@ def configure_logging(app):
     )
     file_handler.setFormatter(ecs_logging.StdlibFormatter())
 
-    # 2. Handler for console output (readable format for development)
+    # 2. Handler for console output (JSON ECS format as requested)
     console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setFormatter(
-        logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-    )
+    console_handler.setFormatter(ecs_logging.StdlibFormatter())
 
     # Clear any existing handlers and add the new ones
     logger.handlers = []
@@ -182,15 +180,12 @@ def create_app(test_config=None):
     # --- Custom 429 Error Handler with logging ---
     @app.errorhandler(429)
     def ratelimit_handler(e):
-        app.logger.warning(
-            "Rate limit excedido",
-            extra={
-                "event.action": "rate-limit",
-                "source.ip": get_remote_address(),
-                "http.request.method": request.method,
-                "url.path": request.path,
-                "error.message": e.description
-            }
+        from .utils.logger import log_audit
+        log_audit(
+            event_type='security.rate_limit_breach',
+            action='block',
+            outcome='failure',
+            error_message=e.description
         )
         return render_template('429.html', error=e.description), 429
     

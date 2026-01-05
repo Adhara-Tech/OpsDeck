@@ -22,6 +22,8 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+from src.utils.logger import log_audit
+
 @main_bp.route('/login', methods=['GET', 'POST'])
 @limiter.limit("5 per minute")
 def login():
@@ -35,14 +37,12 @@ def login():
             return verify_ip_and_login(user)
         else:
             # Log failed login attempt
-            current_app.logger.warning(
-                "Intento de inicio de sesión fallido",
-                extra={
-                    "user.email": email,
-                    "event.action": "login",
-                    "event.outcome": "failure",
-                    "source.ip": request.remote_addr
-                }
+            log_audit(
+                event_type='security.login',
+                action='login',
+                outcome='failure',
+                target_object=email,
+                error_message='Invalid email or password'
             )
             flash('Invalid email or password')
 
@@ -66,15 +66,12 @@ def verify_ip_and_login(user):
             db.session.commit()
         
         # Log successful login
-        current_app.logger.info(
-            "Inicio de sesión exitoso",
-            extra={
-                "user.email": user.email,
-                "user.id": user.id,
-                "event.action": "login",
-                "event.outcome": "success",
-                "source.ip": ip
-            }
+        log_audit(
+            event_type='security.login',
+            action='login',
+            outcome='success',
+            target_object=f"User:{user.id}",
+            user_email=user.email # Explicitly passed as session isn't set yet
         )
         session['user_id'] = user.id
         flash('Logged in successfully', 'success')
@@ -107,14 +104,12 @@ def verify_ip_and_login(user):
     )
     
     # Log MFA code sent (without revealing the code)
-    current_app.logger.info(
-        f"MFA activado: Código enviado a {user.email}",
-        extra={
-            "event.action": "mfa-code-sent",
-            "user.email": user.email,
-            "user.id": user.id,
-            "source.ip": ip
-        }
+    log_audit(
+        event_type='security.mfa',
+        action='send_code',
+        outcome='success',
+        target_object=f"User:{user.id}",
+        user_email=user.email
     )
     
     flash('Nuevo dispositivo detectado. Revisa tu email para el código de verificación.', 'info')
@@ -162,15 +157,12 @@ def mfa_verify():
                 session.pop('mfa_expiry', None)
                 
                 # Log successful MFA verification
-                current_app.logger.info(
-                    "Verificación MFA exitosa",
-                    extra={
-                        "event.action": "mfa-verify",
-                        "event.outcome": "success",
-                        "user.email": user.email,
-                        "user.id": user.id,
-                        "source.ip": request.remote_addr
-                    }
+                log_audit(
+                    event_type='security.mfa',
+                    action='verify',
+                    outcome='success',
+                    target_object=f"User:{user.id}",
+                    user_email=user.email
                 )
                 
                 # Complete login
@@ -179,14 +171,12 @@ def mfa_verify():
                 return redirect(url_for('main.dashboard'))
         
         # FAILURE - Wrong code
-        current_app.logger.warning(
-            "Intento fallido de MFA (Código incorrecto)",
-            extra={
-                "event.action": "mfa-verify",
-                "event.outcome": "failure",
-                "user.id": user_id,
-                "source.ip": request.remote_addr
-            }
+        log_audit(
+            event_type='security.mfa',
+            action='verify',
+            outcome='failure',
+            target_object=f"User:{user_id}",
+            error_message="Invalid MFA code"
         )
         flash('Código incorrecto. Inténtalo de nuevo.', 'danger')
     
@@ -206,14 +196,11 @@ def google_callback():
     from flask_dance.contrib.google import google
     
     if not google.authorized:
-        current_app.logger.warning(
-            "Fallo en autorización OAuth Google",
-            extra={
-                "event.action": "login-oauth",
-                "event.outcome": "failure",
-                "error.message": "Google not authorized",
-                "source.ip": request.remote_addr
-            }
+        log_audit(
+            event_type='security.login_oauth',
+            action='login',
+            outcome='failure',
+            error_message="Google not authorized"
         )
         flash('Error al autorizar con Google', 'danger')
         return redirect(url_for('main.login'))
@@ -222,14 +209,11 @@ def google_callback():
     try:
         resp = google.get("/oauth2/v2/userinfo")
         if not resp.ok:
-            current_app.logger.error(
-                "Error obteniendo userinfo de Google",
-                extra={
-                    "event.action": "login-oauth",
-                    "event.outcome": "failure",
-                    "error.message": f"Google API error: {resp.status_code}",
-                    "source.ip": request.remote_addr
-                }
+            log_audit(
+                event_type='security.login_oauth',
+                action='login',
+                outcome='failure',
+                error_message=f"Google API error: {resp.status_code}"
             )
             flash('Error al obtener información de Google', 'danger')
             return redirect(url_for('main.login'))
@@ -237,14 +221,12 @@ def google_callback():
         google_info = resp.json()
         email = google_info.get("email")
     except Exception as e:
-        current_app.logger.error(
-            f"Exception during Google OAuth: {str(e)}",
-            extra={
-                "event.action": "login-oauth",
-                "event.outcome": "failure",
-                "error.message": str(e),
-                "source.ip": request.remote_addr
-            }
+        current_app.logger.error(f"Exception during Google OAuth: {str(e)}")
+        log_audit(
+            event_type='security.login_oauth',
+            action='login',
+            outcome='failure',
+            error_message=str(e)
         )
         flash('Error al procesar la autenticación de Google', 'danger')
         return redirect(url_for('main.login'))
@@ -254,31 +236,25 @@ def google_callback():
     
     if user:
         # Success - log and create session
-        current_app.logger.info(
-            f"Login OAuth exitoso: {email}",
-            extra={
-                "user.email": email,
-                "user.id": user.id,
-                "event.action": "login-oauth",
-                "event.provider": "google",
-                "event.outcome": "success",
-                "source.ip": request.remote_addr
-            }
+        log_audit(
+            event_type='security.login_oauth',
+            action='login',
+            outcome='success',
+            target_object=f"User:{user.id}",
+            user_email=email,
+            provider="google"
         )
         session['user_id'] = user.id
         flash('Logged in successfully via Google', 'success')
         return redirect(url_for('main.dashboard'))
     else:
         # User not found in database
-        current_app.logger.warning(
-            f"Intento de login OAuth con usuario desconocido: {email}",
-            extra={
-                "user.email": email,
-                "event.action": "login-oauth",
-                "event.outcome": "failure",
-                "error.message": "User not found in database",
-                "source.ip": request.remote_addr
-            }
+        log_audit(
+            event_type='security.login_oauth',
+            action='login',
+            outcome='failure',
+            target_object=email,
+            error_message="User not found in database"
         )
         flash('No existe un usuario registrado con este email.', 'danger')
         return redirect(url_for('main.login'))
@@ -561,6 +537,13 @@ def change_password():
         else:
             user.set_password(new_password)
             db.session.commit()
+            
+            log_audit(
+                event_type='security.password_change',
+                action='update',
+                target_object=f"User:{user.id}"
+            )
+            
             flash('Your password has been updated successfully!', 'success')
             return redirect(url_for('main.dashboard'))
 
