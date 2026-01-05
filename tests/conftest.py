@@ -10,24 +10,26 @@ def app():
     # Disable HTTPS for tests
     os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
     
-    app = create_app()
+    # Crear un directorio temporal para uploads
+    tmpdir = tempfile.mkdtemp()
+    
+    # Define test configuration BEFORE creating the app
+    test_config = {
+        "TESTING": True,
+        "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
+        "WTF_CSRF_ENABLED": False,
+        "RATELIMIT_ENABLED": False,
+        "SECRET_KEY": "test-secret-key",
+        "UPLOAD_FOLDER": tmpdir,
+        "MFA_ENABLED": False
+    }
+    
+    # Create app with test configuration
+    app = create_app(test_config=test_config)
     
     # --- FIX: Explicitly disable the rate limiter extension ---
     # This works even if the app was initialized with RATELIMIT_ENABLED=True
     limiter.enabled = False
-    
-    # Crear un directorio temporal para uploads
-    tmpdir = tempfile.mkdtemp()
-    
-    app.config.update({
-        "TESTING": True,
-        "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
-        "WTF_CSRF_ENABLED": False,
-        "RATELIMIT_ENABLED": False, # Kept for consistency, though the line above does the heavy lifting
-        "SECRET_KEY": "test-secret-key",
-        "UPLOAD_FOLDER": tmpdir,
-        "MFA_ENABLED": False
-    })
 
     with app.app_context():
         db.create_all()

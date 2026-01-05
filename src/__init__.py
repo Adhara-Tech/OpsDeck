@@ -75,9 +75,13 @@ def configure_logging(app):
     app.logger.handlers = logger.handlers
     app.logger.setLevel(logger.level)
 
-def create_app():
+def create_app(test_config=None):
     """
     Application factory function to create and configure the Flask app.
+    
+    Args:
+        test_config (dict, optional): Configuration dictionary for testing.
+                                     If provided, overrides default configuration.
     """
     app = Flask(__name__)
 
@@ -145,6 +149,10 @@ def create_app():
             }
         }
     }
+
+    # --- Apply Test Configuration (BEFORE extension initialization) ---
+    if test_config is not None:
+        app.config.update(test_config)
 
     # --- Initialize Extensions ---
     db.init_app(app)
@@ -312,21 +320,23 @@ def create_app():
         password_change_required(lambda: None)()
 
     # --- Scheduler and Notifications ---
-    scheduler = BackgroundScheduler()
-    scheduler.add_job(
-        func=notifications.check_upcoming_renewals,
-        args=[app],
-        trigger="interval",
-        days=1
-    )
-    scheduler.add_job(
-        func=notifications.check_credential_expirations,
-        args=[app],
-        trigger="interval",
-        days=1
-    )
-    scheduler.start()
-    atexit.register(lambda: scheduler.shutdown())
+    # Only start the scheduler if not in testing mode
+    if not app.config.get('TESTING'):
+        scheduler = BackgroundScheduler()
+        scheduler.add_job(
+            func=notifications.check_upcoming_renewals,
+            args=[app],
+            trigger="interval",
+            days=1
+        )
+        scheduler.add_job(
+            func=notifications.check_credential_expirations,
+            args=[app],
+            trigger="interval",
+            days=1
+        )
+        scheduler.start()
+        atexit.register(lambda: scheduler.shutdown())
 
     # --- CLI Commands ---
     @app.cli.command("init-db")
