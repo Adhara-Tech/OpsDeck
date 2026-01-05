@@ -354,8 +354,29 @@
                 </div>
 
                 <hr class="text-white">
+                <h6 class="sidebar-heading" data-bs-toggle="collapse" data-bs-target="#comms-menu"
+                    aria-expanded="false">Communications <i class="fa-fw fas fa-chevron-down float-end"></i></h6>
+                <div class="collapse" id="comms-menu" data-bs-parent="#sidebar-accordion">
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.blueprint == 'campaigns' }}"
+                            href="{{ url_for('campaigns.list_campaigns') }}">
+                            <i class="fas fa-fw fa-bullhorn"></i>
+                            <span>Campaigns</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.blueprint == 'admin_communications' }}"
+                            href="{{ url_for('admin_communications.list_templates') }}">
+                            <i class="fas fa-fw fa-envelope-open-text"></i>
+                            <span>Email Templates</span>
+                        </a>
+                    </li>
+                </div>
+
+                <hr class="text-white">
                 <h6 class="sidebar-heading" data-bs-toggle="collapse" data-bs-target="#admin-menu"
                     aria-expanded="false">Administration <i class="fa-fw fas fa-chevron-down float-end"></i></h6>
+
                 <div class="collapse" id="admin-menu" data-bs-parent="#sidebar-accordion">
                     <li class="nav-item"><a
                             class="nav-link {% if request.endpoint.startswith('users.') %}active{% endif %}"

@@ -291,6 +291,9 @@ def create_app(test_config=None):
     
     from .routes.admin_communications import admin_communications_bp
     app.register_blueprint(admin_communications_bp, url_prefix='/admin/communications')
+    
+    from .routes.campaigns import campaigns_bp
+    app.register_blueprint(campaigns_bp, url_prefix='/campaigns')
 
     # --- Google OAuth Blueprint ---
     if app.config.get('GOOGLE_OAUTH_CLIENT_ID'):

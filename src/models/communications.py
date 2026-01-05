@@ -3,7 +3,7 @@ Communications Engine Models
 
 Provides a flexible, polymorphic system for managing email templates and 
 scheduled communications for HR processes (Onboarding, Offboarding) with 
-extensibility for future use cases like security bulletins and campaigns.
+extensibility for mass campaigns and security bulletins.
 """
 from datetime import datetime
 from ..extensions import db
@@ -65,6 +65,115 @@ class PackCommunication(db.Model):
         return f'<PackCommunication Pack:{self.pack_id} Template:{self.template_id} +{self.offset_days}d>'
 
 
+# --------------------------------------------------------------------------
+# MASS COMMUNICATIONS / CAMPAIGNS
+# --------------------------------------------------------------------------
+
+# Many-to-Many association tables for Campaign audience
+campaign_users = db.Table('campaign_users',
+    db.Column('campaign_id', db.Integer, db.ForeignKey('campaign.id'), primary_key=True),
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True)
+)
+
+campaign_groups = db.Table('campaign_groups',
+    db.Column('campaign_id', db.Integer, db.ForeignKey('campaign.id'), primary_key=True),
+    db.Column('group_id', db.Integer, db.ForeignKey('group.id'), primary_key=True)
+)
+
+
+class Campaign(db.Model):
+    """
+    Mass communication campaign - a one-time email to a group of users.
+    When launched, spawns individual ScheduledCommunication records.
+    """
+    __tablename__ = 'campaign'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)  # Internal name
+    subject = db.Column(db.String(255), nullable=False)  # Email subject (Jinja2)
+    body_html = db.Column(db.Text, nullable=False)  # Email body (Jinja2)
+    
+    # Status: draft -> scheduled -> processed
+    status = db.Column(db.String(20), default='draft')
+    
+    # When to send (None = send immediately when processed)
+    scheduled_at = db.Column(db.DateTime, nullable=True)
+    
+    # Who created this campaign
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    created_by = db.relationship('User', foreign_keys=[created_by_id])
+    
+    # Audience options
+    send_to_all = db.Column(db.Boolean, default=False)
+    
+    # Many-to-Many relationships for targeted audience
+    target_users = db.relationship('User', secondary=campaign_users, 
+                                   backref=db.backref('campaigns_as_recipient', lazy='dynamic'))
+    target_groups = db.relationship('Group', secondary=campaign_groups,
+                                    backref=db.backref('campaigns', lazy='dynamic'))
+    
+    # Timestamps
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    processed_at = db.Column(db.DateTime, nullable=True)  # When it was spawned
+    
+    def __repr__(self):
+        return f'<Campaign {self.id}: {self.title}>'
+    
+    def get_resolved_audience(self):
+        """
+        Resolve the full audience as a set of unique User objects.
+        Combines individual users + users from groups + all users if send_to_all.
+        """
+        from .auth import User
+        
+        audience = set()
+        
+        if self.send_to_all:
+            # All active users
+            all_users = User.query.filter_by(is_archived=False).all()
+            audience.update(all_users)
+        else:
+            # Add individually selected users
+            audience.update(self.target_users)
+            
+            # Add users from selected groups
+            for group in self.target_groups:
+                audience.update(group.users)
+        
+        # Filter out archived users and users without email
+        return {u for u in audience if not u.is_archived and u.email}
+    
+    def get_communications_stats(self):
+        """Get counts of scheduled communications for this campaign."""
+        total = ScheduledCommunication.query.filter_by(
+            target_type='campaign', target_id=self.id
+        ).count()
+        
+        sent = ScheduledCommunication.query.filter_by(
+            target_type='campaign', target_id=self.id, status='sent'
+        ).count()
+        
+        pending = ScheduledCommunication.query.filter_by(
+            target_type='campaign', target_id=self.id, status='pending'
+        ).count()
+        
+        failed = ScheduledCommunication.query.filter_by(
+            target_type='campaign', target_id=self.id, status='failed'
+        ).count()
+        
+        cancelled = ScheduledCommunication.query.filter_by(
+            target_type='campaign', target_id=self.id, status='cancelled'
+        ).count()
+        
+        return {
+            'total': total,
+            'sent': sent,
+            'pending': pending,
+            'failed': failed,
+            'cancelled': cancelled
+        }
+
+
 class ScheduledCommunication(db.Model):
     """
     Execution record for a scheduled email.
@@ -73,7 +182,8 @@ class ScheduledCommunication(db.Model):
     __tablename__ = 'scheduled_communication'
     
     id = db.Column(db.Integer, primary_key=True)
-    template_id = db.Column(db.Integer, db.ForeignKey('email_template.id'), nullable=False)
+    # Nullable for campaigns (which have inline subject/body)
+    template_id = db.Column(db.Integer, db.ForeignKey('email_template.id'), nullable=True)
     
     # Status tracking
     status = db.Column(db.String(20), default='pending')  # 'pending', 'sent', 'failed', 'cancelled'
@@ -81,7 +191,7 @@ class ScheduledCommunication(db.Model):
     sent_at = db.Column(db.DateTime, nullable=True)
     
     # Polymorphic reference to the source process
-    # target_type: 'onboarding', 'offboarding', or future types like 'security_campaign'
+    # target_type: 'onboarding', 'offboarding', 'campaign'
     target_type = db.Column(db.String(50), nullable=False)
     target_id = db.Column(db.Integer, nullable=False)
     
@@ -89,6 +199,10 @@ class ScheduledCommunication(db.Model):
     recipient_email = db.Column(db.String(120), nullable=True)
     recipient_type = db.Column(db.String(50))  # 'target_user', 'manager', 'buddy'
     recipient_name = db.Column(db.String(100), nullable=True)
+    
+    # For campaigns: store user_id for context lookup
+    recipient_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    recipient_user = db.relationship('User', foreign_keys=[recipient_user_id])
     
     # Error tracking for failed sends
     error_message = db.Column(db.Text, nullable=True)
@@ -120,4 +234,7 @@ class ScheduledCommunication(db.Model):
             return OnboardingProcess.query.get(self.target_id)
         elif self.target_type == 'offboarding':
             return OffboardingProcess.query.get(self.target_id)
+        elif self.target_type == 'campaign':
+            return Campaign.query.get(self.target_id)
         return None
+

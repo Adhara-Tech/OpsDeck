@@ -331,6 +331,7 @@ def process_communications_queue(app):
     """
     from .extensions import db
     from .utils.communications_context import get_template_context, render_email_template
+    from .models.communications import Campaign
     
     with app.app_context():
         today = datetime.now().date()
@@ -356,15 +357,24 @@ def process_communications_queue(app):
                 app.logger.warning(f"Communication {comm.id}: No recipient email, skipping.")
                 continue
             
-            # Skip if template is inactive
-            if not comm.template or not comm.template.is_active:
-                app.logger.warning(f"Communication {comm.id}: Template inactive or missing, skipping.")
-                continue
+            # Determine the template source based on target type
+            if comm.target_type == 'campaign':
+                # For campaigns, load the Campaign object which has inline subject/body
+                template_source = Campaign.query.get(comm.target_id)
+                if not template_source:
+                    app.logger.warning(f"Communication {comm.id}: Campaign not found, skipping.")
+                    continue
+            else:
+                # For other types, use the linked EmailTemplate
+                if not comm.template or not comm.template.is_active:
+                    app.logger.warning(f"Communication {comm.id}: Template inactive or missing, skipping.")
+                    continue
+                template_source = comm.template
             
             try:
                 # Get context and render template
                 context = get_template_context(comm)
-                subject, body_html = render_email_template(comm.template, context)
+                subject, body_html = render_email_template(template_source, context)
                 
                 # Send email
                 success = send_email(

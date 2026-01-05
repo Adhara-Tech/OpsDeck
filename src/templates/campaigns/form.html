@@ -1,0 +1,199 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ 'Edit' if campaign else 'New' }} Campaign - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>
+        <i class="fas fa-bullhorn me-2"></i>
+        {{ 'Edit' if campaign else 'New' }} Campaign
+    </h2>
+    <a href="{{ url_for('campaigns.list_campaigns') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-1"></i> Back
+    </a>
+</div>
+
+<form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="row">
+        <!-- Main Content Column -->
+        <div class="col-lg-8">
+            <!-- Step 1: Content -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-edit me-2"></i>1. Email Content</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="title" class="form-label">Campaign Title <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="title" name="title"
+                            value="{{ campaign.title if campaign else '' }}" required
+                            placeholder="e.g., Server Maintenance Notice - Jan 2024">
+                        <small class="text-muted">Internal name to identify this campaign</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="subject" class="form-label">Email Subject <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="subject" name="subject"
+                            value="{{ campaign.subject if campaign else '' }}" required
+                            placeholder="Important: Scheduled Maintenance on {{ '{{ date }}' }}">
+                        <small class="text-muted">Supports Jinja2 variables like {{ '{{ user.name }}' }}</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="body_html" class="form-label">Email Body <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="body_html" name="body_html" rows="12"
+                            required>{{ campaign.body_html if campaign else '' }}</textarea>
+                        <small class="text-muted">Rich text editor - use the toolbar to format your message</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 2: Audience -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-users me-2"></i>2. Audience</h5>
+                </div>
+                <div class="card-body">
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="send_to_all" name="send_to_all" {{ 'checked'
+                            if campaign and campaign.send_to_all else '' }} onchange="toggleAudienceSelectors()">
+                        <label class="form-check-label" for="send_to_all">
+                            <strong>Send to All Active Users</strong>
+                        </label>
+                    </div>
+
+                    <div id="audience-selectors" class="{{ 'd-none' if campaign and campaign.send_to_all else '' }}">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label class="form-label">Select Users</label>
+                                <select class="form-select" name="user_ids" id="user_ids" multiple size="8">
+                                    {% for user in users %}
+                                    <option value="{{ user.id }}" {{ 'selected' if campaign and user in
+                                        campaign.target_users else '' }}>
+                                        {{ user.name }} ({{ user.email }})
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <small class="text-muted">Ctrl+Click to select multiple</small>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Select Groups</label>
+                                <select class="form-select" name="group_ids" id="group_ids" multiple size="8">
+                                    {% for group in groups %}
+                                    <option value="{{ group.id }}" {{ 'selected' if campaign and group in
+                                        campaign.target_groups else '' }}>
+                                        {{ group.name }} ({{ group.users|length }} members)
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <small class="text-muted">All members of selected groups will receive the email</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3: Schedule -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-clock me-2"></i>3. Schedule</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="scheduled_at" class="form-label">Send Date & Time</label>
+                        <input type="datetime-local" class="form-control" id="scheduled_at" name="scheduled_at"
+                            value="{{ campaign.scheduled_at.strftime('%Y-%m-%dT%H:%M') if campaign and campaign.scheduled_at else '' }}">
+                        <small class="text-muted">Leave empty to send immediately after scheduling</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-1"></i> {{ 'Update' if campaign else 'Create' }} Draft
+                </button>
+                <a href="{{ url_for('campaigns.list_campaigns') }}" class="btn btn-outline-secondary">
+                    Cancel
+                </a>
+            </div>
+        </div>
+
+        <!-- Sidebar: Variables Reference -->
+        <div class="col-lg-4">
+            <div class="card border-info sticky-top" style="top: 1rem;">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0"><i class="fas fa-code me-2"></i>Template Variables</h6>
+                </div>
+                <div class="card-body small">
+                    <p class="text-muted">Use these Jinja2 variables in subject and body:</p>
+
+                    <h6 class="fw-bold">User Context</h6>
+                    <ul class="mb-3">
+                        <li><code>{{ "{{ user.name }}" }}</code> - Full name</li>
+                        <li><code>{{ "{{ user.email }}" }}</code> - Email address</li>
+                        <li><code>{{ "{{ user.job_title }}" }}</code> - Job title</li>
+                        <li><code>{{ "{{ user.department }}" }}</code> - Department</li>
+                    </ul>
+
+                    <h6 class="fw-bold">Common</h6>
+                    <ul class="mb-0">
+                        <li><code>{{ "{{ today }}" }}</code> - Current date</li>
+                    </ul>
+
+                    <hr>
+
+                    <h6 class="fw-bold">Tips</h6>
+                    <ul class="mb-0 small">
+                        <li>Use <code>{% raw %}{% if user.job_title %}{% endraw %}</code> for conditionals</li>
+                        <li>Missing variables render as empty strings</li>
+                        <li>Test with a small group first</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts_extra %}
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/suneditor/css/suneditor.min.css') }}">
+<script src="{{ url_for('static', filename='vendor/suneditor/suneditor.min.js') }}"></script>
+<script>
+    // Toggle audience selectors
+    function toggleAudienceSelectors() {
+        const sendToAll = document.getElementById('send_to_all').checked;
+        const selectors = document.getElementById('audience-selectors');
+        if (sendToAll) {
+            selectors.classList.add('d-none');
+        } else {
+            selectors.classList.remove('d-none');
+        }
+    }
+
+    // Initialize SunEditor
+    document.addEventListener("DOMContentLoaded", function () {
+        const editor = SUNEDITOR.create('body_html', {
+            height: 350,
+            buttonList: [
+                ['undo', 'redo'],
+                ['formatBlock'],
+                ['bold', 'italic', 'underline', 'strike'],
+                ['fontColor', 'hiliteColor'],
+                ['align', 'list'],
+                ['table', 'link'],
+                ['removeFormat'],
+                ['codeView', 'preview']
+            ],
+
+            defaultStyle: 'font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 14px; line-height: 1.5;'
+        });
+
+        // Sync editor content to textarea before form submit
+        document.querySelector('form').addEventListener('submit', function () {
+            editor.save();
+        });
+    });
+</script>
+{% endblock %}
