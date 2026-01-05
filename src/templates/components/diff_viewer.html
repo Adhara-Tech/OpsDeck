@@ -1,0 +1,70 @@
+{# src/templates/components/diff_viewer.html #}
+
+<div class="diff-viewer">
+    <table class="table table-sm table-bordered">
+        <thead>
+            <tr>
+                <th style="width: 40%">Setting (Group > Key)</th>
+                <th style="width: 30%">Old Value</th>
+                <th style="width: 30%">New Value</th>
+            </tr>
+        </thead>
+        <tbody>
+            {# Added Items #}
+            {% for path, value in diff.added %}
+            <tr class="table-success">
+                <td>
+                    <i class="fas fa-plus-circle text-success me-2"></i>
+                    <strong>{{ path }}</strong>
+                </td>
+                <td class="text-muted fst-italic">None</td>
+                <td>
+                    {% if value is mapping %}
+                    <pre class="m-0 bg-transparent p-0">{{ value | tojson(indent=2) }}</pre>
+                    {% else %}
+                    {{ value }}
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+
+            {# Removed Items #}
+            {% for path, value in diff.removed %}
+            <tr class="table-danger">
+                <td>
+                    <i class="fas fa-minus-circle text-danger me-2"></i>
+                    <strong>{{ path }}</strong>
+                </td>
+                <td>
+                    {% if value is mapping %}
+                    <pre class="m-0 bg-transparent p-0">{{ value | tojson(indent=2) }}</pre>
+                    {% else %}
+                    {{ value }}
+                    {% endif %}
+                </td>
+                <td class="text-muted fst-italic">Removed</td>
+            </tr>
+            {% endfor %}
+
+            {# Changed Items #}
+            {% for path, old, new in diff.changed %}
+            <tr class="table-warning">
+                <td>
+                    <i class="fas fa-pencil-alt text-warning me-2"></i>
+                    <strong>{{ path }}</strong>
+                </td>
+                <td>{{ old }}</td>
+                <td>{{ new }}</td>
+            </tr>
+            {% endfor %}
+
+            {% if not diff.added and not diff.removed and not diff.changed %}
+            <tr>
+                <td colspan="3" class="text-center text-muted">
+                    <i class="fas fa-check-circle me-1"></i> No changes detected.
+                </td>
+            </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>

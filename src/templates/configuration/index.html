@@ -1,0 +1,65 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Configurations</h1>
+        <a href="{{ url_for('configuration.new') }}" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i> New Configuration
+        </a>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover" id="dataTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Description</th>
+                            <th>Latest Version</th>
+                            <th>Last Updated</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for config in configurations %}
+                        <tr>
+                            <td>{{ config.id }}</td>
+                            <td>
+                                <a href="{{ url_for('configuration.detail', id=config.id) }}"
+                                    class="fw-bold text-decoration-none">
+                                    {{ config.name }}
+                                </a>
+                            </td>
+                            <td>{{ config.description or '' }}</td>
+                            <td>
+                                {% if config.latest_version %}
+                                <span class="badge bg-secondary">v{{ config.latest_version.version_number }}</span>
+                                {% else %}
+                                <span class="badge bg-warning text-dark">No versions</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if config.latest_version %}
+                                {{ config.latest_version.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{{ url_for('configuration.detail', id=config.id) }}"
+                                    class="btn btn-sm btn-info" title="View">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

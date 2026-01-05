@@ -60,11 +60,9 @@ def configure_logging(app):
     )
     file_handler.setFormatter(ecs_logging.StdlibFormatter())
 
-    # 2. Handler for console output (readable format for development)
+    # 2. Handler for console output (JSON ECS format as requested)
     console_handler = logging.StreamHandler(sys.stdout)
-    console_handler.setFormatter(
-        logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-    )
+    console_handler.setFormatter(ecs_logging.StdlibFormatter())
 
     # Clear any existing handlers and add the new ones
     logger.handlers = []
@@ -75,9 +73,13 @@ def configure_logging(app):
     app.logger.handlers = logger.handlers
     app.logger.setLevel(logger.level)
 
-def create_app():
+def create_app(test_config=None):
     """
     Application factory function to create and configure the Flask app.
+    
+    Args:
+        test_config (dict, optional): Configuration dictionary for testing.
+                                     If provided, overrides default configuration.
     """
     app = Flask(__name__)
 
@@ -146,10 +148,15 @@ def create_app():
         }
     }
 
+    # --- Apply Test Configuration (BEFORE extension initialization) ---
+    if test_config is not None:
+        app.config.update(test_config)
+
     # --- Initialize Extensions ---
     db.init_app(app)
     from .extensions import login_manager
     login_manager.init_app(app)
+    login_manager.login_view = 'main.login'
 
     @login_manager.user_loader
     def load_user(user_id):
@@ -173,15 +180,12 @@ def create_app():
     # --- Custom 429 Error Handler with logging ---
     @app.errorhandler(429)
     def ratelimit_handler(e):
-        app.logger.warning(
-            "Rate limit excedido",
-            extra={
-                "event.action": "rate-limit",
-                "source.ip": get_remote_address(),
-                "http.request.method": request.method,
-                "url.path": request.path,
-                "error.message": e.description
-            }
+        from .utils.logger import log_audit
+        log_audit(
+            event_type='security.rate_limit_breach',
+            action='block',
+            outcome='failure',
+            error_message=e.description
         )
         return render_template('429.html', error=e.description), 429
     
@@ -230,6 +234,13 @@ def create_app():
     from .routes.onboarding import onboarding_bp
     from .routes.credentials import credentials_bp
 
+    # --- Favicon Route ---
+    from flask import send_from_directory
+    @app.route('/favicon.ico')
+    def favicon():
+        return send_from_directory(os.path.join(app.root_path, 'static'),
+                                   'favicon.ico', mimetype='image/vnd.microsoft.icon')
+
     app.register_blueprint(main_bp)
     app.register_blueprint(assets_bp, url_prefix='/assets')
     app.register_blueprint(peripherals_bp, url_prefix='/peripherals')
@@ -270,7 +281,13 @@ def create_app():
     app.register_blueprint(onboarding_bp, url_prefix='/onboarding')
     from .routes.risk_assessment import risk_assessment_bp
     app.register_blueprint(risk_assessment_bp)
+    from .routes.credentials import credentials_bp
+    from .routes.certificates import certificates_bp
     app.register_blueprint(credentials_bp)
+    app.register_blueprint(certificates_bp)
+    
+    from .routes.configuration import configuration_bp
+    app.register_blueprint(configuration_bp, url_prefix='/configuration')
 
     # --- Google OAuth Blueprint ---
     if app.config.get('GOOGLE_OAUTH_CLIENT_ID'):
@@ -301,21 +318,29 @@ def create_app():
         password_change_required(lambda: None)()
 
     # --- Scheduler and Notifications ---
-    scheduler = BackgroundScheduler()
-    scheduler.add_job(
-        func=notifications.check_upcoming_renewals,
-        args=[app],
-        trigger="interval",
-        days=1
-    )
-    scheduler.add_job(
-        func=notifications.check_credential_expirations,
-        args=[app],
-        trigger="interval",
-        days=1
-    )
-    scheduler.start()
-    atexit.register(lambda: scheduler.shutdown())
+    # Only start the scheduler if not in testing mode
+    if not app.config.get('TESTING'):
+        scheduler = BackgroundScheduler()
+        scheduler.add_job(
+            func=notifications.check_upcoming_renewals,
+            args=[app],
+            trigger="interval",
+            days=1
+        )
+        scheduler.add_job(
+            func=notifications.check_credential_expirations,
+            args=[app],
+            trigger="interval",
+            days=1
+        )
+        scheduler.add_job(
+            func=notifications.check_certificate_expirations,
+            args=[app],
+            trigger="interval",
+            days=1
+        )
+        scheduler.start()
+        atexit.register(lambda: scheduler.shutdown())
 
     # --- CLI Commands ---
     @app.cli.command("init-db")

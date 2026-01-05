@@ -11,7 +11,8 @@
     <link href="{{ url_for('static', filename='vendor/simple-datatables/css/simple-datatables.css') }}" rel="stylesheet"
         type="text/css">
     <link href="{{ url_for('static', filename='vendor/font-awesome/css/all.min.css') }}" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.bootstrap5.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='vendor/tom-select/css/tom-select.bootstrap5.min.css') }}"
+        rel="stylesheet">
     {% block head_extra %}{% endblock %}
     <style>
         .sidebar {
@@ -155,14 +156,25 @@
                             href="{{ url_for('assets.warranties') }}"><i class="fa-fw fas fa-shield-alt"></i>
                             Warranties</a></li>
                     <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint == 'reports.asset_reports' %}active{% endif %}"
-                            href="{{ url_for('reports.asset_reports') }}"><i class="fa-fw fas fa-chart-bar"></i> Asset
+                            class="nav-link {% if request.endpoint == 'reports.assets_dashboard' %}active{% endif %}"
+                            href="{{ url_for('reports.assets_dashboard') }}"><i class="fa-fw fas fa-chart-bar"></i>
+                            Asset
                             Reports</a></li>
                     <!-- Add the credentials screen -->
                     <li class="nav-item"><a
                             class="nav-link {% if request.endpoint == 'credentials.list_credentials' %}active{% endif %}"
                             href="{{ url_for('credentials.list_credentials') }}"><i class="fa-fw fas fa-key"></i>
                             Credentials</a></li>
+                    <li class="nav-item"><a
+                            class="nav-link {% if request.endpoint.startswith('certificates.') %}active{% endif %}"
+                            href="{{ url_for('certificates.list_certificates') }}"><i
+                                class="fa-fw fas fa-file-certificate"></i>
+                            Certificates</a></li>
+
+                    <li class="nav-item"><a
+                            class="nav-link {% if request.blueprint == 'configuration' %}active{% endif %}"
+                            href="{{ url_for('configuration.index') }}"><i class="fa-fw fas fa-sliders-h"></i>
+                            CMDB</a></li>
                 </div>
 
                 <hr class="text-white">
@@ -436,7 +448,7 @@
     <script src="{{ url_for('static', filename='js/export.js') }}"></script>
     <script src="{{ url_for('static', filename='vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
     <script src="{{ url_for('static', filename='vendor/simple-datatables/js/simple-datatables.js') }}"></script>
-    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
+    <script src="{{ url_for('static', filename='vendor/tom-select/js/tom-select.complete.min.js') }}"></script>
 
     {# ADD Global Initialization Script #}
     <script>

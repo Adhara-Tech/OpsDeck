@@ -4,8 +4,7 @@ from flask import (
 from ..models import db, User
 from .main import login_required
 from functools import wraps
-
-admin_bp = Blueprint('admin', __name__)
+from src.utils.logger import log_audit
 
 # Admin authorization decorator
 def admin_required(f):
@@ -25,6 +24,8 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+
+admin_bp = Blueprint('admin', __name__)
 
 @admin_bp.route('/users')
 @login_required
@@ -50,6 +51,14 @@ def create_user():
             new_user.set_password(password)
             db.session.add(new_user)
             db.session.commit()
+            
+            log_audit(
+                event_type='user.created',
+                action='create',
+                target_object=f"User:{new_user.id}",
+                target_info=f"{new_user.name} ({new_user.email})"
+            )
+            
             flash(f'User "{name}" created successfully.', 'success')
             return redirect(url_for('admin.list_users'))
 
@@ -72,6 +81,9 @@ def edit_user(id):
             flash('That email is already in use.', 'danger')
             return render_template('admin/edit_user.html', user=user)
 
+        # Capture old values to detect changes
+        old_role = user.role
+        
         user.name = request.form.get('name')
         user.email = new_email
         user.role = request.form.get('role')
@@ -81,6 +93,23 @@ def edit_user(id):
             user.set_password(password)
 
         db.session.commit()
+        
+        # Log Role Change (CRITICAL)
+        if old_role != user.role:
+            log_audit(
+                event_type='user.role_changed',
+                action='update',
+                target_object=f"User:{user.id}",
+                old_role=old_role,
+                new_role=user.role
+            )
+        else:
+            log_audit(
+                event_type='user.updated',
+                action='update',
+                target_object=f"User:{user.id}"
+            )
+            
         flash(f'User "{user.name}" has been updated.', 'success')
         return redirect(url_for('admin.list_users'))
 
@@ -96,7 +125,16 @@ def delete_user(id):
         flash('The default admin user cannot be deleted.', 'danger')
         return redirect(url_for('admin.list_users'))
         
+    user_info = f"{user_to_delete.name} ({user_to_delete.email})"
     db.session.delete(user_to_delete)
     db.session.commit()
+    
+    log_audit(
+        event_type='user.deleted',
+        action='delete',
+        target_object=f"User:{id}", # Accessing ID after commit/delete typically problematic unless cached, but ID is in arg
+        target_info=user_info
+    )
+    
     flash(f'User "{user_to_delete.name}" has been deleted.', 'success')
     return redirect(url_for('admin.list_users'))

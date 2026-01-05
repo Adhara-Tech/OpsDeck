@@ -1,0 +1,98 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ 'Edit' if is_edit else 'New' }} Certificate - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>{{ 'Edit' if is_edit else 'New' }} Certificate</h2>
+    <a href="{{ url_for('certificates.list_certificates') }}" class="btn btn-outline-secondary">Back to List</a>
+</div>
+
+<div class="card shadow mb-4">
+    <div class="card-body">
+        <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Name</label>
+                    <input type="text" class="form-control" name="name"
+                        value="{{ certificate.name if certificate else '' }}" required
+                        placeholder="e.g. Wildcard *.example.com">
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Type</label>
+                    <select class="form-select" name="type">
+                        {% for t in ['SSL/TLS', 'SAML', 'Code Signing', 'Root CA', 'Client Auth'] %}
+                        <option value="{{ t }}" {% if certificate and certificate.type==t %}selected{% endif %}>{{ t }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Description</label>
+                <textarea class="form-control" name="description"
+                    rows="3">{{ certificate.description if certificate else '' }}</textarea>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Owner</label>
+                    <select class="form-select tom-select" name="owner_id">
+                        <option value="">Select User...</option>
+                        {% for user in users %}
+                        <option value="{{ user.id }}" {% if certificate and certificate.owner_id==user.id %}selected{%
+                            endif %}>{{ user.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Associated Services</label>
+                    <select class="form-select tom-select" name="service_ids" multiple>
+                        {% for srv in services %}
+                        <option value="{{ srv.id }}" {% if certificate and srv in certificate.services %}selected{%
+                            endif %}>
+                            {{ srv.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            {% if not is_edit %}
+            <hr>
+            <h5 class="mb-3">Initial Version Details</h5>
+
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Expiration Date <span class="text-danger">*</span></label>
+                    <input type="date" class="form-control" name="expires_at" required>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Issuer</label>
+                    <input type="text" class="form-control" name="issuer" placeholder="e.g. DigiCert">
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Common Name (CN)</label>
+                    <input type="text" class="form-control" name="common_name" placeholder="e.g. *.example.com">
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Private Key Location <span class="text-muted small">(Do not paste the key
+                        here)</span></label>
+                <input type="text" class="form-control" name="private_key_location"
+                    placeholder="e.g. 1Password Vault / Safe 2">
+            </div>
+            {% endif %}
+
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary">{{ 'Update' if is_edit else 'Create' }}</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

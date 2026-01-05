@@ -6,6 +6,8 @@ from ..models import db, Asset, AssetHistory, User, Location, Supplier, Purchase
 from .main import login_required
 from .admin import admin_required
 
+from src.utils.logger import log_audit
+
 assets_bp = Blueprint('assets', __name__)
 
 @assets_bp.route('/')
@@ -30,6 +32,14 @@ def archive_asset(id):
     asset = Asset.query.get_or_404(id)
     asset.is_archived = True
     db.session.commit()
+    
+    log_audit(
+        event_type='asset.archived',
+        action='delete',
+        target_object=f"Asset:{asset.id}",
+        target_info=asset.name
+    )
+    
     flash(f'Asset "{asset.name}" has been archived.')
     return redirect(url_for('assets.assets'))
 
@@ -42,6 +52,14 @@ def unarchive_asset(id):
     asset = Asset.query.get_or_404(id)
     asset.is_archived = False
     db.session.commit()
+    
+    log_audit(
+        event_type='asset.restored',
+        action='update',
+        target_object=f"Asset:{asset.id}",
+        target_info=asset.name
+    )
+    
     flash(f'Asset "{asset.name}" has been restored.')
     return redirect(url_for('assets.archived_assets'))
 
@@ -71,6 +89,14 @@ def new_asset():
         )
         db.session.add(asset)
         db.session.commit()
+        
+        log_audit(
+            event_type='asset.created',
+            action='create',
+            target_object=f"Asset:{asset.id}",
+            target_info=asset.name
+        )
+        
         flash('Asset created successfully!')
         return redirect(url_for('assets.assets'))
 
@@ -93,6 +119,8 @@ def edit_asset(id):
             return redirect(url_for('assets.asset_detail', id=id))
 
         changes = []
+        old_status = asset.status
+        
         if asset.name != request.form['name']:
             changes.append(('name', asset.name, request.form['name']))
         if asset.internal_id != request.form.get('internal_id'):
@@ -171,6 +199,19 @@ def edit_asset(id):
         asset.is_virtual = request.form.get('is_virtual') == 'on'
 
         db.session.commit()
+        
+        # Audit Log
+        event_ctx = {'target_object': f"Asset:{asset.id}"}
+        if old_status != asset.status:
+             event_ctx['old_status'] = old_status
+             event_ctx['new_status'] = asset.status
+             
+        log_audit(
+            event_type='asset.updated',
+            action='update',
+            **event_ctx
+        )
+        
         flash('Asset updated successfully!')
         return redirect(url_for('assets.assets'))
 

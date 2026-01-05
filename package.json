@@ -1,0 +1,21 @@
+{
+    "name": "opsdeck-frontend-assets",
+    "version": "1.0.0",
+    "private": true,
+    "description": "Frontend asset management for OpsDeck",
+    "scripts": {
+        "build-assets": "node copy-assets.js"
+    },
+    "dependencies": {
+        "bootstrap": "^5.3.0",
+        "@popperjs/core": "^2.11.0",
+        "chart.js": "^4.4.0",
+        "easymde": "^2.18.0",
+        "@fortawesome/fontawesome-free": "^6.5.0",
+        "fullcalendar": "^6.1.0",
+        "simple-datatables": "^9.0.0",
+        "sortablejs": "^1.15.0",
+        "tom-select": "^2.3.0",
+        "mermaid": "^10.9.0"
+    }
+}

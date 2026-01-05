@@ -62,6 +62,7 @@
                             <option value="Software">Software Provisioning</option>
                             <option value="Hardware">Hardware Provisioning</option>
                             <option value="ServiceAccess">Service Access</option>
+                            <option value="Subscription">Subscription Access</option>
                         </select>
                     </div>
 
@@ -85,6 +86,16 @@
                         </select>
                     </div>
 
+                    <div class="mb-3" id="subscriptionField" style="display:none;">
+                        <label class="form-label">Linked Subscription</label>
+                        <select class="form-select" name="subscription_id">
+                            <option value="">Select Subscription...</option>
+                            {% for sub in all_subscriptions %}
+                            <option value="{{ sub.id }}">{{ sub.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
                     <div class="mb-3">
                         <label class="form-label">Description</label>
                         <input type="text" class="form-control" name="description" required>
@@ -96,6 +107,7 @@
                             const type = document.getElementById('itemTypeSelect').value;
                             document.getElementById('softwareField').style.display = (type === 'Software') ? 'block' : 'none';
                             document.getElementById('serviceField').style.display = (type === 'ServiceAccess') ? 'block' : 'none';
+                            document.getElementById('subscriptionField').style.display = (type === 'Subscription') ? 'block' : 'none';
                         }
                     </script>
                     <button type="submit" class="btn btn-primary w-100">Add to Profile</button>

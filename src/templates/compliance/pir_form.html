@@ -4,12 +4,13 @@
 {% block content %}
 <h2>Post-Incident Review for: {{ incident.title }}</h2>
 <p>
-    <a href="{{ url_for('compliance.incident_detail', id=incident.id) }}"><i class="fas fa-arrow-left"></i> Back to Incident</a>
+    <a href="{{ url_for('compliance.incident_detail', id=incident.id) }}"><i class="fas fa-arrow-left"></i> Back to
+        Incident</a>
 </p>
 
 <!-- Formulario principal para los campos de texto -->
 <form method="POST">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="card mb-4">
         <div class="card-header">Review Details</div>
         <div class="card-body">
@@ -17,39 +18,47 @@
                 <div class="col-md-6">
                     <div class="mb-3">
                         <label for="summary" class="form-label">Summary / Executive Summary</label>
-                        <textarea name="summary" id="summary" class="form-control" rows="5">{{ review.summary or '' }}</textarea>
+                        <textarea name="summary" id="summary" class="form-control"
+                            rows="5">{{ review.summary or '' }}</textarea>
                     </div>
                     <div class="mb-3">
                         <label for="lead_up" class="form-label">Lead-up (What happened before?)</label>
-                        <textarea name="lead_up" id="lead_up" class="form-control" rows="5">{{ review.lead_up or '' }}</textarea>
+                        <textarea name="lead_up" id="lead_up" class="form-control"
+                            rows="5">{{ review.lead_up or '' }}</textarea>
                     </div>
                     <div class="mb-3">
                         <label for="fault" class="form-label">Fault (Root cause)</label>
-                        <textarea name="fault" id="fault" class="form-control" rows="5">{{ review.fault or '' }}</textarea>
+                        <textarea name="fault" id="fault" class="form-control"
+                            rows="5">{{ review.fault or '' }}</textarea>
                     </div>
                 </div>
                 <div class="col-md-6">
                     <div class="mb-3">
                         <label for="impact_analysis" class="form-label">Impact Analysis (What was affected?)</label>
-                        <textarea name="impact_analysis" id="impact_analysis" class="form-control" rows="5">{{ review.impact_analysis or '' }}</textarea>
+                        <textarea name="impact_analysis" id="impact_analysis" class="form-control"
+                            rows="5">{{ review.impact_analysis or '' }}</textarea>
                     </div>
                     <div class="mb-3">
                         <label for="detection" class="form-label">Detection (How did we find out?)</label>
-                        <textarea name="detection" id="detection" class="form-control" rows="5">{{ review.detection or '' }}</textarea>
+                        <textarea name="detection" id="detection" class="form-control"
+                            rows="5">{{ review.detection or '' }}</textarea>
                     </div>
                     <div class="mb-3">
                         <label for="response" class="form-label">Response (What did we do?)</label>
-                        <textarea name="response" id="response" class="form-control" rows="5">{{ review.response or '' }}</textarea>
+                        <textarea name="response" id="response" class="form-control"
+                            rows="5">{{ review.response or '' }}</textarea>
                     </div>
                 </div>
             </div>
             <div class="mb-3">
                 <label for="recovery" class="form-label">Recovery (How did we recover?)</label>
-                <textarea name="recovery" id="recovery" class="form-control" rows="5">{{ review.recovery or '' }}</textarea>
+                <textarea name="recovery" id="recovery" class="form-control"
+                    rows="5">{{ review.recovery or '' }}</textarea>
             </div>
             <div class="mb-3">
                 <label for="lessons_learned" class="form-label">Lessons Learned (What will we do differently?)</label>
-                <textarea name="lessons_learned" id="lessons_learned" class="form-control" rows="5">{{ review.lessons_learned or '' }}</textarea>
+                <textarea name="lessons_learned" id="lessons_learned" class="form-control"
+                    rows="5">{{ review.lessons_learned or '' }}</textarea>
             </div>
         </div>
         <div class="card-footer text-end">
@@ -65,7 +74,8 @@
     <div class="card-body">
         <ul class="list-group list-group-flush" id="timeline-list">
             {% for event in review.timeline_events %}
-            <li class="list-group-item d-flex justify-content-between align-items-center" data-event-id="{{ event.id }}">
+            <li class="list-group-item d-flex justify-content-between align-items-center"
+                data-event-id="{{ event.id }}">
                 <div>
                     <strong>{{ event.event_time.strftime('%Y-%m-%d %H:%M') }}</strong> - {{ event.description }}
                 </div>
@@ -99,13 +109,12 @@
 <script src="{{ url_for('static', filename='vendor/sortablejs/Sortable.min.js') }}"></script>
 
 <!-- *** INICIO DE LA CORRECCIÓN *** -->
-<!-- Cargar los assets de EasyMDE (CSS y JS) -->
-<!-- Usamos la CDN (Red de entrega de contenido) porque es la forma más fiable -->
-<link rel="stylesheet" href="https://unpkg.com/easymde/dist/easymde.min.css">
-<script src="https://unpkg.com/easymde/dist/easymde.min.js"></script>
+<!-- Cargar los assets de EasyMDE (CSS y JS) desde vendor local -->
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/easymde/easymde.min.css') }}">
+<script src="{{ url_for('static', filename='vendor/easymde/easymde.min.js') }}"></script>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
         // Inicializar los editores de Markdown
         const editors = ['summary', 'lead_up', 'fault', 'impact_analysis', 'detection', 'response', 'recovery', 'lessons_learned'];
         editors.forEach(id => {
@@ -126,7 +135,7 @@
         const reviewId = '{{ review.id }}';
 
         // 1. Lógica para AÑADIR un evento
-        addBtn.addEventListener('click', function() {
+        addBtn.addEventListener('click', function () {
             const time = timeInput.value;
             const description = descInput.value;
 
@@ -144,21 +153,21 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ time: time, description: description })
             })
-            .then(response => response.json())
-            .then(data => {
-                // Limpiar los inputs
-                timeInput.value = '';
-                descInput.value = '';
+                .then(response => response.json())
+                .then(data => {
+                    // Limpiar los inputs
+                    timeInput.value = '';
+                    descInput.value = '';
 
-                // Quitar el mensaje "empty" si existe
-                const emptyMsg = document.getElementById('timeline-empty');
-                if (emptyMsg) emptyMsg.remove();
-                
-                // Añadir el nuevo elemento a la lista
-                const newLi = document.createElement('li');
-                newLi.className = 'list-group-item d-flex justify-content-between align-items-center';
-                newLi.setAttribute('data-event-id', data.id);
-                newLi.innerHTML = `
+                    // Quitar el mensaje "empty" si existe
+                    const emptyMsg = document.getElementById('timeline-empty');
+                    if (emptyMsg) emptyMsg.remove();
+
+                    // Añadir el nuevo elemento a la lista
+                    const newLi = document.createElement('li');
+                    newLi.className = 'list-group-item d-flex justify-content-between align-items-center';
+                    newLi.setAttribute('data-event-id', data.id);
+                    newLi.innerHTML = `
                     <div>
                         <strong>${new Date(data.time).toLocaleString('sv-SE', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(' ', ' ')}</strong> - ${data.description}
                     </div>
@@ -169,27 +178,27 @@
                         </button>
                     </div>
                 `;
-                list.appendChild(newLi);
-            })
-            .catch(error => console.error('Error adding timeline event:', error));
+                    list.appendChild(newLi);
+                })
+                .catch(error => console.error('Error adding timeline event:', error));
         });
 
 
-        list.addEventListener('click', function(e) {
+        list.addEventListener('click', function (e) {
             const deleteBtn = e.target.closest('.delete-timeline-event');
             if (deleteBtn) {
                 const eventId = deleteBtn.dataset.eventId;
                 const li = deleteBtn.closest('li');
-                
+
                 if (confirm('Are you sure you want to delete this event?')) {
                     fetch(`/compliance/incidents/review/timeline/${eventId}`, { method: 'DELETE' })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            li.remove();
-                        }
-                    })
-                    .catch(error => console.error('Error deleting event:', error));
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                li.remove();
+                            }
+                        })
+                        .catch(error => console.error('Error deleting event:', error));
                 }
             }
         });
@@ -199,15 +208,15 @@
             new Sortable(list, {
                 animation: 150,
                 handle: '.fa-grip-vertical', // Usar el icono de agarre para mover
-                onEnd: function(evt) {
+                onEnd: function (evt) {
                     const orderedIds = Array.from(list.children).map(li => li.dataset.eventId);
-                    
+
                     fetch(`/compliance/incidents/review/${reviewId}/timeline/reorder`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ ordered_ids: orderedIds })
                     })
-                    .catch(error => console.error('Error reordering:', error));
+                        .catch(error => console.error('Error reordering:', error));
                 }
             });
         }

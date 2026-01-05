@@ -1,0 +1,85 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container-fluid mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0 text-gray-800">History: {{ configuration.name }}</h1>
+            <p class="text-muted mb-0">Full version history</p>
+        </div>
+        <div>
+            <a href="{{ url_for('configuration.detail', id=configuration.id) }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-1"></i> Back to Editor
+            </a>
+        </div>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Version Timeline</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover" id="historyTable">
+                    <thead class="bg-light">
+                        <tr>
+                            <th>Version</th>
+                            <th>Created At</th>
+                            <th>Created By</th>
+                            <th>Commit Message</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for version in versions %}
+                        <tr>
+                            <td>
+                                <span class="badge bg-primary rounded-pill">v{{ version.version_number }}</span>
+                                {% if version.version_number == configuration.latest_version.version_number %}
+                                <span class="badge bg-success ms-2">Latest</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ version.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>
+                                {% if version.created_by %}
+                                {{ version.created_by.name }}
+                                {% else %}
+                                <span class="text-muted">Unknown</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ version.commit_message }}</td>
+                            <td>
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
+                                        data-bs-toggle="dropdown">
+                                        Compare
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        {% if version.version_number > 1 %}
+                                        <li>
+                                            <a class="dropdown-item"
+                                                href="{{ url_for('configuration.compare', id=configuration.id, v1=version.version_number-1, v2=version.version_number) }}">
+                                                Compare with Previous (v{{ version.version_number - 1}})
+                                            </a>
+                                        </li>
+                                        {% endif %}
+                                        {% if version.version_number != configuration.latest_version.version_number %}
+                                        <li>
+                                            <a class="dropdown-item"
+                                                href="{{ url_for('configuration.compare', id=configuration.id, v1=version.version_number, v2=configuration.latest_version.version_number) }}">
+                                                Compare with Latest (v{{ configuration.latest_version.version_number }})
+                                            </a>
+                                        </li>
+                                        {% endif %}
+                                    </ul>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

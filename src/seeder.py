@@ -12,9 +12,10 @@ from . import create_app
 
 fake = Faker()
 
-def seed_data():
+def seed_data(app=None):
     """Seeds the database with a comprehensive set of demo data."""
-    app = create_app()
+    if app is None:
+        app = create_app()
     with app.app_context():
         if Supplier.query.first():
             print("Database already contains data. Aborting seed.")

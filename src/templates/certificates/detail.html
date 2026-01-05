@@ -1,0 +1,118 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ certificate.name }} - Certificate Detail{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h1 class="h2">
+            <i class="fas fa-lock text-muted me-2"></i>{{ certificate.name }}
+            <span class="badge bg-{{ certificate.status_color }} fs-6 align-middle ms-2">
+                {{ 'Active' if certificate.active_version else 'No Active Version' }}
+            </span>
+        </h1>
+        <p class="text-muted mb-0">{{ certificate.type }} • {{ certificate.description or 'No description' }}</p>
+    </div>
+    <div>
+        <a href="{{ url_for('certificates.edit_certificate', id=certificate.id) }}" class="btn btn-outline-primary">
+            <i class="fas fa-edit"></i> Edit
+        </a>
+        <a href="{{ url_for('certificates.list_certificates') }}" class="btn btn-outline-secondary">
+            Back
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <!-- Versions Card -->
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">Versions History</h6>
+                <a href="{{ url_for('certificates.new_version', id=certificate.id) }}" class="btn btn-sm btn-primary">
+                    <i class="fas fa-plus"></i> Add Version (Renew)
+                </a>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Status</th>
+                                <th>Expires</th>
+                                <th>Issuer</th>
+                                <th>Key Location</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ver in certificate.versions %}
+                            <tr class="{{ 'table-success' if ver.is_active else 'text-muted' }}">
+                                <td>
+                                    {% if ver.is_active %}
+                                    {% set days = ver.days_until_expiry %}
+                                    {% if days < 0 %} <span class="badge bg-danger">Expired</span>
+                                        {% elif days < 30 %} <span class="badge bg-warning text-dark">Expiring</span>
+                                            {% else %}
+                                            <span class="badge bg-success">Active</span>
+                                            {% endif %}
+                                            {% else %}
+                                            <span class="badge bg-secondary">Inactive</span>
+                                            {% endif %}
+                                </td>
+                                <td>
+                                    <strong>{{ ver.expires_at }}</strong>
+                                    {% if ver.is_active %}<br><small>{{ ver.days_until_expiry }} days left</small>{%
+                                    endif %}
+                                </td>
+                                <td>{{ ver.issuer or '-' }}<br><small>{{ ver.common_name or '' }}</small></td>
+                                <td>
+                                    {% if ver.private_key_location %}
+                                    <i class="fas fa-key text-warning"></i> {{ ver.private_key_location }}
+                                    {% else %}
+                                    -
+                                    {% endif %}
+                                </td>
+                                <td>{{ ver.version_notes or '-' }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center">No versions recorded.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <!-- Metadata -->
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Metadata</h6>
+            </div>
+            <div class="card-body">
+                <p><strong>Owner:</strong> {{ certificate.owner.name if certificate.owner else 'Unassigned' }}</p>
+                <p><strong>Created:</strong> {{ certificate.created_at.strftime('%Y-%m-%d') }}</p>
+                <hr>
+                <h6>Associated Services</h6>
+                {% if certificate.services|length > 0 %}
+                <div class="list-group">
+                    {% for srv in certificate.services %}
+                    <a href="{{ url_for('services.detail', id=srv.id) }}"
+                        class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                        {{ srv.name }}
+                        <i class="fas fa-chevron-right small text-muted"></i>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted">No linked services.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

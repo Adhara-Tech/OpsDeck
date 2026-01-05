@@ -1,4 +1,5 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, current_app
+from flask_login import current_user
 from .main import login_required
 from .admin import admin_required
 from ..models.services import BusinessService, ServiceComponent
@@ -7,6 +8,8 @@ from ..models.core import CostCenter, Documentation, Link, Attachment
 from ..models.assets import Asset, Software, License
 from ..models.procurement import Supplier, Subscription
 from ..models.policy import Policy
+from ..models.certificates import Certificate
+from ..models.credentials import Credential
 from ..models.activities import SecurityActivity
 from ..extensions import db
 from ..utils.dependency_graph import get_full_dependency_tree
@@ -71,6 +74,7 @@ def detail(id):
     all_documents = Documentation.query.order_by(Documentation.name).all()
     all_policies = Policy.query.order_by(Policy.title).all()
     all_activities = SecurityActivity.query.order_by(SecurityActivity.name).all()
+    all_certificates = Certificate.query.order_by(Certificate.name).all()
     
     # Query polymorphic links and attachments for this service
     service_links = Link.query.filter_by(owner_type='BusinessService', owner_id=id).all()
@@ -104,6 +108,9 @@ def detail(id):
 
     # User list for Access Management
     all_users = User.query.filter_by(is_archived=False).order_by(User.name).all()
+    
+    # Get unified access list (direct + inherited)
+    effective_users = service.get_effective_users()
 
     return render_template('services/detail.html', 
         service=service, 
@@ -119,8 +126,13 @@ def detail(id):
         service_attachments=service_attachments,
         service_policies=service.policies,
         service_activities=service.activities,
-        all_users=all_users
+        all_users=all_users,
+        effective_users=effective_users,
+        all_certificates=all_certificates,
+        all_credentials=Credential.query.order_by(Credential.name).all()
     )
+
+from src.utils.logger import log_audit
 
 @services_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -147,6 +159,14 @@ def edit_service(id):
         
         try:
             db.session.commit()
+            
+            log_audit(
+                event_type='service.updated',
+                action='update',
+                target_object=f"Service:{service.id}",
+                target_info=service.name
+            )
+            
             flash('Service updated successfully!', 'success')
             return redirect(url_for('services.detail', id=service.id))
         except Exception as e:
@@ -163,8 +183,17 @@ def edit_service(id):
 def delete_service(id):
     service = BusinessService.query.get_or_404(id)
     try:
+        service_info = service.name
         db.session.delete(service)
         db.session.commit()
+        
+        log_audit(
+            event_type='service.deleted',
+            action='delete',
+            target_object=f"Service:{id}",
+            target_info=service_info
+        )
+        
         flash('Service deleted successfully.', 'success')
         return redirect(url_for('services.list_services'))
     except Exception as e:
@@ -541,3 +570,137 @@ def remove_user_access(id, user_id):
         flash(f'User {user.name} removed from {service.name}.', 'warning')
         
     return redirect(url_for('services.detail', id=id))
+
+@services_bp.route('/<int:id>/check_access/<int:user_id>')
+@login_required
+def check_user_access(id, user_id):
+    """
+    API endpoint to check if a user already has access to a service
+    through inherited sources (subscriptions/licenses).
+    
+    Returns JSON: {'exists': bool, 'sources': [str]}
+    """
+    service = BusinessService.query.get_or_404(id)
+    user = User.query.get_or_404(user_id)
+    
+    inherited_sources = []
+    
+    # Check components for inherited access
+    for component in service.components:
+        linked_obj = component.linked_object
+        
+        if component.component_type == 'Subscription' and linked_obj:
+            if user in linked_obj.users:
+                inherited_sources.append(f"Subscription: {linked_obj.name}")
+        
+        elif component.component_type == 'License' and linked_obj:
+            if linked_obj.user_id == user.id:
+                inherited_sources.append(f"License: {linked_obj.name}")
+    
+    return jsonify({
+        'exists': len(inherited_sources) > 0,
+        'sources': inherited_sources
+    })
+
+@services_bp.route('/<int:id>/link_certificate', methods=['POST'])
+@login_required
+def link_certificate(id):
+    service = BusinessService.query.get_or_404(id)
+    cert_id = request.form.get('certificate_id')
+    
+    if cert_id:
+        cert = Certificate.query.get(cert_id)
+        if cert and cert not in service.certificates:
+            service.certificates.append(cert)
+            # Log audit
+            log_audit(
+                event_type='service.update',
+                action='update',
+                target_object=f"BusinessService:{service.id}",
+                outcome='success',
+                linked_certificate=cert.name,
+                details=f"Linked certificate {cert.name} to service {service.name}"
+            )
+            db.session.commit()
+            flash(f'Certificate "{cert.name}" linked successfully.', 'success')
+        else:
+             if cert in service.certificates:
+                 flash('Certificate is already linked.', 'warning')
+             else:
+                 flash('Certificate not found.', 'danger')
+    
+    return redirect(url_for('services.detail', id=id, _anchor='context'))
+
+@services_bp.route('/<int:id>/unlink_certificate/<int:cert_id>', methods=['POST'])
+@login_required
+def unlink_certificate(id, cert_id):
+    service = BusinessService.query.get_or_404(id)
+    cert = Certificate.query.get_or_404(cert_id)
+
+    if cert in service.certificates:
+        service.certificates.remove(cert)
+        # Log audit
+        log_audit(
+            event_type='service.update',
+            action='update',
+            target_object=f"BusinessService:{service.id}",
+            outcome='success',
+            unlinked_certificate=cert.name,
+            details=f"Unlinked certificate {cert.name} from service {service.name}"
+        )
+        db.session.commit()
+        flash(f'Certificate "{cert.name}" unlinked successfully.', 'success')
+    
+    return redirect(url_for('services.detail', id=id, _anchor='context'))
+
+
+@services_bp.route('/<int:id>/link_credential', methods=['POST'])
+@login_required
+def link_credential(id):
+    service = BusinessService.query.get_or_404(id)
+    cred_id = request.form.get('credential_id')
+    
+    if cred_id:
+        cred = Credential.query.get(cred_id)
+        if cred and cred not in service.credentials:
+            service.credentials.append(cred)
+            # Log audit
+            log_audit(
+                event_type='service.update',
+                action='update',
+                target_object=f"BusinessService:{service.id}",
+                outcome='success',
+                linked_credential=cred.name,
+                details=f"Linked credential {cred.name} to service {service.name}"
+            )
+            db.session.commit()
+            flash(f'Credential "{cred.name}" linked successfully.', 'success')
+        else:
+             if cred in service.credentials:
+                 flash('Credential is already linked.', 'warning')
+             else:
+                 flash('Credential not found.', 'danger')
+    
+    return redirect(url_for('services.detail', id=id, _anchor='context'))
+
+@services_bp.route('/<int:id>/unlink_credential/<int:cred_id>', methods=['POST'])
+@login_required
+def unlink_credential(id, cred_id):
+    service = BusinessService.query.get_or_404(id)
+    cred = Credential.query.get_or_404(cred_id)
+
+    if cred in service.credentials:
+        service.credentials.remove(cred)
+        # Log audit
+        log_audit(
+            event_type='service.update',
+            action='update',
+            target_object=f"BusinessService:{service.id}",
+            outcome='success',
+            unlinked_credential=cred.name,
+            details=f"Unlinked credential {cred.name} from service {service.name}"
+        )
+        db.session.commit()
+        flash(f'Credential "{cred.name}" unlinked successfully.', 'success')
+    
+    return redirect(url_for('services.detail', id=id, _anchor='context'))

@@ -217,6 +217,41 @@
                     <span class="badge bg-success"><i class="fas fa-check"></i> Added</span>
                     {% endif %}
 
+                    {% elif item.item_type == 'Subscription' %}
+                    <a href="{{ url_for('subscriptions.subscription_detail', id=item.linked_object_id) }}"
+                        class="btn btn-sm btn-outline-secondary me-1" target="_blank">View Subscription</a>
+
+                    {% if type == 'onboarding' and not item.is_completed %}
+                    <form
+                        action="{{ url_for('onboarding.add_user_to_subscription', process_id=process.id, item_id=item.id) }}"
+                        method="POST" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-sm btn-success">
+                            <i class="fas fa-user-plus"></i> Add User
+                        </button>
+                    </form>
+                    {% elif type == 'onboarding' and item.is_completed %}
+                    <span class="badge bg-success"><i class="fas fa-check"></i> Added</span>
+                    {% endif %}
+
+                    {% elif item.item_type == 'RevokeSubscriptionAccess' %}
+                    <a href="{{ url_for('subscriptions.subscription_detail', id=item.linked_object_id) }}"
+                        class="btn btn-sm btn-outline-secondary me-1" target="_blank">View Subscription</a>
+
+                    {% if type == 'offboarding' and not item.is_completed %}
+                    <form
+                        action="{{ url_for('onboarding.revoke_subscription_access', process_id=process.id, item_id=item.id) }}"
+                        method="POST" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-sm btn-danger"
+                            onclick="return confirm('Revoke access for this user and mark as done?');">
+                            <i class="fas fa-user-times"></i> Revoke Access
+                        </button>
+                    </form>
+                    {% elif type == 'offboarding' and item.is_completed %}
+                    <span class="badge bg-success"><i class="fas fa-check"></i> Access Revoked</span>
+                    {% endif %}
+
                     {% elif item.item_type == 'Service' %}
                     <a href="{{ url_for('services.detail', id=item.linked_object_id) }}"
                         class="btn btn-sm btn-outline-secondary me-1" target="_blank">View</a>

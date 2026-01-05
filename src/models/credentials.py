@@ -4,6 +4,12 @@ from sqlalchemy.orm import foreign
 from ..extensions import db
 from .auth import User
 
+# Association table for Credential <-> BusinessService
+service_credentials = db.Table('service_credentials',
+    db.Column('service_id', db.Integer, db.ForeignKey('business_service.id'), primary_key=True),
+    db.Column('credential_id', db.Integer, db.ForeignKey('credentials.id'), primary_key=True)
+)
+
 class Credential(db.Model):
     """
     Credential lifecycle tracker.
@@ -15,7 +21,6 @@ class Credential(db.Model):
     # Indexes for efficient queries
     __table_args__ = (
         db.Index('idx_credential_owner', 'owner_type', 'owner_id'),
-        db.Index('idx_credential_service', 'service_id'),
         db.Index('idx_credential_software', 'software_id'),
     )
     
@@ -37,15 +42,13 @@ class Credential(db.Model):
     # ==========================================
     # ASSOCIATIONS (Nullable FKs)
     # ==========================================
-    # Note: These FKs reference tables that may not exist yet in this codebase
-    # They are nullable and will be used when those features are implemented
-    service_id = db.Column(db.Integer, db.ForeignKey('business_service.id'), nullable=True)
+    # service_id removed in favor of M2M relationship
     software_id = db.Column(db.Integer, db.ForeignKey('software.id'), nullable=True)
     license_id = db.Column(db.Integer, db.ForeignKey('license.id'), nullable=True)
     asset_id = db.Column(db.Integer, db.ForeignKey('asset.id'), nullable=True)
     
     # Relationships for reverse visibility
-    service = db.relationship('BusinessService', backref=db.backref('credentials', lazy='dynamic'))
+    services = db.relationship('BusinessService', secondary='service_credentials', backref=db.backref('credentials', lazy='dynamic'))
     software = db.relationship('Software', backref=db.backref('credentials', lazy='dynamic'))
     license = db.relationship('License', backref=db.backref('credentials', lazy='dynamic'))
     asset = db.relationship('Asset', backref=db.backref('credentials', lazy='dynamic'))
@@ -86,11 +89,16 @@ class Credential(db.Model):
     @property
     def target_name(self):
         """Returns a human-readable target name (Service/Software/License/Asset)"""
-        if self.service_id:
-            from .services import BusinessService
-            service = BusinessService.query.get(self.service_id)
-            return service.name if service else f"Service #{self.service_id}"
-        elif self.software_id:
+        # For M2M services, we might return the first one or a count
+        if self.services:
+            count = len(self.services)
+            if count == 1:
+                return self.services[0].name
+            elif count > 1:
+                return f"{count} Services"
+        
+        # Fallback to other relations
+        if self.software_id:
             from .assets import Software
             software = Software.query.get(self.software_id)
             return software.name if software else f"Software #{self.software_id}"

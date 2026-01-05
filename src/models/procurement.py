@@ -24,6 +24,12 @@ subscription_contacts = db.Table('subscription_contacts',
     db.Column('contact_id', db.Integer, db.ForeignKey('contact.id'), primary_key=True),
 )
 
+# Association table for User Access (M2M) - Subscriptions
+subscription_users = db.Table('subscription_users',
+    db.Column('subscription_id', db.Integer, db.ForeignKey('subscription.id'), primary_key=True),
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True)
+)
+
 purchase_users = db.Table('purchase_users',
     db.Column('purchase_id', db.Integer, db.ForeignKey('purchase.id'), primary_key=True),
     db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True)
@@ -269,6 +275,7 @@ class Subscription(db.Model):
     )
     cost_history = db.relationship('CostHistory', backref='subscription', lazy=True, cascade='all, delete-orphan', order_by='CostHistory.changed_date')
     tags = db.relationship('Tag', secondary=subscription_tags, backref=db.backref('subscriptions', lazy='dynamic'))
+    users = db.relationship('User', secondary=subscription_users, backref='access_subscriptions')
     
     # Metadata
     is_archived = db.Column(db.Boolean, default=False, nullable=False)

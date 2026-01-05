@@ -54,14 +54,6 @@ class User(db.Model): # Add UserMixin here if using Flask-Login
     buddy_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     buddy = db.relationship('User', remote_side='User.id', foreign_keys=[buddy_id], backref='mentees')
 
-    # 1. Manager
-    manager_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
-    manager = db.relationship('User', remote_side='User.id', backref='direct_reports', foreign_keys=[manager_id])
-
-    # 2. El Buddy (Mentor para onboarding)
-    buddy_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
-    buddy = db.relationship('User', remote_side='User.id', foreign_keys=[buddy_id])
-
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
     

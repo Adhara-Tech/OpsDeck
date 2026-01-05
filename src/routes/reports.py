@@ -167,6 +167,306 @@ def asset_reports():
         warranty_data=warranty_data,
     )
 
+@reports_bp.route('/assets-dashboard')
+@login_required
+def assets_dashboard():
+    """Executive Asset Operations Dashboard with KPIs, health metrics, and lifecycle tracking."""
+    from sqlalchemy.orm import joinedload
+    from ..models.assets import MaintenanceLog
+    
+    today = date.today()
+    
+    # Single optimized query for all non-archived assets
+    all_assets = Asset.query.filter(
+        Asset.is_archived == False
+    ).options(
+        joinedload(Asset.location),
+        joinedload(Asset.supplier)
+    ).all()
+    
+    # --- KPI 1: Total Fleet Size ---
+    total_fleet = len(all_assets)
+    
+    # --- KPI 2: Total Value (CAPEX vs Depreciated) ---
+    total_capex = 0.0
+    total_current_value = 0.0
+    useful_life_months = 48  # 4 years default for IT equipment
+    
+    for asset in all_assets:
+        if asset.cost:
+            # Convert to EUR for aggregation
+            from ..models import CURRENCY_RATES
+            rate_to_eur = CURRENCY_RATES.get(asset.currency, 1.0)
+            cost_eur = asset.cost * rate_to_eur
+            total_capex += cost_eur
+            
+            # Calculate depreciated value
+            if asset.purchase_date:
+                months_old = (today - asset.purchase_date).days / 30.44
+                depreciation_amount = (cost_eur / useful_life_months) * months_old
+                current_value = max(0.0, cost_eur - depreciation_amount)
+                total_current_value += current_value
+            else:
+                # No purchase date, assume full value
+                total_current_value += cost_eur
+    
+    # --- KPI 3: Average Fleet Age ---
+    ages = []
+    for asset in all_assets:
+        if asset.purchase_date:
+            age_years = (today - asset.purchase_date).days / 365.25
+            ages.append(age_years)
+    
+    avg_fleet_age = round(sum(ages) / len(ages), 1) if ages else 0.0
+    
+    # --- KPI 4: Dead Stock Rate ---
+    in_stock_count = sum(1 for a in all_assets if a.status == 'In Stock')
+    dead_stock_rate = round((in_stock_count / total_fleet * 100), 1) if total_fleet > 0 else 0.0
+    
+    # --- Health Metric 1: Breakdown Rate (last 12 months) ---
+    twelve_months_ago = today - relativedelta(months=12)
+    
+    # Get all repair maintenance logs from last 12 months
+    repair_logs = MaintenanceLog.query.filter(
+        MaintenanceLog.event_type == 'Repair',
+        MaintenanceLog.event_date >= twelve_months_ago,
+        MaintenanceLog.asset_id.isnot(None)
+    ).all()
+    
+    # Get unique asset IDs that had repairs
+    assets_with_repairs = set(log.asset_id for log in repair_logs)
+    breakdown_rate = round((len(assets_with_repairs) / total_fleet * 100), 1) if total_fleet > 0 else 0.0
+    
+    # --- Health Metric 2: "The Lemons" (Top 5 Problematic Assets) ---
+    # Count maintenance incidents per asset
+    maintenance_counts = {}
+    all_maintenance = MaintenanceLog.query.filter(
+        MaintenanceLog.asset_id.isnot(None)
+    ).all()
+    
+    for log in all_maintenance:
+        maintenance_counts[log.asset_id] = maintenance_counts.get(log.asset_id, 0) + 1
+    
+    # Get top 5 assets with most incidents
+    top_problematic = sorted(maintenance_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+    lemons = []
+    for asset_id, count in top_problematic:
+        asset = Asset.query.get(asset_id)
+        if asset and not asset.is_archived:
+            lemons.append({'asset': asset, 'incident_count': count})
+    
+    # --- Lifecycle Metric 1: Warranty Cliff ---
+    warranty_30_days = 0
+    warranty_60_days = 0
+    warranty_90_days = 0
+    warranty_expiring_soon = []  # For table display
+    
+    for asset in all_assets:
+        if asset.warranty_end_date:
+            days_until_expiry = (asset.warranty_end_date - today).days
+            
+            if 0 <= days_until_expiry <= 30:
+                warranty_30_days += 1
+                warranty_expiring_soon.append({
+                    'asset': asset,
+                    'days_remaining': days_until_expiry
+                })
+            elif 0 <= days_until_expiry <= 60:
+                warranty_60_days += 1
+            elif 0 <= days_until_expiry <= 90:
+                warranty_90_days += 1
+    
+    # Sort warranty expiring by days remaining
+    warranty_expiring_soon.sort(key=lambda x: x['days_remaining'])
+    
+    # --- Lifecycle Metric 2: EOL Candidates (> 5 years old) ---
+    eol_candidates = []
+    for asset in all_assets:
+        if asset.purchase_date:
+            age_years = (today - asset.purchase_date).days / 365.25
+            if age_years > 5:
+                eol_candidates.append(asset)
+    
+    # --- Chart Data 1: Distribution by Status ---
+    status_counts = {}
+    for asset in all_assets:
+        status = asset.status or 'Unknown'
+        status_counts[status] = status_counts.get(status, 0) + 1
+    
+    status_labels = list(status_counts.keys())
+    status_data = list(status_counts.values())
+    
+    # --- Chart Data 2: Breakdown Rate by Brand ---
+    brand_breakdown = {}
+    brand_totals = {}
+    
+    for asset in all_assets:
+        brand = asset.brand or 'Unknown'
+        brand_totals[brand] = brand_totals.get(brand, 0) + 1
+        
+        if asset.id in assets_with_repairs:
+            brand_breakdown[brand] = brand_breakdown.get(brand, 0) + 1
+    
+    # Calculate percentages
+    brand_labels = []
+    brand_breakdown_rates = []
+    
+    for brand, total in sorted(brand_totals.items(), key=lambda x: x[1], reverse=True)[:10]:  # Top 10 brands
+        breakdown_count = brand_breakdown.get(brand, 0)
+        rate = round((breakdown_count / total * 100), 1) if total > 0 else 0.0
+        brand_labels.append(brand)
+        brand_breakdown_rates.append(rate)
+    
+    return render_template(
+        'reports/assets_dashboard.html',
+        # KPIs
+        total_fleet=total_fleet,
+        total_capex=round(total_capex, 2),
+        total_current_value=round(total_current_value, 2),
+        avg_fleet_age=avg_fleet_age,
+        dead_stock_rate=dead_stock_rate,
+        # Health Metrics
+        breakdown_rate=breakdown_rate,
+        lemons=lemons,
+        # Lifecycle Metrics
+        warranty_30_days=warranty_30_days,
+        warranty_60_days=warranty_60_days,
+        warranty_90_days=warranty_90_days,
+        warranty_expiring_soon=warranty_expiring_soon[:10],  # Top 10 for table
+        eol_candidates_count=len(eol_candidates),
+        # Chart Data
+        status_labels=status_labels,
+        status_data=status_data,
+        brand_labels=brand_labels,
+        brand_breakdown_rates=brand_breakdown_rates
+    )
+
+
+@reports_bp.route('/assets-dashboard/pdf')
+@login_required
+def assets_dashboard_pdf():
+    """Export Assets Dashboard as PDF."""
+    from weasyprint import HTML
+    from flask import make_response, session
+    from sqlalchemy.orm import joinedload
+    from ..models.assets import MaintenanceLog
+    
+    today = date.today()
+    
+    # Re-fetch data (similar to dashboard but optimized for PDF)
+    all_assets = Asset.query.filter(
+        Asset.is_archived == False
+    ).options(
+        joinedload(Asset.location),
+        joinedload(Asset.supplier)
+    ).all()
+    
+    total_fleet = len(all_assets)
+    
+    # Calculate KPIs
+    total_capex = 0.0
+    total_current_value = 0.0
+    useful_life_months = 48
+    
+    for asset in all_assets:
+        if asset.cost:
+            from ..models import CURRENCY_RATES
+            rate_to_eur = CURRENCY_RATES.get(asset.currency, 1.0)
+            cost_eur = asset.cost * rate_to_eur
+            total_capex += cost_eur
+            
+            if asset.purchase_date:
+                months_old = (today - asset.purchase_date).days / 30.44
+                depreciation_amount = (cost_eur / useful_life_months) * months_old
+                current_value = max(0.0, cost_eur - depreciation_amount)
+                total_current_value += current_value
+            else:
+                total_current_value += cost_eur
+    
+    ages = [
+        (today - asset.purchase_date).days / 365.25
+        for asset in all_assets if asset.purchase_date
+    ]
+    avg_fleet_age = round(sum(ages) / len(ages), 1) if ages else 0.0
+    
+    in_stock_count = sum(1 for a in all_assets if a.status == 'In Stock')
+    dead_stock_rate = round((in_stock_count / total_fleet * 100), 1) if total_fleet > 0 else 0.0
+    
+    # Breakdown rate
+    twelve_months_ago = today - relativedelta(months=12)
+    repair_logs = MaintenanceLog.query.filter(
+        MaintenanceLog.event_type == 'Repair',
+        MaintenanceLog.event_date >= twelve_months_ago,
+        MaintenanceLog.asset_id.isnot(None)
+    ).all()
+    
+    assets_with_repairs = set(log.asset_id for log in repair_logs)
+    breakdown_rate = round((len(assets_with_repairs) / total_fleet * 100), 1) if total_fleet > 0 else 0.0
+    
+    # Lemons
+    maintenance_counts = {}
+    all_maintenance = MaintenanceLog.query.filter(
+        MaintenanceLog.asset_id.isnot(None)
+    ).all()
+    
+    for log in all_maintenance:
+        maintenance_counts[log.asset_id] = maintenance_counts.get(log.asset_id, 0) + 1
+    
+    top_problematic = sorted(maintenance_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+    lemons = []
+    for asset_id, count in top_problematic:
+        asset = Asset.query.get(asset_id)
+        if asset and not asset.is_archived:
+            lemons.append({'asset': asset, 'incident_count': count})
+    
+    # Warranty expiring
+    warranty_expiring_soon = []
+    for asset in all_assets:
+        if asset.warranty_end_date:
+            days_until_expiry = (asset.warranty_end_date - today).days
+            if 0 <= days_until_expiry <= 90:
+                warranty_expiring_soon.append({
+                    'asset': asset,
+                    'days_remaining': days_until_expiry
+                })
+    
+    warranty_expiring_soon.sort(key=lambda x: x['days_remaining'])
+    
+    # Status distribution for PDF
+    status_counts = {}
+    for asset in all_assets:
+        status = asset.status or 'Unknown'
+        status_counts[status] = status_counts.get(status, 0) + 1
+    
+    # Metadata
+    user = User.query.get(session.get('user_id'))
+    
+    # Render HTML
+    html_content = render_template(
+        'reports/assets_dashboard_pdf.html',
+        total_fleet=total_fleet,
+        total_capex=round(total_capex, 2),
+        total_current_value=round(total_current_value, 2),
+        avg_fleet_age=avg_fleet_age,
+        dead_stock_rate=dead_stock_rate,
+        breakdown_rate=breakdown_rate,
+        lemons=lemons,
+        warranty_expiring_soon=warranty_expiring_soon[:20],
+        status_counts=status_counts,
+        generated_at=datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
+        generated_by=user.name if user else 'System'
+    )
+    
+    # Generate PDF
+    pdf_file = HTML(string=html_content).write_pdf()
+    
+    response = make_response(pdf_file)
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = 'attachment; filename=assets_dashboard.pdf'
+    
+    return response
+
+
 @reports_bp.route('/spend-analysis', methods=['GET'])
 @login_required
 def spend_analysis():

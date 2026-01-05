@@ -1,0 +1,36 @@
+{% extends "layout.html" %}
+
+{% block content %}
+<div class="container mb-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Create New Configuration</h6>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Name</label>
+                            <input type="text" class="form-control" id="name" name="name" required>
+                            <div class="form-text">E.g., "Production Firewall Rules" or "Office Wi-Fi Settings"</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                        </div>
+
+                        <div class="d-flex justify-content-end">
+                            <a href="{{ url_for('configuration.index') }}" class="btn btn-secondary me-2">Cancel</a>
+                            <button type="submit" class="btn btn-primary">Create Configuration</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

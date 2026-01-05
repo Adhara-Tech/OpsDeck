@@ -1,0 +1,7 @@
+# Ignorar dependencias locales y caches
+node_modules/
+src/static/vendor/
+__pycache__/
+*.pyc
+.git/
+.env

@@ -16,7 +16,7 @@ def subscriptions():
     tag_filter = request.args.get('tag_id', type=int)
     month_filter = request.args.get('month')
 
-    query = Subscription.query.join(Supplier).filter(not Subscription.is_archived)
+    query = Subscription.query.join(Supplier).filter(Subscription.is_archived == False)
 
     if subscription_type_filter and subscription_type_filter != 'all':
         query = query.filter(Subscription.subscription_type == subscription_type_filter)
@@ -71,11 +71,14 @@ def subscription_detail(id):
         ) for entry in subscription.cost_history
     ]
 
+    all_users = User.query.filter_by(is_archived=False).order_by(User.name).all()
+
     return render_template(
         'subscriptions/detail.html',
         subscription=subscription,
         cost_history_labels=cost_history_labels,
-        cost_history_data=cost_history_data
+        cost_history_data=cost_history_data,
+        all_users=all_users
     )
 
 @subscriptions_bp.route('/new', methods=['GET', 'POST'])
@@ -322,4 +325,36 @@ def calendar_events():
                 })
             next_renewal = subscription.get_renewal_date_after(next_renewal)
 
+            next_renewal = subscription.get_renewal_date_after(next_renewal)
+
     return jsonify(events)
+
+@subscriptions_bp.route('/<int:id>/users/add', methods=['POST'])
+@login_required
+@admin_required
+def add_user_access(id):
+    subscription = Subscription.query.get_or_404(id)
+    user_id = request.form.get('user_id')
+    
+    if user_id:
+        user = User.query.get(user_id)
+        if user and user not in subscription.users:
+            subscription.users.append(user)
+            db.session.commit()
+            flash(f'User {user.name} added to {subscription.name}.', 'success')
+            
+    return redirect(url_for('subscriptions.subscription_detail', id=id))
+
+@subscriptions_bp.route('/<int:id>/users/remove/<int:user_id>', methods=['POST'])
+@login_required
+@admin_required
+def remove_user_access(id, user_id):
+    subscription = Subscription.query.get_or_404(id)
+    user = User.query.get_or_404(user_id)
+    
+    if user in subscription.users:
+        subscription.users.remove(user)
+        db.session.commit()
+        flash(f'User {user.name} removed from {subscription.name}.', 'warning')
+        
+    return redirect(url_for('subscriptions.subscription_detail', id=id))

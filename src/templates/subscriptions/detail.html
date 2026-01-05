@@ -16,158 +16,274 @@
     </a>
 </div>
 
-<div class="card mb-4">
-    <div class="card-header">Subscription Details</div>
-    <div class="card-body">
+<ul class="nav nav-tabs mb-3" id="subscriptionTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button"
+            role="tab">Overview</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button"
+            role="tab">User Access</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="attachments-tab" data-bs-toggle="tab" data-bs-target="#attachments" type="button"
+            role="tab">Attachments</button>
+    </li>
+</ul>
+
+<div class="tab-content" id="subscriptionTabsContent">
+
+    <!-- Overview Tab -->
+    <div class="tab-pane fade show active" id="overview" role="tabpanel">
+        <div class="card mb-4">
+            <div class="card-header">Subscription Details</div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Type:</strong> {{ subscription.subscription_type.title() }}</p>
+                        <p><strong>Assigned User:</strong>
+                            {% if subscription.user %}
+                            <a href="{{ url_for('users.user_detail', id=subscription.user.id) }}">{{
+                                subscription.user.name }}</a>
+                            {% else %}
+                            <span class="text-muted">Unassigned</span>
+                            {% endif %}
+                        </p>
+                        <p><strong>Supplier:</strong>
+                            {% if subscription.supplier %}
+                            <a href="{{ url_for('suppliers.supplier_detail', id=subscription.supplier.id) }}">{{
+                                subscription.supplier.name }}</a>
+                            {% else %}
+                            N/A
+                            {% endif %}
+                        </p>
+                        <p><strong>Software:</strong>
+                            {% if subscription.software %}
+                            <a href="{{ url_for('software.detail', id=subscription.software.id) }}">{{
+                                subscription.software.name }}</a>
+                            {% else %}
+                            N/A
+                            {% endif %}
+                        </p>
+                        <p><strong>Description:</strong> {{ subscription.description or 'N/A' }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Next Renewal:</strong> {{ subscription.next_renewal_date.strftime('%B %d, %Y') }}</p>
+                        <p><strong>Cost:</strong> €{{ "%.2f"|format(subscription.cost_eur) }} ({{ subscription.cost }}
+                            {{
+                            subscription.currency }})</p>
+                        <p><strong>Auto Renew:</strong>
+                            <span class="badge {{ 'bg-success' if subscription.auto_renew else 'bg-warning' }}">
+                                {{ 'Yes' if subscription.auto_renew else 'No' }}
+                            </span>
+                        </p>
+                    </div>
+                </div>
+                <hr>
+                <p class="mb-0"><strong>Tags:</strong>
+                    {% for tag in subscription.tags %}
+                    <a href="{{ url_for('subscriptions.subscriptions', tag_id=tag.id) }}"
+                        class="badge bg-primary text-decoration-none">{{ tag.name }}</a>
+                    {% else %}
+                    <span class="text-muted">No tags assigned.</span>
+                    {% endfor %}
+                </p>
+            </div>
+        </div>
+
         <div class="row">
             <div class="col-md-6">
-                <p><strong>Type:</strong> {{ subscription.subscription_type.title() }}</p>
-                <p><strong>Assigned User:</strong>
-                    {% if subscription.user %}
-                    <a href="{{ url_for('users.user_detail', id=subscription.user.id) }}">{{
-                        subscription.user.name }}</a>
-                    {% else %}
-                    <span class="text-muted">Unassigned</span>
-                    {% endif %}
-                </p>
-                <p><strong>Supplier:</strong>
-                    {% if subscription.supplier %}
-                    <a href="{{ url_for('suppliers.supplier_detail', id=subscription.supplier.id) }}">{{
-                        subscription.supplier.name }}</a>
-                    {% else %}
-                    N/A
-                    {% endif %}
-                </p>
-                <p><strong>Software:</strong>
-                    {% if subscription.software %}
-                    <a href="{{ url_for('software.detail', id=subscription.software.id) }}">{{
-                        subscription.software.name }}</a>
-                    {% else %}
-                    N/A
-                    {% endif %}
-                </p>
-                <p><strong>Description:</strong> {{ subscription.description or 'N/A' }}</p>
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="fas fa-users"></i> Associated Contacts ({{ subscription.contacts|length }})
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        {% for contact in subscription.contacts %}
+                        <li class="list-group-item">
+                            <a href="{{ url_for('contacts.contact_detail', id=contact.id) }}">{{ contact.name }}</a>
+                            <span class="text-muted small float-end">{{ contact.role or 'No role' }}</span>
+                        </li>
+                        {% else %}
+                        <li class="list-group-item text-muted">No contacts associated.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
             </div>
+
             <div class="col-md-6">
-                <p><strong>Next Renewal:</strong> {{ subscription.next_renewal_date.strftime('%B %d, %Y') }}</p>
-                <p><strong>Cost:</strong> €{{ "%.2f"|format(subscription.cost_eur) }} ({{ subscription.cost }} {{
-                    subscription.currency }})</p>
-                <p><strong>Auto Renew:</strong>
-                    <span class="badge {{ 'bg-success' if subscription.auto_renew else 'bg-warning' }}">
-                        {{ 'Yes' if subscription.auto_renew else 'No' }}
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="fas fa-credit-card"></i> Payment Methods ({{ subscription.payment_methods|length }})
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        {% for method in subscription.payment_methods %}
+                        <li class="list-group-item">
+                            <a href="{{ url_for('payment_methods.payment_method_detail', id=method.id) }}">{{
+                                method.name }}</a>
+                            <span class="text-muted small float-end">{{ method.details or method.method_type }}</span>
+                        </li>
+                        {% else %}
+                        <li class="list-group-item text-muted">No payment methods associated.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <i class="fas fa-id-badge"></i> Associated Licenses ({{ subscription.licenses|length }})
+            </div>
+            <ul class="list-group list-group-flush">
+                {% for license in subscription.licenses %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <a href="{{ url_for('licenses.detail', id=license.id) }}">{{ license.name }}</a>
+                    <span class="text-muted small float-end">
+                        {{ license.user.name if license.user else 'Unassigned' }}
                     </span>
-                </p>
-            </div>
-        </div>
-        <hr>
-        <p class="mb-0"><strong>Tags:</strong>
-            {% for tag in subscription.tags %}
-            <a href="{{ url_for('subscriptions.subscriptions', tag_id=tag.id) }}"
-                class="badge bg-primary text-decoration-none">{{ tag.name }}</a>
-            {% else %}
-            <span class="text-muted">No tags assigned.</span>
-            {% endfor %}
-        </p>
-    </div>
-</div>
-
-<div class="row">
-    <div class="col-md-6">
-        <div class="card mb-4">
-            <div class="card-header">
-                <i class="fas fa-users"></i> Associated Contacts ({{ subscription.contacts|length }})
-            </div>
-            <ul class="list-group list-group-flush">
-                {% for contact in subscription.contacts %}
-                <li class="list-group-item">
-                    <a href="{{ url_for('contacts.contact_detail', id=contact.id) }}">{{ contact.name }}</a>
-                    <span class="text-muted small float-end">{{ contact.role or 'No role' }}</span>
                 </li>
                 {% else %}
-                <li class="list-group-item text-muted">No contacts associated.</li>
+                <li class="list-group-item text-muted">No licenses are tracked under this subscription.</li>
                 {% endfor %}
             </ul>
         </div>
+
+        <div class="card mt-4">
+            <div class="card-header"><i class="fas fa-chart-line"></i> Cost History (€)</div>
+            <div class="card-body">
+                {% if subscription.cost_history|length > 1 %}
+                <canvas id="costHistoryChart" data-labels='{{ cost_history_labels|tojson|safe }}'
+                    data-values='{{ cost_history_data|tojson|safe }}'></canvas>
+                {% else %}
+                <p class="text-muted">No cost changes have been recorded for this subscription yet.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        {{ compliance_links(subscription, 'Subscription') }}
     </div>
 
-    <div class="col-md-6">
-        <div class="card mb-4">
-            <div class="card-header">
-                <i class="fas fa-credit-card"></i> Payment Methods ({{ subscription.payment_methods|length }})
+    <!-- User Access Tab -->
+    <div class="tab-pane fade" id="users" role="tabpanel">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">User Access ({{ subscription.users|length }})</h6>
+                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addUserAccessModal">
+                    <i class="fas fa-user-plus"></i> Add User
+                </button>
             </div>
-            <ul class="list-group list-group-flush">
-                {% for method in subscription.payment_methods %}
-                <li class="list-group-item">
-                    <a href="{{ url_for('payment_methods.payment_method_detail', id=method.id) }}">{{ method.name }}</a>
-                    <span class="text-muted small float-end">{{ method.details or method.method_type }}</span>
-                </li>
-                {% else %}
-                <li class="list-group-item text-muted">No payment methods associated.</li>
-                {% endfor %}
-            </ul>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in subscription.users %}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="avatar-circle bg-secondary text-white me-2"
+                                            style="width:32px; height:32px; line-height:32px; text-align:center; border-radius:50%;">
+                                            {{ user.name[:2].upper() }}
+                                        </div>
+                                        {{ user.name }}
+                                    </div>
+                                </td>
+                                <td>{{ user.email }}</td>
+                                <td>
+                                    <form
+                                        action="{{ url_for('subscriptions.remove_user_access', id=subscription.id, user_id=user.id) }}"
+                                        method="POST" class="d-inline"
+                                        onsubmit="return confirm('Revoke access for {{ user.name }}?');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-sm btn-danger">
+                                            <i class="fas fa-trash"></i> Revoke
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="3" class="text-center text-muted py-4">
+                                    No users have been assigned access to this subscription yet.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
-</div>
 
-<div class="card mt-4">
-    <div class="card-header">
-        <i class="fas fa-id-badge"></i> Associated Licenses ({{ subscription.licenses|length }})
+    <!-- Attachments Tab -->
+    <div class="tab-pane fade" id="attachments" role="tabpanel">
+        <div class="card mt-4">
+            <div class="card-header"><i class="fas fa-paperclip"></i> Attachments</div>
+            <ul class="list-group list-group-flush">
+                {% for att in subscription.attachments %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <a href="{{ url_for('attachments.download_file', attachment_id=att.id) }}">{{ att.filename }}</a>
+                    <form action="{{ url_for('attachments.delete_attachment', attachment_id=att.id) }}" method="POST"
+                        onsubmit="return confirm('Are you sure?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger"><i
+                                class="fas fa-trash"></i></button>
+                    </form>
+                </li>
+                {% else %}
+                <li class="list-group-item text-muted">No files attached.</li>
+                {% endfor %}
+            </ul>
+            <div class="card-body">
+                <form action="{{ url_for('attachments.upload_file') }}" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="subscription_id" value="{{ subscription.id }}">
+                    <div class="input-group">
+                        <input type="file" class="form-control" name="file" required>
+                        <button class="btn btn-outline-primary" type="submit">Upload</button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
-    <ul class="list-group list-group-flush">
-        {% for license in subscription.licenses %}
-        <li class="list-group-item d-flex justify-content-between align-items-center">
-            <a href="{{ url_for('licenses.detail', id=license.id) }}">{{ license.name }}</a>
-            <span class="text-muted small float-end">
-                {{ license.user.name if license.user else 'Unassigned' }}
-            </span>
-        </li>
-        {% else %}
-        <li class="list-group-item text-muted">No licenses are tracked under this subscription.</li>
-        {% endfor %}
-    </ul>
+
 </div>
 
-<div class="card mt-4">
-    <div class="card-header"><i class="fas fa-chart-line"></i> Cost History (€)</div>
-    <div class="card-body">
-        {% if subscription.cost_history|length > 1 %}
-        <canvas id="costHistoryChart" data-labels='{{ cost_history_labels|tojson|safe }}'
-            data-values='{{ cost_history_data|tojson|safe }}'></canvas>
-        {% else %}
-        <p class="text-muted">No cost changes have been recorded for this subscription yet.</p>
-        {% endif %}
-    </div>
-</div>
-
-<div class="card mt-4">
-    <div class="card-header"><i class="fas fa-paperclip"></i> Attachments</div>
-    <ul class="list-group list-group-flush">
-        {% for att in subscription.attachments %}
-        <li class="list-group-item d-flex justify-content-between align-items-center">
-            <a href="{{ url_for('attachments.download_file', attachment_id=att.id) }}">{{ att.filename }}</a>
-            <form action="{{ url_for('attachments.delete_attachment', attachment_id=att.id) }}" method="POST"
-                onsubmit="return confirm('Are you sure?');">
+<!-- Modal for Add User Access -->
+<div class="modal fade" id="addUserAccessModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('subscriptions.add_user_access', id=subscription.id) }}" method="POST">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
+                <div class="modal-header">
+                    <h5 class="modal-title">Grant User Access</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Select User</label>
+                        <select class="form-select tom-select" name="user_id" required>
+                            <option value="">Search users...</option>
+                            {% for user in all_users %}
+                            <option value="{{ user.id }}">{{ user.name }} ({{ user.email }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Grant Access</button>
+                </div>
             </form>
-        </li>
-        {% else %}
-        <li class="list-group-item text-muted">No files attached.</li>
-        {% endfor %}
-    </ul>
-    <div class="card-body">
-        <form action="{{ url_for('attachments.upload_file') }}" method="POST" enctype="multipart/form-data">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="subscription_id" value="{{ subscription.id }}">
-            <div class="input-group">
-                <input type="file" class="form-control" name="file" required>
-                <button class="btn btn-outline-primary" type="submit">Upload</button>
-            </div>
-        </form>
+        </div>
     </div>
 </div>
-
-{{ compliance_links(subscription, 'Subscription') }}
 
 {% endblock %}
 

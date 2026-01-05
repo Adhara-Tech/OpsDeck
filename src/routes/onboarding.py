@@ -63,6 +63,7 @@ def pack_detail(id):
         description = request.form.get('description')
         software_id = request.form.get('software_id') or None
         service_id = request.form.get('service_id') or None
+        subscription_id = request.form.get('subscription_id') or None
         
         # Si es software, hacemos la descripción más bonita automáticamente
         if item_type == 'Software' and software_id:
@@ -73,13 +74,18 @@ def pack_detail(id):
             srv = BusinessService.query.get(service_id)
             if not description:
                 description = f"Grant user access to {srv.category}: {srv.name}"
+        elif item_type == 'Subscription' and subscription_id:
+            sub = Subscription.query.get(subscription_id)
+            if not description:
+                description = f"Assign user to subscription: {sub.name}"
         
         item = PackItem(
             pack_id=pack.id, 
             item_type=item_type, 
             description=description, 
             software_id=software_id,
-            service_id=service_id
+            service_id=service_id,
+            subscription_id=subscription_id
         )
         db.session.add(item)
         db.session.commit()
@@ -88,7 +94,8 @@ def pack_detail(id):
 
     all_software = Software.query.order_by(Software.name).all()
     all_services = BusinessService.query.order_by(BusinessService.name).all()
-    return render_template('onboarding/pack_detail.html', pack=pack, all_software=all_software, all_services=all_services)
+    all_subscriptions = Subscription.query.filter_by(is_archived=False).order_by(Subscription.name).all()
+    return render_template('onboarding/pack_detail.html', pack=pack, all_software=all_software, all_services=all_services, all_subscriptions=all_subscriptions)
 
 # ==========================================
 # PROCESO DE ONBOARDING (ENTRADA)
@@ -149,6 +156,8 @@ def new_onboarding():
                     # The checklist item "Provision account..." serves as the action trigger.
                 elif p_item.item_type == 'Software' and p_item.software_id:
                     linked_obj_id = p_item.software_id
+                elif p_item.item_type == 'Subscription' and p_item.subscription_id:
+                    linked_obj_id = p_item.subscription_id
 
                 db.session.add(ProcessItem(
                     onboarding_process_id=process.id,
@@ -280,6 +289,16 @@ def new_offboarding():
                 offboarding_process_id=process.id,
                 description=f"🔄 Cancel/Transfer Subscription: {sub.name}",
                 item_type='Subscription'
+            ))
+
+        # 2b. Subscription Access (Revoke)
+        subscriptions_access = Subscription.query.filter(Subscription.users.contains(target_user)).all()
+        for sub in subscriptions_access:
+             db.session.add(ProcessItem(
+                offboarding_process_id=process.id,
+                description=f"🛑 Revoke access to Subscription: {sub.name}",
+                item_type='RevokeSubscriptionAccess',
+                linked_object_id=sub.id
             ))
 
         # 3. COMPLIANCE & OWNERSHIP
@@ -468,6 +487,39 @@ def revoke_service_access(process_id, item_id):
 
     return redirect(url_for('onboarding.onboarding_detail', id=process.id))
 
+@onboarding_bp.route('/offboarding/<int:process_id>/revoke_subscription/<int:item_id>', methods=['POST'])
+@login_required
+@admin_required
+def revoke_subscription_access(process_id, item_id):
+    process = OffboardingProcess.query.get_or_404(process_id)
+    item = ProcessItem.query.get_or_404(item_id)
+    
+    if item.offboarding_process_id != process.id:
+        flash('Invalid item for this process.', 'danger')
+        return redirect(url_for('onboarding.offboarding_detail', id=process.id))
+
+    if item.item_type != 'RevokeSubscriptionAccess':
+        flash('Invalid item type.', 'danger')
+        return redirect(url_for('onboarding.offboarding_detail', id=process.id))
+
+    subscription = Subscription.query.get(item.linked_object_id)
+    target_user = process.user
+    
+    if subscription and target_user:
+        if target_user in subscription.users:
+            subscription.users.remove(target_user)
+            flash(f'User removed from {subscription.name}.', 'success')
+        else:
+            flash(f'User was not in {subscription.name} (already removed?).', 'warning')
+            
+        item.is_completed = True
+        item.completed_at = datetime.utcnow()
+        db.session.commit()
+    else:
+        flash('Subscription or User not found.', 'danger')
+
+    return redirect(url_for('onboarding.offboarding_detail', id=process.id))
+
 @onboarding_bp.route('/process/<int:process_id>/create_user/<int:item_id>', methods=['POST'])
 @login_required
 @admin_required
@@ -555,6 +607,38 @@ def add_user_to_service(process_id, item_id):
         db.session.commit()
     else:
         flash(f'User already in {service.name}.', 'info')
+        item.is_completed = True
+        db.session.commit()
+        
+    return redirect(url_for('onboarding.onboarding_detail', id=process.id))
+
+@onboarding_bp.route('/process/<int:process_id>/add_to_subscription/<int:item_id>', methods=['POST'])
+@login_required
+@admin_required
+def add_user_to_subscription(process_id, item_id):
+    process = OnboardingProcess.query.get_or_404(process_id)
+    item = ProcessItem.query.get_or_404(item_id)
+    
+    if item.item_type != 'Subscription' or not item.linked_object_id:
+        flash('Invalid item type.', 'danger')
+        return redirect(url_for('onboarding.onboarding_detail', id=process.id))
+
+    subscription = Subscription.query.get(item.linked_object_id)
+    if not subscription:
+        flash('Subscription not found.', 'danger')
+        return redirect(url_for('onboarding.onboarding_detail', id=process.id))
+        
+    if not process.user:
+        flash('No user linked to this onboarding process yet. Create the user first.', 'warning')
+        return redirect(url_for('onboarding.onboarding_detail', id=process.id))
+        
+    if process.user not in subscription.users:
+        subscription.users.append(process.user)
+        flash(f'User {process.user.name} added to subscription {subscription.name}.', 'success')
+        item.is_completed = True
+        db.session.commit()
+    else:
+        flash(f'User already has access to {subscription.name}.', 'info')
         item.is_completed = True
         db.session.commit()
         
