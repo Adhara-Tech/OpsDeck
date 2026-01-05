@@ -165,6 +165,11 @@
                             class="nav-link {% if request.endpoint == 'credentials.list_credentials' %}active{% endif %}"
                             href="{{ url_for('credentials.list_credentials') }}"><i class="fa-fw fas fa-key"></i>
                             Credentials</a></li>
+                    <li class="nav-item"><a
+                            class="nav-link {% if request.endpoint.startswith('certificates.') %}active{% endif %}"
+                            href="{{ url_for('certificates.list_certificates') }}"><i
+                                class="fa-fw fas fa-file-certificate"></i>
+                            Certificates</a></li>
 
                     <li class="nav-item"><a
                             class="nav-link {% if request.blueprint == 'configuration' %}active{% endif %}"

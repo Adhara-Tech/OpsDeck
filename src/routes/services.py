@@ -1,4 +1,5 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, current_app
+from flask_login import current_user
 from .main import login_required
 from .admin import admin_required
 from ..models.services import BusinessService, ServiceComponent
@@ -7,6 +8,8 @@ from ..models.core import CostCenter, Documentation, Link, Attachment
 from ..models.assets import Asset, Software, License
 from ..models.procurement import Supplier, Subscription
 from ..models.policy import Policy
+from ..models.certificates import Certificate
+from ..models.credentials import Credential
 from ..models.activities import SecurityActivity
 from ..extensions import db
 from ..utils.dependency_graph import get_full_dependency_tree
@@ -71,6 +74,7 @@ def detail(id):
     all_documents = Documentation.query.order_by(Documentation.name).all()
     all_policies = Policy.query.order_by(Policy.title).all()
     all_activities = SecurityActivity.query.order_by(SecurityActivity.name).all()
+    all_certificates = Certificate.query.order_by(Certificate.name).all()
     
     # Query polymorphic links and attachments for this service
     service_links = Link.query.filter_by(owner_type='BusinessService', owner_id=id).all()
@@ -123,7 +127,9 @@ def detail(id):
         service_policies=service.policies,
         service_activities=service.activities,
         all_users=all_users,
-        effective_users=effective_users
+        effective_users=effective_users,
+        all_certificates=all_certificates,
+        all_credentials=Credential.query.order_by(Credential.name).all()
     )
 
 from src.utils.logger import log_audit
@@ -595,3 +601,106 @@ def check_user_access(id, user_id):
         'exists': len(inherited_sources) > 0,
         'sources': inherited_sources
     })
+
+@services_bp.route('/<int:id>/link_certificate', methods=['POST'])
+@login_required
+def link_certificate(id):
+    service = BusinessService.query.get_or_404(id)
+    cert_id = request.form.get('certificate_id')
+    
+    if cert_id:
+        cert = Certificate.query.get(cert_id)
+        if cert and cert not in service.certificates:
+            service.certificates.append(cert)
+            # Log audit
+            log_audit(
+                event_type='service.update',
+                action='update',
+                target_object=f"BusinessService:{service.id}",
+                outcome='success',
+                linked_certificate=cert.name,
+                details=f"Linked certificate {cert.name} to service {service.name}"
+            )
+            db.session.commit()
+            flash(f'Certificate "{cert.name}" linked successfully.', 'success')
+        else:
+             if cert in service.certificates:
+                 flash('Certificate is already linked.', 'warning')
+             else:
+                 flash('Certificate not found.', 'danger')
+    
+    return redirect(url_for('services.detail', id=id, _anchor='context'))
+
+@services_bp.route('/<int:id>/unlink_certificate/<int:cert_id>', methods=['POST'])
+@login_required
+def unlink_certificate(id, cert_id):
+    service = BusinessService.query.get_or_404(id)
+    cert = Certificate.query.get_or_404(cert_id)
+
+    if cert in service.certificates:
+        service.certificates.remove(cert)
+        # Log audit
+        log_audit(
+            event_type='service.update',
+            action='update',
+            target_object=f"BusinessService:{service.id}",
+            outcome='success',
+            unlinked_certificate=cert.name,
+            details=f"Unlinked certificate {cert.name} from service {service.name}"
+        )
+        db.session.commit()
+        flash(f'Certificate "{cert.name}" unlinked successfully.', 'success')
+    
+    return redirect(url_for('services.detail', id=id, _anchor='context'))
+
+
+@services_bp.route('/<int:id>/link_credential', methods=['POST'])
+@login_required
+def link_credential(id):
+    service = BusinessService.query.get_or_404(id)
+    cred_id = request.form.get('credential_id')
+    
+    if cred_id:
+        cred = Credential.query.get(cred_id)
+        if cred and cred not in service.credentials:
+            service.credentials.append(cred)
+            # Log audit
+            log_audit(
+                event_type='service.update',
+                action='update',
+                target_object=f"BusinessService:{service.id}",
+                outcome='success',
+                linked_credential=cred.name,
+                details=f"Linked credential {cred.name} to service {service.name}"
+            )
+            db.session.commit()
+            flash(f'Credential "{cred.name}" linked successfully.', 'success')
+        else:
+             if cred in service.credentials:
+                 flash('Credential is already linked.', 'warning')
+             else:
+                 flash('Credential not found.', 'danger')
+    
+    return redirect(url_for('services.detail', id=id, _anchor='context'))
+
+@services_bp.route('/<int:id>/unlink_credential/<int:cred_id>', methods=['POST'])
+@login_required
+def unlink_credential(id, cred_id):
+    service = BusinessService.query.get_or_404(id)
+    cred = Credential.query.get_or_404(cred_id)
+
+    if cred in service.credentials:
+        service.credentials.remove(cred)
+        # Log audit
+        log_audit(
+            event_type='service.update',
+            action='update',
+            target_object=f"BusinessService:{service.id}",
+            outcome='success',
+            unlinked_credential=cred.name,
+            details=f"Unlinked credential {cred.name} from service {service.name}"
+        )
+        db.session.commit()
+        flash(f'Credential "{cred.name}" unlinked successfully.', 'success')
+    
+    return redirect(url_for('services.detail', id=id, _anchor='context'))

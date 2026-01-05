@@ -34,6 +34,10 @@
                                 class="text-decoration-none fw-bold">
                                 {{ service.name }}
                             </a>
+                            {% if service.has_expiry_warning %}
+                            <i class="fas fa-exclamation-triangle text-danger ms-1"
+                                title="Credential/Certificate expiring soon"></i>
+                            {% endif %}
                         </td>
                         <td>
                             {% if service.owner %}

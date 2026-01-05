@@ -98,7 +98,7 @@
                 <p><strong>Created:</strong> {{ certificate.created_at.strftime('%Y-%m-%d') }}</p>
                 <hr>
                 <h6>Associated Services</h6>
-                {% if certificate.services.count() > 0 %}
+                {% if certificate.services|length > 0 %}
                 <div class="list-group">
                     {% for srv in certificate.services %}
                     <a href="{{ url_for('services.detail', id=srv.id) }}"

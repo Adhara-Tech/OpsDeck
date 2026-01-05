@@ -93,6 +93,8 @@
                 <div class="row no-gutters align-items-center">
                     <div class="col mr-2">
                         <div class="text-xs font-weight-bold text-info text-uppercase mb-1">SLA Target</div>
+
+
                         <div class="h6 mb-0 font-weight-bold text-gray-800">
                             Resp: {{ service.sla_response_hours|default('-', true) }}h <br>
                             Res: {{ service.sla_resolution_hours|default('-', true) }}h
@@ -141,12 +143,14 @@
     </li>
     <li class="nav-item" role="presentation">
         <button class="nav-link" id="context-tab" data-bs-toggle="tab" data-bs-target="#context" type="button"
-            role="tab">Service Context</button>
+            role="tab">
+            Service Context
+            {% if service.has_expiry_warning %}
+            <span class="badge bg-danger ms-1" title="Items expiring soon">!</span>
+            {% endif %}
+        </button>
     </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link" id="credentials-tab" data-bs-toggle="tab" data-bs-target="#credentials" type="button"
-            role="tab">Credentials</button>
-    </li>
+
 </ul>
 
 <div class="tab-content" id="serviceTabsContent">
@@ -594,9 +598,10 @@
                 <div class="card shadow mb-4">
                     <div class="card-header py-3 d-flex justify-content-between align-items-center">
                         <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-lock"></i> Certificates</h6>
-                        <a href="{{ url_for('certificates.create_certificate') }}" class="btn btn-sm btn-primary">
-                            <i class="fas fa-plus"></i> New
-                        </a>
+                        <button class="btn btn-sm btn-primary" data-bs-toggle="modal"
+                            data-bs-target="#linkCertificateModal">
+                            <i class="fas fa-link"></i> Link
+                        </button>
                     </div>
                     <ul class="list-group list-group-flush">
                         {% for cert in service.certificates %}
@@ -621,9 +626,67 @@
                                 <div class="small text-muted">No active version</div>
                                 {% endif %}
                             </div>
+                            <form action="{{ url_for('services.unlink_certificate', id=service.id, cert_id=cert.id) }}"
+                                method="POST" class="d-inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-sm text-danger border-0 bg-transparent py-0"
+                                    title="Unlink" onsubmit="return confirm('Unlink this certificate?');">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </form>
                         </li>
                         {% else %}
                         <li class="list-group-item text-muted">No certificates linked.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Credentials Card -->
+            <div class="col-md-6 col-lg-4">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                        <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-key"></i> Credentials</h6>
+                        <button class="btn btn-sm btn-primary" data-bs-toggle="modal"
+                            data-bs-target="#linkCredentialModal">
+                            <i class="fas fa-link"></i> Link
+                        </button>
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        {% for cred in service.credentials %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="fas fa-key text-muted me-1"></i>
+                                <a href="#" class="fw-bold">{{ cred.name }}</a>
+                                <div class="small mt-1">
+                                    {% set active_secret = cred.active_secret %}
+                                    {% if active_secret %}
+                                    {% if active_secret.expiry_status == 'expired' %}
+                                    <span class="badge bg-danger">Expired</span>
+                                    {% elif active_secret.expiry_status == 'expiring_soon' %}
+                                    <span class="badge bg-danger">Expiring Soon</span>
+                                    {% elif active_secret.expiry_status == 'expiring_warning' %}
+                                    <span class="badge bg-warning text-dark">Expiring</span>
+                                    {% else %}
+                                    <span class="badge bg-success">Active</span>
+                                    {% endif %}
+                                    {% else %}
+                                    <span class="badge bg-secondary">No Secret</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <form action="{{ url_for('services.unlink_credential', id=service.id, cred_id=cred.id) }}"
+                                method="POST" class="d-inline"
+                                onsubmit="return confirm('Are you sure you want to unlink this credential?');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-sm text-danger border-0 bg-transparent py-0"
+                                    title="Unlink">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </form>
+                        </li>
+                        {% else %}
+                        <li class="list-group-item text-muted">No credentials linked.</li>
                         {% endfor %}
                     </ul>
                 </div>
@@ -632,13 +695,7 @@
     </div>
 </div>
 
-<div class="tab-pane fade" id="credentials" role="tabpanel">
-    <div class="row">
-        <div class="col-12">
-            {{ credential_list(service.credentials) }}
-        </div>
-    </div>
-</div>
+
 </div>
 
 <div class="modal fade" id="addUserAccessModal" tabindex="-1">
@@ -803,6 +860,39 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="linkCertificateModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('services.link_certificate', id=service.id) }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Link Certificate</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Select Certificate</label>
+                        <select class="form-select tom-select" name="certificate_id" required>
+                            <option value="">Search certificates...</option>
+                            {% for cert in all_certificates %}
+                            {% if cert not in service.certificates %}
+                            <option value="{{ cert.id }}">{{ cert.name }} ({{ cert.type }})</option>
+                            {% endif %}
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Only unlinked certificates are shown.</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Link</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 
 <div class="modal fade" id="linkPolicyModal" tabindex="-1">
     <div class="modal-dialog">
@@ -990,4 +1080,37 @@
         });
     });
 </script>
+
+<!-- Link Credential Modal -->
+<div class="modal fade" id="linkCredentialModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('services.link_credential', id=service.id) }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">Link Credential</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Select Credential</label>
+                        <select class="form-select tom-select" name="credential_id" required>
+                            <option value="">Search credentials...</option>
+                            {% for cred in all_credentials %}
+                            {% if cred not in service.credentials %}
+                            <option value="{{ cred.id }}">{{ cred.name }} ({{ cred.type }})</option>
+                            {% endif %}
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">Only unlinked credentials are shown.</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Link</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}

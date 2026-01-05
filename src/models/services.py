@@ -103,6 +103,28 @@ class BusinessService(db.Model):
         if score >= 5:  return '#ffc107'  # Warning (Yellow)
         return '#198754'  # Success (Green)
 
+        return '#198754'  # Success (Green)
+
+    @property
+    def has_expiry_warning(self):
+        """
+        Check if any linked Certificate or Credential is expiring within 30 days.
+        Returns: Boolean
+        """
+        # Check Certificates
+        for cert in self.certificates:
+            active_ver = cert.active_version
+            if active_ver and active_ver.days_until_expiry <= 30:
+                return True
+        
+        # Check Credentials
+        for cred in self.credentials:
+            for secret in cred.secrets:
+                if secret.is_active and secret.days_until_expiry is not None and secret.days_until_expiry <= 30:
+                    return True
+                    
+        return False
+
     def get_effective_users(self):
         """
         Returns a unified list of all users with access to this service,
