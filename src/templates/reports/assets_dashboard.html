@@ -27,7 +27,7 @@
     </div>
     <div class="col-md-3">
         <div
-            class="card text-white {% if (total_current_value / total_capex * 100) < 50 %}bg-warning{% else %}bg-info{% endif %} h-100">
+            class="card text-white {% if total_capex > 0 and (total_current_value / total_capex * 100) < 50 %}bg-warning{% else %}bg-info{% endif %} h-100">
             <div class="card-body">
                 <h5 class="card-title">Fleet Value</h5>
                 <p class="card-text display-6">€{{ "{:,.0f}".format(total_current_value) }}</p>
@@ -223,9 +223,9 @@
     // Pass data to external JS file
     window.assetsDashboardData = {
         statusLabels: {{ status_labels | tojson }},
-    statusData: {{ status_data | tojson }},
-    brandLabels: {{ brand_labels | tojson }},
-    brandBreakdownRates: {{ brand_breakdown_rates | tojson }}
+    statusData: { { status_data | tojson } },
+    brandLabels: { { brand_labels | tojson } },
+    brandBreakdownRates: { { brand_breakdown_rates | tojson } }
     };
 </script>
 {% endblock %}

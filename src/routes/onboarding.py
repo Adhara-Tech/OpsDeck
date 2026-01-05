@@ -62,6 +62,7 @@ def pack_detail(id):
         item_type = request.form.get('item_type') # 'Software', 'Hardware', 'Task', 'ServiceAccess'
         description = request.form.get('description')
         software_id = request.form.get('software_id') or None
+        service_id = request.form.get('service_id') or None
         subscription_id = request.form.get('subscription_id') or None
         
         # Si es software, hacemos la descripción más bonita automáticamente
