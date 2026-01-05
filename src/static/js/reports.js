@@ -1,47 +1,57 @@
-document.addEventListener('DOMContentLoaded', function() {
-    
+document.addEventListener('DOMContentLoaded', function () {
+
     /**
      * Helper function to initialize a chart on a given canvas element.
      */
     const createChart = (canvasId, chartType, chartData, chartOptions) => {
         const ctx = document.getElementById(canvasId);
         if (ctx) {
-            const labels = JSON.parse(ctx.dataset.labels || '[]');
-            const values = JSON.parse(ctx.dataset.values || '[]');
-            
-            chartData.labels = labels;
+            console.log(`[Reports] Initializing chart: ${canvasId}`);
+            try {
+                const labels = JSON.parse(ctx.dataset.labels || '[]');
+                const values = JSON.parse(ctx.dataset.values || '[]');
+                console.log(`[Reports] ${canvasId} - Labels:`, labels);
+                console.log(`[Reports] ${canvasId} - Values:`, values);
 
-            if (chartType === 'bar' && ctx.dataset.valuesOriginal) {
-                // Handle grouped bar chart for depreciation by location
-                chartData.datasets = [
-                    {
-                        label: 'Original Value (€)',
-                        data: JSON.parse(ctx.dataset.valuesOriginal),
-                        backgroundColor: 'rgba(54, 162, 235, 0.5)',
-                        borderColor: 'rgba(54, 162, 235, 1)',
-                        borderWidth: 1
-                    },
-                    {
-                        label: 'Depreciated Value (€)',
-                        data: JSON.parse(ctx.dataset.valuesDepreciated),
-                        backgroundColor: 'rgba(255, 99, 132, 0.5)',
-                        borderColor: 'rgba(255, 99, 132, 1)',
-                        borderWidth: 1
-                    }
-                ];
-            } else {
-                chartData.datasets[0].data = values;
+                chartData.labels = labels;
+
+                if (chartType === 'bar' && ctx.dataset.valuesOriginal) {
+                    // Handle grouped bar chart for depreciation by location
+                    chartData.datasets = [
+                        {
+                            label: 'Original Value (€)',
+                            data: JSON.parse(ctx.dataset.valuesOriginal),
+                            backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Depreciated Value (€)',
+                            data: JSON.parse(ctx.dataset.valuesDepreciated),
+                            backgroundColor: 'rgba(255, 99, 132, 0.5)',
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            borderWidth: 1
+                        }
+                    ];
+                } else {
+                    chartData.datasets[0].data = values;
+                }
+
+                if (ctx.dataset.keys) {
+                    chartData.keys = JSON.parse(ctx.dataset.keys);
+                }
+
+                new Chart(ctx.getContext('2d'), {
+                    type: chartType,
+                    data: chartData,
+                    options: chartOptions
+                });
+            } catch (err) {
+                console.error(`[Reports] Error creating chart ${canvasId}:`, err);
             }
-
-            if (ctx.dataset.keys) {
-                chartData.keys = JSON.parse(ctx.dataset.keys);
-            }
-
-            new Chart(ctx.getContext('2d'), {
-                type: chartType,
-                data: chartData,
-                options: chartOptions
-            });
+        } else {
+            // Optional: Log if canvas is missing to verify we are looking on the right page
+            // console.log(`[Reports] Canvas ${canvasId} not found (might be another report page)`);
         }
     };
 
@@ -87,11 +97,11 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // --- Subscription Report Charts ---
-    createChart('spendingBySupplierChart', 'doughnut', { ...doughnutPieData, datasets: [{...doughnutPieData.datasets[0], label: 'Spending in €'}] }, doughnutPieOptions);
-    createChart('subscriptionsByTypeChart', 'bar', { ...barData, datasets: [{...barData.datasets[0], label: 'Number of Subscriptions'}] }, barOptions);
-    createChart('monthlySpendingChart', 'line', { ...lineData('54, 162, 235'), datasets: [{...lineData('54, 162, 235').datasets[0], label: 'Spending in €'}] }, lineOptions);
-    createChart('yearlySpendingChart', 'line', { ...lineData('255, 99, 132'), datasets: [{...lineData('255, 99, 132').datasets[0], label: 'Spending in €'}] }, lineOptions);
-    
+    createChart('spendingBySupplierChart', 'doughnut', { ...doughnutPieData, datasets: [{ ...doughnutPieData.datasets[0], label: 'Spending in €' }] }, doughnutPieOptions);
+    createChart('subscriptionsByTypeChart', 'bar', { ...barData, datasets: [{ ...barData.datasets[0], label: 'Number of Subscriptions' }] }, barOptions);
+    createChart('monthlySpendingChart', 'line', { ...lineData('54, 162, 235'), datasets: [{ ...lineData('54, 162, 235').datasets[0], label: 'Spending in €' }] }, lineOptions);
+    createChart('yearlySpendingChart', 'line', { ...lineData('255, 99, 132'), datasets: [{ ...lineData('255, 99, 132').datasets[0], label: 'Spending in €' }] }, lineOptions);
+
     // --- Dashboard Forecast Chart ---
     const forecastChartOptions = {
         ...barOptions,
@@ -105,21 +115,21 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     };
-    createChart('forecastChart', 'bar', { ...barData, datasets: [{...barData.datasets[0], backgroundColor: 'rgba(153, 102, 255, 0.5)', borderColor: 'rgba(153, 102, 255, 1)', label: 'Forecasted Cost in €'}] }, forecastChartOptions);
+    createChart('forecastChart', 'bar', { ...barData, datasets: [{ ...barData.datasets[0], backgroundColor: 'rgba(153, 102, 255, 0.5)', borderColor: 'rgba(153, 102, 255, 1)', label: 'Forecasted Cost in €' }] }, forecastChartOptions);
 
     // --- Subscription Detail Cost History Chart ---
-    createChart('costHistoryChart', 'bar', { ...barData, datasets: [{...barData.datasets[0], backgroundColor: 'rgba(75, 192, 192, 0.5)', borderColor: 'rgba(75, 192, 192, 1)', label: 'Cost in €'}] }, { ...barOptions, scales: {y: {beginAtZero: false}}});
+    createChart('costHistoryChart', 'bar', { ...barData, datasets: [{ ...barData.datasets[0], backgroundColor: 'rgba(75, 192, 192, 0.5)', borderColor: 'rgba(75, 192, 192, 1)', label: 'Cost in €' }] }, { ...barOptions, scales: { y: { beginAtZero: false } } });
 
 
     // --- Asset Report Charts ---
-    createChart('assetsByBrandChart', 'doughnut', { ...doughnutPieData, datasets: [{...doughnutPieData.datasets[0], label: 'Assets by Brand'}] }, doughnutPieOptions);
-    createChart('assetsBySupplierChart', 'pie', { ...doughnutPieData, datasets: [{...doughnutPieData.datasets[0], label: 'Assets by Supplier'}] }, doughnutPieOptions);
-    createChart('assetsByStatusChart', 'bar', { ...barData, datasets: [{...barData.datasets[0], label: 'Assets by Status'}] }, barOptions);
-    createChart('warrantyStatusChart', 'pie', { ...doughnutPieData, datasets: [{...doughnutPieData.datasets[0], label: 'Warranty Status'}] }, doughnutPieOptions);
+    createChart('assetsByBrandChart', 'doughnut', { ...doughnutPieData, datasets: [{ ...doughnutPieData.datasets[0], label: 'Assets by Brand' }] }, doughnutPieOptions);
+    createChart('assetsBySupplierChart', 'pie', { ...doughnutPieData, datasets: [{ ...doughnutPieData.datasets[0], label: 'Assets by Supplier' }] }, doughnutPieOptions);
+    createChart('assetsByStatusChart', 'bar', { ...barData, datasets: [{ ...barData.datasets[0], label: 'Assets by Status' }] }, barOptions);
+    createChart('warrantyStatusChart', 'pie', { ...doughnutPieData, datasets: [{ ...doughnutPieData.datasets[0], label: 'Warranty Status' }] }, doughnutPieOptions);
 
     // --- Depreciation Report Charts ---
-    createChart('totalVsDepreciatedChart', 'doughnut', { ...doughnutPieData, datasets: [{...doughnutPieData.datasets[0], label: 'Value'}] }, doughnutPieOptions);
-    
+    createChart('totalVsDepreciatedChart', 'doughnut', { ...doughnutPieData, datasets: [{ ...doughnutPieData.datasets[0], label: 'Value' }] }, doughnutPieOptions);
+
     const depreciationByLocationCtx = document.getElementById('depreciationByLocationChart');
     if (depreciationByLocationCtx) {
         const labels = JSON.parse(depreciationByLocationCtx.dataset.labels || '[]');
