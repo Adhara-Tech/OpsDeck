@@ -589,6 +589,45 @@
                     </ul>
                 </div>
             </div>
+
+            <div class="col-md-6 col-lg-4">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                        <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-lock"></i> Certificates</h6>
+                        <a href="{{ url_for('certificates.create_certificate') }}" class="btn btn-sm btn-primary">
+                            <i class="fas fa-plus"></i> New
+                        </a>
+                    </div>
+                    <ul class="list-group list-group-flush">
+                        {% for cert in service.certificates %}
+                        {% set active_ver = cert.active_version %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="fas fa-certificate text-muted me-1"></i>
+                                <a href="{{ url_for('certificates.certificate_detail', id=cert.id) }}"
+                                    class="fw-bold">{{ cert.name }}</a>
+                                {% if active_ver %}
+                                <div class="small mt-1">
+                                    {% set days = active_ver.days_until_expiry %}
+                                    {% if days < 0 %} <span class="badge bg-dark">Expired</span>
+                                        {% elif days < 7 %} <span class="badge bg-danger">{{ days }} days left</span>
+                                            {% elif days < 30 %} <span class="badge bg-warning text-dark">{{ days }}
+                                                days left</span>
+                                                {% else %}
+                                                <span class="badge bg-success">{{ days }} days left</span>
+                                                {% endif %}
+                                </div>
+                                {% else %}
+                                <div class="small text-muted">No active version</div>
+                                {% endif %}
+                            </div>
+                        </li>
+                        {% else %}
+                        <li class="list-group-item text-muted">No certificates linked.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
         </div>
     </div>
 </div>

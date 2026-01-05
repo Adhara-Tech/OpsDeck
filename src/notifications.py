@@ -7,6 +7,7 @@ from datetime import datetime
 # Import the models needed for the notification logic
 from .models import Subscription, NotificationSetting
 from .models.credentials import Credential, CredentialSecret
+from .models.certificates import Certificate, CertificateVersion
 
 # --- Notification Functions ---
 
@@ -219,3 +220,103 @@ def check_credential_expirations(app):
                     app.logger.error(f"Failed to send credential expiration notification to {email}")
         else:
             app.logger.info("No credentials require expiration notification today.")
+
+def check_certificate_expirations(app):
+    """
+    Checks for active certificates expiring soon and sends 
+    notifications to owners at 30, 7, and 1 days before expiry.
+    """
+    with app.app_context():
+        # Notification thresholds (days before expiry)
+        NOTIFY_DAYS = [30, 7, 1]
+        
+        today = datetime.now().date()
+        certificates_to_notify = []
+        
+        # Query all active certificate versions using the CertificateVersion model directly
+        # We need versions that are marked is_active=True
+        active_versions = CertificateVersion.query.filter(
+            CertificateVersion.is_active == True,
+            CertificateVersion.expires_at.isnot(None)
+        ).all()
+        
+        # Check each version for notification threshold
+        for version in active_versions:
+            days_until_expiry = (version.expires_at - today).days
+            
+            # Only notify on specific days
+            if days_until_expiry in NOTIFY_DAYS:
+                cert = version.certificate
+                certificates_to_notify.append({
+                    'certificate': cert,
+                    'version': version,
+                    'days_until_expiry': days_until_expiry
+                })
+        
+        # Send notifications
+        if certificates_to_notify:
+            # Group by owner
+            notifications_by_owner = {}
+            
+            for item in certificates_to_notify:
+                cert = item['certificate']
+                owner = cert.owner
+                
+                # Check for valid owner email
+                if not owner or not getattr(owner, 'email', None):
+                    app.logger.warning(f"Certificate '{cert.name}' has no valid owner email")
+                    continue
+                
+                if owner.email not in notifications_by_owner:
+                    notifications_by_owner[owner.email] = {
+                        'owner_name': owner.name,
+                        'certificates': []
+                    }
+                
+                notifications_by_owner[owner.email]['certificates'].append(item)
+            
+            # Send email to each owner
+            for email, data in notifications_by_owner.items():
+                html_content = f"""
+                <h2>Certificate Expiration Alert</h2>
+                <p>Hello {data['owner_name']},</p>
+                <p>The following digital certificates under your ownership are expiring soon:</p>
+                <ul>
+                """
+                
+                for item in data['certificates']:
+                    cert = item['certificate']
+                    version = item['version']
+                    days = item['days_until_expiry']
+                    
+                    # Determine urgency
+                    urgency = "⚠️ URGENT" if days <= 7 else "ℹ️ NOTICE"
+                    
+                    html_content += f"""
+                    <li>
+                        <strong>{urgency} - {cert.name}</strong> ({cert.type})<br>
+                        Common Name: <code>{version.common_name or 'N/A'}</code><br>
+                        Expires: {version.expires_at.strftime('%Y-%m-%d')} ({days} days remaining)<br>
+                        <em>Please renew this certificate to prevent service interruption.</em>
+                    </li>
+                    """
+                
+                html_content += """
+                </ul>
+                <p>Visit OpsDeck Certificates to manage renewals.</p>
+                """
+                
+                # Send the email
+                success = send_email(
+                    app,
+                    f"Certificate Expiration Alert - {len(data['certificates'])} expiring",
+                    html_content,
+                    [email]
+                )
+                
+                if success:
+                    app.logger.info(f"Sent certificate expiration notification to {email}")
+                else:
+                    app.logger.error(f"Failed to send certificate expiration notification to {email}")
+        else:
+            app.logger.info("No certificates require expiration notification today.")

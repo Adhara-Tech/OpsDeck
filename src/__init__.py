@@ -281,7 +281,10 @@ def create_app(test_config=None):
     app.register_blueprint(onboarding_bp, url_prefix='/onboarding')
     from .routes.risk_assessment import risk_assessment_bp
     app.register_blueprint(risk_assessment_bp)
+    from .routes.credentials import credentials_bp
+    from .routes.certificates import certificates_bp
     app.register_blueprint(credentials_bp)
+    app.register_blueprint(certificates_bp)
     
     from .routes.configuration import configuration_bp
     app.register_blueprint(configuration_bp, url_prefix='/configuration')
@@ -326,6 +329,12 @@ def create_app(test_config=None):
         )
         scheduler.add_job(
             func=notifications.check_credential_expirations,
+            args=[app],
+            trigger="interval",
+            days=1
+        )
+        scheduler.add_job(
+            func=notifications.check_certificate_expirations,
             args=[app],
             trigger="interval",
             days=1
