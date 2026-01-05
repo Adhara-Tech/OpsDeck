@@ -8,6 +8,7 @@ from datetime import datetime
 from .models import Subscription, NotificationSetting
 from .models.credentials import Credential, CredentialSecret
 from .models.certificates import Certificate, CertificateVersion
+from .models.communications import ScheduledCommunication
 
 # --- Notification Functions ---
 
@@ -320,3 +321,79 @@ def check_certificate_expirations(app):
                     app.logger.error(f"Failed to send certificate expiration notification to {email}")
         else:
             app.logger.info("No certificates require expiration notification today.")
+
+
+def process_communications_queue(app):
+    """
+    Process pending scheduled communications.
+    Called by the background scheduler (daily or hourly).
+    Sends emails that are due and updates their status.
+    """
+    from .extensions import db
+    from .utils.communications_context import get_template_context, render_email_template
+    
+    with app.app_context():
+        today = datetime.now().date()
+        
+        # Query pending communications that are due (scheduled_date <= today)
+        pending_comms = ScheduledCommunication.query.filter(
+            ScheduledCommunication.status == 'pending',
+            ScheduledCommunication.scheduled_date <= today
+        ).all()
+        
+        if not pending_comms:
+            app.logger.info("Communications queue: No pending communications to process.")
+            return
+        
+        app.logger.info(f"Communications queue: Processing {len(pending_comms)} pending communication(s).")
+        
+        sent_count = 0
+        failed_count = 0
+        
+        for comm in pending_comms:
+            # Skip if no recipient email
+            if not comm.recipient_email:
+                app.logger.warning(f"Communication {comm.id}: No recipient email, skipping.")
+                continue
+            
+            # Skip if template is inactive
+            if not comm.template or not comm.template.is_active:
+                app.logger.warning(f"Communication {comm.id}: Template inactive or missing, skipping.")
+                continue
+            
+            try:
+                # Get context and render template
+                context = get_template_context(comm)
+                subject, body_html = render_email_template(comm.template, context)
+                
+                # Send email
+                success = send_email(
+                    app,
+                    subject,
+                    body_html,
+                    [comm.recipient_email]
+                )
+                
+                if success:
+                    comm.status = 'sent'
+                    comm.sent_at = datetime.utcnow()
+                    sent_count += 1
+                    app.logger.info(f"Communication {comm.id}: Sent to {comm.recipient_email}")
+                else:
+                    comm.status = 'failed'
+                    comm.error_message = 'Email sending failed - check SMTP configuration'
+                    comm.retry_count += 1
+                    failed_count += 1
+                    app.logger.error(f"Communication {comm.id}: Failed to send")
+                    
+            except Exception as e:
+                comm.status = 'failed'
+                comm.error_message = str(e)[:500]  # Limit error message length
+                comm.retry_count += 1
+                failed_count += 1
+                app.logger.error(f"Communication {comm.id}: Error - {str(e)}")
+        
+        # Commit all status changes
+        db.session.commit()
+        
+        app.logger.info(f"Communications queue: Processed {len(pending_comms)} - Sent: {sent_count}, Failed: {failed_count}")

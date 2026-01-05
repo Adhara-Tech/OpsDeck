@@ -15,5 +15,6 @@ from .activities import *
 from .onboarding import *
 from .configuration import *
 from .risk_assessment import *
+from .communications import EmailTemplate, PackCommunication, ScheduledCommunication
 
 

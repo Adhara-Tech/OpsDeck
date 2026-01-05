@@ -9,7 +9,9 @@ from ..models.onboarding import (
     OnboardingProcess, OffboardingProcess, ProcessItem, 
     OnboardingPack, PackItem, ProcessTemplate
 )
+from ..models.communications import EmailTemplate, PackCommunication, ScheduledCommunication
 from ..utils.helpers import generate_secure_password
+from ..utils.communications_manager import trigger_workflow_communications, get_process_communications
 from .main import login_required
 
 onboarding_bp = Blueprint('onboarding', __name__)
@@ -95,7 +97,55 @@ def pack_detail(id):
     all_software = Software.query.order_by(Software.name).all()
     all_services = BusinessService.query.order_by(BusinessService.name).all()
     all_subscriptions = Subscription.query.filter_by(is_archived=False).order_by(Subscription.name).all()
-    return render_template('onboarding/pack_detail.html', pack=pack, all_software=all_software, all_services=all_services, all_subscriptions=all_subscriptions)
+    email_templates = EmailTemplate.query.filter_by(is_active=True).order_by(EmailTemplate.name).all()
+    return render_template('onboarding/pack_detail.html', pack=pack, all_software=all_software, all_services=all_services, all_subscriptions=all_subscriptions, email_templates=email_templates)
+
+
+@onboarding_bp.route('/packs/<int:pack_id>/communications/add', methods=['POST'])
+@login_required
+@admin_required
+def add_pack_communication(pack_id):
+    """Add a communication rule to a pack."""
+    pack = OnboardingPack.query.get_or_404(pack_id)
+    
+    template_id = request.form.get('template_id')
+    offset_days = request.form.get('offset_days', 0)
+    recipient_type = request.form.get('recipient_type', 'target_user')
+    
+    if not template_id:
+        flash('Please select an email template.', 'danger')
+        return redirect(url_for('onboarding.pack_detail', id=pack_id))
+    
+    comm = PackCommunication(
+        pack_id=pack_id,
+        template_id=int(template_id),
+        offset_days=int(offset_days),
+        recipient_type=recipient_type
+    )
+    db.session.add(comm)
+    db.session.commit()
+    
+    flash('Email rule added to pack.', 'success')
+    return redirect(url_for('onboarding.pack_detail', id=pack_id))
+
+
+@onboarding_bp.route('/packs/<int:pack_id>/communications/<int:comm_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def delete_pack_communication(pack_id, comm_id):
+    """Delete a communication rule from a pack."""
+    comm = PackCommunication.query.get_or_404(comm_id)
+    
+    if comm.pack_id != pack_id:
+        flash('Invalid communication for this pack.', 'danger')
+        return redirect(url_for('onboarding.pack_detail', id=pack_id))
+    
+    db.session.delete(comm)
+    db.session.commit()
+    
+    flash('Email rule removed.', 'success')
+    return redirect(url_for('onboarding.pack_detail', id=pack_id))
+
 
 # ==========================================
 # PROCESO DE ONBOARDING (ENTRADA)
@@ -189,31 +239,13 @@ def new_onboarding():
         
         db.session.commit()
         
-        # POST-COMMIT: Handle automatic user assignment for ServiceAccess
-        # We need the User object. But wait, OnboardingProcess doesn't necessarily have a User yet (new_hire_name).
-        # This app creates the user separately or later?
-        # The prompt says "Añadir al empleado a la lista service.users".
-        # If the employee doesn't exist as a User yet, we can't add them.
-        # Let's check the new_onboarding flow. It takes `new_hire_name`. `user_id` is nullable.
-        # So we probably can only generate the Task to provision. 
-        # BUT the requirement says: "Añadir al empleado a la lista service.users".
-        # Maybe we should only do this if the user is already selected/created?
-        # Re-reading: "Al aplicar un Pack, si el item es ServiceAccess: Añadir al empleado a la lista service.users."
-        # This implies we have a user. If we only have `new_hire_name`, we can't.
-        # However, looking at `form_onboarding.html` (assumed), maybe we can select an existing one?
-        # The form has `users` passed to it.
-        # If we are onboarding a NEW hire, usually they don't have a user yet.
-        # Maybe I should create the checklist item, and the automatic assignment happens when the user is eventually created/linked?
-        # OR, maybe the request implies we create the User here? No, 'new_hire_name' suggests text only.
-        
-        # Let's assume for now we just create the checklist item, and if we CAN link them (e.g. if we add a user creation step later), we do.
-        # Only if `user_id` is somehow provided (it's not in the form input `new_hire_name`).
-        
-        # Wait, step 3 says: "Añadir al empleado a la lista service.users".
-        # If `new_onboarding` doesn't create a `User`, then I can't do M2M.
-        # I'll stick to creating the checklist item for now, and maybe add a comment/TODO about the M2M.
-        # Logic:
-        # * Generar item en el checklist: "Provision account in {service.name}".
+        # Trigger scheduled communications from pack
+        if pack_id:
+            pack = OnboardingPack.query.get(pack_id)
+            if pack:
+                comm_count = trigger_workflow_communications(process, pack)
+                if comm_count > 0:
+                    flash(f'{comm_count} emails scheduled based on pack communications.', 'info')
         
         flash(f'Onboarding started for {new_hire_name}.')
         return redirect(url_for('onboarding.onboarding_detail', id=process.id))
@@ -226,7 +258,8 @@ def new_onboarding():
 @login_required
 def onboarding_detail(id):
     process = OnboardingProcess.query.get_or_404(id)
-    return render_template('onboarding/process_detail.html', process=process, type='onboarding')
+    communications = get_process_communications('onboarding', id)
+    return render_template('onboarding/process_detail.html', process=process, type='onboarding', communications=communications)
 
 # ==========================================
 # PROCESO DE OFFBOARDING (SALIDA)
@@ -388,8 +421,11 @@ def offboarding_detail(id):
     if pm_ids:
         pms = PaymentMethod.query.filter(PaymentMethod.id.in_(pm_ids)).all()
         payment_methods = {pm.id: pm for pm in pms}
+    
+    # Get scheduled communications
+    communications = get_process_communications('offboarding', id)
         
-    return render_template('onboarding/process_detail.html', process=process, type='offboarding', users=users, payment_methods=payment_methods)
+    return render_template('onboarding/process_detail.html', process=process, type='offboarding', users=users, payment_methods=payment_methods, communications=communications)
 
 # ==========================================
 # ACCIONES COMUNES (CHECKLIST)
@@ -789,3 +825,76 @@ def transfer_credential(id):
         flash(f'Credential "{credential.name}" is now unassigned.', 'info')
         
     return redirect(redirect_url or request.referrer)
+
+
+# ==========================================
+#  COMMUNICATIONS MANAGEMENT
+# ==========================================
+
+@onboarding_bp.route('/communications/<int:id>/send_now', methods=['POST'])
+@login_required
+@admin_required
+def send_communication_now(id):
+    """Force send a scheduled communication immediately."""
+    from ..utils.communications_context import get_template_context, render_email_template
+    from .. import notifications
+    from flask import current_app
+    
+    comm = ScheduledCommunication.query.get_or_404(id)
+    
+    if comm.status != 'pending':
+        flash(f'Communication is already {comm.status}.', 'warning')
+        return redirect(request.referrer or url_for('onboarding.index'))
+    
+    if not comm.recipient_email:
+        flash('No recipient email configured for this communication.', 'danger')
+        return redirect(request.referrer or url_for('onboarding.index'))
+    
+    try:
+        # Get context and render template
+        context = get_template_context(comm)
+        subject, body_html = render_email_template(comm.template, context)
+        
+        # Send email
+        success = notifications.send_email(
+            current_app._get_current_object(),
+            subject,
+            body_html,
+            [comm.recipient_email]
+        )
+        
+        if success:
+            comm.status = 'sent'
+            comm.sent_at = datetime.utcnow()
+            flash(f'Email "{comm.template.name}" sent successfully to {comm.recipient_email}.', 'success')
+        else:
+            comm.status = 'failed'
+            comm.error_message = 'Email sending failed - check SMTP configuration'
+            flash('Failed to send email. Check server configuration.', 'danger')
+            
+    except Exception as e:
+        comm.status = 'failed'
+        comm.error_message = str(e)
+        comm.retry_count += 1
+        flash(f'Error sending email: {str(e)}', 'danger')
+    
+    db.session.commit()
+    return redirect(request.referrer or url_for('onboarding.index'))
+
+
+@onboarding_bp.route('/communications/<int:id>/cancel', methods=['POST'])
+@login_required
+@admin_required
+def cancel_communication(id):
+    """Cancel a pending scheduled communication."""
+    comm = ScheduledCommunication.query.get_or_404(id)
+    
+    if comm.status != 'pending':
+        flash(f'Cannot cancel - communication is already {comm.status}.', 'warning')
+        return redirect(request.referrer or url_for('onboarding.index'))
+    
+    comm.status = 'cancelled'
+    db.session.commit()
+    
+    flash(f'Communication "{comm.template.name}" cancelled.', 'info')
+    return redirect(request.referrer or url_for('onboarding.index'))
