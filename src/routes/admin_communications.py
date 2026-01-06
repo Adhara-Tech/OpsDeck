@@ -3,11 +3,15 @@ Admin Communications Routes
 
 CRUD operations for EmailTemplates and PackCommunication management.
 """
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from datetime import datetime
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
+from flask_login import current_user
 from ..extensions import db
 from ..models.communications import EmailTemplate, PackCommunication
 from ..routes.admin import admin_required
 from ..routes.main import login_required
+from ..utils.communications_context import validate_template_syntax, render_email_template
+from .. import notifications
 
 admin_communications_bp = Blueprint('admin_communications', __name__)
 
@@ -38,6 +42,12 @@ def new_template():
         
         if not name or not subject or not body_html:
             flash('Name, subject, and body are required.', 'danger')
+            return render_template('admin/email_template_form.html', template=None)
+        
+        # Validate Jinja2 syntax before saving
+        is_valid, error = validate_template_syntax(body_html)
+        if not is_valid:
+            flash(f'Template syntax error: {error}', 'danger')
             return render_template('admin/email_template_form.html', template=None)
         
         # Check for duplicate name
@@ -76,6 +86,12 @@ def edit_template(id):
         
         if not name or not subject or not body_html:
             flash('Name, subject, and body are required.', 'danger')
+            return render_template('admin/email_template_form.html', template=template)
+        
+        # Validate Jinja2 syntax before saving
+        is_valid, error = validate_template_syntax(body_html)
+        if not is_valid:
+            flash(f'Template syntax error: {error}', 'danger')
             return render_template('admin/email_template_form.html', template=template)
         
         # Check if system template (prevent updates)
@@ -153,3 +169,51 @@ def toggle_template(id):
     status = 'activated' if template.is_active else 'deactivated'
     flash(f'Email template "{template.name}" {status}.', 'info')
     return redirect(url_for('admin_communications.list_templates'))
+
+
+@admin_communications_bp.route('/templates/<int:id>/test-send', methods=['POST'])
+@login_required
+@admin_required
+def test_send_template(id):
+    """Send a test email to the current admin user with dummy data."""
+    template = EmailTemplate.query.get_or_404(id)
+    
+    # Build dummy context for test rendering
+    dummy_context = {
+        'user': {
+            'name': 'John Doe',
+            'email': 'john.doe@example.com',
+            'job_title': 'Software Engineer'
+        },
+        'manager': {
+            'name': 'Jane Smith',
+            'email': 'jane.smith@example.com'
+        },
+        'buddy': {
+            'name': 'Bob Wilson',
+            'email': 'bob.wilson@example.com'
+        },
+        'new_hire_name': 'John Doe',
+        'start_date': datetime.now().date(),
+        'departure_date': datetime.now().date(),
+        'today': datetime.now().date(),
+        'pack': type('Pack', (), {'name': 'Sample Pack', 'description': 'Test pack description'})(),
+    }
+    
+    try:
+        subject, body_html = render_email_template(template, dummy_context)
+        
+        success = notifications.send_email(
+            current_app,
+            f"[TEST] {subject}",
+            body_html,
+            [current_user.email]
+        )
+        
+        if success:
+            return jsonify({'success': True, 'message': f'Test email sent to {current_user.email}'})
+        else:
+            return jsonify({'success': False, 'message': 'Failed to send email. Check SMTP configuration.'}), 500
+    except ValueError as e:
+        return jsonify({'success': False, 'message': str(e)}), 400
+

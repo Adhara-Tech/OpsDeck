@@ -151,3 +151,28 @@ def render_email_template(template_or_campaign, context):
     except Exception as e:
         raise ValueError(f"Template rendering error: {str(e)}")
 
+
+def validate_template_syntax(template_str):
+    """
+    Validate Jinja2 template syntax without rendering.
+    
+    Uses the sandboxed environment's parse() method to check for syntax errors
+    before a template is saved to the database, preventing runtime crashes
+    in the notification worker.
+    
+    Args:
+        template_str: The Jinja2 template string to validate
+        
+    Returns:
+        tuple: (is_valid: bool, error_message: str or None)
+    """
+    from jinja2.sandbox import SandboxedEnvironment
+    from jinja2 import TemplateSyntaxError
+    
+    env = SandboxedEnvironment()
+    try:
+        env.parse(template_str)
+        return True, None
+    except TemplateSyntaxError as e:
+        return False, f"Line {e.lineno}: {e.message}"
+

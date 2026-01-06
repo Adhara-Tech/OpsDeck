@@ -77,6 +77,12 @@
                         <button type="submit" class="btn btn-primary">
                             <i class="fas fa-save me-1"></i> {{ 'Update' if template else 'Create' }} Template
                         </button>
+                        {% if template %}
+                        <button type="button" class="btn btn-outline-info" id="btn-test-send"
+                            data-url="{{ url_for('admin_communications.test_send_template', id=template.id) }}">
+                            <i class="fas fa-paper-plane me-1"></i> Send Test Email
+                        </button>
+                        {% endif %}
                         <a href="{{ url_for('admin_communications.list_templates') }}"
                             class="btn btn-outline-secondary">
                             Cancel
@@ -166,6 +172,40 @@
         // Sync editor content to textarea before form submit
         document.querySelector('form').addEventListener('submit', function () {
             editor.save();
+        });
+
+        // Handle test send button
+        document.getElementById('btn-test-send')?.addEventListener('click', async function () {
+            // Save editor content first
+            editor.save();
+
+            const btn = this;
+            const url = btn.dataset.url;
+            const originalHtml = btn.innerHTML;
+
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Sending...';
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': document.querySelector('[name=csrf_token]').value
+                    }
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    alert('✅ ' + data.message);
+                } else {
+                    alert('❌ ' + data.message);
+                }
+            } catch (err) {
+                alert('❌ Error sending test email: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
         });
     });
 </script>
