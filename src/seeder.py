@@ -6,7 +6,8 @@ from .models import (
     MaintenanceLog, DisposalRecord,
     BCDRPlan, BCDRTestLog, Course, CourseAssignment, Group, Policy, PolicyVersion, Opportunity,
     Documentation, Link, Software, License, Framework, FrameworkControl, ComplianceLink,
-    BusinessService, ComplianceAudit, Contact, RiskAssessment
+    BusinessService, ComplianceAudit, Contact, RiskAssessment,
+    EmailTemplate, NotificationEvent
 )
 from . import create_app
 
@@ -585,6 +586,90 @@ def seed_data(app=None):
                 db.session.add(ev)
         
         q4_assessment.calculate_total_risk()
+        db.session.commit()
+
+        # 15. Notification System - Email Templates and Events
+        print("Creating notification templates and events...")
+        
+        # Create default email templates for system notifications
+        license_template = EmailTemplate(
+            name="License Expiry Notification",
+            subject="⚠️ License Expiring Soon: {{ license_name }}",
+            body_html="""
+<h2>License Expiration Notice</h2>
+<p>Hello {{ recipient_name }},</p>
+<p>This is a reminder that the following license is expiring soon:</p>
+<div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0;">
+    <strong>License:</strong> {{ license_name }}<br>
+    <strong>Expiry Date:</strong> {{ expiry_date }}<br>
+    <strong>Days Remaining:</strong> {{ days_left }} days
+</div>
+<p>Please take action to renew this license before it expires to avoid service disruption.</p>
+<p>Best regards,<br>OpsDeck Notification System</p>
+            """,
+            category="system",
+            is_active=True
+        )
+        
+        subscription_template = EmailTemplate(
+            name="Subscription Renewal Notification",
+            subject="📅 Subscription Renewal Due: {{ subscription_name }}",
+            body_html="""
+<h2>Subscription Renewal Reminder</h2>
+<p>Hello {{ recipient_name }},</p>
+<p>This is a reminder that the following subscription is due for renewal:</p>
+<div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0;">
+    <strong>Subscription:</strong> {{ subscription_name }}<br>
+    <strong>Renewal Date:</strong> {{ renewal_date }}<br>
+    <strong>Days Remaining:</strong> {{ days_left }} days<br>
+    <strong>Cost:</strong> {{ cost }}
+</div>
+<p>Please review and confirm renewal or cancellation with the procurement team.</p>
+<p>Best regards,<br>OpsDeck Notification System</p>
+            """,
+            category="system",
+            is_active=True
+        )
+        
+        db.session.add_all([license_template, subscription_template])
+        db.session.commit()
+        
+        # Create notification events linked to templates
+        notification_events = [
+            NotificationEvent(
+                event_code="LICENSE_EXPIRING",
+                name="License Expiry Alert",
+                description="Sends a notification when a software license is about to expire.",
+                template_id=license_template.id,
+                enabled=True,
+                days_offset=7  # 7 days before expiry
+            ),
+            NotificationEvent(
+                event_code="SUBSCRIPTION_RENEWAL",
+                name="Subscription Renewal Alert",
+                description="Sends a notification when a subscription is due for renewal.",
+                template_id=subscription_template.id,
+                enabled=True,
+                days_offset=7  # 7 days before renewal
+            ),
+            NotificationEvent(
+                event_code="CREDENTIAL_EXPIRING",
+                name="Credential Expiry Alert",
+                description="Sends a notification when a credential or secret is about to expire.",
+                template_id=None,  # To be configured by admin
+                enabled=True,
+                days_offset=14
+            ),
+            NotificationEvent(
+                event_code="CERTIFICATE_EXPIRING",
+                name="Certificate Expiry Alert",
+                description="Sends a notification when a digital certificate is about to expire.",
+                template_id=None,  # To be configured by admin
+                enabled=True,
+                days_offset=30
+            )
+        ]
+        db.session.add_all(notification_events)
         db.session.commit()
 
         print("Database seeding complete!")

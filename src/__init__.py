@@ -292,11 +292,15 @@ def create_app(test_config=None):
     from .routes.admin_communications import admin_communications_bp
     app.register_blueprint(admin_communications_bp, url_prefix='/admin/communications')
     
+    from .routes.admin_notifications import admin_notifications_bp
+    app.register_blueprint(admin_notifications_bp, url_prefix='/admin/notifications')
+    
     from .routes.campaigns import campaigns_bp
     app.register_blueprint(campaigns_bp, url_prefix='/campaigns')
     
     from .routes.organization import organization_bp
     app.register_blueprint(organization_bp, url_prefix='/settings/organization')
+
 
     # --- Google OAuth Blueprint ---
     if app.config.get('GOOGLE_OAUTH_CLIENT_ID'):
@@ -348,12 +352,12 @@ def create_app(test_config=None):
             trigger="interval",
             days=1
         )
-        # Communications engine - process scheduled emails hourly
+        # Communications engine - process scheduled emails every 5 minutes for faster delivery
         scheduler.add_job(
             func=notifications.process_communications_queue,
             args=[app],
             trigger="interval",
-            hours=1
+            minutes=5
         )
         scheduler.start()
         atexit.register(lambda: scheduler.shutdown())

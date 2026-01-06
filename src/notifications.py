@@ -51,72 +51,130 @@ def send_webhook(app, url, data):
 
 def check_upcoming_renewals(app):
     """
-    Checks for subscriptions that need renewal notifications based on user settings
-    and sends alerts via email and/or webhooks.
+    Checks for subscriptions and licenses that need renewal/expiry notifications.
+    Instead of sending emails directly, queues messages via ScheduledCommunication
+    for the dispatcher to process every 5 minutes.
     """
+    from .extensions import db
+    from .models.notifications import NotificationEvent
+    from .models.communications import ScheduledCommunication
+    from .models.assets import License
+    from .models.auth import User
+    
     with app.app_context():
-        # Step 1: Fetch Notification Settings from the database
-        settings = NotificationSetting.query.first()
-        if not settings or (not settings.email_enabled and not settings.webhook_enabled):
-            app.logger.info("Notifications are disabled. Skipping check.")
-            return
-
-        # Step 2: Determine which days require notifications
-        try:
-            notify_days = {int(day) for day in settings.notify_days_before.split(',') if day}
-        except (ValueError, TypeError):
-            app.logger.error("Invalid 'notify_days_before' format. Skipping check.")
-            return
-            
-        if not notify_days:
-            return # No notification days configured
-
-        # Step 3: Find subscriptions that match the notification criteria
         today = datetime.now().date()
-        subscriptions_to_notify = []
-        all_subscriptions = Subscription.query.all()
-
-        for subscription in all_subscriptions:
-            days_until = (subscription.next_renewal_date - today).days
-            # Check if the subscription is due on one of the configured notification days
-            if days_until in notify_days:
-                subscriptions_to_notify.append(subscription)
-
-        # Step 4: If there are subscriptions to notify about, build and send the alerts
-        if subscriptions_to_notify:
-            html_content = "<h2>Upcoming subscription Renewals</h2><ul>"
-            webhook_data = {
-                "text": "Upcoming subscription Renewals",
-                "renewals": []
-            }
+        queued_count = 0
+        
+        # ============================================================
+        # 1. LICENSE EXPIRING NOTIFICATIONS
+        # ============================================================
+        license_event = NotificationEvent.query.filter_by(
+            event_code='LICENSE_EXPIRING'
+        ).first()
+        
+        if license_event and license_event.enabled and license_event.template_id:
+            days_before = license_event.days_offset or 7
+            target_date = today + __import__('datetime').timedelta(days=days_before)
             
-            for subscription in subscriptions_to_notify:
-                days_until = (subscription.next_renewal_date - today).days
-                html_content += f"<li><strong>{subscription.name}</strong> ({subscription.subscription_type}) - Renews in {days_until} days - €{subscription.cost_eur:.2f}</li>"
-                webhook_data["renewals"].append({
-                    "name": subscription.name,
-                    "type": subscription.subscription_type,
-                    "renewal_date": subscription.next_renewal_date.isoformat(),
-                    "days_until": days_until,
-                    "cost_eur": subscription.cost_eur
-                })
+            # Find licenses expiring on the target date
+            expiring_licenses = License.query.filter(
+                License.expiry_date == target_date,
+                License.is_archived == False
+            ).all()
             
-            html_content += "</ul>"
-            
-            # Send email if enabled and a recipient is set
-            if settings.email_enabled and settings.email_recipient:
-                send_email(
-                    app,
-                    "Subscription Renewal Reminder", 
-                    html_content,
-                    [settings.email_recipient]
+            for license in expiring_licenses:
+                # Get the owner (assigned user) for the notification
+                owner = User.query.get(license.user_id) if license.user_id else None
+                if not owner or not owner.email:
+                    app.logger.warning(f"License {license.id} has no owner email, skipping notification.")
+                    continue
+                
+                # Check if we already queued this notification (avoid duplicates)
+                existing = ScheduledCommunication.query.filter_by(
+                    target_type='license',
+                    target_id=license.id,
+                    status='pending'
+                ).first()
+                
+                if existing:
+                    continue
+                
+                # Create the scheduled communication
+                comm = ScheduledCommunication(
+                    template_id=license_event.template_id,
+                    status='pending',
+                    scheduled_date=today,  # Send immediately on next dispatcher run
+                    target_type='license',
+                    target_id=license.id,
+                    recipient_email=owner.email,
+                    recipient_name=owner.name,
+                    recipient_type='owner',
+                    recipient_user_id=owner.id
                 )
+                db.session.add(comm)
+                queued_count += 1
+                app.logger.info(f"Queued license expiry notification for license {license.id} ({license.name})")
+        
+        # ============================================================
+        # 2. SUBSCRIPTION RENEWAL NOTIFICATIONS
+        # ============================================================
+        subscription_event = NotificationEvent.query.filter_by(
+            event_code='SUBSCRIPTION_RENEWAL'
+        ).first()
+        
+        if subscription_event and subscription_event.enabled and subscription_event.template_id:
+            days_before = subscription_event.days_offset or 7
             
-            # Send webhook if enabled and a URL is set
-            if settings.webhook_enabled and settings.webhook_url:
-                send_webhook(app, settings.webhook_url, webhook_data)
+            # Find subscriptions renewing within the configured days
+            all_subscriptions = Subscription.query.all()
+            
+            for subscription in all_subscriptions:
+                try:
+                    renewal_date = subscription.next_renewal_date
+                    if not renewal_date:
+                        continue
+                    
+                    days_until = (renewal_date - today).days
+                    
+                    if days_until == days_before:
+                        # Get notification settings recipient for subscription alerts
+                        settings = NotificationSetting.query.first()
+                        if not settings or not settings.email_recipient:
+                            continue
+                        
+                        # Check if we already queued this notification
+                        existing = ScheduledCommunication.query.filter_by(
+                            target_type='subscription',
+                            target_id=subscription.id,
+                            status='pending'
+                        ).first()
+                        
+                        if existing:
+                            continue
+                        
+                        # Create the scheduled communication
+                        comm = ScheduledCommunication(
+                            template_id=subscription_event.template_id,
+                            status='pending',
+                            scheduled_date=today,
+                            target_type='subscription',
+                            target_id=subscription.id,
+                            recipient_email=settings.email_recipient,
+                            recipient_name='Admin',
+                            recipient_type='admin'
+                        )
+                        db.session.add(comm)
+                        queued_count += 1
+                        app.logger.info(f"Queued subscription renewal notification for {subscription.name}")
+                except Exception as e:
+                    app.logger.error(f"Error checking subscription {subscription.id}: {e}")
+        
+        # Commit all queued communications
+        if queued_count > 0:
+            db.session.commit()
+            app.logger.info(f"Queued {queued_count} renewal notification(s) for processing.")
         else:
-            app.logger.info("No subscriptions require notification today.")
+            app.logger.info("No renewal notifications to queue today.")
 
 def check_credential_expirations(app):
     """
@@ -326,27 +384,32 @@ def check_certificate_expirations(app):
 def process_communications_queue(app):
     """
     Process pending scheduled communications.
-    Called by the background scheduler (daily or hourly).
+    Called by the background scheduler every 5 minutes.
     Sends emails that are due and updates their status.
+    Processes in batches of 50 to prevent blocking during high-volume periods.
     """
     from .extensions import db
     from .utils.communications_context import get_template_context, render_email_template
     from .models.communications import Campaign
     
+    BATCH_SIZE = 50
+    
     with app.app_context():
-        today = datetime.now().date()
+        now = datetime.utcnow()
+        today = now.date()
         
         # Query pending communications that are due (scheduled_date <= today)
+        # Process in batches to avoid blocking during peaks
         pending_comms = ScheduledCommunication.query.filter(
             ScheduledCommunication.status == 'pending',
             ScheduledCommunication.scheduled_date <= today
-        ).all()
+        ).limit(BATCH_SIZE).all()
         
         if not pending_comms:
             app.logger.info("Communications queue: No pending communications to process.")
             return
         
-        app.logger.info(f"Communications queue: Processing {len(pending_comms)} pending communication(s).")
+        app.logger.info(f"Communications queue: Processing batch of {len(pending_comms)} pending communication(s).")
         
         sent_count = 0
         failed_count = 0
