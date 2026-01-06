@@ -608,7 +608,8 @@ def seed_data(app=None):
 <p>Best regards,<br>OpsDeck Notification System</p>
             """,
             category="system",
-            is_active=True
+            is_active=True,
+            is_system=True
         )
         
         subscription_template = EmailTemplate(
@@ -628,10 +629,53 @@ def seed_data(app=None):
 <p>Best regards,<br>OpsDeck Notification System</p>
             """,
             category="system",
-            is_active=True
+            is_active=True,
+            is_system=True
+        )
+
+        credential_template = EmailTemplate(
+            name="Credential Expiry Notification",
+            subject="🔑 Security Alert: Credential Expiring Soon",
+            body_html="""
+<h2>Credential Expiration Warning</h2>
+<p>Hello {{ recipient_name }},</p>
+<p>Security automation has detected that the following credential is approaching its expiration date:</p>
+<div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin: 15px 0; border: 1px solid #ffeeba;">
+    <strong>Credential:</strong> {{ credential_name }}<br>
+    <strong>Type:</strong> {{ credential_type }}<br>
+    <strong>Expiry Date:</strong> {{ expiry_date }}<br>
+    <strong>Days Remaining:</strong> {{ days_left }} days
+</div>
+<p>Please rotate this credential immediately to prevent service interruption or security risks.</p>
+<p>Best regards,<br>OpsDeck Security Team</p>
+            """,
+            category="system",
+            is_active=True,
+            is_system=True
+        )
+
+        certificate_template = EmailTemplate(
+            name="Certificate Expiry Notification",
+            subject="🔒 SSL/TLS Certificate Expiry Warning: {{ certificate_name }}",
+            body_html="""
+<h2>Certificate Expiration Alert</h2>
+<p>Hello {{ recipient_name }},</p>
+<p>The following digital certificate is expiring soon:</p>
+<div style="background: #f8d7da; padding: 15px; border-radius: 5px; margin: 15px 0; border: 1px solid #f5c6cb;">
+    <strong>Common Name:</strong> {{ certificate_name }}<br>
+    <strong>Issuer:</strong> {{ issuer }}<br>
+    <strong>Expiry Date:</strong> {{ expiry_date }}<br>
+    <strong>Days Remaining:</strong> {{ days_left }} days
+</div>
+<p>Failure to renew this certificate may result in browser warnings or connection failures.</p>
+<p>Best regards,<br>OpsDeck Security Team</p>
+            """,
+            category="system",
+            is_active=True,
+            is_system=True
         )
         
-        db.session.add_all([license_template, subscription_template])
+        db.session.add_all([license_template, subscription_template, credential_template, certificate_template])
         db.session.commit()
         
         # Create notification events linked to templates
@@ -656,7 +700,7 @@ def seed_data(app=None):
                 event_code="CREDENTIAL_EXPIRING",
                 name="Credential Expiry Alert",
                 description="Sends a notification when a credential or secret is about to expire.",
-                template_id=None,  # To be configured by admin
+                template_id=credential_template.id,
                 enabled=True,
                 days_offset=14
             ),
@@ -664,7 +708,7 @@ def seed_data(app=None):
                 event_code="CERTIFICATE_EXPIRING",
                 name="Certificate Expiry Alert",
                 description="Sends a notification when a digital certificate is about to expire.",
-                template_id=None,  # To be configured by admin
+                template_id=certificate_template.id,
                 enabled=True,
                 days_offset=30
             )

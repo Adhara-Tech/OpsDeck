@@ -21,3 +21,4 @@ flask-smorest
 marshmallow-sqlalchemy
 psycopg2-binary
 deepdiff
+slack_sdk

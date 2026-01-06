@@ -22,6 +22,7 @@ class EmailTemplate(db.Model):
     body_html = db.Column(db.Text, nullable=False)  # Jinja2 enabled
     category = db.Column(db.String(50), default='general')  # 'onboarding', 'offboarding', 'security_bulletin', 'general'
     is_active = db.Column(db.Boolean, default=True)
+    is_system = db.Column(db.Boolean, default=False)  # If True, template is protected from deletion/editing
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -203,6 +204,13 @@ class ScheduledCommunication(db.Model):
     # For campaigns: store user_id for context lookup
     recipient_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     recipient_user = db.relationship('User', foreign_keys=[recipient_user_id])
+    
+    # Delivery channel: 'email' or 'slack'
+    channel = db.Column(db.String(20), default='email', nullable=False)
+    
+    # For Slack: optional fixed channel ID (e.g., "C12345" for #devops)
+    # If null, DM will be sent to recipient resolved by email
+    slack_target_channel = db.Column(db.String(50), nullable=True)
     
     # Error tracking for failed sends
     error_message = db.Column(db.Text, nullable=True)

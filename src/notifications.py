@@ -89,31 +89,38 @@ def check_upcoming_renewals(app):
                     app.logger.warning(f"License {license.id} has no owner email, skipping notification.")
                     continue
                 
-                # Check if we already queued this notification (avoid duplicates)
-                existing = ScheduledCommunication.query.filter_by(
-                    target_type='license',
-                    target_id=license.id,
-                    status='pending'
-                ).first()
+                # Get configured channels (default to email only)
+                channels = license_event.channels or ['email']
                 
-                if existing:
-                    continue
-                
-                # Create the scheduled communication
-                comm = ScheduledCommunication(
-                    template_id=license_event.template_id,
-                    status='pending',
-                    scheduled_date=today,  # Send immediately on next dispatcher run
-                    target_type='license',
-                    target_id=license.id,
-                    recipient_email=owner.email,
-                    recipient_name=owner.name,
-                    recipient_type='owner',
-                    recipient_user_id=owner.id
-                )
-                db.session.add(comm)
-                queued_count += 1
-                app.logger.info(f"Queued license expiry notification for license {license.id} ({license.name})")
+                for channel in channels:
+                    # Check if we already queued this notification for this channel (avoid duplicates)
+                    existing = ScheduledCommunication.query.filter_by(
+                        target_type='license',
+                        target_id=license.id,
+                        channel=channel,
+                        status='pending'
+                    ).first()
+                    
+                    if existing:
+                        continue
+                    
+                    # Create the scheduled communication for this channel
+                    comm = ScheduledCommunication(
+                        template_id=license_event.template_id,
+                        status='pending',
+                        scheduled_date=today,  # Send immediately on next dispatcher run
+                        target_type='license',
+                        target_id=license.id,
+                        recipient_email=owner.email,
+                        recipient_name=owner.name,
+                        recipient_type='owner',
+                        recipient_user_id=owner.id,
+                        channel=channel,
+                        slack_target_channel=license_event.slack_target_channel if channel == 'slack' else None
+                    )
+                    db.session.add(comm)
+                    queued_count += 1
+                    app.logger.info(f"Queued license expiry notification ({channel}) for license {license.id} ({license.name})")
         
         # ============================================================
         # 2. SUBSCRIPTION RENEWAL NOTIFICATIONS
@@ -142,30 +149,37 @@ def check_upcoming_renewals(app):
                         if not settings or not settings.email_recipient:
                             continue
                         
-                        # Check if we already queued this notification
-                        existing = ScheduledCommunication.query.filter_by(
-                            target_type='subscription',
-                            target_id=subscription.id,
-                            status='pending'
-                        ).first()
+                        # Get configured channels (default to email only)
+                        channels = subscription_event.channels or ['email']
                         
-                        if existing:
-                            continue
-                        
-                        # Create the scheduled communication
-                        comm = ScheduledCommunication(
-                            template_id=subscription_event.template_id,
-                            status='pending',
-                            scheduled_date=today,
-                            target_type='subscription',
-                            target_id=subscription.id,
-                            recipient_email=settings.email_recipient,
-                            recipient_name='Admin',
-                            recipient_type='admin'
-                        )
-                        db.session.add(comm)
-                        queued_count += 1
-                        app.logger.info(f"Queued subscription renewal notification for {subscription.name}")
+                        for channel in channels:
+                            # Check if we already queued this notification for this channel
+                            existing = ScheduledCommunication.query.filter_by(
+                                target_type='subscription',
+                                target_id=subscription.id,
+                                channel=channel,
+                                status='pending'
+                            ).first()
+                            
+                            if existing:
+                                continue
+                            
+                            # Create the scheduled communication for this channel
+                            comm = ScheduledCommunication(
+                                template_id=subscription_event.template_id,
+                                status='pending',
+                                scheduled_date=today,
+                                target_type='subscription',
+                                target_id=subscription.id,
+                                recipient_email=settings.email_recipient,
+                                recipient_name='Admin',
+                                recipient_type='admin',
+                                channel=channel,
+                                slack_target_channel=subscription_event.slack_target_channel if channel == 'slack' else None
+                            )
+                            db.session.add(comm)
+                            queued_count += 1
+                            app.logger.info(f"Queued subscription renewal notification ({channel}) for {subscription.name}")
                 except Exception as e:
                     app.logger.error(f"Error checking subscription {subscription.id}: {e}")
         
@@ -385,8 +399,9 @@ def process_communications_queue(app):
     """
     Process pending scheduled communications.
     Called by the background scheduler every 5 minutes.
-    Sends emails that are due and updates their status.
+    Sends emails, Slack messages, or webhooks that are due and updates their status.
     Processes in batches of 50 to prevent blocking during high-volume periods.
+    Uses database-level row locking (FOR UPDATE SKIP LOCKED) for concurrent safety.
     """
     from .extensions import db
     from .utils.communications_context import get_template_context, render_email_template
@@ -399,11 +414,12 @@ def process_communications_queue(app):
         today = now.date()
         
         # Query pending communications that are due (scheduled_date <= today)
-        # Process in batches to avoid blocking during peaks
-        pending_comms = ScheduledCommunication.query.filter(
+        # Use FOR UPDATE SKIP LOCKED for concurrent safety - prevents duplicate sends
+        # when multiple workers/containers process the queue simultaneously
+        pending_comms = db.session.query(ScheduledCommunication).filter(
             ScheduledCommunication.status == 'pending',
             ScheduledCommunication.scheduled_date <= today
-        ).limit(BATCH_SIZE).all()
+        ).with_for_update(skip_locked=True).limit(BATCH_SIZE).all()
         
         if not pending_comms:
             app.logger.info("Communications queue: No pending communications to process.")
@@ -414,8 +430,11 @@ def process_communications_queue(app):
         sent_count = 0
         failed_count = 0
         
+        # Lazy-load Slack service only if needed
+        slack_service = None
+        
         for comm in pending_comms:
-            # Skip if no recipient email
+            # Skip if no recipient email (needed for both email and Slack lookup)
             if not comm.recipient_email:
                 app.logger.warning(f"Communication {comm.id}: No recipient email, skipping.")
                 continue
@@ -439,27 +458,61 @@ def process_communications_queue(app):
                 context = get_template_context(comm)
                 subject, body_html = render_email_template(template_source, context)
                 
-                # Send email
-                success = send_email(
-                    app,
-                    subject,
-                    body_html,
-                    [comm.recipient_email]
-                )
+                # Dispatch based on channel type
+                channel = getattr(comm, 'channel', 'email') or 'email'
+                
+                if channel == 'slack':
+                    # ============================================
+                    # SLACK DISPATCH
+                    # ============================================
+                    # Lazy-load SlackService for reuse across batch
+                    if slack_service is None:
+                        from .services.slack_service import SlackService
+                        slack_service = SlackService()
+                    
+                    success = _send_slack_notification(
+                        app, comm, subject, body_html, slack_service
+                    )
+                    
+                elif channel == 'webhook':
+                    # ============================================
+                    # WEBHOOK DISPATCH
+                    # ============================================
+                    success = _send_webhook_notification(app, comm, subject, body_html)
+                    
+                else:
+                    # ============================================
+                    # EMAIL DISPATCH (default)
+                    # ============================================
+                    success = send_email(
+                        app,
+                        subject,
+                        body_html,
+                        [comm.recipient_email]
+                    )
+                    
+                    if not success:
+                        comm.error_message = 'Email sending failed - check SMTP configuration'
                 
                 if success:
                     comm.status = 'sent'
                     comm.sent_at = datetime.utcnow()
                     sent_count += 1
-                    app.logger.info(f"Communication {comm.id}: Sent to {comm.recipient_email}")
+                    app.logger.info(f"Communication {comm.id}: Sent via {channel} to {comm.recipient_email}")
                 else:
                     comm.status = 'failed'
-                    comm.error_message = 'Email sending failed - check SMTP configuration'
                     comm.retry_count += 1
                     failed_count += 1
-                    app.logger.error(f"Communication {comm.id}: Failed to send")
+                    app.logger.error(f"Communication {comm.id}: Failed to send via {channel}")
                     
             except Exception as e:
+                # Check for SlackRateLimitError
+                # We use string name check to avoid circular/lazy import issues if not explicitly imported
+                if e.__class__.__name__ == 'SlackRateLimitError' or 'SlackRateLimitError' in str(type(e)):
+                    app.logger.warning(f"Communication {comm.id}: Slack rate limited. Leaving as pending for next run.")
+                    # Keep status='pending' and date as is (will be picked up in next batch)
+                    continue
+
                 comm.status = 'failed'
                 comm.error_message = str(e)[:500]  # Limit error message length
                 comm.retry_count += 1
@@ -470,3 +523,112 @@ def process_communications_queue(app):
         db.session.commit()
         
         app.logger.info(f"Communications queue: Processed {len(pending_comms)} - Sent: {sent_count}, Failed: {failed_count}")
+
+
+def _send_slack_notification(app, comm, subject, body_html, slack_service=None):
+    """
+    Send a notification via Slack.
+    
+    Args:
+        app: Flask app for logging
+        comm: ScheduledCommunication instance
+        subject: Rendered subject line
+        body_html: Rendered HTML body
+        slack_service: Optional SlackService instance (will create if None)
+        
+    Returns:
+        bool: True if sent successfully, False otherwise
+    """
+    from .services.slack_service import SlackService, format_slack_notification
+    
+    if slack_service is None:
+        slack_service = SlackService()
+    
+    if not slack_service.is_configured:
+        app.logger.warning(f"Communication {comm.id}: Slack not configured, skipping.")
+        comm.error_message = 'Slack not configured (SLACK_BOT_TOKEN missing)'
+        return False
+    
+    # Determine target: fixed channel or DM to user
+    target_id = None
+    
+    if comm.slack_target_channel:
+        # Use configured fixed channel (e.g., #devops)
+        target_id = comm.slack_target_channel
+        app.logger.debug(f"Communication {comm.id}: Using fixed Slack channel {target_id}")
+    else:
+        # Resolve user ID from email for DM
+        target_id = slack_service.resolve_user_by_email(comm.recipient_email)
+        if not target_id:
+            app.logger.warning(f"Communication {comm.id}: Could not resolve Slack user for {comm.recipient_email}")
+            comm.error_message = f'Slack user not found for email: {comm.recipient_email}'
+            return False
+    
+    # Format message for Slack
+    # TODO: Generate proper OpsDeck URL based on target_type/target_id
+    opsdeck_url = None  # Could be constructed from app config + comm.target_type/target_id
+    
+    slack_message = format_slack_notification(subject, body_html, opsdeck_url)
+    
+    # Send the message
+    success = slack_service.send_message(target_id, slack_message)
+    
+    if not success:
+        comm.error_message = f'Failed to send Slack message to {target_id}'
+    
+    return success
+
+
+def _send_webhook_notification(app, comm, subject, body_html):
+    """
+    Send a notification via Webhook (HTTP POST with JSON payload).
+    
+    Args:
+        app: Flask app for logging
+        comm: ScheduledCommunication instance
+        subject: Rendered subject line
+        body_html: Rendered HTML body
+        
+    Returns:
+        bool: True if sent successfully, False otherwise
+    """
+    from .models.notifications import NotificationEvent
+    
+    # Map target_type to event_code for webhook URL lookup
+    event_code_map = {
+        'license': 'LICENSE_EXPIRING',
+        'subscription': 'SUBSCRIPTION_RENEWAL',
+        'credential': 'CREDENTIAL_EXPIRING',
+        'certificate': 'CERTIFICATE_EXPIRING',
+    }
+    
+    event_code = event_code_map.get(comm.target_type, comm.target_type.upper())
+    event = NotificationEvent.query.filter_by(event_code=event_code).first()
+    
+    webhook_url = event.webhook_url if event else None
+    
+    if not webhook_url:
+        app.logger.warning(f"Communication {comm.id}: No webhook URL configured for {event_code}, skipping.")
+        comm.error_message = f'No webhook URL configured for event type: {event_code}'
+        return False
+    
+    # Build structured JSON payload
+    payload = {
+        'event': event_code,
+        'timestamp': datetime.utcnow().isoformat() + 'Z',
+        'communication_id': comm.id,
+        'data': {
+            'target_type': comm.target_type,
+            'target_id': comm.target_id,
+            'subject': subject,
+            'recipient_email': comm.recipient_email,
+            'recipient_name': comm.recipient_name,
+        }
+    }
+    
+    success = send_webhook(app, webhook_url, payload)
+    
+    if not success:
+        comm.error_message = f'Webhook delivery failed to: {webhook_url}'
+    
+    return success

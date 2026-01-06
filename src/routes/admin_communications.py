@@ -78,6 +78,11 @@ def edit_template(id):
             flash('Name, subject, and body are required.', 'danger')
             return render_template('admin/email_template_form.html', template=template)
         
+        # Check if system template (prevent updates)
+        if template.is_system:
+            flash(f'Cannot edit system template "{template.name}".', 'danger')
+            return redirect(url_for('admin_communications.list_templates'))
+        
         # Check for duplicate name (excluding current template)
         existing = EmailTemplate.query.filter_by(name=name).first()
         if existing and existing.id != id:
@@ -105,6 +110,12 @@ def delete_template(id):
     """Delete an email template."""
     template = EmailTemplate.query.get_or_404(id)
     
+    # Check if system template
+
+    if template.is_system:
+        flash(f'Cannot delete system template "{template.name}".', 'danger')
+        return redirect(url_for('admin_communications.list_templates'))
+
     # Check if template is used in any pack communications
     if template.pack_communications:
         flash(f'Cannot delete template "{template.name}" - it is used in {len(template.pack_communications)} pack communication(s).', 'danger')
@@ -129,6 +140,13 @@ def delete_template(id):
 def toggle_template(id):
     """Toggle template active status."""
     template = EmailTemplate.query.get_or_404(id)
+    
+    # Check if system template
+
+    if template.is_system:
+        flash(f'Cannot deactivate system template "{template.name}".', 'danger')
+        return redirect(url_for('admin_communications.list_templates'))
+
     template.is_active = not template.is_active
     db.session.commit()
     

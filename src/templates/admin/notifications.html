@@ -117,6 +117,55 @@
                             value="{{ event.days_offset }}" min="0" max="365">
                         <div class="form-text">How many days before the event should the notification be sent?</div>
                     </div>
+
+                    <hr>
+                    <h6 class="mb-3">Delivery Channels</h6>
+
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="channel_email"
+                                id="channel_email_{{ event.id }}" {% if 'email' in (event.channels or ['email'])
+                                %}checked{% endif %}>
+                            <label class="form-check-label" for="channel_email_{{ event.id }}">
+                                <i class="fas fa-envelope"></i> Email
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="channel_slack"
+                                id="channel_slack_{{ event.id }}" {% if 'slack' in (event.channels or []) %}checked{%
+                                endif %}>
+                            <label class="form-check-label" for="channel_slack_{{ event.id }}">
+                                <i class="fab fa-slack"></i> Slack
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="channel_webhook"
+                                id="channel_webhook_{{ event.id }}" {% if 'webhook' in (event.channels or [])
+                                %}checked{% endif %}>
+                            <label class="form-check-label" for="channel_webhook_{{ event.id }}">
+                                <i class="fas fa-plug"></i> Webhook
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="mb-3" id="slack_config_{{ event.id }}">
+                        <label for="slack_target_channel_{{ event.id }}" class="form-label">
+                            <i class="fab fa-slack"></i> Slack Channel ID (optional)
+                        </label>
+                        <input type="text" name="slack_target_channel" id="slack_target_channel_{{ event.id }}"
+                            class="form-control" value="{{ event.slack_target_channel or '' }}"
+                            placeholder="C12345 (leave empty for DM)">
+                        <div class="form-text">Fixed channel for broadcasts. Leave empty to DM the user.</div>
+                    </div>
+
+                    <div class="mb-3" id="webhook_config_{{ event.id }}">
+                        <label for="webhook_url_{{ event.id }}" class="form-label">
+                            <i class="fas fa-plug"></i> Webhook URL (optional)
+                        </label>
+                        <input type="url" name="webhook_url" id="webhook_url_{{ event.id }}" class="form-control"
+                            value="{{ event.webhook_url or '' }}" placeholder="https://your-webhook-endpoint.com">
+                        <div class="form-text">POST requests with JSON payload.</div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>

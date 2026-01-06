@@ -27,7 +27,12 @@
                 {% for template in templates %}
                 <tr>
                     <td>
-                        <strong>{{ template.name }}</strong>
+                        <strong>
+                            {% if template.is_system %}
+                            <i class="fas fa-lock text-muted me-1" title="System Template (Read-Only)"></i>
+                            {% endif %}
+                            {{ template.name }}
+                        </strong>
                     </td>
                     <td>{{ template.subject[:50] }}{% if template.subject|length > 50 %}...{% endif %}</td>
                     <td>
@@ -51,9 +56,11 @@
                     <td>{{ template.updated_at.strftime('%Y-%m-%d %H:%M') if template.updated_at else 'N/A' }}</td>
                     <td>
                         <a href="{{ url_for('admin_communications.edit_template', id=template.id) }}"
-                            class="btn btn-sm btn-outline-primary me-1" title="Edit">
-                            <i class="fas fa-edit"></i>
+                            class="btn btn-sm btn-outline-primary me-1"
+                            title="{{ 'View' if template.is_system else 'Edit' }}">
+                            <i class="fas fa-{{ 'eye' if template.is_system else 'edit' }}"></i>
                         </a>
+                        {% if not template.is_system %}
                         <form action="{{ url_for('admin_communications.toggle_template', id=template.id) }}"
                             method="POST" class="d-inline">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -71,6 +78,7 @@
                                 <i class="fas fa-trash"></i>
                             </button>
                         </form>
+                        {% endif %}
                     </td>
                 </tr>
                 {% else %}
