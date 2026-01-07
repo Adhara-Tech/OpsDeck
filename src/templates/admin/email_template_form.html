@@ -145,6 +145,34 @@
         </div>
     </div>
 </div>
+</div>
+
+<!-- Test Email Modal -->
+<div class="modal fade" id="testEmailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-paper-plane me-2"></i>Send Test Email</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Enter the email address to send the test email to.</p>
+                <div class="mb-3">
+                    <label for="test_email_input" class="form-label">Recipient Email</label>
+                    <input type="email" class="form-control" id="test_email_input" placeholder="name@example.com"
+                        value="{{ current_user.email }}">
+                    <div class="form-text">Defaults to your email.</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="btn-confirm-test-send">
+                    <i class="fas fa-paper-plane me-1"></i> Send Test
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts_extra %}
@@ -174,39 +202,63 @@
             editor.save();
         });
 
-        // Handle test send button
-        document.getElementById('btn-test-send')?.addEventListener('click', async function () {
-            // Save editor content first
-            editor.save();
+        // Test Send Logic
+        const testModal = new bootstrap.Modal(document.getElementById('testEmailModal'));
+        const testBtn = document.getElementById('btn-test-send');
+        const confirmBtn = document.getElementById('btn-confirm-test-send');
+        let currentTemplateUrl = '';
 
-            const btn = this;
-            const url = btn.dataset.url;
-            const originalHtml = btn.innerHTML;
+        if (testBtn) {
+            testBtn.addEventListener('click', function () {
+                // Save editor content just in case, though backend uses saved template
+                editor.save();
+                currentTemplateUrl = this.dataset.url;
+                testModal.show();
+            });
+        }
 
-            btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Sending...';
+        if (confirmBtn) {
+            confirmBtn.addEventListener('click', async function () {
+                const emailInput = document.getElementById('test_email_input');
+                const email = emailInput.value;
 
-            try {
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRFToken': document.querySelector('[name=csrf_token]').value
-                    }
-                });
-                const data = await response.json();
-
-                if (data.success) {
-                    alert('✅ ' + data.message);
-                } else {
-                    alert('❌ ' + data.message);
+                if (!email) {
+                    alert('Please enter an email address.');
+                    return;
                 }
-            } catch (err) {
-                alert('❌ Error sending test email: ' + err.message);
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = originalHtml;
-            }
-        });
+
+                const originalHtml = this.innerHTML;
+                this.disabled = true;
+                this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Sending...';
+
+                try {
+                    const response = await fetch(currentTemplateUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': document.querySelector('[name=csrf_token]').value
+                        },
+                        body: JSON.stringify({ email: email })
+                    });
+
+                    const data = await response.json();
+
+                    testModal.hide();
+
+                    if (data.success) {
+                        alert('✅ ' + data.message);
+                    } else {
+                        alert('❌ ' + data.message);
+                    }
+                } catch (err) {
+                    testModal.hide();
+                    alert('❌ Error sending test email: ' + err.message);
+                } finally {
+                    this.disabled = false;
+                    this.innerHTML = originalHtml;
+                }
+            });
+        }
     });
 </script>
 {% endblock %}

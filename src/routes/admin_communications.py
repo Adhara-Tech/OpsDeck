@@ -178,11 +178,22 @@ def test_send_template(id):
     """Send a test email to the current admin user with dummy data."""
     template = EmailTemplate.query.get_or_404(id)
     
+    # Get recipient email from request or fallback to current user
+    recipient_email = None
+    if request.is_json:
+        recipient_email = request.json.get('email')
+    
+    if not recipient_email and current_user.email:
+        recipient_email = current_user.email
+        
+    if not recipient_email:
+        return jsonify({'success': False, 'message': 'No recipient email provided.'}), 400
+    
     # Build dummy context for test rendering
     dummy_context = {
         'user': {
             'name': 'John Doe',
-            'email': 'john.doe@example.com',
+            'email': recipient_email,
             'job_title': 'Software Engineer'
         },
         'manager': {
@@ -207,8 +218,13 @@ def test_send_template(id):
             current_app,
             f"[TEST] {subject}",
             body_html,
-            [current_user.email]
+            [recipient_email]
         )
+        
+        if success:
+            return jsonify({'success': True, 'message': f'Test email sent to {recipient_email}'})
+        else:
+            return jsonify({'success': False, 'message': 'Failed to send email. Check SMTP configuration.'}), 500
         
         if success:
             return jsonify({'success': True, 'message': f'Test email sent to {current_user.email}'})
