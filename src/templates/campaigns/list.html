@@ -10,6 +10,22 @@
     </a>
 </div>
 
+
+<ul class="nav nav-pills mb-3">
+    <li class="nav-item">
+        <a class="nav-link {{ 'active' if current_view == 'active' else '' }}" aria-current="page"
+            href="{{ url_for('campaigns.list_campaigns', view='active') }}">
+            <i class="fas fa-play-circle me-1"></i> Active
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {{ 'active' if current_view == 'archived' else '' }}"
+            href="{{ url_for('campaigns.list_campaigns', view='archived') }}">
+            <i class="fas fa-archive me-1"></i> Archived
+        </a>
+    </li>
+</ul>
+
 <div class="card shadow-sm">
     <div class="card-body">
         <table class="table table-striped datatable" id="campaigns-table">
@@ -42,8 +58,12 @@
                         <span class="badge bg-secondary"><i class="fas fa-pencil-alt me-1"></i>Draft</span>
                         {% elif campaign.status == 'scheduled' %}
                         <span class="badge bg-primary"><i class="fas fa-clock me-1"></i>Scheduled</span>
-                        {% elif campaign.status == 'processed' %}
-                        <span class="badge bg-success"><i class="fas fa-check me-1"></i>Processed</span>
+                        {% elif campaign.status == 'ongoing' %}
+                        <span class="badge bg-info"><i class="fas fa-spinner fa-spin me-1"></i>Ongoing</span>
+                        {% elif campaign.status == 'finished' %}
+                        <span class="badge bg-success"><i class="fas fa-check-double me-1"></i>Finished</span>
+                        {% elif campaign.status == 'archived' %}
+                        <span class="badge bg-dark"><i class="fas fa-archive me-1"></i>Archived</span>
                         {% endif %}
                     </td>
                     <td>
@@ -87,6 +107,22 @@
                             class="btn btn-sm btn-outline-secondary" title="Edit">
                             <i class="fas fa-edit"></i>
                         </a>
+                        {% endif %}
+                        <form action="{{ url_for('campaigns.clone_campaign', id=campaign.id) }}" method="POST"
+                            class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-outline-info" title="Clone">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </form>
+                        {% if campaign.can_be_archived %}
+                        <form action="{{ url_for('campaigns.archive_campaign', id=campaign.id) }}" method="POST"
+                            class="d-inline" onsubmit="return confirm('Archive this campaign?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-outline-dark" title="Archive">
+                                <i class="fas fa-archive"></i>
+                            </button>
+                        </form>
                         {% endif %}
                     </td>
                 </tr>

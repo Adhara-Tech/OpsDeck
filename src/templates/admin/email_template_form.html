@@ -54,7 +54,7 @@
                     <div class="mb-3">
                         <label for="body_html" class="form-label">Email Body (HTML) <span
                                 class="text-danger">*</span></label>
-                        <textarea class="form-control font-monospace" id="body_html" name="body_html" rows="15" required
+                        <textarea class="form-control font-monospace" id="body_html" name="body_html" rows="15"
                             placeholder="<h2>Welcome!</h2><p>Hello {{ '{{ new_hire_name }}' }},</p>...">{{ template.body_html if template else '' }}</textarea>
                         <small class="text-muted">
                             Supports HTML and Jinja2 templating. See the variables reference on the right.

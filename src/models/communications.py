@@ -127,25 +127,47 @@ class Campaign(db.Model):
         """
         from .auth import User
         
-        audience = set()
+        audience_map = {}  # Key by user_id to ensure uniqueness
         
         if self.send_to_all:
             # All active users
             all_users = User.query.filter_by(is_archived=False).all()
-            audience.update(all_users)
+            for user in all_users:
+                audience_map[user.id] = user
         else:
             # Add individually selected users
-            audience.update(self.target_users)
+            for user in self.target_users:
+                audience_map[user.id] = user
             
             # Add users from selected groups
             for group in self.target_groups:
-                audience.update(group.users)
+                for user in group.users:
+                    audience_map[user.id] = user
         
         # Filter out archived users and users without email
-        return {u for u in audience if not u.is_archived and u.email}
+        # Although send_to_all filter handled active, groups/individual might not
+        final_audience = [
+            u for u in audience_map.values() 
+            if not u.is_archived and u.email
+        ]
+        
+        return final_audience
     
     def get_communications_stats(self):
         """Get counts of scheduled communications for this campaign."""
+        
+        # If in draft mode, we don't have ScheduledCommunication records yet,
+        # so we estimate based on the audience.
+        if self.status == 'draft':
+            audience_count = len(self.get_resolved_audience())
+            return {
+                'total': audience_count,
+                'sent': 0,
+                'pending': 0,
+                'failed': 0,
+                'cancelled': 0
+            }
+            
         total = ScheduledCommunication.query.filter_by(
             target_type='campaign', target_id=self.id
         ).count()
@@ -173,6 +195,60 @@ class Campaign(db.Model):
             'failed': failed,
             'cancelled': cancelled
         }
+    
+    @property
+    def is_complete(self):
+        """Check if all emails have been processed (none pending)."""
+        stats = self.get_communications_stats()
+        return stats['total'] > 0 and stats['pending'] == 0
+    
+    @property
+    def can_be_archived(self):
+        """Check if campaign can be archived (only from draft or finished states)."""
+        return self.status in ('draft', 'finished')
+    
+    @property
+    def can_be_cancelled(self):
+        """Check if campaign can be cancelled (from scheduled or ongoing)."""
+        return self.status in ('scheduled', 'ongoing')
+    
+    def update_auto_status(self):
+        """
+        Automatically update campaign status based on email delivery progress.
+        
+        Transitions:
+        - scheduled → ongoing: When at least one email has been sent
+        - ongoing → finished: When all emails have been sent (no pending, no failed pending retry)
+        
+        Returns True if status was changed.
+        """
+        stats = self.get_communications_stats()
+        
+        if stats['total'] == 0:
+            return False
+        
+        # scheduled → ongoing: At least one email has been sent
+        if self.status == 'scheduled':
+            if stats['sent'] > 0:
+                self.status = 'ongoing'
+                return True
+        
+        # ongoing → finished: All emails processed (no pending, no failed needing retry)
+        if self.status == 'ongoing':
+            # Check if there are any pending retries among failed emails
+            from sqlalchemy import and_
+            pending_retries = ScheduledCommunication.query.filter(
+                ScheduledCommunication.target_type == 'campaign',
+                ScheduledCommunication.target_id == self.id,
+                ScheduledCommunication.status == 'pending'
+            ).count()
+            
+            # Finish only when no pending emails left (including retries)
+            if pending_retries == 0:
+                self.status = 'finished'
+                return True
+        
+        return False
 
 
 class ScheduledCommunication(db.Model):
@@ -216,6 +292,12 @@ class ScheduledCommunication(db.Model):
     error_message = db.Column(db.Text, nullable=True)
     retry_count = db.Column(db.Integer, default=0)
     
+    # Exponential backoff: when this communication becomes eligible for retry
+    next_retry_at = db.Column(db.DateTime, nullable=True)
+    
+    # Maximum retry attempts before permanently failing
+    MAX_RETRY_COUNT = 3
+    
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Indexes for efficient querying
@@ -233,6 +315,38 @@ class ScheduledCommunication(db.Model):
         if self.status == 'pending':
             return self.scheduled_date < datetime.utcnow().date()
         return False
+    
+    def should_retry(self):
+        """Check if this communication is eligible for retry."""
+        return self.retry_count < self.MAX_RETRY_COUNT
+    
+    def calculate_next_retry(self):
+        """
+        Calculate the next retry time using exponential backoff.
+        Backoff: 5min, 10min, 20min (2^retry_count * 5 minutes)
+        """
+        from datetime import timedelta
+        
+        backoff_minutes = (2 ** self.retry_count) * 5
+        return datetime.utcnow() + timedelta(minutes=backoff_minutes)
+    
+    def mark_for_retry(self, error_msg=None):
+        """
+        Mark this communication for retry with exponential backoff.
+        Returns True if retry was scheduled, False if max retries exceeded.
+        """
+        self.retry_count += 1
+        if error_msg:
+            self.error_message = error_msg[:500]
+        
+        if self.should_retry():
+            self.status = 'pending'
+            self.next_retry_at = self.calculate_next_retry()
+            return True
+        else:
+            self.status = 'failed'
+            self.next_retry_at = None
+            return False
     
     def get_target_process(self):
         """Load and return the target process object."""

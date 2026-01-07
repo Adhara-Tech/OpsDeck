@@ -414,11 +414,18 @@ def process_communications_queue(app):
         today = now.date()
         
         # Query pending communications that are due (scheduled_date <= today)
+        # Also respect exponential backoff: only pick up if next_retry_at is null or has passed
         # Use FOR UPDATE SKIP LOCKED for concurrent safety - prevents duplicate sends
         # when multiple workers/containers process the queue simultaneously
+        from sqlalchemy import or_
+        
         pending_comms = db.session.query(ScheduledCommunication).filter(
             ScheduledCommunication.status == 'pending',
-            ScheduledCommunication.scheduled_date <= today
+            ScheduledCommunication.scheduled_date <= today,
+            or_(
+                ScheduledCommunication.next_retry_at.is_(None),
+                ScheduledCommunication.next_retry_at <= now
+            )
         ).with_for_update(skip_locked=True).limit(BATCH_SIZE).all()
         
         if not pending_comms:
@@ -497,13 +504,17 @@ def process_communications_queue(app):
                 if success:
                     comm.status = 'sent'
                     comm.sent_at = datetime.utcnow()
+                    comm.next_retry_at = None  # Clear any retry scheduling
                     sent_count += 1
                     app.logger.info(f"Communication {comm.id}: Sent via {channel} to {comm.recipient_email}")
                 else:
-                    comm.status = 'failed'
-                    comm.retry_count += 1
+                    # Use exponential backoff retry logic
+                    will_retry = comm.mark_for_retry(comm.error_message)
                     failed_count += 1
-                    app.logger.error(f"Communication {comm.id}: Failed to send via {channel}")
+                    if will_retry:
+                        app.logger.warning(f"Communication {comm.id}: Failed via {channel}, scheduled for retry #{comm.retry_count} at {comm.next_retry_at}")
+                    else:
+                        app.logger.error(f"Communication {comm.id}: Permanently failed after {comm.retry_count} attempts")
                     
             except Exception as e:
                 # Check for SlackRateLimitError
@@ -513,11 +524,13 @@ def process_communications_queue(app):
                     # Keep status='pending' and date as is (will be picked up in next batch)
                     continue
 
-                comm.status = 'failed'
-                comm.error_message = str(e)[:500]  # Limit error message length
-                comm.retry_count += 1
+                # Use exponential backoff retry logic
+                will_retry = comm.mark_for_retry(str(e)[:500])
                 failed_count += 1
-                app.logger.error(f"Communication {comm.id}: Error - {str(e)}")
+                if will_retry:
+                    app.logger.warning(f"Communication {comm.id}: Error, scheduled for retry #{comm.retry_count} - {str(e)}")
+                else:
+                    app.logger.error(f"Communication {comm.id}: Permanently failed after {comm.retry_count} attempts - {str(e)}")
         
         # Commit all status changes
         db.session.commit()

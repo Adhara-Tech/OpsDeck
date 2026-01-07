@@ -10,6 +10,7 @@ from ..models import User, Group
 from ..models.communications import Campaign, ScheduledCommunication
 from ..routes.admin import admin_required
 from ..routes.main import login_required
+from ..utils.communications_context import validate_template_syntax
 
 campaigns_bp = Blueprint('campaigns', __name__)
 
@@ -23,8 +24,19 @@ campaigns_bp = Blueprint('campaigns', __name__)
 @admin_required
 def list_campaigns():
     """List all campaigns with their status."""
-    campaigns = Campaign.query.order_by(Campaign.created_at.desc()).all()
-    return render_template('campaigns/list.html', campaigns=campaigns)
+    view = request.args.get('view', 'active')
+    
+    query = Campaign.query
+    
+    if view == 'archived':
+        query = query.filter_by(status='archived')
+    else:
+        # Active view: show everything except archived
+        query = query.filter(Campaign.status != 'archived')
+        
+    campaigns = query.order_by(Campaign.created_at.desc()).all()
+    
+    return render_template('campaigns/list.html', campaigns=campaigns, current_view=view)
 
 
 @campaigns_bp.route('/new', methods=['GET', 'POST'])
@@ -43,6 +55,18 @@ def new_campaign():
         
         if not title or not subject or not body_html:
             flash('Title, subject, and body are required.', 'danger')
+            return redirect(url_for('campaigns.new_campaign'))
+        
+        # Validate Jinja2 syntax for subject
+        is_valid, error = validate_template_syntax(subject)
+        if not is_valid:
+            flash(f'Subject template syntax error: {error}', 'danger')
+            return redirect(url_for('campaigns.new_campaign'))
+        
+        # Validate Jinja2 syntax for body
+        is_valid, error = validate_template_syntax(body_html)
+        if not is_valid:
+            flash(f'Body template syntax error: {error}', 'danger')
             return redirect(url_for('campaigns.new_campaign'))
         
         # Parse scheduled_at if provided
@@ -99,6 +123,21 @@ def detail(id):
         target_type='campaign', target_id=id
     ).order_by(ScheduledCommunication.recipient_name).all()
     
+    # If Draft and no communications yet, show preview of audience
+    if campaign.status == 'draft' and not communications:
+        audience = campaign.get_resolved_audience()
+        # Create dummy objects for display
+        for user in audience:
+            communications.append({
+                'recipient_name': user.name,
+                'recipient_email': user.email,
+                'status': 'target',  # Special status for UI
+                'sent_at': None,
+                'error_message': None
+            })
+        # Sort by name
+        communications.sort(key=lambda x: x['recipient_name'])
+    
     stats = campaign.get_communications_stats()
     
     return render_template('campaigns/detail.html', 
@@ -119,9 +158,36 @@ def edit_campaign(id):
         return redirect(url_for('campaigns.detail', id=id))
     
     if request.method == 'POST':
-        campaign.title = request.form.get('title')
-        campaign.subject = request.form.get('subject')
-        campaign.body_html = request.form.get('body_html')
+        title = request.form.get('title')
+        subject = request.form.get('subject')
+        body_html = request.form.get('body_html')
+        
+        # Required field validation
+        if not title or not subject or not body_html:
+            flash('Title, subject, and body are required.', 'danger')
+            users = User.query.filter_by(is_archived=False).order_by(User.name).all()
+            groups = Group.query.order_by(Group.name).all()
+            return render_template('campaigns/form.html', campaign=campaign, users=users, groups=groups)
+        
+        # Validate Jinja2 syntax for subject
+        is_valid, error = validate_template_syntax(subject)
+        if not is_valid:
+            flash(f'Subject template syntax error: {error}', 'danger')
+            users = User.query.filter_by(is_archived=False).order_by(User.name).all()
+            groups = Group.query.order_by(Group.name).all()
+            return render_template('campaigns/form.html', campaign=campaign, users=users, groups=groups)
+        
+        # Validate Jinja2 syntax for body
+        is_valid, error = validate_template_syntax(body_html)
+        if not is_valid:
+            flash(f'Body template syntax error: {error}', 'danger')
+            users = User.query.filter_by(is_archived=False).order_by(User.name).all()
+            groups = Group.query.order_by(Group.name).all()
+            return render_template('campaigns/form.html', campaign=campaign, users=users, groups=groups)
+        
+        campaign.title = title
+        campaign.subject = subject
+        campaign.body_html = body_html
         campaign.send_to_all = request.form.get('send_to_all') == 'on'
         
         scheduled_at_str = request.form.get('scheduled_at')
@@ -154,24 +220,53 @@ def edit_campaign(id):
     return render_template('campaigns/form.html', campaign=campaign, users=users, groups=groups)
 
 
-@campaigns_bp.route('/<int:id>/delete', methods=['POST'])
+@campaigns_bp.route('/<int:id>/archive', methods=['POST'])
 @login_required
 @admin_required
-def delete_campaign(id):
-    """Delete a campaign and its scheduled communications."""
+def archive_campaign(id):
+    """
+    Archive a campaign (replaces delete).
+    Only allowed from 'draft' or 'finished' states.
+    """
     campaign = Campaign.query.get_or_404(id)
     
-    # Delete all associated scheduled communications
-    ScheduledCommunication.query.filter_by(
-        target_type='campaign', target_id=id
-    ).delete()
+    if not campaign.can_be_archived:
+        flash(f'Cannot archive campaign in "{campaign.status}" state. Cancel it first.', 'danger')
+        return redirect(url_for('campaigns.detail', id=id))
     
-    title = campaign.title
-    db.session.delete(campaign)
+    campaign.status = 'archived'
     db.session.commit()
     
-    flash(f'Campaign "{title}" deleted.', 'success')
+    flash(f'Campaign "{campaign.title}" archived.', 'success')
     return redirect(url_for('campaigns.list_campaigns'))
+
+
+@campaigns_bp.route('/<int:id>/clone', methods=['POST'])
+@login_required
+@admin_required
+def clone_campaign(id):
+    """
+    Clone a campaign - copies title (with -copy suffix), subject, and body.
+    Does NOT copy recipients or scheduling.
+    """
+    original = Campaign.query.get_or_404(id)
+    
+    # Create new campaign with copied content
+    new_campaign = Campaign(
+        title=f"{original.title}-copy",
+        subject=original.subject,
+        body_html=original.body_html,
+        send_to_all=False,  # Reset audience selection
+        scheduled_at=None,  # Reset scheduling
+        created_by_id=session.get('user_id'),
+        status='draft'
+    )
+    
+    db.session.add(new_campaign)
+    db.session.commit()
+    
+    flash(f'Campaign cloned! Editing "{new_campaign.title}".', 'success')
+    return redirect(url_for('campaigns.edit_campaign', id=new_campaign.id))
 
 
 # ==========================================
@@ -238,8 +333,14 @@ def schedule_campaign(id):
 def cancel_campaign(id):
     """
     🚨 PANIC BUTTON: Cancel all pending communications for this campaign.
+    Only allowed from 'scheduled' or 'ongoing' states.
+    Resets the campaign to draft status so it can be edited and re-scheduled.
     """
     campaign = Campaign.query.get_or_404(id)
+    
+    if not campaign.can_be_cancelled:
+        flash(f'Cannot cancel campaign in "{campaign.status}" state.', 'danger')
+        return redirect(url_for('campaigns.detail', id=id))
     
     # Mass cancel pending communications
     cancelled_count = ScheduledCommunication.query.filter_by(
@@ -248,12 +349,16 @@ def cancel_campaign(id):
         status='pending'
     ).update({'status': 'cancelled'})
     
+    # Reset campaign to draft status so it can be edited again
+    campaign.status = 'draft'
+    campaign.processed_at = None
+    
     db.session.commit()
     
     if cancelled_count > 0:
-        flash(f'🛑 {cancelled_count} pending emails cancelled.', 'warning')
+        flash(f'🛑 {cancelled_count} pending emails cancelled. Campaign returned to draft.', 'warning')
     else:
-        flash('No pending emails to cancel.', 'info')
+        flash('Campaign returned to draft.', 'info')
     
     return redirect(url_for('campaigns.detail', id=id))
 
@@ -316,3 +421,105 @@ def send_campaign_now(id):
     
     flash(f'Sent {sent_count} emails, {failed_count} failed.', 'success' if failed_count == 0 else 'warning')
     return redirect(url_for('campaigns.detail', id=id))
+
+
+@campaigns_bp.route('/<int:id>/retry_failed', methods=['POST'])
+@login_required
+@admin_required
+def retry_failed(id):
+    """
+    Reset all failed communications for this campaign to pending,
+    allowing them to be retried by the communications queue processor.
+    """
+    campaign = Campaign.query.get_or_404(id)
+    
+    # Find all failed communications for this campaign
+    failed_comms = ScheduledCommunication.query.filter_by(
+        target_type='campaign',
+        target_id=id,
+        status='failed'
+    ).all()
+    
+    if not failed_comms:
+        flash('No failed emails to retry.', 'info')
+        return redirect(url_for('campaigns.detail', id=id))
+    
+    retry_count = 0
+    for comm in failed_comms:
+        comm.status = 'pending'
+        comm.retry_count = 0  # Reset retry counter for manual retry
+        comm.next_retry_at = None  # Clear backoff - process immediately
+        comm.error_message = None
+        retry_count += 1
+    
+    db.session.commit()
+    
+    flash(f'🔄 {retry_count} failed email(s) queued for retry.', 'success')
+    return redirect(url_for('campaigns.detail', id=id))
+
+
+@campaigns_bp.route('/<int:id>/finish', methods=['POST'])
+@login_required
+@admin_required
+def finish_campaign(id):
+    """
+    Manually finish an ongoing campaign.
+    Marks campaign as 'finished' and stops any further retry attempts.
+    """
+    campaign = Campaign.query.get_or_404(id)
+    
+    if campaign.status != 'ongoing':
+        flash(f'Cannot finish campaign in "{campaign.status}" state.', 'warning')
+        return redirect(url_for('campaigns.detail', id=id))
+    
+    # Mark for finish - any pending retry attempts will be ignored by status check
+    campaign.status = 'finished'
+    db.session.commit()
+    
+    flash('Campaign marked as finished.', 'success')
+    return redirect(url_for('campaigns.detail', id=id))
+
+
+@campaigns_bp.route('/<int:id>/stats')
+@login_required
+@admin_required
+def get_stats(id):
+    """
+    API endpoint returning campaign stats and communications as JSON.
+    Used for AJAX auto-refresh of the campaign detail page.
+    Also calls update_auto_status to handle state transitions.
+    """
+    from flask import jsonify
+    
+    campaign = Campaign.query.get_or_404(id)
+    
+    # Update status based on progress (scheduled->ongoing->finished)
+    if campaign.update_auto_status():
+        db.session.commit()
+    
+    # Get stats
+    stats = campaign.get_communications_stats()
+    
+    # Get communications list
+    communications = ScheduledCommunication.query.filter_by(
+        target_type='campaign', target_id=id
+    ).order_by(ScheduledCommunication.recipient_name).all()
+    
+    comms_data = []
+    for comm in communications:
+        comms_data.append({
+            'id': comm.id,
+            'recipient_name': comm.recipient_name or 'Unknown',
+            'recipient_email': comm.recipient_email,
+            'status': comm.status,
+            'sent_at': comm.sent_at.strftime('%d %b %H:%M') if comm.sent_at else None,
+            'error_message': comm.error_message,
+            'retry_count': comm.retry_count
+        })
+    
+    return jsonify({
+        'stats': stats,
+        'communications': comms_data,
+        'campaign_status': campaign.status
+    })
+
