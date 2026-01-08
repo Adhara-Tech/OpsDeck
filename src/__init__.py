@@ -301,6 +301,9 @@ def create_app(test_config=None):
     from .routes.organization import organization_bp
     app.register_blueprint(organization_bp, url_prefix='/settings/organization')
 
+    from .routes.finance import finance_bp
+    app.register_blueprint(finance_bp, url_prefix='/finance')
+
 
     # --- Google OAuth Blueprint ---
     if app.config.get('GOOGLE_OAUTH_CLIENT_ID'):

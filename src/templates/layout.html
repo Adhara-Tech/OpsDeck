@@ -298,6 +298,10 @@
                             class="nav-link {% if request.endpoint == 'reports.depreciation_report' %}active{% endif %}"
                             href="{{ url_for('reports.depreciation_report') }}"><i class="fa-fw fas fa-chart-area"></i>
                             Depreciation</a></li>
+                    <li class="nav-item"><a
+                            class="nav-link {% if request.endpoint == 'finance.exchange_rates' %}active{% endif %}"
+                            href="{{ url_for('finance.exchange_rates') }}"><i class="fa-fw fas fa-exchange-alt"></i>
+                            Exchange Rates</a></li>
                 </div>
 
                 <hr class="text-white">
