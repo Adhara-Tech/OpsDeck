@@ -484,9 +484,16 @@ def add_timeline_event(review_id):
     data = request.json
     max_order = db.session.query(db.func.max(IncidentTimelineEvent.order)).filter_by(review_id=review.id).scalar() or -1
     
+    # Parse datetime-local format (YYYY-MM-DDTHH:MM)
+    time_str = data['time']
+    try:
+        event_time = datetime.strptime(time_str, '%Y-%m-%dT%H:%M')
+    except ValueError:
+        return jsonify({'error': 'Invalid date format'}), 400
+    
     event = IncidentTimelineEvent(
         review_id=review.id,
-        event_time=datetime.fromisoformat(data['time']),
+        event_time=event_time,
         description=data['description'],
         order=max_order + 1
     )
