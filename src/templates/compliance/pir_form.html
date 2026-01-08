@@ -185,7 +185,10 @@
 
             fetch(`/compliance/incidents/review/${reviewId}/timeline`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                },
                 body: JSON.stringify({ time: time, description: description })
             })
                 .then(response => response.json())
@@ -234,7 +237,10 @@
                     variant: 'danger'
                 });
                 if (confirmed) {
-                    fetch(`/compliance/incidents/review/timeline/${eventId}`, { method: 'DELETE' })
+                    fetch(`/compliance/incidents/review/timeline/${eventId}`, {
+                        method: 'DELETE',
+                        headers: { 'X-CSRFToken': '{{ csrf_token() }}' }
+                    })
                         .then(response => response.json())
                         .then(data => {
                             if (data.success) {
@@ -256,7 +262,10 @@
 
                     fetch(`/compliance/incidents/review/${reviewId}/timeline/reorder`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{ csrf_token() }}'
+                        },
                         body: JSON.stringify({ ordered_ids: orderedIds })
                     })
                         .catch(error => console.error('Error reordering:', error));

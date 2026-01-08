@@ -3,7 +3,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from datetime import datetime
 from ..extensions import db
 from ..models import User, Peripheral, License, Software
-from ..models import Subscription, PaymentMethod, Risk, BusinessService
+from ..models import Subscription, PaymentMethod, Risk, BusinessService, Location
 # Importamos los modelos nuevos (asegúrate de haberlos registrado en __init__.py primero)
 from ..models.onboarding import (
     OnboardingProcess, OffboardingProcess, ProcessItem, 
@@ -423,9 +423,13 @@ def offboarding_detail(id):
         payment_methods = {pm.id: pm for pm in pms}
     
     # Get scheduled communications
+    # Get scheduled communications
     communications = get_process_communications('offboarding', id)
+    
+    # Get locations for asset return
+    locations = Location.query.filter_by(is_archived=False).order_by(Location.name).all()
         
-    return render_template('onboarding/process_detail.html', process=process, type='offboarding', users=users, payment_methods=payment_methods, communications=communications)
+    return render_template('onboarding/process_detail.html', process=process, type='offboarding', users=users, payment_methods=payment_methods, communications=communications, locations=locations)
 
 # ==========================================
 # ACCIONES COMUNES (CHECKLIST)

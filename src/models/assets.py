@@ -176,6 +176,7 @@ class Peripheral(db.Model):
     
     # Relationships
     asset_id = db.Column(db.Integer, db.ForeignKey('asset.id'))
+    location_id = db.Column(db.Integer, db.ForeignKey('location.id')) # New: Support physical location
     purchase_id = db.Column(db.Integer, db.ForeignKey('purchase.id'))
     supplier_id = db.Column(db.Integer, db.ForeignKey('supplier.id'))
     

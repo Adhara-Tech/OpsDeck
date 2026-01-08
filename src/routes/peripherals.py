@@ -146,13 +146,26 @@ def checkin_peripheral(id):
         flash('This peripheral is already checked in.', 'warning')
         return redirect(redirect_url or url_for('peripherals.peripheral_detail', id=id))
 
+    # REQUIRED: Select return location
+    return_location_id = request.form.get('return_location_id')
+    if not return_location_id:
+        flash('You must select a location to return the peripheral to.', 'danger')
+        return redirect(redirect_url or url_for('peripherals.peripheral_detail', id=id))
+        
+    from ..models import Location
+    target_location = Location.query.get(return_location_id)
+    if not target_location:
+         flash('Selected location not found.', 'danger')
+         return redirect(redirect_url or url_for('peripherals.peripheral_detail', id=id))
+
     assignment = PeripheralAssignment.query.filter_by(peripheral_id=id, checked_in_date=None).order_by(PeripheralAssignment.checked_out_date.desc()).first()
     
     if assignment:
         assignment.checked_in_date = datetime.utcnow()
 
-    flash(f'Peripheral "{peripheral.name}" has been checked in from {peripheral.user.name}.', 'success')
+    flash(f'Peripheral "{peripheral.name}" has been checked in from {peripheral.user.name} to {target_location.name}.', 'success')
     peripheral.user = None
+    peripheral.location_id = target_location.id # Update location
     peripheral.status = 'Available'  # Auto-update status on checkin
     
     # Auto-complete related offboarding item if exists
