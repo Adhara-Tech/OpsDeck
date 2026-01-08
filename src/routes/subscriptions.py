@@ -3,7 +3,8 @@ from flask import (
 )
 from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
-from ..models import db, Subscription, Supplier, Contact, PaymentMethod, Tag, CostHistory, CURRENCY_RATES, Software, Budget, User
+from ..models import db, Subscription, Supplier, Contact, PaymentMethod, Tag, CostHistory, Software, Budget, User
+from ..services.finance_service import get_conversion_rate
 from .main import login_required
 from .admin import admin_required
 
@@ -67,7 +68,7 @@ def subscription_detail(id):
     cost_history_labels = [entry.changed_date.strftime('%Y-%m-%d') for entry in subscription.cost_history]
     cost_history_data = [
         round(
-            entry.cost * CURRENCY_RATES.get(entry.currency, 1.0), 2
+            entry.cost * get_conversion_rate(entry.currency), 2
         ) for entry in subscription.cost_history
     ]
 

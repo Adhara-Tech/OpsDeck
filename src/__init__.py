@@ -359,6 +359,18 @@ def create_app(test_config=None):
             trigger="interval",
             minutes=5
         )
+        # Exchange rate sync - runs daily at 3:00 AM UTC
+        from .services.finance_service import update_exchange_rates
+        def sync_exchange_rates():
+            with app.app_context():
+                update_exchange_rates()
+        scheduler.add_job(
+            func=sync_exchange_rates,
+            trigger="cron",
+            hour=3,
+            minute=0,
+            id="sync_exchange_rates"
+        )
         scheduler.start()
         atexit.register(lambda: scheduler.shutdown())
 
