@@ -15,7 +15,8 @@ assets_bp = Blueprint('assets', __name__)
 def assets():
     assets = Asset.query.filter_by(is_archived=False).all()
     users = User.query.filter_by(is_archived=False).order_by(User.name).all()
-    return render_template('assets/list.html', assets=assets, users=users)
+    locations = Location.query.filter_by(is_archived=False).order_by(Location.name).all()
+    return render_template('assets/list.html', assets=assets, users=users, locations=locations)
 
 @assets_bp.route('/archived')
 @login_required
@@ -227,7 +228,8 @@ def edit_asset(id):
 @login_required
 def asset_detail(id):
     asset = Asset.query.get_or_404(id)
-    return render_template('assets/detail.html', asset=asset)
+    locations = Location.query.filter_by(is_archived=False).order_by(Location.name).all()
+    return render_template('assets/detail.html', asset=asset, locations=locations)
 
 @assets_bp.route('/<int:id>/checkout', methods=['GET', 'POST'])
 @login_required
@@ -240,6 +242,7 @@ def checkout_asset(id):
     if request.method == 'POST':
         user_id = request.form.get('user_id')
         notes = request.form.get('notes')
+        location_mode = request.form.get('location_mode', 'keep')
         
         if not user_id:
             flash('You must select a user.', 'danger')
@@ -251,11 +254,20 @@ def checkout_asset(id):
             return redirect(url_for('assets.checkout_asset', id=id))
         
         asset.user = user
+        log_msg = f'Checked out to {user.name}'
+        
+        # Handle location mode
+        if location_mode == 'remote':
+            old_loc = asset.location.name if asset.location else 'None'
+            asset.location = None
+            log_msg += f' (Moved to Remote from {old_loc})'
+        else:
+            log_msg += f' (Kept at {asset.location.name if asset.location else "Unknown"})'
         
         assignment = AssetAssignment(asset_id=id, user_id=user_id, notes=notes)
         db.session.add(assignment)
         
-        history_entry = AssetHistory(asset_id=id, field_changed='Status', old_value=asset.status, new_value=f'Checked out to {user.name}')
+        history_entry = AssetHistory(asset_id=id, field_changed='Status', old_value=asset.status, new_value=log_msg)
         db.session.add(history_entry)
 
         db.session.commit()
@@ -263,7 +275,8 @@ def checkout_asset(id):
         return redirect(url_for('assets.asset_detail', id=id))
         
     users = User.query.order_by(User.name).filter_by(is_archived=False).all()
-    return render_template('assets/checkout.html', asset=asset, users=users)
+    locations = Location.query.filter_by(is_archived=False).order_by(Location.name).all()
+    return render_template('assets/checkout.html', asset=asset, users=users, locations=locations)
 
 
 @assets_bp.route('/<int:id>/checkin', methods=['POST'])
@@ -277,15 +290,27 @@ def checkin_asset(id):
         flash('This asset is already checked in.', 'warning')
         return redirect(redirect_url or url_for('assets.asset_detail', id=id))
 
+    # REQUIRED: Select return location
+    return_location_id = request.form.get('return_location_id')
+    if not return_location_id:
+        flash('You must select a location to return the asset to.', 'danger')
+        return redirect(redirect_url or url_for('assets.asset_detail', id=id))
+    
+    target_location = Location.query.get(return_location_id)
+    if not target_location:
+        flash('Selected location not found.', 'danger')
+        return redirect(redirect_url or url_for('assets.asset_detail', id=id))
+
     assignment = AssetAssignment.query.filter_by(asset_id=id, checked_in_date=None).order_by(AssetAssignment.checked_out_date.desc()).first()
     
     if assignment:
         assignment.checked_in_date = datetime.utcnow()
 
-    history_entry = AssetHistory(asset_id=id, field_changed='Status', old_value=f'Checked out to {asset.user.name}', new_value='Checked In')
+    history_entry = AssetHistory(asset_id=id, field_changed='Status', old_value=f'Checked out to {asset.user.name}', new_value=f'Checked In to {target_location.name}')
     db.session.add(history_entry)
     
     asset.user = None
+    asset.location = target_location
     
     # Auto-complete related offboarding item if exists
     from ..models.onboarding import ProcessItem
@@ -298,7 +323,7 @@ def checkin_asset(id):
         offboarding_item.is_completed = True
     
     db.session.commit()
-    flash(f'Asset "{asset.name}" has been checked in.', 'success')
+    flash(f'Asset "{asset.name}" has been returned to {target_location.name}.', 'success')
     return redirect(redirect_url or url_for('assets.asset_detail', id=id))
 
 @assets_bp.route('/warranties')

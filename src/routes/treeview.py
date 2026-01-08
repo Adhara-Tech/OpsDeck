@@ -2,7 +2,7 @@ from flask import (
     Blueprint, render_template, request, url_for
 )
 # --- UPDATED: Import Asset, Peripheral, License ---
-from ..models import Location, User, Supplier
+from ..models import Location, User, Supplier, Asset, Peripheral
 from .main import login_required
 
 treeview_bp = Blueprint('treeview', __name__)
@@ -14,10 +14,10 @@ def tree_view():
     tree_data = []
 
     # Define the available options for the dropdown
-    root_options = ["Locations", "Users", "Suppliers"]
+    root_options = ["Locations", "Users", "Remote", "Suppliers"]
 
     if selected_root == 'locations':
-        locations = Location.query.order_by(Location.name).all()
+        locations = Location.query.filter_by(is_archived=False).order_by(Location.name).all()
         for location in locations:
             location_node = {
                 'name': location.name,
@@ -25,14 +25,22 @@ def tree_view():
                 'url': url_for('locations.location_detail', id=location.id),
                 'children': []
             }
+            # Show assets that have this location_id (physically present here)
             for asset in location.assets:
+                if asset.is_archived:
+                    continue
+                asset_name = asset.name
+                if asset.user:
+                    asset_name += f" (assigned to {asset.user.name})"
                 asset_node = {
-                    'name': asset.name,
+                    'name': asset_name,
                     'icon': 'fa-laptop',
                     'url': url_for('assets.asset_detail', id=asset.id),
                     'children': []
                 }
                 for peripheral in asset.peripherals:
+                    if peripheral.is_archived:
+                        continue
                     peripheral_node = {
                         'name': peripheral.name,
                         'icon': 'fa-keyboard',
@@ -101,6 +109,43 @@ def tree_view():
                         'url': url_for('purchases.purchase_detail', id=purchase.id)
                     })
                 user_node['children'].append(purchases_node)
+            tree_data.append(user_node)
+
+    elif selected_root == 'remote':
+        # Personal / Remote: Users as logical locations for assets with no physical location
+        users_with_remote_assets = User.query.filter_by(is_archived=False).order_by(User.name).all()
+        for user in users_with_remote_assets:
+            # Filter to only remote assets (location_id is None)
+            remote_assets = [a for a in user.assets if a.location_id is None and not a.is_archived]
+            if not remote_assets:
+                continue
+            
+            user_node = {
+                'name': f"🏠 {user.name}",
+                'icon': 'fa-user',
+                'url': url_for('users.user_detail', id=user.id),
+                'children': []
+            }
+            
+            for asset in remote_assets:
+                asset_node = {
+                    'name': asset.name,
+                    'icon': 'fa-laptop-house',  # Remote work icon
+                    'url': url_for('assets.asset_detail', id=asset.id),
+                    'children': []
+                }
+                # Also show peripherals attached to this remote asset
+                for peripheral in asset.peripherals:
+                    if peripheral.is_archived:
+                        continue
+                    peripheral_node = {
+                        'name': peripheral.name,
+                        'icon': 'fa-keyboard',
+                        'url': url_for('peripherals.peripheral_detail', id=peripheral.id)
+                    }
+                    asset_node['children'].append(peripheral_node)
+                user_node['children'].append(asset_node)
+            
             tree_data.append(user_node)
 
     elif selected_root == 'suppliers':

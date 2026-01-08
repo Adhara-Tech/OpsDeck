@@ -28,8 +28,8 @@
                         <th>Type</th>
                         <th>Brand</th>
                         <th>Status</th>
-                        <th>Assigned To</th>
-                        <th>Asset</th>
+                        <th>User / Location</th>
+                        <th>Parent Asset</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -41,7 +41,11 @@
                         <td>{{ peripheral.type or '-' }}</td>
                         <td>{{ peripheral.brand or '-' }}</td>
                         <td><span class="badge bg-secondary">{{ peripheral.status }}</span></td>
-                        <td>{{ peripheral.user.name if peripheral.user else '-' }}</td>
+                        <td>
+                            <span class="badge {{ 'bg-info' if peripheral.user else 'bg-secondary' }}">
+                                {{ peripheral.location_display }}
+                            </span>
+                        </td>
                         <td>{{ peripheral.asset.name if peripheral.asset else '-' }}</td>
                         <td>
                             {% if peripheral.user %}
