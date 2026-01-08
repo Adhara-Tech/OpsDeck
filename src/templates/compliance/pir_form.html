@@ -2,11 +2,38 @@
 {% block title %}Post-Incident Review - {{ super() }}{% endblock %}
 
 {% block content %}
-<h2>Post-Incident Review for: {{ incident.title }}</h2>
-<p>
-    <a href="{{ url_for('compliance.incident_detail', id=incident.id) }}"><i class="fas fa-arrow-left"></i> Back to
-        Incident</a>
-</p>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2>Post-Incident Review for: {{ incident.title }}</h2>
+        <a href="{{ url_for('compliance.incident_detail', id=incident.id) }}">
+            <i class="fas fa-arrow-left"></i> Back to Incident
+        </a>
+    </div>
+    <div>
+        {% if review.is_locked %}
+        <span class="badge bg-secondary fs-6 me-2">
+            <i class="fas fa-lock"></i> Finalized / Read-Only
+        </span>
+        {% endif %}
+        <form action="{{ url_for('compliance.toggle_pir_lock', review_id=review.id) }}" method="POST" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% if review.is_locked %}
+            <button type="submit" class="btn btn-outline-warning">
+                <i class="fas fa-unlock"></i> Unlock for Editing
+            </button>
+            {% else %}
+            <button type="submit" class="btn btn-success">
+                <i class="fas fa-lock"></i> Finalize Report
+            </button>
+            {% endif %}
+        </form>
+        {% if review.is_locked %}
+        <a href="{{ url_for('compliance.export_pir_pdf', id=incident.id) }}" class="btn btn-primary">
+            <i class="fas fa-file-pdf"></i> Export PDF
+        </a>
+        {% endif %}
+    </div>
+</div>
 
 <!-- Formulario principal para los campos de texto -->
 <form method="POST">
@@ -62,7 +89,11 @@
             </div>
         </div>
         <div class="card-footer text-end">
+            {% if not review.is_locked %}
             <button type="submit" class="btn btn-primary">Save Review</button>
+            {% else %}
+            <span class="text-muted"><i class="fas fa-lock"></i> Report is locked</span>
+            {% endif %}
         </div>
     </div>
 </form>
@@ -81,9 +112,11 @@
                 </div>
                 <div>
                     <i class="fas fa-grip-vertical me-2" style="cursor: grab;"></i>
+                    {% if not review.is_locked %}
                     <button class="btn btn-sm btn-outline-danger delete-timeline-event" data-event-id="{{ event.id }}">
                         <i class="fas fa-trash"></i>
                     </button>
+                    {% endif %}
                 </div>
             </li>
             {% endfor %}
@@ -92,6 +125,7 @@
             {% endif %}
         </ul>
     </div>
+    {% if not review.is_locked %}
     <div class="card-footer">
         <div class="input-group">
             <input type="datetime-local" id="timeline-time" class="form-control" style="max-width: 250px;">
@@ -101,6 +135,7 @@
             </button>
         </div>
     </div>
+    {% endif %}
 </div>
 {% endblock %}
 

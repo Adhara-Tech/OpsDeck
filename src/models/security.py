@@ -148,6 +148,12 @@ class PostIncidentReview(db.Model):
     lessons_learned = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Locking mechanism for finalized reports
+    is_locked = db.Column(db.Boolean, default=False, nullable=False)
+    locked_at = db.Column(db.DateTime, nullable=True)
+    locked_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    locked_by = db.relationship('User', foreign_keys=[locked_by_id])
 
     # Relationships
     timeline_events = db.relationship('IncidentTimelineEvent', backref='review', lazy=True, cascade='all, delete-orphan', order_by='IncidentTimelineEvent.order')

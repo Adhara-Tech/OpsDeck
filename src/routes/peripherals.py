@@ -124,6 +124,7 @@ def checkout_peripheral(id):
             return redirect(url_for('peripherals.checkout_peripheral', id=id))
         
         peripheral.user = user
+        peripheral.status = 'In Use'  # Auto-update status on checkout
         assignment = PeripheralAssignment(peripheral_id=id, user_id=user_id, notes=notes)
         db.session.add(assignment)
 
@@ -152,6 +153,7 @@ def checkin_peripheral(id):
 
     flash(f'Peripheral "{peripheral.name}" has been checked in from {peripheral.user.name}.', 'success')
     peripheral.user = None
+    peripheral.status = 'Available'  # Auto-update status on checkin
     
     # Auto-complete related offboarding item if exists
     from ..models.onboarding import ProcessItem

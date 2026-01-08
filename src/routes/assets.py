@@ -254,6 +254,7 @@ def checkout_asset(id):
             return redirect(url_for('assets.checkout_asset', id=id))
         
         asset.user = user
+        asset.status = 'In Use'  # Auto-update status on checkout
         log_msg = f'Checked out to {user.name}'
         
         # Handle location mode
@@ -311,6 +312,7 @@ def checkin_asset(id):
     
     asset.user = None
     asset.location = target_location
+    asset.status = 'Available'  # Auto-update status on checkin
     
     # Auto-complete related offboarding item if exists
     from ..models.onboarding import ProcessItem

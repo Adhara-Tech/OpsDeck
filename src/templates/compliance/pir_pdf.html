@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Post-Incident Review - {{ incident.title }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            font-size: 11pt;
+            line-height: 1.5;
+            color: #333;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 3px solid #2c3e50;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        .header-left h1 {
+            font-size: 18pt;
+            color: #2c3e50;
+            margin: 0 0 5px 0;
+        }
+
+        .header-left .subtitle {
+            color: #7f8c8d;
+            font-size: 10pt;
+        }
+
+        .header-right {
+            text-align: right;
+        }
+
+        .header-right img {
+            max-height: 50px;
+            max-width: 150px;
+        }
+
+        /* Metadata Box */
+        .metadata {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 25px;
+        }
+
+        .metadata-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .metadata-item {
+            flex: 1;
+        }
+
+        .metadata-label {
+            font-weight: bold;
+            color: #6c757d;
+            font-size: 9pt;
+            text-transform: uppercase;
+        }
+
+        .metadata-value {
+            font-size: 11pt;
+        }
+
+        .severity-critical {
+            color: #dc3545;
+            font-weight: bold;
+        }
+
+        .severity-sev-0 {
+            color: #dc3545;
+            font-weight: bold;
+        }
+
+        .severity-sev-1 {
+            color: #fd7e14;
+            font-weight: bold;
+        }
+
+        .severity-sev-2 {
+            color: #ffc107;
+        }
+
+        .severity-sev-3 {
+            color: #28a745;
+        }
+
+        /* Section Headers */
+        h2 {
+            font-size: 14pt;
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 5px;
+            margin-top: 25px;
+            margin-bottom: 15px;
+        }
+
+        h3 {
+            font-size: 12pt;
+            color: #34495e;
+            margin-top: 15px;
+            margin-bottom: 10px;
+        }
+
+        /* Content Sections */
+        .section-content {
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #fdfdfd;
+            border-left: 3px solid #3498db;
+        }
+
+        /* Timeline */
+        .timeline {
+            position: relative;
+            padding-left: 30px;
+            margin: 20px 0;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 10px;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(to bottom, #3498db, #9b59b6);
+        }
+
+        .timeline-event {
+            position: relative;
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .timeline-event::before {
+            content: '';
+            position: absolute;
+            left: -24px;
+            top: 15px;
+            width: 12px;
+            height: 12px;
+            background: #3498db;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            box-shadow: 0 0 0 2px #3498db;
+        }
+
+        .timeline-time {
+            font-weight: bold;
+            color: #2c3e50;
+            font-size: 10pt;
+        }
+
+        .timeline-desc {
+            margin-top: 5px;
+            color: #555;
+        }
+
+        /* Affected Items Table */
+        .affected-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+
+        .affected-table th {
+            background: #2c3e50;
+            color: white;
+            padding: 8px 12px;
+            text-align: left;
+            font-size: 10pt;
+        }
+
+        .affected-table td {
+            padding: 8px 12px;
+            border-bottom: 1px solid #dee2e6;
+            font-size: 10pt;
+        }
+
+        .affected-table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: 40px;
+            padding-top: 15px;
+            border-top: 1px solid #dee2e6;
+            font-size: 9pt;
+            color: #7f8c8d;
+            text-align: center;
+        }
+
+        /* Page break helper */
+        .page-break {
+            page-break-before: always;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-left">
+            <h1>Post-Incident Review</h1>
+            <div class="subtitle">{{ incident.title }}</div>
+        </div>
+        <div class="header-right">
+            {% if org_settings and org_settings.logo_path %}
+            <img src="{{ url_for('static', filename='uploads/' + org_settings.logo_path, _external=True) }}" alt="Logo">
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Metadata Box -->
+    <div class="metadata">
+        <div class="metadata-row">
+            <div class="metadata-item">
+                <div class="metadata-label">Incident ID</div>
+                <div class="metadata-value">#{{ incident.id }}</div>
+            </div>
+            <div class="metadata-item">
+                <div class="metadata-label">Incident Date</div>
+                <div class="metadata-value">{{ incident.incident_date.strftime('%Y-%m-%d %H:%M') if
+                    incident.incident_date else 'N/A' }}</div>
+            </div>
+            <div class="metadata-item">
+                <div class="metadata-label">Severity</div>
+                <div class="metadata-value severity-{{ incident.severity|lower|replace('-', '-') }}">{{
+                    incident.severity }}</div>
+            </div>
+            <div class="metadata-item">
+                <div class="metadata-label">Impact</div>
+                <div class="metadata-value">{{ incident.impact }}</div>
+            </div>
+        </div>
+        <div class="metadata-row">
+            <div class="metadata-item">
+                <div class="metadata-label">Status</div>
+                <div class="metadata-value">{{ incident.status }}</div>
+            </div>
+            <div class="metadata-item">
+                <div class="metadata-label">Data Breach</div>
+                <div class="metadata-value">{{ 'Yes' if incident.data_breach else 'No' }}</div>
+            </div>
+            <div class="metadata-item">
+                <div class="metadata-label">Third Party Impact</div>
+                <div class="metadata-value">{{ 'Yes' if incident.third_party_impacted else 'No' }}</div>
+            </div>
+            <div class="metadata-item">
+                <div class="metadata-label">Owner</div>
+                <div class="metadata-value">{{ incident.owner.name if incident.owner else 'Unassigned' }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Executive Summary -->
+    <h2>Executive Summary</h2>
+    <div class="section-content">
+        {{ review.summary or 'No summary provided.' }}
+    </div>
+
+    <!-- Incident Description -->
+    <h2>Incident Description</h2>
+    <div class="section-content">
+        {{ incident.description }}
+    </div>
+
+    <!-- Root Cause Analysis -->
+    <h2>Root Cause Analysis</h2>
+
+    <h3>Lead-up (What happened before?)</h3>
+    <div class="section-content">
+        {{ review.lead_up or 'Not documented.' }}
+    </div>
+
+    <h3>Fault (Root Cause)</h3>
+    <div class="section-content">
+        {{ review.fault or 'Not documented.' }}
+    </div>
+
+    <!-- Timeline of Events -->
+    {% if sorted_timeline %}
+    <h2>Timeline of Events</h2>
+    <div class="timeline">
+        {% for event in sorted_timeline %}
+        <div class="timeline-event">
+            <div class="timeline-time">{{ event.event_time.strftime('%Y-%m-%d %H:%M') }}</div>
+            <div class="timeline-desc">{{ event.description }}</div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Impact & Response -->
+    <div class="page-break"></div>
+
+    <h2>Impact Analysis</h2>
+    <div class="section-content">
+        {{ review.impact_analysis or 'Not documented.' }}
+    </div>
+
+    <h3>Detection (How did we find out?)</h3>
+    <div class="section-content">
+        {{ review.detection or 'Not documented.' }}
+    </div>
+
+    <h3>Response (What did we do?)</h3>
+    <div class="section-content">
+        {{ review.response or 'Not documented.' }}
+    </div>
+
+    <h3>Recovery (How did we recover?)</h3>
+    <div class="section-content">
+        {{ review.recovery or 'Not documented.' }}
+    </div>
+
+    <!-- Affected Items -->
+    {% if incident.affected_assets or incident.affected_users or incident.affected_subscriptions %}
+    <h2>Affected Items</h2>
+
+    {% if incident.affected_assets %}
+    <h3>Affected Assets</h3>
+    <table class="affected-table">
+        <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Serial Number</th>
+        </tr>
+        {% for asset in incident.affected_assets %}
+        <tr>
+            <td>{{ asset.name }}</td>
+            <td>{{ asset.asset_type or '-' }}</td>
+            <td>{{ asset.serial_number or '-' }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% endif %}
+
+    {% if incident.affected_users %}
+    <h3>Affected Users</h3>
+    <table class="affected-table">
+        <tr>
+            <th>Name</th>
+            <th>Email</th>
+            <th>Department</th>
+        </tr>
+        {% for user in incident.affected_users %}
+        <tr>
+            <td>{{ user.name }}</td>
+            <td>{{ user.email or '-' }}</td>
+            <td>{{ user.department or '-' }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% endif %}
+    {% endif %}
+
+    <!-- Lessons Learned -->
+    <h2>Lessons Learned & Action Items</h2>
+    <div class="section-content">
+        {{ review.lessons_learned or 'No lessons documented yet.' }}
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <p>Post-Incident Review Report | Generated on {{ generated_at }} by {{ generated_by }}</p>
+        <p>{% if review.is_locked %}✓ Finalized on {{ review.locked_at.strftime('%Y-%m-%d %H:%M') if review.locked_at
+            else 'N/A' }}{% else %}⚠ Draft - Not finalized{% endif %}</p>
+    </div>
+</body>
+
+</html>

@@ -461,6 +461,11 @@ def incident_review(id):
         db.session.commit()
 
     if request.method == 'POST':
+        # Block edits if report is locked
+        if review.is_locked:
+            flash('This report is locked. Unlock it to make changes.', 'warning')
+            return redirect(url_for('compliance.incident_review', id=id))
+        
         # Update the text fields
         review.summary = request.form.get('summary')
         review.lead_up = request.form.get('lead_up')
@@ -476,11 +481,39 @@ def incident_review(id):
 
     return render_template('compliance/pir_form.html', incident=incident, review=review)
 
+@compliance_bp.route('/incidents/review/<int:review_id>/toggle-lock', methods=['POST'])
+@login_required
+@admin_required
+def toggle_pir_lock(review_id):
+    """Toggle lock state of a Post-Incident Review."""
+    review = PostIncidentReview.query.get_or_404(review_id)
+    
+    if review.is_locked:
+        # Unlock
+        review.is_locked = False
+        review.locked_at = None
+        review.locked_by_id = None
+        flash('Post-Incident Review has been unlocked for editing.', 'success')
+    else:
+        # Lock
+        review.is_locked = True
+        review.locked_at = datetime.utcnow()
+        review.locked_by_id = session.get('user_id')
+        flash('Post-Incident Review has been finalized and locked.', 'success')
+    
+    db.session.commit()
+    return redirect(url_for('compliance.incident_review', id=review.incident_id))
+
 @compliance_bp.route('/incidents/review/<int:review_id>/timeline', methods=['POST'])
 @login_required
 @admin_required
 def add_timeline_event(review_id):
     review = PostIncidentReview.query.get_or_404(review_id)
+    
+    # Block timeline additions when locked
+    if review.is_locked:
+        return jsonify({'error': 'Report is locked'}), 403
+    
     data = request.json
     max_order = db.session.query(db.func.max(IncidentTimelineEvent.order)).filter_by(review_id=review.id).scalar() or -1
     
@@ -521,6 +554,47 @@ def reorder_timeline_events(review_id):
             event.order = index
     db.session.commit()
     return jsonify({'success': True})
+
+@compliance_bp.route('/incidents/<int:id>/export_pdf')
+@login_required
+@admin_required
+def export_pir_pdf(id):
+    """Export Post-Incident Review as professional PDF."""
+    from weasyprint import HTML
+    from flask import make_response
+    from ..models.core import OrganizationSettings
+    
+    incident = SecurityIncident.query.get_or_404(id)
+    review = incident.review
+    
+    if not review:
+        flash('No Post-Incident Review found for this incident.', 'warning')
+        return redirect(url_for('compliance.incident_detail', id=id))
+    
+    # Get organization settings for logo
+    org_settings = OrganizationSettings.query.first()
+    user = User.query.get(session.get('user_id'))
+    
+    # Sort timeline by event_time
+    sorted_timeline = sorted(review.timeline_events, key=lambda e: e.event_time)
+    
+    html_content = render_template(
+        'compliance/pir_pdf.html',
+        incident=incident,
+        review=review,
+        sorted_timeline=sorted_timeline,
+        org_settings=org_settings,
+        generated_at=datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
+        generated_by=user.name if user else 'System'
+    )
+    
+    pdf_file = HTML(string=html_content).write_pdf()
+    
+    response = make_response(pdf_file)
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = f'attachment; filename=PIR_{incident.id}_{incident.title[:20].replace(" ", "_")}.pdf'
+    
+    return response
 
 @compliance_bp.route('/data-erasures')
 @login_required
