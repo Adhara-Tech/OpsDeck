@@ -10,9 +10,10 @@
 
 <div class="row">
     <div class="col-md-8">
-        <div class="card shadow-sm">
+        <!-- Included Items Card -->
+        <div class="card shadow-sm mb-4">
             <div class="card-header bg-light d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Included Items</h5>
+                <h5 class="mb-0"><i class="fas fa-tasks me-2"></i>Included Items</h5>
                 <span class="badge bg-primary">{{ pack.items|length }} items</span>
             </div>
             <div class="list-group list-group-flush">
@@ -44,9 +45,55 @@
                 {% endfor %}
             </div>
         </div>
+
+        <!-- Scheduled Communications Card -->
+        <div class="card shadow-sm">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-envelope me-2"></i>Scheduled Communications</h5>
+                <span class="badge bg-info">{{ pack.communications|length if pack.communications else 0 }} emails</span>
+            </div>
+            <div class="list-group list-group-flush">
+                {% for comm in pack.communications %}
+                <div class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <i class="fas fa-paper-plane text-primary me-2"></i>
+                        <strong>{{ comm.template.name }}</strong>
+                        <span class="badge bg-secondary ms-2">
+                            {% if comm.offset_days > 0 %}+{{ comm.offset_days }} days
+                            {% elif comm.offset_days < 0 %}{{ comm.offset_days }} days {% else %}Same day{% endif %}
+                                </span>
+                                <span
+                                    class="badge bg-{{ 'success' if comm.recipient_type == 'target_user' else 'info' }} ms-1">
+                                    {% if comm.recipient_type == 'target_user' %}To User
+                                    {% elif comm.recipient_type == 'manager' %}To Manager
+                                    {% elif comm.recipient_type == 'buddy' %}To Buddy
+                                    {% else %}{{ comm.recipient_type }}{% endif %}
+                                </span>
+                                <br>
+                                <small class="text-muted ms-4">Subject: {{ comm.template.subject[:50] }}{% if
+                                    comm.template.subject|length > 50 %}...{% endif %}</small>
+                    </div>
+                    <form
+                        action="{{ url_for('onboarding.delete_pack_communication', pack_id=pack.id, comm_id=comm.id) }}"
+                        method="POST" class="d-inline" onsubmit="return confirm('Remove this communication rule?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Remove">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </form>
+                </div>
+                {% else %}
+                <div class="list-group-item text-center py-4 text-muted">
+                    <i class="fas fa-envelope-open fa-2x mb-2 d-block"></i>
+                    No scheduled communications. Add email rules on the right.
+                </div>
+                {% endfor %}
+            </div>
+        </div>
     </div>
 
     <div class="col-md-4">
+        <!-- Add Item Card -->
         <div class="card border-primary mb-4">
             <div class="card-header bg-primary text-white">
                 <h5 class="mb-0"><i class="fas fa-plus-circle me-2"></i>Add Item</h5>
@@ -115,23 +162,60 @@
             </div>
         </div>
 
+        <!-- Add Communication Card -->
+        <div class="card border-info mb-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-envelope me-2"></i>Add Email Rule</h5>
+            </div>
+            <div class="card-body">
+                <form action="{{ url_for('onboarding.add_pack_communication', pack_id=pack.id) }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+                    <div class="mb-3">
+                        <label class="form-label">Email Template</label>
+                        <select class="form-select" name="template_id" required>
+                            <option value="">Select Template...</option>
+                            {% for tpl in email_templates %}
+                            <option value="{{ tpl.id }}">{{ tpl.name }} ({{ tpl.category }})</option>
+                            {% endfor %}
+                        </select>
+                        {% if not email_templates %}
+                        <small class="text-warning">No templates available. <a
+                                href="{{ url_for('admin_communications.new_template') }}">Create one</a>.</small>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Send Offset (days)</label>
+                        <input type="number" class="form-control" name="offset_days" value="0" required>
+                        <small class="text-muted">
+                            Relative to start date (onboarding) or departure date (offboarding).<br>
+                            Use negative for before, positive for after. E.g.: -3 = 3 days before.
+                        </small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Recipient</label>
+                        <select class="form-select" name="recipient_type">
+                            <option value="target_user">Target User (New Hire / Departing)</option>
+                            <option value="manager">Manager</option>
+                            <option value="buddy">Buddy</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn btn-info w-100" {% if not email_templates %}disabled{% endif %}>
+                        <i class="fas fa-plus me-1"></i> Add Email Rule
+                    </button>
+                </form>
+            </div>
+        </div>
+
         <div class="alert alert-info">
             <i class="fas fa-info-circle me-2"></i>
-            <strong>Note:</strong> Items added here will automatically appear in all new Onboardings that select this
+            <strong>Note:</strong> Items and email rules added here will automatically apply to all new processes that
+            select this
             profile.
         </div>
     </div>
 </div>
-
-<script>
-    function toggleSoftwareField() {
-        const type = document.getElementById('itemTypeSelect').value;
-        const field = document.getElementById('softwareField');
-        if (type === 'Software') {
-            field.classList.remove('d-none');
-        } else {
-            field.classList.add('d-none');
-        }
-    }
-</script>
 {% endblock %}

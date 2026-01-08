@@ -12,8 +12,12 @@ const assets = [
     { src: 'simple-datatables/dist', dest: 'simple-datatables' },
     { src: 'sortablejs/Sortable.min.js', dest: 'sortablejs/Sortable.min.js' },
     { src: 'tom-select/dist', dest: 'tom-select' },
-    { src: 'mermaid/dist/mermaid.min.js', dest: 'mermaid/mermaid.min.js' }
+    { src: 'mermaid/dist/mermaid.min.js', dest: 'mermaid/mermaid.min.js' },
+    // SunEditor WYSIWYG (MIT license)
+    { src: 'suneditor/dist', dest: 'suneditor' }
 ];
+
+
 
 const targetBase = path.join(__dirname, 'src/static/vendor');
 

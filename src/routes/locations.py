@@ -46,7 +46,17 @@ def unarchive_location(id):
 @login_required
 def new_location():
     if request.method == 'POST':
-        location = Location(name=request.form['name'])
+        location = Location(
+            name=request.form['name'],
+            address=request.form.get('address', '').strip() or None,
+            city=request.form.get('city', '').strip() or None,
+            zip_code=request.form.get('zip_code', '').strip() or None,
+            country=request.form.get('country', '').strip() or None,
+            timezone=request.form.get('timezone', '').strip() or None,
+            tax_id_override=request.form.get('tax_id_override', '').strip() or None,
+            phone=request.form.get('phone', '').strip() or None,
+            reception_email=request.form.get('reception_email', '').strip() or None
+        )
         db.session.add(location)
         db.session.commit()
         flash('Location created successfully!')
@@ -61,6 +71,14 @@ def edit_location(id):
 
     if request.method == 'POST':
         location.name = request.form['name']
+        location.address = request.form.get('address', '').strip() or None
+        location.city = request.form.get('city', '').strip() or None
+        location.zip_code = request.form.get('zip_code', '').strip() or None
+        location.country = request.form.get('country', '').strip() or None
+        location.timezone = request.form.get('timezone', '').strip() or None
+        location.tax_id_override = request.form.get('tax_id_override', '').strip() or None
+        location.phone = request.form.get('phone', '').strip() or None
+        location.reception_email = request.form.get('reception_email', '').strip() or None
         db.session.commit()
         flash('Location updated successfully!')
         return redirect(url_for('locations.locations'))

@@ -11,12 +11,107 @@
 <div class="card">
     <div class="card-body">
         <form method="POST">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="mb-3">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <!-- Basic Info -->
+            <h5 class="card-title"><i class="fas fa-info-circle me-2"></i>Basic Information</h5>
+            <div class="mb-4">
                 <label for="name" class="form-label">Name *</label>
-                <input type="text" class="form-control" id="name" name="name" value="{{ location.name if location else '' }}" required>
+                <input type="text" class="form-control" id="name" name="name"
+                    value="{{ location.name if location else '' }}" required>
             </div>
-            
+
+            <!-- Physical Address Section -->
+            <hr>
+            <h5 class="card-title">
+                <i class="fas fa-building me-2"></i>Physical Address
+                <small class="text-muted fw-normal">(optional - fill to mark as physical site)</small>
+            </h5>
+
+            <div class="row mb-3">
+                <div class="col-md-12">
+                    <label for="address" class="form-label">Address</label>
+                    <input type="text" class="form-control" id="address" name="address"
+                        value="{{ location.address if location else '' }}" placeholder="Street name and number">
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <label for="city" class="form-label">City</label>
+                    <input type="text" class="form-control" id="city" name="city"
+                        value="{{ location.city if location else '' }}">
+                </div>
+                <div class="col-md-4">
+                    <label for="zip_code" class="form-label">ZIP/Postal Code</label>
+                    <input type="text" class="form-control" id="zip_code" name="zip_code"
+                        value="{{ location.zip_code if location else '' }}">
+                </div>
+                <div class="col-md-4">
+                    <label for="country" class="form-label">Country</label>
+                    <input type="text" class="form-control" id="country" name="country"
+                        value="{{ location.country if location else '' }}">
+                </div>
+            </div>
+
+            <!-- Timezone -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <label for="timezone" class="form-label">Timezone</label>
+                    <select class="form-select" id="timezone" name="timezone">
+                        <option value="">-- Select Timezone --</option>
+                        {% set common_timezones = [
+                        'Europe/Madrid', 'Europe/London', 'Europe/Paris', 'Europe/Berlin',
+                        'Europe/Rome', 'Europe/Amsterdam', 'Europe/Lisbon',
+                        'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles',
+                        'America/Mexico_City', 'America/Bogota', 'America/Lima', 'America/Sao_Paulo',
+                        'America/Buenos_Aires', 'Atlantic/Canary',
+                        'Asia/Tokyo', 'Asia/Shanghai', 'Asia/Singapore', 'Asia/Dubai',
+                        'Africa/Johannesburg', 'Australia/Sydney'
+                        ] %}
+                        {% for tz in common_timezones %}
+                        <option value="{{ tz }}" {% if location and location.timezone==tz %}selected{% endif %}>{{ tz }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <small class="text-muted">Used for scheduling tasks in local time.</small>
+                </div>
+            </div>
+
+            <!-- Legal Override -->
+            <hr>
+            <h5 class="card-title">
+                <i class="fas fa-gavel me-2"></i>Legal Override
+                <small class="text-muted fw-normal">(only for subsidiaries with different tax ID)</small>
+            </h5>
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <label for="tax_id_override" class="form-label">Tax ID Override</label>
+                    <input type="text" class="form-control" id="tax_id_override" name="tax_id_override"
+                        value="{{ location.tax_id_override if location else '' }}"
+                        placeholder="Leave empty to inherit from Organization">
+                    <small class="text-muted">Only fill if this location uses a different CIF/NIF.</small>
+                </div>
+            </div>
+
+            <!-- Contact Info -->
+            <hr>
+            <h5 class="card-title"><i class="fas fa-phone me-2"></i>Contact Information</h5>
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <label for="phone" class="form-label">Phone</label>
+                    <input type="tel" class="form-control" id="phone" name="phone"
+                        value="{{ location.phone if location else '' }}" placeholder="+34 91 123 4567">
+                </div>
+                <div class="col-md-6">
+                    <label for="reception_email" class="form-label">Reception Email</label>
+                    <input type="email" class="form-control" id="reception_email" name="reception_email"
+                        value="{{ location.reception_email if location else '' }}" placeholder="reception@office.com">
+                    <small class="text-muted">Used for offboarding emails (equipment return).</small>
+                </div>
+            </div>
+
+            <hr>
             <a href="{{ url_for('locations.locations') }}" class="btn btn-secondary">Cancel</a>
             <button type="submit" class="btn btn-primary">Save Location</button>
         </form>

@@ -433,6 +433,88 @@
             </div>
         </div>
 
+        <!-- Communications Timeline -->
+        {% if communications %}
+        <div class="card mb-3 border-info">
+            <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="fas fa-envelope me-2"></i>Email Timeline</h6>
+                <span class="badge bg-light text-dark">{{ communications|length }}</span>
+            </div>
+            <div class="list-group list-group-flush" style="max-height: 400px; overflow-y: auto;">
+                {% for comm in communications %}
+                <div class="list-group-item {{ 'bg-light' if comm.status != 'pending' else '' }}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <strong
+                                class="{% if comm.status == 'sent' %}text-success{% elif comm.status == 'failed' %}text-danger{% elif comm.status == 'cancelled' %}text-muted text-decoration-line-through{% endif %}">
+                                {{ comm.template.name }}
+                            </strong>
+                            <br>
+                            <small class="text-muted">
+                                <i class="far fa-calendar me-1"></i>{{ comm.scheduled_date.strftime('%d %b %Y') }}
+                                {% if comm.is_overdue and comm.status == 'pending' %}
+                                <span class="badge bg-warning text-dark ms-1">Overdue</span>
+                                {% endif %}
+                            </small>
+                            <br>
+                            <small class="text-muted">
+                                <i class="far fa-envelope me-1"></i>{{ comm.recipient_email or 'No email' }}
+                                {% if comm.recipient_type != 'target_user' %}
+                                <span class="badge bg-secondary ms-1">{{ comm.recipient_type }}</span>
+                                {% endif %}
+                            </small>
+                        </div>
+                        <div class="ms-2">
+                            {% if comm.status == 'pending' %}
+                            <span class="badge bg-primary">Pending</span>
+                            {% elif comm.status == 'sent' %}
+                            <span class="badge bg-success"><i class="fas fa-check me-1"></i>Sent</span>
+                            {% elif comm.status == 'failed' %}
+                            <span class="badge bg-danger"><i class="fas fa-times me-1"></i>Failed</span>
+                            {% elif comm.status == 'cancelled' %}
+                            <span class="badge bg-secondary">Cancelled</span>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    {% if comm.status == 'pending' %}
+                    <div class="mt-2 d-flex gap-1">
+                        <form action="{{ url_for('onboarding.send_communication_now', id=comm.id) }}" method="POST"
+                            class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-primary"
+                                onclick="return confirm('Send this email now?');">
+                                <i class="fas fa-paper-plane me-1"></i>Send Now
+                            </button>
+                        </form>
+                        <form action="{{ url_for('onboarding.cancel_communication', id=comm.id) }}" method="POST"
+                            class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-outline-secondary"
+                                onclick="return confirm('Cancel this scheduled email?');">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </form>
+                    </div>
+                    {% endif %}
+
+                    {% if comm.status == 'sent' and comm.sent_at %}
+                    <small class="text-success d-block mt-1">
+                        <i class="fas fa-check-circle me-1"></i>Sent {{ comm.sent_at.strftime('%d %b %Y %H:%M') }}
+                    </small>
+                    {% endif %}
+
+                    {% if comm.status == 'failed' and comm.error_message %}
+                    <small class="text-danger d-block mt-1">
+                        <i class="fas fa-exclamation-circle me-1"></i>{{ comm.error_message[:100] }}
+                    </small>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
         <div class="d-grid">
             <a href="{{ url_for('onboarding.index') }}" class="btn btn-outline-secondary">
                 <i class="fas fa-arrow-left me-2"></i>Back to Dashboard

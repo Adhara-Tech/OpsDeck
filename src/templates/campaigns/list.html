@@ -1,0 +1,141 @@
+{% extends "layout.html" %}
+
+{% block title %}Campaigns - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-bullhorn me-2"></i>Mass Communications</h2>
+    <a href="{{ url_for('campaigns.new_campaign') }}" class="btn btn-primary">
+        <i class="fas fa-plus me-1"></i> New Campaign
+    </a>
+</div>
+
+
+<ul class="nav nav-pills mb-3">
+    <li class="nav-item">
+        <a class="nav-link {{ 'active' if current_view == 'active' else '' }}" aria-current="page"
+            href="{{ url_for('campaigns.list_campaigns', view='active') }}">
+            <i class="fas fa-play-circle me-1"></i> Active
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {{ 'active' if current_view == 'archived' else '' }}"
+            href="{{ url_for('campaigns.list_campaigns', view='archived') }}">
+            <i class="fas fa-archive me-1"></i> Archived
+        </a>
+    </li>
+</ul>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <table class="table table-striped datatable" id="campaigns-table">
+            <thead>
+                <tr>
+                    <th>Title</th>
+                    <th>Subject</th>
+                    <th>Status</th>
+                    <th>Scheduled</th>
+                    <th>Recipients</th>
+                    <th>Progress</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for campaign in campaigns %}
+                {% set stats = campaign.get_communications_stats() %}
+                <tr>
+                    <td>
+                        <a href="{{ url_for('campaigns.detail', id=campaign.id) }}" class="text-decoration-none">
+                            <strong>{{ campaign.title }}</strong>
+                        </a>
+                        <br>
+                        <small class="text-muted">by {{ campaign.created_by.name if campaign.created_by else 'Unknown'
+                            }}</small>
+                    </td>
+                    <td>{{ campaign.subject[:40] }}{% if campaign.subject|length > 40 %}...{% endif %}</td>
+                    <td>
+                        {% if campaign.status == 'draft' %}
+                        <span class="badge bg-secondary"><i class="fas fa-pencil-alt me-1"></i>Draft</span>
+                        {% elif campaign.status == 'scheduled' %}
+                        <span class="badge bg-primary"><i class="fas fa-clock me-1"></i>Scheduled</span>
+                        {% elif campaign.status == 'ongoing' %}
+                        <span class="badge bg-info"><i class="fas fa-spinner fa-spin me-1"></i>Ongoing</span>
+                        {% elif campaign.status == 'finished' %}
+                        <span class="badge bg-success"><i class="fas fa-check-double me-1"></i>Finished</span>
+                        {% elif campaign.status == 'archived' %}
+                        <span class="badge bg-dark"><i class="fas fa-archive me-1"></i>Archived</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if campaign.scheduled_at %}
+                        {{ campaign.scheduled_at.strftime('%d %b %Y %H:%M') }}
+                        {% else %}
+                        <span class="text-muted">Immediate</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if stats.total > 0 %}
+                        <span class="badge bg-info">{{ stats.total }}</span>
+                        {% elif campaign.send_to_all %}
+                        <span class="badge bg-warning text-dark">All Users</span>
+                        {% else %}
+                        {{ campaign.target_users|length + campaign.target_groups|length }} selected
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if stats.total > 0 %}
+                        <div class="progress" style="height: 20px; min-width: 100px;">
+                            {% set sent_pct = (stats.sent / stats.total * 100) if stats.total > 0 else 0 %}
+                            {% set failed_pct = (stats.failed / stats.total * 100) if stats.total > 0 else 0 %}
+                            <div class="progress-bar bg-success" style="width: {{ sent_pct }}%"
+                                title="{{ stats.sent }} sent"></div>
+                            <div class="progress-bar bg-danger" style="width: {{ failed_pct }}%"
+                                title="{{ stats.failed }} failed"></div>
+                        </div>
+                        <small class="text-muted">{{ stats.sent }}/{{ stats.total }}</small>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{{ url_for('campaigns.detail', id=campaign.id) }}"
+                            class="btn btn-sm btn-outline-primary" title="View">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                        {% if campaign.status == 'draft' %}
+                        <a href="{{ url_for('campaigns.edit_campaign', id=campaign.id) }}"
+                            class="btn btn-sm btn-outline-secondary" title="Edit">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        {% endif %}
+                        <form action="{{ url_for('campaigns.clone_campaign', id=campaign.id) }}" method="POST"
+                            class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-outline-info" title="Clone">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                        </form>
+                        {% if campaign.can_be_archived %}
+                        <form action="{{ url_for('campaigns.archive_campaign', id=campaign.id) }}" method="POST"
+                            class="d-inline" onsubmit="return confirm('Archive this campaign?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-outline-dark" title="Archive">
+                                <i class="fas fa-archive"></i>
+                            </button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-5">
+                        <i class="fas fa-bullhorn fa-3x mb-3 d-block"></i>
+                        No campaigns yet. <a href="{{ url_for('campaigns.new_campaign') }}">Create one</a>.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

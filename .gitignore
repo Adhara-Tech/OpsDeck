@@ -16,3 +16,4 @@ package-lock.json
 
 # Generated artifacts
 src/static/vendor/
+/instance
