@@ -3,7 +3,7 @@
 {% block title %}{{ title }}{% endblock %}
 
 {% block content %}
-<h1 class="mb-0">{{ title }}</h1>
+<h1 class="mb-0"><i class="fa-solid fa-layer-group me-2"></i>{{ title }}</h1>
 <hr>
 
 {% set current_data = framework_data or framework %}
@@ -25,7 +25,7 @@
                     <div class="alert alert-info">
                         <i class="fa-solid fa-circle-info"></i>
                         Details of built-in frameworks cannot be modified.
-                        Solo puedes activar o desactivarlos.
+                        You can only activate or deactivate them.
                     </div>
                     {% endif %}
 
@@ -44,7 +44,7 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="link" class="form-label">Enlace (Opcional)</label>
+                        <label for="link" class="form-label">Link (Optional)</label>
                         <input type="url" class="form-control" id="link" name="link"
                             value="{{ current_data.link if current_data else '' }}" {% if framework_disabled
                             %}disabled{% endif %}>
@@ -56,7 +56,7 @@
                         <input class="form-check-input" type="checkbox" id="is_active" name="is_active" {% if
                             (current_data and current_data.is_active) or (not current_data) %}checked{% endif %}>
                         <label class="form-check-label" for="is_active">
-                            Activo
+                            Active
                         </label>
                         <div class="form-text">
                             Inactive frameworks will not be shown when creating new audits.
@@ -73,10 +73,10 @@
             <div class="card mb-3">
                 <div class="card-header">
                     <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="card-title mb-0">Gestión de Controles</h5>
+                        <h5 class="card-title mb-0">Control Management</h5>
                         <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal"
                             data-bs-target="#controlModal" onclick="prepareAddModal()">
-                            <i class="fa-solid fa-plus"></i> Añadir Control
+                            <i class="fa-solid fa-plus"></i> Add Control
                         </button>
                     </div>
                 </div>
@@ -85,7 +85,7 @@
                         <table class="table table-hover">
                             <thead>
                                 <tr>
-                                    <th>ID Control</th>
+                                    <th>Control ID</th>
                                     <th>Name</th>
                                     <th>Actions</th>
                                 </tr>
@@ -110,7 +110,7 @@
                                 {% else %}
                                 <tr>
                                     <td colspan="3" class="text-center">
-                                        No hay controles definidos. ¡Añade el primero!
+                                        No controls defined. Add your first one!
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -126,7 +126,7 @@
             {% if framework and framework.is_custom %}
             <div class="card border-danger">
                 <div class="card-header bg-danger text-white">
-                    <h5 class="card-title mb-0">Zona de Peligro</h5>
+                    <h5 class="card-title mb-0">Danger Zone</h5>
                 </div>
                 <div class="card-body">
                     <p>Deleting a framework is a permanent action.</p>
@@ -150,30 +150,30 @@
 {% block scripts_extra %}
 {% if framework and framework.is_custom %}
 <script>
-    // --- Lógica del Modal (adaptada SIN CSRF) ---
+    // --- Modal Logic ---
     const controlModal = new bootstrap.Modal(document.getElementById('controlModal'));
     const modalTitle = document.getElementById('controlModalLabel');
     const modalForm = document.getElementById('controlForm');
     const modalSubmitBtn = document.getElementById('modalSubmitBtn');
 
-    // Apuntar a los campos del modal por su ID
+    // Target modal fields by their ID
     const formFieldControlId = document.getElementById('modalControlIdText');
     const formFieldName = document.getElementById('modalName');
     const formFieldDesc = document.getElementById('modalDescription');
     const formFieldFwId = document.getElementById('modalFrameworkId');
 
-    // Prepara el modal para AÑADIR (sin cambios)
+    // Prepare modal for ADD
     function prepareAddModal() {
         modalForm.setAttribute('action', '{{ url_for("frameworks.add_control") }}');
         modalTitle.textContent = 'Add New Control';
-        modalSubmitBtn.textContent = 'Añadir Control';
+        modalSubmitBtn.textContent = 'Add Control';
         formFieldControlId.value = '';
         formFieldName.value = '';
         formFieldDesc.value = '';
         formFieldFwId.value = '{{ framework.id }}';
     }
 
-    // Prepara el modal para EDITAR (sin cambios)
+    // Prepare modal for EDIT
     async function prepareEditModal(button) {
         const controlId = button.getAttribute('data-control-id');
         modalForm.setAttribute('action', `/frameworks/control/${controlId}/edit`);
@@ -183,19 +183,19 @@
 
         try {
             const response = await fetch(`/frameworks/control/${controlId}/get_data`);
-            if (!response.ok) throw new Error('No se pudieron cargar los datos del control.');
+            if (!response.ok) throw new Error('Could not load control data.');
             const data = await response.json();
             formFieldControlId.value = data.control_id_text;
             formFieldName.value = data.name;
             formFieldDesc.value = data.description || '';
         } catch (error) {
             console.error(error);
-            alert('Error al cargar datos: ' + error.message);
+            alert('Error loading data: ' + error.message);
             controlModal.hide();
         }
     }
 
-    // Listener para el botón de Guardar del modal (sin cambios)
+    // Listener for modal Save button
     modalSubmitBtn.addEventListener('click', async function (e) {
 
         const url = modalForm.getAttribute('action');
@@ -214,15 +214,15 @@
                     window.location.reload();
                 }
             } else {
-                throw new Error(result.message || 'Error desconocido');
+                throw new Error(result.message || 'Unknown error');
             }
         } catch (error) {
-            console.error('Error al enviar el formulario:', error);
+            console.error('Error submitting form:', error);
             alert('Error: ' + error.message);
         }
     });
 
-    // Listener para borrar control (sin cambios)
+    // Listener for delete control
     async function deleteControl(button, controlId) {
         if (!confirm('Are you sure you want to delete this control?')) {
             return;
@@ -236,19 +236,19 @@
             if (result.success && result.reload) {
                 window.location.reload();
             } else {
-                throw new Error(result.message || 'Error desconocido');
+                throw new Error(result.message || 'Unknown error');
             }
         } catch (error) {
-            console.error('Error al eliminar el control:', error);
+            console.error('Error deleting control:', error);
             alert('Error: ' + error.message);
         }
     }
 
-    // Listener para borrar framework (sin cambios)
+    // Listener for delete framework
     const deleteFrameworkBtn = document.getElementById('deleteFrameworkBtn');
     if (deleteFrameworkBtn) {
         deleteFrameworkBtn.addEventListener('click', async function () {
-            if (!confirm('¿Estás SEGURO de que quieres eliminar este framework y todos sus controles? Esta acción es permanente.')) {
+            if (!confirm('Are you SURE you want to delete this framework and all its controls? This action is permanent.')) {
                 return;
             }
 
@@ -260,10 +260,10 @@
                 if (result.success && result.redirect_url) {
                     window.location.href = result.redirect_url;
                 } else {
-                    throw new Error(result.message || 'Error desconocido');
+                    throw new Error(result.message || 'Unknown error');
                 }
             } catch (error) {
-                console.error('Error al eliminar el framework:', error);
+                console.error('Error deleting framework:', error);
                 alert('Error: ' + error.message);
             }
         });
