@@ -6,7 +6,11 @@ from markupsafe import Markup
 from functools import wraps
 from datetime import date, timedelta, datetime
 from dateutil.relativedelta import relativedelta
-from ..models import db, User, UserKnownIP, Subscription, NotificationSetting, Asset, Supplier, Contact, Purchase, Peripheral, Location, PaymentMethod
+from ..models import db, User, UserKnownIP, Subscription, NotificationSetting, Asset, Supplier, Contact, Purchase, Peripheral, Location, PaymentMethod, License, MaintenanceLog
+from ..models.security import SecurityIncident, Risk, Framework, FrameworkControl
+from ..models.credentials import Credential, CredentialSecret
+from ..models.certificates import Certificate, CertificateVersion
+from ..models.audits import ComplianceAudit
 from src import limiter
 from src import notifications
 import calendar
@@ -75,7 +79,7 @@ def verify_ip_and_login(user):
         )
         session['user_id'] = user.id
         flash('Logged in successfully', 'success')
-        return redirect(url_for('main.dashboard'))
+        return redirect(url_for('main.organizational_health'))
     
     # --- NEW IP DETECTED: Trigger MFA ---
     
@@ -168,7 +172,7 @@ def mfa_verify():
                 # Complete login
                 session['user_id'] = user.id
                 flash('Dispositivo verificado. Bienvenido.', 'success')
-                return redirect(url_for('main.dashboard'))
+                return redirect(url_for('main.organizational_health'))
         
         # FAILURE - Wrong code
         log_audit(
@@ -246,7 +250,7 @@ def google_callback():
         )
         session['user_id'] = user.id
         flash('Logged in successfully via Google', 'success')
-        return redirect(url_for('main.dashboard'))
+        return redirect(url_for('main.organizational_health'))
     else:
         # User not found in database
         log_audit(
@@ -293,7 +297,226 @@ def password_change_required(f):
 
 @main_bp.route('/')
 @login_required
-def dashboard():
+def organizational_health():
+    """Executive Organizational Health Dashboard - Landing Page."""
+    today = date.today()
+    ninety_days = today + timedelta(days=90)
+    
+    # ----- HEALTH SCORE CALCULATION -----
+    # Based on inverse of critical/high risks
+    critical_risks = Risk.query.filter(Risk.residual_likelihood >= 4, Risk.residual_impact >= 4).count()
+    high_risks = Risk.query.filter(Risk.residual_likelihood >= 3, Risk.residual_impact >= 3).count()
+    health_score = max(0, 100 - (critical_risks * 15) - (high_risks * 5))
+    
+    # ----- GLOBAL STATUS -----
+    active_incidents = SecurityIncident.query.filter(
+        SecurityIncident.status.in_(['Open', 'Investigating', 'Escalated'])
+    ).count()
+    
+    if critical_risks > 0 or active_incidents > 0:
+        global_status = 'critical'
+    elif high_risks > 2:
+        global_status = 'degraded'
+    else:
+        global_status = 'operational'
+    
+    # ----- CRITICAL ACTION ITEMS (RED STATE) -----
+    critical_items = []
+    
+    # Active high-severity incidents
+    incidents = SecurityIncident.query.filter(
+        SecurityIncident.status.in_(['Open', 'Investigating', 'Escalated']),
+        SecurityIncident.severity.in_(['SEV-1', 'SEV-2', 'P1', 'P2'])
+    ).limit(5).all()
+    for inc in incidents:
+        critical_items.append({
+            'type': 'security',
+            'severity': 'critical',
+            'title': inc.title,
+            'description': f'{inc.severity} - {inc.status}',
+            'link': url_for('compliance.incident_detail', id=inc.id)
+        })
+    
+    # Overdue maintenance
+    overdue_logs = MaintenanceLog.query.filter(
+        MaintenanceLog.status == 'Pending',
+        MaintenanceLog.event_date < today
+    ).limit(5).all()
+    for log in overdue_logs:
+        critical_items.append({
+            'type': 'operational',
+            'severity': 'high',
+            'title': f'{log.asset.name if log.asset else "Unknown"} - Maintenance Overdue',
+            'description': log.description[:50] if log.description else 'Scheduled maintenance delayed',
+            'link': url_for('maintenance.log_detail', id=log.id)
+        })
+    
+    # Expired credentials
+    expired_secrets = CredentialSecret.query.filter(
+        CredentialSecret.is_active == True,
+        CredentialSecret.expires_at < datetime.utcnow()
+    ).limit(5).all()
+    for secret in expired_secrets:
+        critical_items.append({
+            'type': 'security',
+            'severity': 'critical',
+            'title': f'{secret.credential.name} - Credential Expired',
+            'description': f'Type: {secret.credential.type}',
+            'link': url_for('credentials.credential_detail', id=secret.credential.id)
+        })
+    
+    # Expired certificates (still active)
+    expired_certs = CertificateVersion.query.filter(
+        CertificateVersion.is_active == True,
+        CertificateVersion.expires_at < today
+    ).limit(5).all()
+    for cv in expired_certs:
+        critical_items.append({
+            'type': 'security',
+            'severity': 'critical',
+            'title': f'{cv.certificate.name} - Certificate Expired',
+            'description': f'Expired: {cv.expires_at.strftime("%Y-%m-%d")}' if cv.expires_at else 'Expired',
+            'link': url_for('certificates.certificate_detail', id=cv.certificate.id)
+        })
+    
+    # ----- EXPIRATION HORIZON (YELLOW STATE) -----
+    expirations = {'finance': [], 'identity': [], 'certificates': [], 'legal': []}
+    
+    # Financial: Payment Methods
+    payment_methods = PaymentMethod.query.filter(
+        PaymentMethod.is_archived == False,
+        PaymentMethod.expiry_date.isnot(None)
+    ).all()
+    for pm in payment_methods:
+        last_day = pm.expiry_date.replace(day=calendar.monthrange(pm.expiry_date.year, pm.expiry_date.month)[1])
+        if today <= last_day <= ninety_days:
+            days = (last_day - today).days
+            expirations['finance'].append({
+                'name': pm.name,
+                'days': days,
+                'meta': pm.details or pm.method_type
+            })
+    expirations['finance'].sort(key=lambda x: x['days'])
+    
+    # Identity: Credentials
+    expiring_secrets = CredentialSecret.query.filter(
+        CredentialSecret.is_active == True,
+        CredentialSecret.expires_at.isnot(None),
+        CredentialSecret.expires_at > datetime.utcnow(),
+        CredentialSecret.expires_at <= datetime.utcnow() + timedelta(days=90)
+    ).all()
+    for secret in expiring_secrets:
+        days = (secret.expires_at.date() - today).days
+        expirations['identity'].append({
+            'name': secret.credential.name,
+            'type': secret.credential.type,
+            'days': days
+        })
+    expirations['identity'].sort(key=lambda x: x['days'])
+    
+    # Certificates
+    cert_versions = CertificateVersion.query.filter(
+        CertificateVersion.is_active == True,
+        CertificateVersion.expires_at > today,
+        CertificateVersion.expires_at <= ninety_days
+    ).all()
+    for cv in cert_versions:
+        days = (cv.expires_at - today).days
+        expirations['certificates'].append({
+            'name': cv.certificate.name,
+            'issuer': cv.issuer,
+            'days': days
+        })
+    expirations['certificates'].sort(key=lambda x: x['days'])
+    
+    # Legal: Subscriptions & Licenses
+    subscriptions = Subscription.query.filter_by(is_archived=False).all()
+    for sub in subscriptions:
+        next_renewal = sub.next_renewal_date
+        if today <= next_renewal <= ninety_days:
+            days = (next_renewal - today).days
+            expirations['legal'].append({
+                'name': sub.name,
+                'cost': sub.cost_eur,
+                'days': days
+            })
+    
+    licenses = License.query.filter(
+        License.expiry_date > today,
+        License.expiry_date <= ninety_days
+    ).all()
+    for lic in licenses:
+        days = (lic.expiry_date - today).days
+        expirations['legal'].append({
+            'name': lic.name,
+            'cost': None,
+            'days': days
+        })
+    expirations['legal'].sort(key=lambda x: x['days'])
+    
+    # ----- COUNTS -----
+    critical_count = len(critical_items)
+    warning_count = sum(len(v) for v in expirations.values() if v and all(item['days'] <= 30 for item in v[:1]))
+    expiring_count = sum(len(v) for v in expirations.values())
+    
+    # ----- OPS SUMMARY -----
+    total_assets = Asset.query.filter(
+        Asset.is_archived == False,
+        Asset.status != 'Decommissioned'
+    ).count()
+    healthy_assets = Asset.query.filter_by(is_archived=False, status='In Use').count()
+    asset_health = int((healthy_assets / total_assets * 100) if total_assets > 0 else 100)
+    
+    # Monthly spend projection from subscriptions
+    this_month_start = today.replace(day=1)
+    next_month_start = this_month_start + relativedelta(months=1)
+    projected_spend = sum(
+        sub.cost_eur for sub in subscriptions
+        if sub.next_renewal_date and this_month_start <= sub.next_renewal_date < next_month_start
+    )
+    
+    ops_summary = {
+        'projected_spend': projected_spend,
+        'spend_trend': 0,  # TODO: Calculate from historical data
+        'asset_health': asset_health,
+        'healthy_assets': healthy_assets,
+        'total_assets': total_assets
+    }
+    
+    # ----- COMPLIANCE SUMMARY -----
+    total_controls = FrameworkControl.query.join(Framework).filter(Framework.is_active == True).count()
+    # Controls with at least one compliance link are considered "compliant"
+    from sqlalchemy import func
+    from ..models.security import ComplianceLink
+    compliant_controls = db.session.query(func.count(func.distinct(ComplianceLink.framework_control_id))).scalar() or 0
+    compliance_score = int((compliant_controls / total_controls * 100) if total_controls > 0 else 100)
+    pending_audits = ComplianceAudit.query.filter(ComplianceAudit.status.in_(['Prep', 'In Progress'])).count()
+    
+    compliance_summary = {
+        'score': compliance_score,
+        'compliant_controls': compliant_controls,
+        'total_controls': total_controls,
+        'pending_audits': pending_audits
+    }
+    
+    return render_template(
+        'organizational_health.html',
+        today=today,
+        health_score=health_score,
+        global_status=global_status,
+        critical_items=critical_items,
+        critical_count=critical_count,
+        warning_count=warning_count,
+        expiring_count=expiring_count,
+        expirations=expirations,
+        ops_summary=ops_summary,
+        compliance_summary=compliance_summary
+    )
+
+
+@main_bp.route('/operations')
+@login_required
+def ops_finance_dashboard():
     # --- STAT CARD COUNTS ---
     stats = {
         'subscriptions': Subscription.query.filter_by(is_archived=False).count(),
@@ -395,7 +618,7 @@ def dashboard():
             expiring_payment_methods.append(method)
 
     return render_template(
-        'dashboard.html',
+        'ops_finance_dashboard.html',
         stats=stats,
         upcoming_renewals=upcoming_renewals,
         total_cost=total_cost,
@@ -545,6 +768,6 @@ def change_password():
             )
             
             flash('Your password has been updated successfully!', 'success')
-            return redirect(url_for('main.dashboard'))
+            return redirect(url_for('main.organizational_health'))
 
     return render_template('change_password.html')
