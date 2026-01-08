@@ -727,6 +727,57 @@ def seed_data(app=None):
         ]
         db.session.add_all(notification_events)
         db.session.commit()
+        
+        # Add Compliance Breach Template and Event
+        compliance_breach_template = EmailTemplate(
+            name="Compliance Control Breach Alert",
+            subject="🚨 Compliance Breach: {{ control_id }} - {{ control_name }}",
+            body_html="""
+<h2 style="color: #dc3545;">⚠️ Compliance Control Failure Detected</h2>
+<p>Hello {{ recipient_name }},</p>
+<p>An automated compliance check has detected a <strong style="color: #dc3545;">Non-Compliant</strong> status for the following control:</p>
+
+<div style="background: #f8d7da; padding: 15px; border-radius: 5px; margin: 15px 0; border: 1px solid #f5c6cb;">
+    <strong>Framework:</strong> {{ framework_name }}<br>
+    <strong>Control ID:</strong> {{ control_id }}<br>
+    <strong>Control Name:</strong> {{ control_name }}<br>
+    <strong>Rule:</strong> {{ rule_name }}<br>
+    <strong>Target Model:</strong> {{ target_model }}<br>
+    <strong>Frequency SLA:</strong> {{ frequency_days }} days<br>
+    <strong>Last Evidence:</strong> {{ last_evidence_date or 'No evidence found' }}<br>
+    <strong>Days Overdue:</strong> {{ days_overdue }}
+</div>
+
+<p><strong>Required Action:</strong> Please execute the required activity or upload evidence to restore compliance status.</p>
+
+<p>
+    <a href="{{ dashboard_url }}" style="display: inline-block; background: #0d6efd; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
+        View Compliance Dashboard
+    </a>
+</p>
+
+<p style="color: #6c757d; font-size: 12px;">
+    This is an automated notification from OpsDeck Compliance Monitoring.
+</p>
+            """,
+            category="system",
+            is_active=True,
+            is_system=True
+        )
+        db.session.add(compliance_breach_template)
+        db.session.commit()
+        
+        compliance_breach_event = NotificationEvent(
+            event_code="COMPLIANCE_BREACH",
+            name="Compliance Control Failure",
+            description="Alerts when an automated compliance rule fails (turns red). Checks are performed daily.",
+            template_id=compliance_breach_template.id,
+            enabled=True,
+            days_offset=1,  # Check daily
+            channels=['email']
+        )
+        db.session.add(compliance_breach_event)
+        db.session.commit()
 
         # 16. Create Standard Security Activities
         print("Creating standard security activities...")

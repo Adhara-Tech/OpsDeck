@@ -3,7 +3,7 @@ import uuid
 from werkzeug.utils import secure_filename
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, current_app
 from datetime import datetime
-from ..models import db, Supplier, SecurityAssessment, PolicyVersion, User, AssetInventory, AssetInventoryItem, Asset, BCDRPlan, BCDRTestLog, Subscription, SecurityIncident, PostIncidentReview, IncidentTimelineEvent, MaintenanceLog, Attachment, Framework, FrameworkControl, ComplianceLink
+from ..models import db, Supplier, SecurityAssessment, PolicyVersion, User, AssetInventory, AssetInventoryItem, Asset, BCDRPlan, BCDRTestLog, Subscription, SecurityIncident, PostIncidentReview, IncidentTimelineEvent, MaintenanceLog, Attachment, Framework, FrameworkControl, ComplianceLink, ComplianceRule
 from .main import login_required
 from .admin import admin_required
 
@@ -663,9 +663,20 @@ def link_control():
 @compliance_bp.route('/dashboard')
 @login_required
 def dashboard():
-    """Displays the compliance dashboard."""
+    """Displays the compliance dashboard with real-time status evaluation."""
+    from src.services.compliance_service import get_compliance_evaluator
+    
+    evaluator = get_compliance_evaluator()
     frameworks = Framework.query.filter_by(is_active=True).order_by(Framework.name).all()
-    return render_template('compliance/dashboard.html', frameworks=frameworks)
+    
+    # Build dashboard data with evaluated status for each framework
+    dashboard_data = []
+    for framework in frameworks:
+        framework_status = evaluator.get_framework_status(framework.id)
+        if framework_status:
+            dashboard_data.append(framework_status)
+    
+    return render_template('compliance/dashboard.html', dashboard_data=dashboard_data)
 
 @compliance_bp.route('/dashboard/pdf')
 @login_required
@@ -691,3 +702,125 @@ def export_dashboard_pdf():
     response.headers['Content-Disposition'] = 'attachment; filename=compliance_report.pdf'
     
     return response
+
+
+# --- Automation Rules Management ---
+
+@compliance_bp.route('/rules/create', methods=['POST'])
+@login_required
+@admin_required
+def create_rule():
+    """Creates a new ComplianceRule for automated compliance checking."""
+    import json
+    
+    framework_control_id = request.form.get('framework_control_id', type=int)
+    name = request.form.get('name', '').strip()
+    target_model = request.form.get('target_model', '').strip()
+    frequency_days = request.form.get('frequency_days', 90, type=int)
+    grace_period_days = request.form.get('grace_period_days', 7, type=int)
+    
+    if not all([framework_control_id, name, target_model]):
+        flash('Missing required fields for automation rule.', 'error')
+        return redirect(request.referrer or url_for('compliance.dashboard'))
+    
+    # Validate control exists
+    control = FrameworkControl.query.get(framework_control_id)
+    if not control:
+        flash('Control not found.', 'error')
+        return redirect(request.referrer or url_for('compliance.dashboard'))
+    
+    # Build criteria JSON based on target_model
+    criteria = {}
+    
+    if target_model == 'ActivityExecution':
+        activity_id = request.form.get('activity_id', type=int)
+        if activity_id:
+            criteria = {
+                "method": "parent_match",
+                "value": activity_id
+            }
+        else:
+            # Try activity name
+            activity_name = request.form.get('activity_name', '').strip()
+            if activity_name:
+                criteria = {
+                    "method": "parent_match",
+                    "activity_name": activity_name
+                }
+    
+    elif target_model == 'Campaign':
+        tags_str = request.form.get('tags', '').strip()
+        if tags_str:
+            tags = [t.strip() for t in tags_str.split(',') if t.strip()]
+            criteria = {
+                "method": "tag_match",
+                "tags": tags
+            }
+    
+    elif target_model == 'MaintenanceLog':
+        event_type = request.form.get('event_type', '').strip()
+        if event_type:
+            criteria = {
+                "method": "event_type_match",
+                "event_type": event_type
+            }
+        else:
+            criteria = {"method": "any_completed"}
+    
+    elif target_model == 'BCDRTestLog':
+        plan_id = request.form.get('plan_id', type=int)
+        if plan_id:
+            criteria = {
+                "method": "plan_match",
+                "plan_id": plan_id
+            }
+        else:
+            criteria = {"method": "any_passed"}
+    
+    # Create and save the rule
+    rule = ComplianceRule(
+        framework_control_id=framework_control_id,
+        name=name,
+        target_model=target_model,
+        criteria=json.dumps(criteria),
+        frequency_days=frequency_days,
+        grace_period_days=grace_period_days,
+        enabled=True
+    )
+    
+    db.session.add(rule)
+    db.session.commit()
+    
+    flash(f'Automation rule "{name}" created successfully.', 'success')
+    return redirect(request.referrer or url_for('frameworks.control_detail', id=framework_control_id))
+
+
+@compliance_bp.route('/rules/<int:rule_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def delete_rule(rule_id):
+    """Deletes a ComplianceRule."""
+    rule = ComplianceRule.query.get_or_404(rule_id)
+    rule_name = rule.name
+    control_id = rule.framework_control_id
+    
+    db.session.delete(rule)
+    db.session.commit()
+    
+    flash(f'Automation rule "{rule_name}" has been deleted.', 'success')
+    return redirect(request.referrer or url_for('frameworks.control_detail', id=control_id))
+
+
+@compliance_bp.route('/rules/<int:rule_id>/toggle', methods=['POST'])
+@login_required
+@admin_required
+def toggle_rule(rule_id):
+    """Toggles a ComplianceRule enabled/disabled state."""
+    rule = ComplianceRule.query.get_or_404(rule_id)
+    
+    rule.enabled = not rule.enabled
+    db.session.commit()
+    
+    status = 'enabled' if rule.enabled else 'disabled'
+    flash(f'Automation rule "{rule.name}" has been {status}.', 'success')
+    return redirect(request.referrer or url_for('frameworks.control_detail', id=rule.framework_control_id))

@@ -33,89 +33,336 @@
 </div>
 {% endif %}
 
-<div class="row">
-    <div class="col-lg-6">
-        <div class="card shadow mb-4">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="fas fa-diagram-project"></i> Cross-Framework Mappings</h5>
-            </div>
-            <div class="card-body p-0">
-                {% set mappings = control.get_all_mappings() %}
-                {% if mappings %}
-                <ul class="list-group list-group-flush">
-                    {% for mapped in mappings %}
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        <div>
-                            <span class="badge bg-secondary me-2">{{ mapped.framework.name }}</span>
-                            <strong>{{ mapped.control_id }}</strong> - {{ mapped.name }}
+{# Main Content Tabs #}
+<ul class="nav nav-tabs mb-4" id="controlTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="mappings-tab" data-bs-toggle="tab" data-bs-target="#mappings-content"
+            type="button" role="tab" aria-controls="mappings-content" aria-selected="true">
+            <i class="fas fa-diagram-project me-1"></i> Cross-Framework Mappings
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="automation-tab" data-bs-toggle="tab" data-bs-target="#automation-content"
+            type="button" role="tab" aria-controls="automation-content" aria-selected="false">
+            <i class="fas fa-robot me-1"></i> Automation Rules
+            {% set rules_count = control.rules.count() %}
+            {% if rules_count > 0 %}
+            <span class="badge bg-info">{{ rules_count }}</span>
+            {% endif %}
+        </button>
+    </li>
+</ul>
+
+<div class="tab-content" id="controlTabsContent">
+    {# Tab 1: Cross-Framework Mappings #}
+    <div class="tab-pane fade show active" id="mappings-content" role="tabpanel" aria-labelledby="mappings-tab">
+        <div class="row">
+            <div class="col-lg-6">
+                <div class="card shadow mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-diagram-project"></i> Cross-Framework Mappings</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        {% set mappings = control.get_all_mappings() %}
+                        {% if mappings %}
+                        <ul class="list-group list-group-flush">
+                            {% for mapped in mappings %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <span class="badge bg-secondary me-2">{{ mapped.framework.name }}</span>
+                                    <strong>{{ mapped.control_id }}</strong> - {{ mapped.name }}
+                                </div>
+                                <form
+                                    action="{{ url_for('frameworks.unmap_control', id=control.id, target_id=mapped.id) }}"
+                                    method="POST" class="d-inline" onsubmit="return confirm('Remove this mapping?');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Remove mapping">
+                                        <i class="fas fa-unlink"></i>
+                                    </button>
+                                </form>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        {% else %}
+                        <div class="p-3 text-muted text-center">
+                            <i class="fas fa-info-circle"></i> No cross-framework mappings defined yet.
                         </div>
-                        <form action="{{ url_for('frameworks.unmap_control', id=control.id, target_id=mapped.id) }}"
-                            method="POST" class="d-inline" onsubmit="return confirm('Remove this mapping?');">
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-6">
+                <div class="card shadow mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-plus-circle"></i> Add Mapping</h5>
+                    </div>
+                    <div class="card-body">
+                        <form action="{{ url_for('frameworks.map_control', id=control.id) }}" method="POST">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Remove mapping">
-                                <i class="fas fa-unlink"></i>
+
+                            <div class="mb-3">
+                                <label class="form-label">Filter by Framework</label>
+                                <select class="form-select" id="frameworkFilter">
+                                    <option value="">All Frameworks</option>
+                                    {% for fw in all_frameworks %}
+                                    {% if fw.id != control.framework_id %}
+                                    <option value="{{ fw.id }}">{{ fw.name }}</option>
+                                    {% endif %}
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Select Control to Map</label>
+                                <select id="targetControlSelect" name="target_control_id" class="form-control"
+                                    placeholder="Search for a control..." required></select>
+                                <div class="form-text">Search for controls from other frameworks to create a mapping.
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-link"></i> Create Mapping
                             </button>
                         </form>
-                    </li>
-                    {% endfor %}
-                </ul>
-                {% else %}
-                <div class="p-3 text-muted text-center">
-                    <i class="fas fa-info-circle"></i> No cross-framework mappings defined yet.
+                    </div>
                 </div>
-                {% endif %}
+
+                <div class="card shadow">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-lightbulb"></i> What is Cross-Mapping?</h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="small text-muted mb-2">
+                            Cross-framework mapping allows you to link related controls between different compliance
+                            frameworks.
+                        </p>
+                        <p class="small text-muted mb-0">
+                            <strong>Example:</strong> Map DORA "Art-5.1" to ISO 27001 "A.5.14" to quickly identify
+                            overlapping requirements and reuse evidence across audits.
+                        </p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="col-lg-6">
-        <div class="card shadow mb-4">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-plus-circle"></i> Add Mapping</h5>
+    {# Tab 2: Automation Rules #}
+    <div class="tab-pane fade" id="automation-content" role="tabpanel" aria-labelledby="automation-tab">
+        <div class="card shadow">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-robot"></i> Automation Rules</h5>
+                <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addRuleModal">
+                    <i class="fas fa-plus"></i> Add Automation Rule
+                </button>
             </div>
-            <div class="card-body">
-                <form action="{{ url_for('frameworks.map_control', id=control.id) }}" method="POST">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-
-                    <div class="mb-3">
-                        <label class="form-label">Filter by Framework</label>
-                        <select class="form-select" id="frameworkFilter">
-                            <option value="">All Frameworks</option>
-                            {% for fw in all_frameworks %}
-                            {% if fw.id != control.framework_id %}
-                            <option value="{{ fw.id }}">{{ fw.name }}</option>
-                            {% endif %}
+            <div class="card-body p-0">
+                {% set rules = control.rules.all() %}
+                {% if rules %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Name</th>
+                                <th>Target Model</th>
+                                <th class="text-center">Frequency (Days)</th>
+                                <th class="text-center">Grace (Days)</th>
+                                <th class="text-center">Status</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for rule in rules %}
+                            <tr class="{{ 'table-secondary' if not rule.enabled else '' }}">
+                                <td>
+                                    <strong>{{ rule.name }}</strong>
+                                    {% if rule.description %}
+                                    <br><small class="text-muted">{{ rule.description }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">{{ rule.target_model }}</span>
+                                </td>
+                                <td class="text-center">{{ rule.frequency_days }}</td>
+                                <td class="text-center">{{ rule.grace_period_days }}</td>
+                                <td class="text-center">
+                                    {% if rule.enabled %}
+                                    <span class="badge bg-success">Enabled</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Disabled</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    <form action="{{ url_for('compliance.toggle_rule', rule_id=rule.id) }}"
+                                        method="POST" class="d-inline">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit"
+                                            class="btn btn-sm btn-outline-{{ 'warning' if rule.enabled else 'success' }}"
+                                            title="{{ 'Disable' if rule.enabled else 'Enable' }}">
+                                            <i class="fas fa-{{ 'pause' if rule.enabled else 'play' }}"></i>
+                                        </button>
+                                    </form>
+                                    <form action="{{ url_for('compliance.delete_rule', rule_id=rule.id) }}"
+                                        method="POST" class="d-inline"
+                                        onsubmit="return confirm('Are you sure you want to delete this rule?');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
                             {% endfor %}
-                        </select>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Select Control to Map</label>
-                        <select id="targetControlSelect" name="target_control_id" class="form-control"
-                            placeholder="Search for a control..." required></select>
-                        <div class="form-text">Search for controls from other frameworks to create a mapping.</div>
-                    </div>
-
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-link"></i> Create Mapping
-                    </button>
-                </form>
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="p-4 text-center text-muted">
+                    <i class="fas fa-robot fa-2x mb-3 d-block"></i>
+                    <p class="mb-2">No automation rules configured for this control.</p>
+                    <p class="small mb-0">Add a rule to automatically track compliance based on activities, campaigns,
+                        or other events.</p>
+                </div>
+                {% endif %}
             </div>
         </div>
 
-        <div class="card shadow">
+        <div class="card shadow mt-4">
             <div class="card-header">
-                <h5 class="mb-0"><i class="fas fa-lightbulb"></i> What is Cross-Mapping?</h5>
+                <h5 class="mb-0"><i class="fas fa-info-circle"></i> How Automation Rules Work</h5>
             </div>
             <div class="card-body">
                 <p class="small text-muted mb-2">
-                    Cross-framework mapping allows you to link related controls between different compliance frameworks.
+                    Automation rules allow the system to automatically evaluate compliance based on recorded evidence
+                    (activities, campaigns, tests).
                 </p>
-                <p class="small text-muted mb-0">
-                    <strong>Example:</strong> Map DORA "Art-5.1" to ISO 27001 "A.5.14" to quickly identify
-                    overlapping requirements and reuse evidence across audits.
-                </p>
+                <ul class="small text-muted mb-0">
+                    <li><strong>Green (Compliant):</strong> Evidence found within the frequency period</li>
+                    <li><strong>Yellow (Warning):</strong> Evidence is past frequency but within grace period</li>
+                    <li><strong>Red (Non-Compliant):</strong> Evidence is past both frequency and grace period</li>
+                </ul>
             </div>
+        </div>
+    </div>
+</div>
+
+{# Modal: Add Automation Rule #}
+<div class="modal fade" id="addRuleModal" tabindex="-1" aria-labelledby="addRuleModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form action="{{ url_for('compliance.create_rule') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="framework_control_id" value="{{ control.id }}">
+
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addRuleModalLabel">
+                        <i class="fas fa-robot me-2"></i> Add Automation Rule
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="ruleName" class="form-label">Rule Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="ruleName" name="name" required
+                            placeholder="e.g., Quarterly Access Review Check">
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="frequencyDays" class="form-label">Frequency (Days) <span
+                                    class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="frequencyDays" name="frequency_days"
+                                value="90" min="1" required>
+                            <div class="form-text">How often this activity should occur (ideal period)</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="gracePeriodDays" class="form-label">Grace Period (Days) <span
+                                    class="text-danger">*</span></label>
+                            <input type="number" class="form-control" id="gracePeriodDays" name="grace_period_days"
+                                value="7" min="0" required>
+                            <div class="form-text">Buffer before marking as non-compliant (warning zone)</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="targetModel" class="form-label">Evidence Source <span
+                                class="text-danger">*</span></label>
+                        <select class="form-select" id="targetModel" name="target_model" required>
+                            <option value="" disabled selected>Select evidence type...</option>
+                            <option value="ActivityExecution">Security Activity Executions</option>
+                            <option value="Campaign">Communication Campaigns</option>
+                            <option value="MaintenanceLog">Maintenance Logs</option>
+                            <option value="BCDRTestLog">BCDR Test Logs</option>
+                        </select>
+                    </div>
+
+                    {# Dynamic Criteria Fields #}
+                    <div id="criteria-activity" class="d-none">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Link this rule to a specific Security Activity. The system will check for recent executions.
+                        </div>
+                        <div class="mb-3">
+                            <label for="activityId" class="form-label">Activity ID</label>
+                            <input type="number" class="form-control" id="activityId" name="activity_id"
+                                placeholder="Enter the Security Activity ID">
+                            <div class="form-text">Or specify by name below:</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="activityName" class="form-label">Activity Name (alternative)</label>
+                            <input type="text" class="form-control" id="activityName" name="activity_name"
+                                placeholder="e.g., Quarterly User Access Review">
+                        </div>
+                    </div>
+
+                    <div id="criteria-campaign" class="d-none">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Find campaigns by tags. The system will look for finished campaigns with matching tags.
+                        </div>
+                        <div class="mb-3">
+                            <label for="campaignTags" class="form-label">Campaign Tags (comma separated)</label>
+                            <input type="text" class="form-control" id="campaignTags" name="tags"
+                                placeholder="e.g., Phishing, Security Awareness">
+                            <div class="form-text">Enter one or more tags separated by commas</div>
+                        </div>
+                    </div>
+
+                    <div id="criteria-maintenance" class="d-none">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Find maintenance logs by event type.
+                        </div>
+                        <div class="mb-3">
+                            <label for="eventType" class="form-label">Event Type (optional)</label>
+                            <input type="text" class="form-control" id="eventType" name="event_type"
+                                placeholder="e.g., Backup Test, Data Erasure">
+                            <div class="form-text">Leave blank to match any completed maintenance</div>
+                        </div>
+                    </div>
+
+                    <div id="criteria-bcdr" class="d-none">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Find BCDR test logs, optionally for a specific plan.
+                        </div>
+                        <div class="mb-3">
+                            <label for="planId" class="form-label">BCDR Plan ID (optional)</label>
+                            <input type="number" class="form-control" id="planId" name="plan_id"
+                                placeholder="Enter the BCDR Plan ID">
+                            <div class="form-text">Leave blank to match any passed BCDR test</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i> Create Rule
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -171,6 +418,37 @@
     // Initialize on page load
     document.addEventListener('DOMContentLoaded', function () {
         initTargetControlSelect();
+
+        // Dynamic criteria fields
+        const targetModelSelect = document.getElementById('targetModel');
+        const criteriaActivity = document.getElementById('criteria-activity');
+        const criteriaCampaign = document.getElementById('criteria-campaign');
+        const criteriaMaintenance = document.getElementById('criteria-maintenance');
+        const criteriaBcdr = document.getElementById('criteria-bcdr');
+
+        targetModelSelect.addEventListener('change', function () {
+            // Hide all
+            criteriaActivity.classList.add('d-none');
+            criteriaCampaign.classList.add('d-none');
+            criteriaMaintenance.classList.add('d-none');
+            criteriaBcdr.classList.add('d-none');
+
+            // Show relevant
+            switch (this.value) {
+                case 'ActivityExecution':
+                    criteriaActivity.classList.remove('d-none');
+                    break;
+                case 'Campaign':
+                    criteriaCampaign.classList.remove('d-none');
+                    break;
+                case 'MaintenanceLog':
+                    criteriaMaintenance.classList.remove('d-none');
+                    break;
+                case 'BCDRTestLog':
+                    criteriaBcdr.classList.remove('d-none');
+                    break;
+            }
+        });
     });
 
     // Reinitialize when framework filter changes

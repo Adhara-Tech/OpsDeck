@@ -81,6 +81,11 @@ campaign_groups = db.Table('campaign_groups',
     db.Column('group_id', db.Integer, db.ForeignKey('group.id'), primary_key=True)
 )
 
+campaign_tags = db.Table('campaign_tags',
+    db.Column('campaign_id', db.Integer, db.ForeignKey('campaign.id'), primary_key=True),
+    db.Column('tag_id', db.Integer, db.ForeignKey('tag.id'), primary_key=True)
+)
+
 
 class Campaign(db.Model):
     """
@@ -112,6 +117,10 @@ class Campaign(db.Model):
                                    backref=db.backref('campaigns_as_recipient', lazy='dynamic'))
     target_groups = db.relationship('Group', secondary=campaign_groups,
                                     backref=db.backref('campaigns', lazy='dynamic'))
+    
+    # Tags for categorization
+    tags = db.relationship('Tag', secondary=campaign_tags, lazy='subquery',
+                           backref=db.backref('campaigns_tagged', lazy=True))
     
     # Timestamps
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
