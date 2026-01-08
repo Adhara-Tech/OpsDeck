@@ -196,3 +196,75 @@ def unarchive_peripheral(id):
     db.session.commit()
     flash(f'Peripheral "{peripheral.name}" has been restored.')
     return redirect(url_for('peripherals.archived_peripherals'))
+
+
+@peripherals_bp.route('/<int:id>/history')
+@login_required
+def peripheral_history(id):
+    """Displays the full history for a peripheral as a visual timeline."""
+    peripheral = Peripheral.query.get_or_404(id)
+    
+    # Build unified timeline from multiple sources
+    timeline_events = []
+    
+    # 1. Purchase/Creation event
+    if peripheral.purchase_date:
+        timeline_events.append({
+            'date': datetime.combine(peripheral.purchase_date, datetime.min.time()),
+            'event_type': 'purchase',
+            'icon': 'fa-shopping-cart',
+            'color': 'success',
+            'title': 'Peripheral Purchased',
+            'description': f'Purchased for {peripheral.currency} {peripheral.cost:.2f}' if peripheral.cost else 'Purchase date recorded'
+        })
+    elif peripheral.created_at:
+        timeline_events.append({
+            'date': peripheral.created_at,
+            'event_type': 'creation',
+            'icon': 'fa-plus-circle',
+            'color': 'success',
+            'title': 'Peripheral Created',
+            'description': 'Peripheral was added to the system'
+        })
+    
+    # 2. Assignment events (checkout/checkin)
+    for assignment in peripheral.assignments:
+        user_name = assignment.user.name if assignment.user else 'Unknown User'
+        
+        # Checkout event
+        timeline_events.append({
+            'date': assignment.checked_out_date,
+            'event_type': 'checkout',
+            'icon': 'fa-sign-out-alt',
+            'color': 'primary',
+            'title': f'Checked Out to {user_name}',
+            'description': assignment.notes or 'Assigned to employee'
+        })
+        
+        # Checkin event (if returned)
+        if assignment.checked_in_date:
+            timeline_events.append({
+                'date': assignment.checked_in_date,
+                'event_type': 'checkin',
+                'icon': 'fa-sign-in-alt',
+                'color': 'warning',
+                'title': f'Checked In from {user_name}',
+                'description': 'Peripheral returned'
+            })
+    
+    # 3. Maintenance events
+    for log in peripheral.maintenance_logs:
+        timeline_events.append({
+            'date': datetime.combine(log.event_date, datetime.min.time()),
+            'event_type': 'maintenance',
+            'icon': 'fa-tools',
+            'color': 'danger',
+            'title': f'{log.event_type}',
+            'description': log.description,
+            'status': log.status
+        })
+    
+    # Sort by date descending (newest first)
+    timeline_events.sort(key=lambda x: x['date'], reverse=True)
+    
+    return render_template('peripherals/history.html', peripheral=peripheral, timeline_events=timeline_events)
