@@ -12,7 +12,8 @@ peripherals_bp = Blueprint('peripherals', __name__)
 @login_required
 def peripherals():
     peripherals = Peripheral.query.filter_by(is_archived=False).all()
-    return render_template('peripherals/list.html', peripherals=peripherals)
+    users = User.query.filter_by(is_archived=False).order_by(User.name).all()
+    return render_template('peripherals/list.html', peripherals=peripherals, users=users)
 
 @peripherals_bp.route('/<int:id>')
 @login_required

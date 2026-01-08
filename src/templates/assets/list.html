@@ -45,6 +45,22 @@
                         <td>{{ asset.user.name if asset.user else '-' }}</td>
                         <td>{{ asset.location.name if asset.location else '-' }}</td>
                         <td>
+                            {% if asset.user %}
+                            <form action="{{ url_for('assets.checkin_asset', id=asset.id) }}" method="POST"
+                                class="d-inline" data-confirm="Check in '{{ asset.name }}' from {{ asset.user.name }}?">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="redirect_url" value="{{ url_for('assets.assets') }}">
+                                <button type="submit" class="btn btn-sm btn-warning me-1" title="Check In">
+                                    <i class="fas fa-sign-in-alt"></i>
+                                </button>
+                            </form>
+                            {% else %}
+                            <button type="button" class="btn btn-sm btn-success me-1" title="Check Out"
+                                data-bs-toggle="modal" data-bs-target="#checkoutModal" data-asset-id="{{ asset.id }}"
+                                data-asset-name="{{ asset.name }}">
+                                <i class="fas fa-sign-out-alt"></i>
+                            </button>
+                            {% endif %}
                             <a href="{{ url_for('assets.edit_asset', id=asset.id) }}"
                                 class="btn btn-sm btn-outline-primary me-1" title="Edit">
                                 <i class="fas fa-edit"></i>
@@ -68,4 +84,67 @@
         </div>
     </div>
 </div>
+
+<!-- Checkout Modal -->
+<div class="modal fade" id="checkoutModal" tabindex="-1" aria-labelledby="checkoutModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="checkoutForm" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="checkoutModalLabel">
+                        <i class="fas fa-sign-out-alt"></i> Check Out Asset
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3">Checking out: <strong id="checkoutAssetName"></strong></p>
+                    <div class="mb-3">
+                        <label for="checkout_user_id" class="form-label">Assign To *</label>
+                        <select class="form-select" id="checkout_user_id" name="user_id" required>
+                            <option value="">Select a user...</option>
+                            {% for user in users %}
+                            <option value="{{ user.id }}">{{ user.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="checkout_notes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="checkout_notes" name="notes" rows="2"
+                            placeholder="Optional notes..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-sign-out-alt"></i> Check Out
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const checkoutModal = document.getElementById('checkoutModal');
+        if (checkoutModal) {
+            checkoutModal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                const assetId = button.getAttribute('data-asset-id');
+                const assetName = button.getAttribute('data-asset-name');
+
+                // Update modal content
+                document.getElementById('checkoutAssetName').textContent = assetName;
+                document.getElementById('checkoutForm').action = `/assets/${assetId}/checkout`;
+
+                // Reset form
+                document.getElementById('checkout_user_id').value = '';
+                document.getElementById('checkout_notes').value = '';
+            });
+        }
+    });
+</script>
 {% endblock %}

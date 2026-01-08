@@ -14,7 +14,8 @@ assets_bp = Blueprint('assets', __name__)
 @login_required
 def assets():
     assets = Asset.query.filter_by(is_archived=False).all()
-    return render_template('assets/list.html', assets=assets)
+    users = User.query.filter_by(is_archived=False).order_by(User.name).all()
+    return render_template('assets/list.html', assets=assets, users=users)
 
 @assets_bp.route('/archived')
 @login_required
