@@ -7,7 +7,8 @@ from .models import (
     BCDRPlan, BCDRTestLog, Course, CourseAssignment, Group, Policy, PolicyVersion, Opportunity,
     Documentation, Link, Software, License, Framework, FrameworkControl, ComplianceLink,
     BusinessService, ComplianceAudit, Contact, RiskAssessment,
-    EmailTemplate, NotificationEvent
+    EmailTemplate, NotificationEvent,
+    SecurityActivity, ActivityExecution
 )
 from . import create_app
 
@@ -70,6 +71,17 @@ def seed_data(app=None):
             PaymentMethod(name='Bank Transfer (ACH)', method_type='Bank Transfer')
         ]
         tags = [Tag(name='SaaS'), Tag(name='Hardware'), Tag(name='Marketing'), Tag(name='Development'), Tag(name='Office Supply'), Tag(name='Cloud Infrastructure'), Tag(name='Design'), Tag(name='Security')]
+        
+        # Activity Category Tags (for Security Activities)
+        activity_category_tags = [
+            Tag(name='Identity'),
+            Tag(name='Awareness'),
+            Tag(name='Vulnerability Mgmt'),
+            Tag(name='Network'),
+            Tag(name='BCDR'),
+            Tag(name='GRC')
+        ]
+        tags.extend(activity_category_tags)
         
         db.session.add_all(locations)
         db.session.add_all(payment_methods)
@@ -714,6 +726,124 @@ def seed_data(app=None):
             )
         ]
         db.session.add_all(notification_events)
+        db.session.commit()
+
+        # 16. Create Standard Security Activities
+        print("Creating standard security activities...")
+        
+        # Retrieve activity category tags by name
+        tag_identity = Tag.query.filter_by(name='Identity').first()
+        tag_awareness = Tag.query.filter_by(name='Awareness').first()
+        tag_vuln = Tag.query.filter_by(name='Vulnerability Mgmt').first()
+        tag_network = Tag.query.filter_by(name='Network').first()
+        tag_bcdr = Tag.query.filter_by(name='BCDR').first()
+        tag_grc = Tag.query.filter_by(name='GRC').first()
+        
+        security_activities = [
+            # Identity & Access
+            SecurityActivity(
+                name="Quarterly User Access Review",
+                description="Revisión trimestral de cuentas de usuario, privilegios y accesos a sistemas críticos.",
+                frequency="Quarterly",
+                owner_id=users[0].id,  # Alice (VP of Engineering)
+                owner_type='User'
+            ),
+            
+            # Awareness & Training
+            SecurityActivity(
+                name="Phishing Simulation Campaign",
+                description="Envío de correos simulados de phishing para evaluar la concienciación de los empleados.",
+                frequency="Monthly",
+                owner_id=users[0].id,
+                owner_type='User'
+            ),
+            SecurityActivity(
+                name="Security Newsletter",
+                description="Boletín mensual con actualizaciones de seguridad y mejores prácticas.",
+                frequency="Monthly",
+                owner_id=users[0].id,
+                owner_type='User'
+            ),
+            
+            # Vulnerability Management
+            SecurityActivity(
+                name="Annual Penetration Test",
+                description="Test de intrusión externo realizado por un proveedor certificado.",
+                frequency="Yearly",
+                owner_id=users[0].id,
+                owner_type='User'
+            ),
+            SecurityActivity(
+                name="External Vulnerability Scan",
+                description="Escaneo automatizado de vulnerabilidades en activos expuestos a internet.",
+                frequency="Weekly",
+                owner_id=users[0].id,
+                owner_type='User'
+            ),
+            
+            # Infrastructure & Operations
+            SecurityActivity(
+                name="Firewall Rules Review",
+                description="Revisión de reglas de firewall para eliminar accesos obsoletos o inseguros.",
+                frequency="Semiannual",
+                owner_id=users[2].id,  # Charlie (Engineering Manager)
+                owner_type='User'
+            ),
+            SecurityActivity(
+                name="Backup Restoration Test",
+                description="Prueba aleatoria de restauración de backups para verificar integridad de datos.",
+                frequency="Quarterly",
+                owner_id=users[4].id,  # Fiona (Senior Backend Developer)
+                owner_type='User'
+            ),
+            
+            # Governance
+            SecurityActivity(
+                name="Vendor Risk Assessment Review",
+                description="Reevaluación de riesgos de proveedores críticos.",
+                frequency="Yearly",
+                owner_id=users[1].id,  # Bob (VP of Sales)
+                owner_type='User'
+            )
+        ]
+        
+        db.session.add_all(security_activities)
+        db.session.commit()
+        
+        # Assign category tags to activities
+        security_activities[0].tags.append(tag_identity)  # Quarterly User Access Review
+        security_activities[1].tags.append(tag_awareness)  # Phishing Simulation
+        security_activities[2].tags.append(tag_awareness)  # Security Newsletter
+        security_activities[3].tags.append(tag_vuln)       # Annual Penetration Test
+        security_activities[4].tags.append(tag_vuln)       # External Vulnerability Scan
+        security_activities[5].tags.append(tag_network)    # Firewall Rules Review
+        security_activities[6].tags.append(tag_bcdr)       # Backup Restoration Test
+        security_activities[7].tags.append(tag_grc)        # Vendor Risk Assessment Review
+        
+        db.session.commit()
+        
+        # Create historical executions for "Quarterly User Access Review" (80 days ago)
+        # This allows testing of overdue/expired alerts
+        past_execution_date = date.today() - timedelta(days=80)
+        
+        activity_executions = [
+            ActivityExecution(
+                activity_id=security_activities[0].id,  # Quarterly User Access Review
+                executor_id=users[0].id,  # Alice
+                execution_date=past_execution_date,
+                status='success',
+                outcome_notes='Revisión completada. Se revocaron 5 accesos obsoletos de empleados que dejaron la empresa.'
+            ),
+            ActivityExecution(
+                activity_id=security_activities[0].id,  # Quarterly User Access Review
+                executor_id=users[2].id,  # Charlie
+                execution_date=past_execution_date - timedelta(days=90),  # ~170 days ago
+                status='success',
+                outcome_notes='Revisión de Q3. Se identificaron 3 cuentas con privilegios excesivos y se corrigieron.'
+            )
+        ]
+        
+        db.session.add_all(activity_executions)
         db.session.commit()
 
         print("Database seeding complete!")
