@@ -203,11 +203,15 @@
 
     // --- Actions ---
 
-    function addGroup() {
-        const name = prompt("Enter new Group name (e.g. 'Network Settings'):");
+    async function addGroup() {
+        const name = await OpsDeck.showPrompt({
+            title: 'New Group',
+            body: 'Enter new Group name:',
+            placeholder: "e.g., 'Network Settings'"
+        });
         if (name) {
             if (configData[name]) {
-                alert("Group already exists!");
+                OpsDeck.showAlert({ body: 'Group already exists!', variant: 'warning' });
                 return;
             }
             configData[name] = {};
@@ -221,9 +225,15 @@
         }
     }
 
-    function removeGroup(group, event) {
+    async function removeGroup(group, event) {
         event.stopPropagation(); // prevent tab switching
-        if (confirm(`Delete group "${group}" and all its settings?`)) {
+        const confirmed = await OpsDeck.showConfirm({
+            title: 'Delete Group',
+            body: `Delete group "${group}" and all its settings?`,
+            okText: 'Delete',
+            variant: 'danger'
+        });
+        if (confirmed) {
             delete configData[group];
             render();
         }
@@ -256,7 +266,7 @@
     function renameKey(group, oldKey, newKey) {
         if (oldKey === newKey) return;
         if (configData[group][newKey] !== undefined) {
-            alert("Key already exists!");
+            OpsDeck.showAlert({ body: 'Key already exists!', variant: 'warning' });
             // Revert change in DOM would be hard without re-render. 
             // Simplest is to re-render.
             render();

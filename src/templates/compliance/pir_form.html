@@ -167,9 +167,11 @@
                     const newLi = document.createElement('li');
                     newLi.className = 'list-group-item d-flex justify-content-between align-items-center';
                     newLi.setAttribute('data-event-id', data.id);
+                    // Format the time string (already in YYYY-MM-DDTHH:MM format)
+                    const formattedTime = data.time.replace('T', ' ');
                     newLi.innerHTML = `
                     <div>
-                        <strong>${new Date(data.time).toLocaleString('sv-SE', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(' ', ' ')}</strong> - ${data.description}
+                        <strong>${formattedTime}</strong> - ${data.description}
                     </div>
                     <div>
                         <i class="fas fa-grip-vertical me-2" style="cursor: grab;"></i>
@@ -184,13 +186,19 @@
         });
 
 
-        list.addEventListener('click', function (e) {
+        list.addEventListener('click', async function (e) {
             const deleteBtn = e.target.closest('.delete-timeline-event');
             if (deleteBtn) {
                 const eventId = deleteBtn.dataset.eventId;
                 const li = deleteBtn.closest('li');
 
-                if (confirm('Are you sure you want to delete this event?')) {
+                const confirmed = await OpsDeck.showConfirm({
+                    title: 'Delete Event',
+                    body: 'Are you sure you want to delete this event?',
+                    okText: 'Delete',
+                    variant: 'danger'
+                });
+                if (confirmed) {
                     fetch(`/compliance/incidents/review/timeline/${eventId}`, { method: 'DELETE' })
                         .then(response => response.json())
                         .then(data => {

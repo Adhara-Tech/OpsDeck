@@ -190,7 +190,7 @@
             formFieldDesc.value = data.description || '';
         } catch (error) {
             console.error(error);
-            alert('Error loading data: ' + error.message);
+            OpsDeck.showAlert({ body: 'Error loading data: ' + error.message, variant: 'danger' });
             controlModal.hide();
         }
     }
@@ -218,15 +218,19 @@
             }
         } catch (error) {
             console.error('Error submitting form:', error);
-            alert('Error: ' + error.message);
+            OpsDeck.showAlert({ body: 'Error: ' + error.message, variant: 'danger' });
         }
     });
 
     // Listener for delete control
     async function deleteControl(button, controlId) {
-        if (!confirm('Are you sure you want to delete this control?')) {
-            return;
-        }
+        const confirmed = await OpsDeck.showConfirm({
+            title: 'Delete Control',
+            body: 'Are you sure you want to delete this control?',
+            okText: 'Delete',
+            variant: 'danger'
+        });
+        if (!confirmed) return;
 
         try {
             const response = await fetch(`/frameworks/control/${controlId}/delete`, {
@@ -240,7 +244,7 @@
             }
         } catch (error) {
             console.error('Error deleting control:', error);
-            alert('Error: ' + error.message);
+            OpsDeck.showAlert({ body: 'Error: ' + error.message, variant: 'danger' });
         }
     }
 
@@ -248,9 +252,13 @@
     const deleteFrameworkBtn = document.getElementById('deleteFrameworkBtn');
     if (deleteFrameworkBtn) {
         deleteFrameworkBtn.addEventListener('click', async function () {
-            if (!confirm('Are you SURE you want to delete this framework and all its controls? This action is permanent.')) {
-                return;
-            }
+            const confirmed = await OpsDeck.showConfirm({
+                title: 'Delete Framework',
+                body: 'Are you SURE you want to delete this framework and all its controls? This action is permanent.',
+                okText: 'Delete Permanently',
+                variant: 'danger'
+            });
+            if (!confirmed) return;
 
             try {
                 const response = await fetch('{{ url_for("frameworks.delete", id=framework.id) }}', {
@@ -264,7 +272,7 @@
                 }
             } catch (error) {
                 console.error('Error deleting framework:', error);
-                alert('Error: ' + error.message);
+                OpsDeck.showAlert({ body: 'Error: ' + error.message, variant: 'danger' });
             }
         });
     }

@@ -482,6 +482,21 @@
     <script src="{{ url_for('static', filename='vendor/simple-datatables/js/simple-datatables.js') }}"></script>
     <script src="{{ url_for('static', filename='vendor/tom-select/js/tom-select.complete.min.js') }}"></script>
 
+    {# Global Modal for replacing native alert/confirm/prompt #}
+    <div class="modal fade" id="globalModal" tabindex="-1" aria-hidden="true" role="dialog" aria-modal="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="globalModalTitle"></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="globalModalBody"></div>
+                <div class="modal-footer" id="globalModalFooter"></div>
+            </div>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='js/modal.js') }}"></script>
+
     {# ADD Global Initialization Script #}
     <script>
         document.addEventListener('DOMContentLoaded', function () {

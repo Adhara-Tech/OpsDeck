@@ -8,7 +8,7 @@
     <div>
         {% if not inventory.is_completed %}
         <form action="{{ url_for('compliance.complete_inventory', id=inventory.id) }}" method="POST" class="d-inline"
-            onsubmit="return confirm('Are you sure you want to complete this inventory? No further changes can be made.');">
+            data-confirm='Are you sure you want to complete this inventory? No further changes can be made.'>
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
             <button type="submit" class="btn btn-primary">Mark Inventory as Complete</button>
         </form>

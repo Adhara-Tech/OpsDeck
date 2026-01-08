@@ -50,7 +50,7 @@
                             </a>
                             <form method="POST" action="{{ url_for('cost_centers.delete', id=cc.id) }}"
                                 style="display: inline-block;"
-                                onsubmit="return confirm('Are you sure you want to delete this cost center?');">
+                                data-confirm='Are you sure you want to delete this cost center?'>
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete">
                                     <i class="fas fa-trash"></i>

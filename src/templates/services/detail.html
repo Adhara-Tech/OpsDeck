@@ -326,7 +326,7 @@
                                     <form
                                         action="{{ url_for('services.remove_user_access', id=service.id, user_id=accesses[0].user.id) }}"
                                         method="POST" class="d-inline"
-                                        onsubmit="return confirm('Revoke direct access for {{ accesses[0].user.name }}?');">
+                                        data-confirm='Revoke direct access for {{ accesses[0].user.name }}?'>
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button type="submit" class="btn btn-sm btn-danger">
                                             <i class="fas fa-trash"></i> Revoke Direct
@@ -403,8 +403,7 @@
                                 <td>{{ comp.notes }}</td>
                                 <td>
                                     <form action="{{ url_for('services.delete_component', comp_id=comp.id) }}"
-                                        method="POST" class="d-inline"
-                                        onsubmit="return confirm('Remove this component?');">
+                                        method="POST" class="d-inline" data-confirm='Remove this component?'>
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button type="submit" class="btn btn-sm btn-danger">
                                             <i class="fas fa-trash"></i>
@@ -630,7 +629,7 @@
                                 method="POST" class="d-inline">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="btn btn-sm text-danger border-0 bg-transparent py-0"
-                                    title="Unlink" onsubmit="return confirm('Unlink this certificate?');">
+                                    title="Unlink" data-confirm='Unlink this certificate?'>
                                     <i class="fas fa-times"></i>
                                 </button>
                             </form>
@@ -677,7 +676,7 @@
                             </div>
                             <form action="{{ url_for('services.unlink_credential', id=service.id, cred_id=cred.id) }}"
                                 method="POST" class="d-inline"
-                                onsubmit="return confirm('Are you sure you want to unlink this credential?');">
+                                data-confirm='Are you sure you want to unlink this credential?'>
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="btn btn-sm text-danger border-0 bg-transparent py-0"
                                     title="Unlink">
@@ -1060,10 +1059,13 @@
 
                 if (data.exists) {
                     const sources = data.sources.join('\n• ');
-                    const confirmed = confirm(
-                        `⚠️ Advertencia: Este usuario ya tiene acceso a través de:\n• ${sources}\n\n` +
-                        `¿Deseas asignarlo manualmente de todas formas? Esto podría generar duplicidades.`
-                    );
+                    const confirmed = await OpsDeck.showConfirm({
+                        title: 'Warning',
+                        body: `This user already has access through:\n• ${sources}\n\nDo you want to assign them manually anyway? This could create duplicates.`,
+                        okText: 'Yes, Assign',
+                        cancelText: 'Cancel',
+                        variant: 'warning'
+                    });
 
                     if (!confirmed) {
                         return;

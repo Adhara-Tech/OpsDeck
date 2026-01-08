@@ -7,7 +7,8 @@
         <button class="btn btn-success" onclick="exportTableToCSV('payments-table', 'payment-methods.csv')">
             <i class="fas fa-file-csv"></i> Export to CSV
         </button>
-        <a href="{{ url_for('payment_methods.new_payment_method') }}" class="btn btn-primary"><i class="fas fa-plus"></i> Add Method</a>
+        <a href="{{ url_for('payment_methods.new_payment_method') }}" class="btn btn-primary"><i
+                class="fas fa-plus"></i> Add Method</a>
     </div>
 </div>
 <div class="card">
@@ -28,18 +29,22 @@
                 <tbody>
                     {% for method in payment_methods %}
                     <tr>
-                        <td><a href="{{ url_for('payment_methods.payment_method_detail', id=method.id) }}">{{ method.name }}</a></td>
-                        
+                        <td><a href="{{ url_for('payment_methods.payment_method_detail', id=method.id) }}">{{
+                                method.name }}</a></td>
+
                         <td><span class="badge bg-secondary">{{ method.method_type }}</span></td>
                         <td>{{ method.details or '-' }}</td>
                         <td>{{ method.expiry_date.strftime('%Y-%m') if method.expiry_date else '-' }}</td>
                         <td><span class="badge bg-info">{{ method.subscriptions|length }}</span></td>
                         <td><span class="badge bg-success">{{ method.purchases|length }}</span></td>
                         <td>
-                            <a href="{{ url_for('payment_methods.edit_payment_method', id=method.id) }}" class="btn btn-sm btn-outline-primary me-1" title="Edit"><i class="fas fa-edit"></i></a>
-                            <form action="{{ url_for('payment_methods.delete_payment_method', id=method.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure?');">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i class="fas fa-trash"></i></button>
+                            <a href="{{ url_for('payment_methods.edit_payment_method', id=method.id) }}"
+                                class="btn btn-sm btn-outline-primary me-1" title="Edit"><i class="fas fa-edit"></i></a>
+                            <form action="{{ url_for('payment_methods.delete_payment_method', id=method.id) }}"
+                                method="POST" class="d-inline" data-confirm="Are you sure?">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i
+                                        class="fas fa-trash"></i></button>
                             </form>
                         </td>
                     </tr>
