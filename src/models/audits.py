@@ -126,7 +126,7 @@ class ComplianceAudit(db.Model):
             db.session.add(audit_item)
             db.session.flush() # Need ID for links
 
-            # 4. Copy Links if requested
+            # 4. Copy Manual Links if requested
             if copy_links:
                 original_links = control.compliance_links.all()
                 for link in original_links:
@@ -134,11 +134,51 @@ class ComplianceAudit(db.Model):
                         audit_item_id=audit_item.id,
                         linkable_type=link.linkable_type,
                         linkable_id=link.linkable_id,
-                        description=link.description
+                        description=link.description,
+                        is_automated=False
                     )
                     db.session.add(audit_link)
+            
+            # 5. Capture Automated Evidence from ComplianceRules
+            from .security import ComplianceRule
+            from ..services.compliance_service import get_compliance_evaluator
+            
+            evaluator = get_compliance_evaluator()
+            rules = control.rules.all() if hasattr(control, 'rules') else []
+            
+            for rule in rules:
+                if not rule.enabled:
+                    continue
+                    
+                try:
+                    result = evaluator.evaluate_rule(rule)
+                    status = result.get('status', 'unknown')
+                    
+                    # Only capture evidence if compliant or warning (valid evidence exists)
+                    if status in ('compliant', 'warning') and result.get('evidence'):
+                        evidence = result['evidence']
+                        evidence_date = result.get('last_evidence_date')
+                        
+                        # Determine linkable_type from target_model
+                        linkable_type = rule.target_model  # e.g., 'ActivityExecution', 'Campaign'
+                        
+                        # Format evidence date for description
+                        date_str = evidence_date.strftime('%Y-%m-%d') if evidence_date else 'N/A'
+                        
+                        audit_link = AuditControlLink(
+                            audit_item_id=audit_item.id,
+                            linkable_type=linkable_type,
+                            linkable_id=evidence.id,
+                            description=f"Automated Evidence: {rule.name} - Verified on {date_str}",
+                            is_automated=True
+                        )
+                        db.session.add(audit_link)
+                except Exception as e:
+                    # Log but don't fail the snapshot for a single rule error
+                    import logging
+                    logging.warning(f"Failed to capture automated evidence for rule {rule.id}: {e}")
 
-        # 5. Commit transaction
+        # 6. Commit transaction
         db.session.commit()
         
         return audit
@@ -212,7 +252,8 @@ class ComplianceAudit(db.Model):
                      audit_item_id=new_item.id,
                      linkable_type=link.linkable_type,
                      linkable_id=link.linkable_id,
-                     description=link.description
+                     description=link.description,
+                     is_automated=link.is_automated if hasattr(link, 'is_automated') else False
                  )
                  db.session.add(new_link)
 
@@ -284,6 +325,7 @@ class AuditControlLink(db.Model):
     linkable_id = db.Column(db.Integer, nullable=False)
     
     description = db.Column(db.Text) # Context for why this is evidence
+    is_automated = db.Column(db.Boolean, default=False, nullable=False) # True if captured from ComplianceRule
     
     @property
     def display_name(self):
@@ -325,6 +367,9 @@ class AuditControlLink(db.Model):
         from .security import SecurityIncident, SecurityAssessment, Risk, AssetInventory
         from .services import BusinessService
         from .auth import OrgChartSnapshot
+        from .activities import ActivityExecution, SecurityActivity
+        from .communications import Campaign
+        from .bcdr import BCDRTestLog
         
         # Map types to models
         model_map = {
@@ -343,13 +388,18 @@ class AuditControlLink(db.Model):
             'Policy': Policy,
             'Course': Course,
             'BCDRPlan': BCDRPlan,
+            'BCDRTestLog': BCDRTestLog,
             'SecurityIncident': SecurityIncident,
             'SecurityAssessment': SecurityAssessment,
             'Risk': Risk,
             'AssetInventory': AssetInventory,
             'BusinessService': BusinessService,
             'Onboarding': OnboardingProcess,
-            'Offboarding': OffboardingProcess
+            'Offboarding': OffboardingProcess,
+            # Automated Evidence Types
+            'ActivityExecution': ActivityExecution,
+            'SecurityActivity': SecurityActivity,
+            'Campaign': Campaign,
         }
         
         model = model_map.get(self.linkable_type)

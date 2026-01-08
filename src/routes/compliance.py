@@ -681,16 +681,26 @@ def dashboard():
 @compliance_bp.route('/dashboard/pdf')
 @login_required
 def export_dashboard_pdf():
-    """Exports the compliance dashboard to PDF."""
+    """Exports the compliance dashboard to PDF using the same data as the HTML dashboard."""
     from weasyprint import HTML
     from flask import make_response
+    from src.services.compliance_service import get_compliance_evaluator
 
+    # Use the same data logic as the HTML dashboard
+    evaluator = get_compliance_evaluator()
     frameworks = Framework.query.filter_by(is_active=True).order_by(Framework.name).all()
+    
+    dashboard_data = []
+    for framework in frameworks:
+        framework_status = evaluator.get_framework_status(framework.id)
+        if framework_status:
+            dashboard_data.append(framework_status)
+    
     user = User.query.get(session.get('user_id'))
     
     html_content = render_template(
         'compliance/dashboard_pdf.html', 
-        frameworks=frameworks,
+        dashboard_data=dashboard_data,
         generated_at=datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
         generated_by=user.name if user else 'System'
     )
