@@ -405,7 +405,12 @@ def seed_data(app=None):
             FrameworkControl(framework_id=fake_framework.id, control_id="GSS.1.1", name="Planetary Defense", description="Ensure planetary shields are active."),
             FrameworkControl(framework_id=fake_framework.id, control_id="GSS.1.2", name="Droid Security", description="Prevent unauthorized droid hacking."),
             FrameworkControl(framework_id=fake_framework.id, control_id="GSS.2.1", name="Hologram Encryption", description="Encrypt all holographic communications."),
-            FrameworkControl(framework_id=fake_framework.id, control_id="GSS.3.1", name="Warp Drive Safety", description="Regular maintenance of warp cores.")
+            FrameworkControl(framework_id=fake_framework.id, control_id="GSS.3.1", name="Warp Drive Safety", description="Regular maintenance of warp cores."),
+            # Stress test items
+            FrameworkControl(framework_id=fake_framework.id, control_id="GSS.4.1", name="Turbo Encabulator", description="Legacy hardware interface for retrograde capacitance."),
+            FrameworkControl(framework_id=fake_framework.id, control_id="GSS.4.2", name="Recursive Logic", description="Infinite loop testing and stack overflow prevention."),
+            FrameworkControl(framework_id=fake_framework.id, control_id="GSS.5.1", name="Null Pointer", description="Void reference handling and exception management."),
+            FrameworkControl(framework_id=fake_framework.id, control_id="GSS.5.2", name="Secret Cow Level", description="Easter egg implementation and hidden feature access.")
         ]
         db.session.add_all(fake_controls)
         db.session.commit()
