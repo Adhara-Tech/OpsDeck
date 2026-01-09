@@ -221,6 +221,7 @@ class ComplianceEvaluator:
                 'status': control_status,
                 'rules_count': len(rules),
                 'manual_links_count': manual_links_count,
+                'linked_items_count': len(rules) + manual_links_count,
                 'oldest_evidence_date': oldest_evidence_date,
                 'rule_evaluations': rule_evaluations,
                 'coverage_type': 'automated' if rules else ('manual' if manual_links_count > 0 else 'none')

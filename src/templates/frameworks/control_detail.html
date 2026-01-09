@@ -70,6 +70,10 @@
         <div class="card shadow">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="fas fa-folder-open"></i> Evidence & Linked Items</h5>
+                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
+                    data-bs-target="#linkManualItemModal">
+                    <i class="fas fa-plus me-1"></i> Link Manual Item
+                </button>
             </div>
             <div class="card-body p-0">
                 {% if manual_links or automated_evidence %}
@@ -141,6 +145,17 @@
                                         class="btn btn-sm btn-outline-secondary" title="View">
                                         <i class="fas fa-eye"></i>
                                     </a>
+                                    {% elif link.linkable_type == 'Service' or link.linkable_type == 'BusinessService'
+                                    %}
+                                    <a href="{{ url_for('services.detail', id=link.linkable_id) }}"
+                                        class="btn btn-sm btn-outline-secondary" title="View">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% elif link.linkable_type == 'Link' %}
+                                    <a href="{{ linked_obj.url if linked_obj else '#' }}" target="_blank"
+                                        class="btn btn-sm btn-outline-secondary" title="Open Link">
+                                        <i class="fas fa-external-link-alt"></i>
+                                    </a>
                                     {% elif link.linkable_type == 'BCDRPlan' %}
                                     <a href="{{ url_for('compliance.bcdr_plan_detail', id=link.linkable_id) }}"
                                         class="btn btn-sm btn-outline-secondary" title="View">
@@ -162,6 +177,11 @@
                                     {% else %}
                                     <span class="text-muted">—</span>
                                     {% endif %}
+                                    {# Unlink button for manual links #}
+                                    <button type="button" class="btn btn-sm btn-outline-danger ms-1" title="Unlink"
+                                        data-link-id="{{ link.id }}" onclick="unlinkItem(this)">
+                                        <i class="fas fa-unlink"></i>
+                                    </button>
                                 </td>
                             </tr>
                             {% endfor %}
@@ -591,6 +611,142 @@
         </div>
     </div>
 </div>
+
+{# Modal: Link Manual Item #}
+<div class="modal fade" id="linkManualItemModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('compliance.create_manual_link') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="framework_control_id" value="{{ control.id }}">
+
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-link me-2"></i> Link Manual Evidence</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Evidence Type</label>
+                        <select class="form-select" id="manualLinkTypeSelector">
+                            <option value="Policy">Policy</option>
+                            <option value="Documentation">Documentation</option>
+                            <option value="BusinessService">Service</option>
+                            <option value="Link">External Link / Bookmark</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3 link-type-group" id="group-Policy">
+                        <label class="form-label">Select Policy</label>
+                        <select class="form-select" name="linkable_id">
+                            <option value="">Choose a policy...</option>
+                            {% for p in available_policies %}
+                            <option value="{{ p.id }}">{{ p.title }}</option>
+                            {% endfor %}
+                        </select>
+                        <input type="hidden" name="linkable_type" value="Policy">
+                    </div>
+
+                    <div class="mb-3 link-type-group d-none" id="group-Documentation">
+                        <label class="form-label">Select Document</label>
+                        <select class="form-select" name="linkable_id" disabled>
+                            <option value="">Choose a document...</option>
+                            {% for d in available_docs %}
+                            <option value="{{ d.id }}">{{ d.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <input type="hidden" name="linkable_type" value="Documentation" disabled>
+                    </div>
+
+                    <div class="mb-3 link-type-group d-none" id="group-BusinessService">
+                        <label class="form-label">Select Service</label>
+                        <select class="form-select" name="linkable_id" disabled>
+                            <option value="">Choose a service...</option>
+                            {% for s in available_services %}
+                            <option value="{{ s.id }}">{{ s.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <input type="hidden" name="linkable_type" value="BusinessService" disabled>
+                    </div>
+
+                    <div class="mb-3 link-type-group d-none" id="group-Link">
+                        <label class="form-label">Select Bookmark</label>
+                        <select class="form-select" name="linkable_id" disabled>
+                            <option value="">Choose a link...</option>
+                            {% for l in available_links %}
+                            <option value="{{ l.id }}">{{ l.name }} ({{ l.url[:40] }}{% if l.url|length > 40 %}...{%
+                                endif %})</option>
+                            {% endfor %}
+                        </select>
+                        <input type="hidden" name="linkable_type" value="Link" disabled>
+                        <div class="form-text">
+                            <a href="{{ url_for('links.new_link') }}" target="_blank">Create new link</a> if not listed.
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Description / Justification</label>
+                        <textarea class="form-control" name="description" rows="2"
+                            placeholder="Why does this item satisfy the control?"></textarea>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Link Item</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Script for toggling the manual link type selects
+    document.getElementById('manualLinkTypeSelector').addEventListener('change', function () {
+        // Hide and disable all
+        document.querySelectorAll('.link-type-group').forEach(el => {
+            el.classList.add('d-none');
+            el.querySelectorAll('select, input').forEach(i => i.disabled = true);
+        });
+
+        // Show and enable selected
+        const selectedGroup = document.getElementById('group-' + this.value);
+        if (selectedGroup) {
+            selectedGroup.classList.remove('d-none');
+            selectedGroup.querySelectorAll('select, input').forEach(i => i.disabled = false);
+        }
+    });
+
+    // Trigger initial state
+    document.getElementById('manualLinkTypeSelector').dispatchEvent(new Event('change'));
+
+    // Unlink manual item function
+    function unlinkItem(button) {
+        const linkId = button.dataset.linkId;
+        if (!confirm('Are you sure you want to unlink this item? This will not delete the item itself.')) {
+            return;
+        }
+
+        fetch(`/compliance/link/${linkId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token() }}'
+            }
+        })
+            .then(response => {
+                if (response.ok) {
+                    window.location.reload();
+                } else {
+                    alert('Error unlinking item. Please try again.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error unlinking item. Please try again.');
+            });
+    }
+</script>
 
 {% endblock %}
 

@@ -133,6 +133,7 @@
                                 <th style="width: 100px;">Control ID</th>
                                 <th>Name</th>
                                 <th class="text-center" style="width: 100px;">Coverage</th>
+                                <th class="text-center" style="width: 80px;">Linked</th>
                                 <th class="text-center" style="width: 120px;">Status</th>
                                 <th class="text-center" style="width: 140px;">Last Evidence</th>
                                 <th class="text-end" style="width: 100px;">Actions</th>
@@ -164,6 +165,16 @@
                                     <span class="badge bg-light text-dark" title="No coverage">
                                         <i class="fas fa-minus"></i>
                                     </span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if ctrl.linked_items_count > 0 %}
+                                    <a href="{{ url_for('frameworks.control_detail', id=ctrl.id) }}"
+                                        class="text-decoration-none" title="View linked items">
+                                        <span class="badge bg-secondary">{{ ctrl.linked_items_count }}</span>
+                                    </a>
+                                    {% else %}
+                                    <span class="text-muted">—</span>
                                     {% endif %}
                                 </td>
                                 <td class="text-center">
@@ -211,7 +222,7 @@
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="6" class="text-center text-muted py-4">
+                                <td colspan="7" class="text-center text-muted py-4">
                                     No controls defined for this framework.
                                 </td>
                             </tr>

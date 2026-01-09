@@ -810,6 +810,52 @@ def delete_compliance_link(link_id):
     db.session.commit()
     return jsonify({'status': 'success', 'message': 'Link deleted successfully'})
 
+
+@compliance_bp.route('/link/manual/create', methods=['POST'])
+@login_required
+def create_manual_link():
+    """
+    Processes the manual link modal form.
+    Expects: framework_control_id, linkable_type, linkable_id, description
+    """
+    framework_control_id = request.form.get('framework_control_id', type=int)
+    linkable_type = request.form.get('linkable_type')
+    linkable_id = request.form.get('linkable_id', type=int)
+    description = request.form.get('description', '').strip()
+
+    if not all([framework_control_id, linkable_type, linkable_id]):
+        flash('Missing required fields.', 'error')
+        return redirect(request.referrer or url_for('frameworks.list'))
+
+    # Validate control exists
+    control = FrameworkControl.query.get(framework_control_id)
+    if not control:
+        flash('Control not found.', 'error')
+        return redirect(request.referrer or url_for('frameworks.list'))
+
+    # Check for existing link to avoid duplicates
+    existing = ComplianceLink.query.filter_by(
+        framework_control_id=framework_control_id,
+        linkable_type=linkable_type,
+        linkable_id=linkable_id
+    ).first()
+
+    if existing:
+        flash('This item is already linked to this control.', 'warning')
+    else:
+        link = ComplianceLink(
+            framework_control_id=framework_control_id,
+            linkable_type=linkable_type,
+            linkable_id=linkable_id,
+            description=description or f'Manual link to {linkable_type}'
+        )
+        db.session.add(link)
+        db.session.commit()
+        flash('Item linked successfully.', 'success')
+
+    # Redirect back to the control detail page
+    return redirect(url_for('frameworks.control_detail', id=framework_control_id))
+
 @compliance_bp.route('/link/new', methods=['GET', 'POST'])
 @login_required
 def link_control():
