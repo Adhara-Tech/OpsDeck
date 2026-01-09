@@ -35,6 +35,108 @@
                         <label for="modalDescription" class="form-label">Description (Optional)</label>
                         <textarea class="form-control" id="modalDescription" name="description" rows="4"></textarea>
                     </div>
+
+                    <!-- Dynamic Selector Implementation -->
+                    <hr>
+                    <h6 class="mb-3">Compliance Control Linking</h6>
+
+                    <div class="mb-3">
+                        <label class="form-label">Linked Object Type</label>
+                        <select class="form-select" id="linkObjectType" name="linkable_type">
+                            <option value="" disabled selected>Select type...</option>
+                            <option value="Asset">Asset / Device</option>
+                            <option value="Policy">Policy & Procedure</option>
+                            <option value="Risk">Risk Register</option>
+                            <option value="Vendor">Vendor / Supplier</option>
+                            <option value="User">User / Employee</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Object to Link</label>
+                        <select id="linkObjectId" name="linkable_id" placeholder="Type to search..." disabled>
+                        </select>
+                        <div class="form-text">Search by name, tag or ID.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Tags</label>
+                        <select id="linkTags" name="tags" multiple placeholder="Add tags...">
+                            {% if link and link.tags %}
+                            {% for tag in link.tags %}
+                            <option value="{{ tag }}" selected>{{ tag }}</option>
+                            {% endfor %}
+                            {% endif %}
+                        </select>
+                    </div>
+
+                    <script>
+                        document.addEventListener("DOMContentLoaded", function () {
+                            // Avoid re-initialization if script runs multiple times
+                            if (window.tomSelectInitialized) return;
+                            window.tomSelectInitialized = true;
+
+                            // --- 1. Inicializar Tags (Multiselect + Creación) ---
+                            // Check if element exists first (modal might be hidden/shown)
+                            const tagEl = document.querySelector("#linkTags");
+                            if (tagEl) {
+                                new TomSelect("#linkTags", {
+                                    plugins: ['remove_button', 'caret_position'],
+                                    create: true,
+                                    persist: false,
+                                    maxItems: 10
+                                });
+                            }
+
+                            // --- 2. Configurar el Selector Dinámico de Objetos ---
+                            const objectSelectEl = document.querySelector("#linkObjectId");
+                            const typeSelect = document.getElementById('linkObjectType');
+
+                            if (objectSelectEl && typeSelect) {
+                                let objectSelect = new TomSelect("#linkObjectId", {
+                                    valueField: 'id',
+                                    labelField: 'name',
+                                    searchField: ['name', 'details'],
+                                    load: function (query, callback) {
+                                        const type = typeSelect.value;
+                                        if (!type) return callback();
+
+                                        const url = `/compliance/json/linkable-objects?type=${type}&q=${encodeURIComponent(query)}`;
+
+                                        fetch(url)
+                                            .then(response => response.json())
+                                            .then(json => {
+                                                callback(json);
+                                            }).catch(() => {
+                                                callback();
+                                            });
+                                    },
+                                    render: {
+                                        option: function (item, escape) {
+                                            return `<div>
+                                            <span class="fw-bold">${escape(item.name)}</span>
+                                            ${item.details ? `<span class="text-muted small ms-2">(${escape(item.details)})</span>` : ''}
+                                        </div>`;
+                                        },
+                                        item: function (item, escape) {
+                                            return `<div>${escape(item.name)}</div>`;
+                                        }
+                                    }
+                                });
+
+                                // --- 3. Lógica de "Cascada" (Type -> Object) ---
+                                typeSelect.addEventListener('change', function () {
+                                    objectSelect.enable();
+                                    objectSelect.clear();
+                                    objectSelect.clearOptions();
+                                    objectSelect.load('');
+                                    objectSelect.settings.placeholder = `Search ${this.value}...`;
+                                    objectSelect.inputState();
+                                });
+                            }
+                        });
+                    </script>
+
                 </div>
 
                 <div class="modal-footer">

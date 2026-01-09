@@ -3,11 +3,131 @@ import uuid
 from werkzeug.utils import secure_filename
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, current_app
 from datetime import datetime
-from ..models import db, Supplier, SecurityAssessment, PolicyVersion, User, AssetInventory, AssetInventoryItem, Asset, BCDRPlan, BCDRTestLog, Subscription, SecurityIncident, PostIncidentReview, IncidentTimelineEvent, MaintenanceLog, Attachment, Framework, FrameworkControl, ComplianceLink, ComplianceRule
+from ..models import db, Supplier, SecurityAssessment, PolicyVersion, User, AssetInventory, AssetInventoryItem, Asset, BCDRPlan, BCDRTestLog, Subscription, SecurityIncident, PostIncidentReview, IncidentTimelineEvent, MaintenanceLog, Attachment, Framework, FrameworkControl, ComplianceLink, ComplianceRule, Risk, Policy
+from ..models.activities import SecurityActivity
+from ..models.communications import Campaign
+from ..models.core import Tag
 from .main import login_required
 from .admin import admin_required
 
 compliance_bp = Blueprint('compliance', __name__)
+
+@compliance_bp.route('/json/linkable-objects')
+@login_required
+def get_linkable_objects():
+    """
+    Endpoint polimórfico para selectores dinámicos.
+    Uso: /compliance/json/linkable-objects?type=Asset&q=macbook
+    """
+    obj_type = request.args.get('type')
+    query = request.args.get('q', '').lower()
+    
+    results = []
+    
+    # Mapeo de String a Clase de Modelo + Campos de Búsqueda
+    model_map = {
+        'Asset': (Asset, ['name', 'serial_number']), 
+        'Policy': (Policy, ['title']), # Note: Policy uses 'title', not 'name' in some models, checking...
+        'Risk': (Risk, ['risk_description', 'extended_description']), # Risk uses risk_description
+        'User': (User, ['name', 'email']),
+        'Vendor': (Supplier, ['name']),
+        # Añade 'Procedure', 'Control', etc. según necesites
+    }
+
+    if obj_type in model_map:
+        model, search_fields = model_map[obj_type]
+        
+        # Construir query dinámica
+        q_obj = model.query
+        if query:
+            # Filtro OR simple sobre los campos definidos
+            filters = [getattr(model, field).ilike(f'%{query}%') for field in search_fields if getattr(model, field) is not None]
+            q_obj = q_obj.filter(db.or_(*filters))
+            
+        # Limitar resultados para no matar el navegador
+        items = q_obj.limit(50).all()
+        
+        results = []
+        for item in items:
+            # Safe attribute access depending on model
+            name = "Unknown"
+            details = ""
+            item_id = item.id
+
+            if obj_type == 'Asset':
+                name = item.name
+                details = item.serial_number or item.status
+            elif obj_type == 'Policy':
+                name = item.title
+                details = item.category
+            elif obj_type == 'Risk':
+                name = item.risk_description
+                details = f"Risk #{item.id}"
+            elif obj_type == 'User':
+                name = item.name
+                details = item.email
+            elif obj_type == 'Vendor':
+                name = item.name
+                details = item.compliance_status
+            
+            results.append({
+                'id': item_id,
+                'name': name,
+                'details': details
+            })
+
+    return jsonify(results)
+
+# --- JSON APIs for Automation Rules Dynamic Selectors ---
+
+@compliance_bp.route('/json/activities')
+@login_required
+def get_activities():
+    """Returns list of Security Activities for dropdown."""
+    q = request.args.get('q', '').lower()
+    query = SecurityActivity.query.order_by(SecurityActivity.name)
+    if q:
+        query = query.filter(SecurityActivity.name.ilike(f'%{q}%'))
+    activities = query.limit(50).all()
+    return jsonify([{
+        'id': a.id,
+        'name': a.name,
+        'frequency': a.frequency or ''
+    } for a in activities])
+
+@compliance_bp.route('/json/tags')
+@login_required
+def get_all_tags():
+    """Returns list of all non-archived Tags for dropdowns."""
+    try:
+        tags = Tag.query.filter_by(is_archived=False).order_by(Tag.name).all()
+        return jsonify([{
+            'id': t.id,
+            'name': t.name
+        } for t in tags])
+    except Exception as e:
+        return jsonify([]), 500
+
+@compliance_bp.route('/json/maintenance-types')
+@login_required
+def get_maintenance_types():
+    """Returns distinct event_type values from MaintenanceLog."""
+    types = db.session.query(MaintenanceLog.event_type).distinct().order_by(MaintenanceLog.event_type).all()
+    return jsonify([t[0] for t in types if t[0]])
+
+@compliance_bp.route('/json/bcdr-plans')
+@login_required
+def get_bcdr_plans():
+    """Returns list of BCDR Plans for dropdown."""
+    q = request.args.get('q', '').lower()
+    query = BCDRPlan.query.order_by(BCDRPlan.name)
+    if q:
+        query = query.filter(BCDRPlan.name.ilike(f'%{q}%'))
+    plans = query.limit(50).all()
+    return jsonify([{
+        'id': p.id,
+        'name': p.name
+    } for p in plans])
 
 @compliance_bp.route('/vendors')
 @login_required

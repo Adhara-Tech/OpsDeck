@@ -256,12 +256,15 @@ def delete_control(id):
 @login_required
 def control_detail(id):
     """Displays control detail with cross-mappings."""
+    from ..models.core import Tag
     control = FrameworkControl.query.get_or_404(id)
     all_frameworks = Framework.query.order_by(Framework.name).all()
+    all_tags = Tag.query.filter_by(is_archived=False).order_by(Tag.name).all()
     return render_template(
         'frameworks/control_detail.html',
         control=control,
-        all_frameworks=all_frameworks
+        all_frameworks=all_frameworks,
+        all_tags=all_tags
     )
 
 

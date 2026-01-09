@@ -304,15 +304,10 @@
                             Link this rule to a specific Security Activity. The system will check for recent executions.
                         </div>
                         <div class="mb-3">
-                            <label for="activityId" class="form-label">Activity ID</label>
-                            <input type="number" class="form-control" id="activityId" name="activity_id"
-                                placeholder="Enter the Security Activity ID">
-                            <div class="form-text">Or specify by name below:</div>
-                        </div>
-                        <div class="mb-3">
-                            <label for="activityName" class="form-label">Activity Name (alternative)</label>
-                            <input type="text" class="form-control" id="activityName" name="activity_name"
-                                placeholder="e.g., Quarterly User Access Review">
+                            <label for="activitySelect" class="form-label">Security Activity</label>
+                            <select id="activitySelect" name="activity_id" placeholder="Search activities...">
+                            </select>
+                            <div class="form-text">Select the activity to monitor for compliance.</div>
                         </div>
                     </div>
 
@@ -322,23 +317,38 @@
                             Find campaigns by tags. The system will look for finished campaigns with matching tags.
                         </div>
                         <div class="mb-3">
-                            <label for="campaignTags" class="form-label">Campaign Tags (comma separated)</label>
-                            <input type="text" class="form-control" id="campaignTags" name="tags"
-                                placeholder="e.g., Phishing, Security Awareness">
-                            <div class="form-text">Enter one or more tags separated by commas</div>
+                            <label for="campaignTagsSelect" class="form-label">Campaign Tags</label>
+                            <select id="campaignTagsSelect" name="tags" multiple>
+                                {% for tag in all_tags %}
+                                <option value="{{ tag.name }}">{{ tag.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Select one or more tags to match campaigns. Leave empty to match any
+                                campaign.</div>
                         </div>
                     </div>
 
                     <div id="criteria-maintenance" class="d-none">
                         <div class="alert alert-info">
                             <i class="fas fa-info-circle me-2"></i>
-                            Find maintenance logs by event type.
+                            Find maintenance logs by event type and/or tags.
                         </div>
                         <div class="mb-3">
-                            <label for="eventType" class="form-label">Event Type (optional)</label>
-                            <input type="text" class="form-control" id="eventType" name="event_type"
-                                placeholder="e.g., Backup Test, Data Erasure">
-                            <div class="form-text">Leave blank to match any completed maintenance</div>
+                            <label for="eventTypeSelect" class="form-label">Event Type (optional)</label>
+                            <select id="eventTypeSelect" name="event_type" placeholder="Select event type...">
+                                <option value="">Any event type</option>
+                            </select>
+                            <div class="form-text">Leave blank to match any completed maintenance.</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="maintenanceTagsSelect" class="form-label">Filter by Tags (optional)</label>
+                            <select id="maintenanceTagsSelect" name="maintenance_tags" multiple>
+                                {% for tag in all_tags %}
+                                <option value="{{ tag.name }}">{{ tag.name }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Only include maintenance logs with these tags. Leave empty to include
+                                all.</div>
                         </div>
                     </div>
 
@@ -348,10 +358,11 @@
                             Find BCDR test logs, optionally for a specific plan.
                         </div>
                         <div class="mb-3">
-                            <label for="planId" class="form-label">BCDR Plan ID (optional)</label>
-                            <input type="number" class="form-control" id="planId" name="plan_id"
-                                placeholder="Enter the BCDR Plan ID">
-                            <div class="form-text">Leave blank to match any passed BCDR test</div>
+                            <label for="bcdrPlanSelect" class="form-label">BCDR Plan (optional)</label>
+                            <select id="bcdrPlanSelect" name="plan_id" placeholder="Search plans...">
+                                <option value="">Any plan</option>
+                            </select>
+                            <div class="form-text">Leave blank to match any passed BCDR test.</div>
                         </div>
                     </div>
                 </div>
@@ -419,6 +430,113 @@
     document.addEventListener('DOMContentLoaded', function () {
         initTargetControlSelect();
 
+        // --- Lazy Tom-Select Initialization for Automation Rule Criteria ---
+        // We defer initialization until the section becomes visible to avoid
+        // issues with Tom-Select rendering on hidden elements.
+
+        let activitySelectInit = false;
+        let campaignTagsSelectInit = false;
+        let eventTypeSelectInit = false;
+        let bcdrPlanSelectInit = false;
+
+        function initActivitySelect() {
+            if (activitySelectInit) return;
+            activitySelectInit = true;
+            new TomSelect('#activitySelect', {
+                valueField: 'id',
+                labelField: 'name',
+                searchField: ['name'],
+                placeholder: 'Search activities...',
+                load: function (query, callback) {
+                    fetch(`/compliance/json/activities?q=${encodeURIComponent(query)}`)
+                        .then(res => res.json())
+                        .then(data => callback(data))
+                        .catch(() => callback());
+                },
+                onInitialize: function () {
+                    const self = this;
+                    fetch('/compliance/json/activities')
+                        .then(res => res.json())
+                        .then(data => data.forEach(a => self.addOption(a)));
+                },
+                render: {
+                    option: function (item, escape) {
+                        return `<div><strong>${escape(item.name)}</strong> <span class="text-muted small">${escape(item.frequency || '')}</span></div>`;
+                    },
+                    item: function (item, escape) {
+                        return `<div>${escape(item.name)}</div>`;
+                    }
+                }
+            });
+        }
+
+        function initCampaignTagsSelect() {
+            if (campaignTagsSelectInit) return;
+            campaignTagsSelectInit = true;
+            new TomSelect('#campaignTagsSelect', {
+                plugins: ['remove_button', 'checkbox_options'],
+                create: false,
+                maxOptions: 100,
+                closeAfterSelect: false,
+                hideSelected: false
+            });
+        }
+
+        let maintenanceTagsSelectInit = false;
+        function initMaintenanceTagsSelect() {
+            if (maintenanceTagsSelectInit) return;
+            maintenanceTagsSelectInit = true;
+            new TomSelect('#maintenanceTagsSelect', {
+                plugins: ['remove_button', 'checkbox_options'],
+                create: false,
+                maxOptions: 100,
+                closeAfterSelect: false,
+                hideSelected: false
+            });
+        }
+
+        function initEventTypeSelect() {
+            if (eventTypeSelectInit) return;
+            eventTypeSelectInit = true;
+            new TomSelect('#eventTypeSelect', {
+                valueField: 'value',
+                labelField: 'value',
+                searchField: ['value'],
+                create: false,
+                onInitialize: function () {
+                    const self = this;
+                    fetch('/compliance/json/maintenance-types')
+                        .then(res => res.json())
+                        .then(data => data.forEach(t => self.addOption({ value: t })));
+                }
+            });
+            // Also init maintenance tags when this is shown
+            initMaintenanceTagsSelect();
+        }
+
+        function initBcdrPlanSelect() {
+            if (bcdrPlanSelectInit) return;
+            bcdrPlanSelectInit = true;
+            new TomSelect('#bcdrPlanSelect', {
+                valueField: 'id',
+                labelField: 'name',
+                searchField: ['name'],
+                placeholder: 'Search plans...',
+                load: function (query, callback) {
+                    fetch(`/compliance/json/bcdr-plans?q=${encodeURIComponent(query)}`)
+                        .then(res => res.json())
+                        .then(data => callback(data))
+                        .catch(() => callback());
+                },
+                onInitialize: function () {
+                    const self = this;
+                    fetch('/compliance/json/bcdr-plans')
+                        .then(res => res.json())
+                        .then(data => data.forEach(p => self.addOption(p)));
+                }
+            });
+        }
+
         // Dynamic criteria fields
         const targetModelSelect = document.getElementById('targetModel');
         const criteriaActivity = document.getElementById('criteria-activity');
@@ -433,19 +551,23 @@
             criteriaMaintenance.classList.add('d-none');
             criteriaBcdr.classList.add('d-none');
 
-            // Show relevant
+            // Show relevant and lazy-init Tom-Select
             switch (this.value) {
                 case 'ActivityExecution':
                     criteriaActivity.classList.remove('d-none');
+                    initActivitySelect();
                     break;
                 case 'Campaign':
                     criteriaCampaign.classList.remove('d-none');
+                    initCampaignTagsSelect();
                     break;
                 case 'MaintenanceLog':
                     criteriaMaintenance.classList.remove('d-none');
+                    initEventTypeSelect();
                     break;
                 case 'BCDRTestLog':
                     criteriaBcdr.classList.remove('d-none');
+                    initBcdrPlanSelect();
                     break;
             }
         });
