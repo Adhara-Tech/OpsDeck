@@ -36,8 +36,19 @@
 {# Main Content Tabs #}
 <ul class="nav nav-tabs mb-4" id="controlTabs" role="tablist">
     <li class="nav-item" role="presentation">
-        <button class="nav-link active" id="mappings-tab" data-bs-toggle="tab" data-bs-target="#mappings-content"
-            type="button" role="tab" aria-controls="mappings-content" aria-selected="true">
+        <button class="nav-link active" id="linked-items-tab" data-bs-toggle="tab"
+            data-bs-target="#linked-items-content" type="button" role="tab" aria-controls="linked-items-content"
+            aria-selected="true">
+            <i class="fas fa-link me-1"></i> Linked Items
+            {% set total_items = (manual_links|length) + (automated_evidence|length) %}
+            {% if total_items > 0 %}
+            <span class="badge bg-secondary">{{ total_items }}</span>
+            {% endif %}
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="mappings-tab" data-bs-toggle="tab" data-bs-target="#mappings-content" type="button"
+            role="tab" aria-controls="mappings-content" aria-selected="false">
             <i class="fas fa-diagram-project me-1"></i> Cross-Framework Mappings
         </button>
     </li>
@@ -54,8 +65,211 @@
 </ul>
 
 <div class="tab-content" id="controlTabsContent">
+    {# Tab 0: Linked Items - Unified Evidence View #}
+    <div class="tab-pane fade show active" id="linked-items-content" role="tabpanel" aria-labelledby="linked-items-tab">
+        <div class="card shadow">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-folder-open"></i> Evidence & Linked Items</h5>
+            </div>
+            <div class="card-body p-0">
+                {% if manual_links or automated_evidence %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 50px;">Source</th>
+                                <th>Item / Description</th>
+                                <th class="text-center" style="width: 120px;">Status</th>
+                                <th style="width: 120px;">Date</th>
+                                <th class="text-end" style="width: 80px;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {# Manual Compliance Links #}
+                            {% for link in manual_links %}
+                            {% set linked_obj = link.linked_object %}
+                            <tr>
+                                <td class="text-center">
+                                    <i class="fas fa-user text-primary" title="Manually linked"></i>
+                                </td>
+                                <td>
+                                    <strong>{{ link.linkable_type }}</strong>
+                                    {% if linked_obj %}
+                                    <br><small class="text-muted">{{ linked_obj.title if linked_obj.title is defined
+                                        else (linked_obj.name if linked_obj.name is defined else linked_obj.event_type
+                                        if linked_obj.event_type is defined else 'Item #' ~ link.linkable_id) }}</small>
+                                    {% else %}
+                                    <br><small class="text-muted text-danger"><i
+                                            class="fas fa-exclamation-triangle"></i> Object deleted</small>
+                                    {% endif %}
+                                    {% if link.description %}
+                                    <br><small class="text-secondary fst-italic">{{ link.description[:80] }}{% if
+                                        link.description|length > 80 %}...{% endif %}</small>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-info">Linked</span>
+                                </td>
+                                <td>
+                                    <small class="text-muted">—</small>
+                                </td>
+                                <td class="text-end">
+                                    {% if linked_obj %}
+                                    {# Polymorphic URL resolution for manual links #}
+                                    {% if link.linkable_type == 'MaintenanceLog' %}
+                                    <a href="{{ url_for('maintenance.log_detail', id=link.linkable_id) }}"
+                                        class="btn btn-sm btn-outline-secondary" title="View">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% elif link.linkable_type == 'Campaign' %}
+                                    <a href="{{ url_for('campaigns.detail', id=link.linkable_id) }}"
+                                        class="btn btn-sm btn-outline-secondary" title="View">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% elif link.linkable_type == 'Policy' %}
+                                    <a href="{{ url_for('policies.detail', id=link.linkable_id) }}"
+                                        class="btn btn-sm btn-outline-secondary" title="View">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% elif link.linkable_type == 'Asset' %}
+                                    <a href="{{ url_for('assets.asset_detail', id=link.linkable_id) }}"
+                                        class="btn btn-sm btn-outline-secondary" title="View">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% elif link.linkable_type == 'Documentation' %}
+                                    <a href="{{ url_for('documentation.detail', id=link.linkable_id) }}"
+                                        class="btn btn-sm btn-outline-secondary" title="View">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% elif link.linkable_type == 'BCDRPlan' %}
+                                    <a href="{{ url_for('compliance.bcdr_plan_detail', id=link.linkable_id) }}"
+                                        class="btn btn-sm btn-outline-secondary" title="View">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% elif link.linkable_type == 'SecurityIncident' %}
+                                    <a href="{{ url_for('compliance.incident_detail', id=link.linkable_id) }}"
+                                        class="btn btn-sm btn-outline-secondary" title="View">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% elif link.linkable_type == 'Risk' %}
+                                    <a href="{{ url_for('risk.detail', id=link.linkable_id) }}"
+                                        class="btn btn-sm btn-outline-secondary" title="View">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% else %}
+                                    <span class="text-muted">—</span>
+                                    {% endif %}
+                                    {% else %}
+                                    <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+
+                            {# Automated Evidence from ComplianceRules #}
+                            {% for item in automated_evidence %}
+                            <tr
+                                class="{{ 'table-danger' if item.status == 'non_compliant' else ('table-warning' if item.status == 'warning' else '') }}">
+                                <td class="text-center">
+                                    <i class="fas fa-robot text-secondary" title="Automated rule"></i>
+                                </td>
+                                <td>
+                                    <strong>{{ item.rule.name }}</strong>
+                                    <span class="badge bg-light text-dark ms-1">{{ item.rule.target_model }}</span>
+                                    {% if item.evidence %}
+                                    <br><small class="text-muted">
+                                        {# Display evidence name based on type #}
+                                        {% if item.rule.target_model == 'MaintenanceLog' %}
+                                        {{ item.evidence.event_type }} - {{
+                                        item.evidence.event_date.strftime('%Y-%m-%d') if item.evidence.event_date else
+                                        'N/A' }}
+                                        {% elif item.rule.target_model == 'Campaign' %}
+                                        {{ item.evidence.title }}
+                                        {% elif item.rule.target_model == 'BCDRTestLog' %}
+                                        Test: {{ item.evidence.plan.name if item.evidence.plan else 'Unknown Plan' }}
+                                        {% elif item.rule.target_model == 'ActivityExecution' %}
+                                        {{ item.evidence.activity.name if item.evidence.activity else 'Unknown Activity'
+                                        }}
+                                        {% else %}
+                                        Evidence #{{ item.evidence.id }}
+                                        {% endif %}
+                                    </small>
+                                    {% elif item.status == 'non_compliant' or item.status == 'unknown' %}
+                                    <br><small class="text-danger"><i class="fas fa-clock"></i> {{ item.message or
+                                        'Waiting for execution...' }}</small>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if item.status == 'compliant' %}
+                                    <span class="badge bg-success"><i
+                                            class="fas fa-check-circle me-1"></i>Compliant</span>
+                                    {% elif item.status == 'warning' %}
+                                    <span class="badge bg-warning text-dark"><i
+                                            class="fas fa-exclamation-triangle me-1"></i>Warning</span>
+                                    {% elif item.status == 'non_compliant' %}
+                                    <span class="badge bg-danger"><i class="fas fa-times-circle me-1"></i>Overdue</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary"><i
+                                            class="fas fa-question-circle me-1"></i>Unknown</span>
+                                    {% endif %}
+                                    {% if item.days_since >= 0 %}
+                                    <br><small class="text-muted">{{ item.days_since }} days ago</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if item.last_check %}
+                                    <small>{{ item.last_check.strftime('%Y-%m-%d') }}</small>
+                                    {% else %}
+                                    <small class="text-muted">—</small>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    {% if item.evidence %}
+                                    {# Polymorphic URL resolution for automated evidence #}
+                                    {% if item.rule.target_model == 'MaintenanceLog' %}
+                                    <a href="{{ url_for('maintenance.log_detail', id=item.evidence.id) }}"
+                                        class="btn btn-sm btn-outline-secondary" title="View Evidence">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% elif item.rule.target_model == 'Campaign' %}
+                                    <a href="{{ url_for('campaigns.detail', id=item.evidence.id) }}"
+                                        class="btn btn-sm btn-outline-secondary" title="View Evidence">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% elif item.rule.target_model == 'BCDRTestLog' %}
+                                    <a href="{{ url_for('compliance.bcdr_test_log_detail', test_id=item.evidence.id) }}"
+                                        class="btn btn-sm btn-outline-secondary" title="View Evidence">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% elif item.rule.target_model == 'ActivityExecution' %}
+                                    <a href="{{ url_for('activities.execution_detail', id=item.evidence.id) }}"
+                                        class="btn btn-sm btn-outline-secondary" title="View Evidence">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% endif %}
+                                    {% else %}
+                                    <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="p-4 text-center text-muted">
+                    <i class="fas fa-folder-open fa-2x mb-3 d-block"></i>
+                    <p class="mb-2">No linked items or evidence found for this control.</p>
+                    <p class="small mb-0">Add manual links via the Compliance module, or configure Automation Rules to
+                        track evidence automatically.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
     {# Tab 1: Cross-Framework Mappings #}
-    <div class="tab-pane fade show active" id="mappings-content" role="tabpanel" aria-labelledby="mappings-tab">
+    <div class="tab-pane fade" id="mappings-content" role="tabpanel" aria-labelledby="mappings-tab">
         <div class="row">
             <div class="col-lg-6">
                 <div class="card shadow mb-4">
