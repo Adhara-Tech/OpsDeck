@@ -48,6 +48,10 @@ class ComplianceEvaluator:
                 evidence, evidence_date = self._evaluate_onboarding(rule)
             elif target_model == 'OffboardingProcess':
                 evidence, evidence_date = self._evaluate_offboarding(rule)
+            elif target_model == 'SecurityAssessment':
+                evidence, evidence_date = self._evaluate_supplier_assessment(rule)
+            elif target_model == 'RiskAssessment':
+                evidence, evidence_date = self._evaluate_risk_assessment(rule)
             else:
                 return self._unknown_result(f"Unknown target_model: {target_model}")
             
@@ -472,6 +476,60 @@ class ComplianceEvaluator:
         
         if latest_process:
             return latest_process, latest_process.created_at
+        
+        return None, None
+    
+    def _evaluate_supplier_assessment(self, rule):
+        """
+        Evaluate rule against SecurityAssessment model.
+        
+        Criteria format:
+            {"supplier_id": 123} (optional - filter by specific supplier)
+        
+        Returns:
+            tuple: (evidence_object, evidence_date) or (None, None)
+        """
+        from src.models.security import SecurityAssessment
+        from src.models.procurement import Supplier
+        
+        criteria = rule.get_criteria()
+        supplier_id = criteria.get('supplier_id')
+        
+        query = SecurityAssessment.query.join(Supplier)
+        
+        # Filter by specific supplier if provided
+        if supplier_id:
+            query = query.filter(SecurityAssessment.supplier_id == supplier_id)
+        
+        # Get the most recent assessment
+        latest = query.order_by(SecurityAssessment.assessment_date.desc()).first()
+        
+        if latest:
+            # assessment_date is a Date field, convert to datetime for consistency
+            evidence_date = datetime.combine(latest.assessment_date, datetime.min.time())
+            return latest, evidence_date
+        
+        return None, None
+    
+    def _evaluate_risk_assessment(self, rule):
+        """
+        Evaluate rule against RiskAssessment model.
+        
+        Criteria format:
+            {} (no specific criteria - just finds most recent)
+        
+        Returns:
+            tuple: (evidence_object, evidence_date) or (None, None)
+        """
+        from src.models.risk_assessment import RiskAssessment
+        
+        query = RiskAssessment.query
+        
+        # Get the most recent risk assessment
+        latest = query.order_by(RiskAssessment.created_at.desc()).first()
+        
+        if latest:
+            return latest, latest.created_at
         
         return None, None
     

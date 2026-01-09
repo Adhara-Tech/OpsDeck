@@ -1044,6 +1044,18 @@ def create_rule():
         if tag:
             criteria = {"tag": tag}
     
+    elif target_model == 'SecurityAssessment':
+        # Optional: Filter by specific supplier
+        supplier_id = request.form.get('supplier_id', type=int)
+        if supplier_id:
+            criteria = {"supplier_id": supplier_id}
+        else:
+            criteria = {}  # Any supplier assessment counts
+    
+    elif target_model == 'RiskAssessment':
+        # Simple mode: No criteria needed, just finds most recent
+        criteria = {}
+    
     # Create and save the rule
     rule = ComplianceRule(
         framework_control_id=framework_control_id,

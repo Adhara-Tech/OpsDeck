@@ -210,6 +210,12 @@
                                         {% elif item.rule.target_model == 'ActivityExecution' %}
                                         {{ item.evidence.activity.name if item.evidence.activity else 'Unknown Activity'
                                         }}
+                                        {% elif item.rule.target_model == 'SecurityAssessment' %}
+                                        {{ item.evidence.supplier.name if item.evidence.supplier else 'Unknown Supplier'
+                                        }} -
+                                        {{ item.evidence.assessment_date.strftime('%Y-%m-%d') }}
+                                        {% elif item.rule.target_model == 'RiskAssessment' %}
+                                        {{ item.evidence.name }}
                                         {% else %}
                                         Evidence #{{ item.evidence.id }}
                                         {% endif %}
@@ -273,6 +279,16 @@
                                     </a>
                                     {% elif item.rule.target_model == 'OffboardingProcess' %}
                                     <a href="{{ url_for('onboarding.offboarding_detail', id=item.evidence.id) }}"
+                                        class="btn btn-sm btn-outline-secondary" title="View Evidence">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% elif item.rule.target_model == 'SecurityAssessment' %}
+                                    <a href="{{ url_for('compliance.assessment_detail', id=item.evidence.id) }}"
+                                        class="btn btn-sm btn-outline-secondary" title="View Evidence">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% elif item.rule.target_model == 'RiskAssessment' %}
+                                    <a href="{{ url_for('risk_assessment.view_assessment', id=item.evidence.id) }}"
                                         class="btn btn-sm btn-outline-secondary" title="View Evidence">
                                         <i class="fas fa-eye"></i>
                                     </a>
@@ -540,6 +556,8 @@
                             <option value="BCDRTestLog">BCDR Test Logs</option>
                             <option value="OnboardingProcess">Onboarding Processes</option>
                             <option value="OffboardingProcess">Offboarding Processes</option>
+                            <option value="SecurityAssessment">Supplier Security Assessments</option>
+                            <option value="RiskAssessment">Risk Assessments</option>
                         </select>
                     </div>
 
@@ -643,6 +661,26 @@
                             </div>
                             <div class="form-text">If set, only offboardings for users with this tag will be considered.
                             </div>
+                        </div>
+                    </div>
+
+                    <div id="criteria-supplier-assessment" class="d-none">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Checks for the most recent Supplier Security Assessment.
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Specific Supplier (Optional)</label>
+                            <input type="number" class="form-control" name="supplier_id"
+                                placeholder="Supplier ID (Leave empty for ANY supplier)">
+                            <div class="form-text">If empty, any assessment from any supplier counts as evidence.</div>
+                        </div>
+                    </div>
+
+                    <div id="criteria-risk-assessment" class="d-none">
+                        <div class="alert alert-info">
+                            <i class="fas fa-check-circle me-2"></i>
+                            Checks for the most recent Risk Assessment created in the system.
                         </div>
                     </div>
                 </div>
@@ -961,6 +999,8 @@
         const criteriaBcdr = document.getElementById('criteria-bcdr');
         const criteriaOnboarding = document.getElementById('criteria-onboarding');
         const criteriaOffboarding = document.getElementById('criteria-offboarding');
+        const criteriaSupplierAssessment = document.getElementById('criteria-supplier-assessment');
+        const criteriaRiskAssessment = document.getElementById('criteria-risk-assessment');
 
         targetModelSelect.addEventListener('change', function () {
             // Hide all
@@ -970,6 +1010,8 @@
             criteriaBcdr.classList.add('d-none');
             criteriaOnboarding.classList.add('d-none');
             criteriaOffboarding.classList.add('d-none');
+            criteriaSupplierAssessment.classList.add('d-none');
+            criteriaRiskAssessment.classList.add('d-none');
 
             // Show relevant and lazy-init Tom-Select
             switch (this.value) {
@@ -994,6 +1036,12 @@
                     break;
                 case 'OffboardingProcess':
                     criteriaOffboarding.classList.remove('d-none');
+                    break;
+                case 'SecurityAssessment':
+                    criteriaSupplierAssessment.classList.remove('d-none');
+                    break;
+                case 'RiskAssessment':
+                    criteriaRiskAssessment.classList.remove('d-none');
                     break;
             }
         });
