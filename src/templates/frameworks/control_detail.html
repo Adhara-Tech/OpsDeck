@@ -266,6 +266,16 @@
                                         class="btn btn-sm btn-outline-secondary" title="View Evidence">
                                         <i class="fas fa-eye"></i>
                                     </a>
+                                    {% elif item.rule.target_model == 'OnboardingProcess' %}
+                                    <a href="{{ url_for('onboarding.process_detail', id=item.evidence.id) }}"
+                                        class="btn btn-sm btn-outline-secondary" title="View Evidence">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% elif item.rule.target_model == 'OffboardingProcess' %}
+                                    <a href="{{ url_for('onboarding.offboarding_detail', id=item.evidence.id) }}"
+                                        class="btn btn-sm btn-outline-secondary" title="View Evidence">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
                                     {% endif %}
                                     {% else %}
                                     <span class="text-muted">—</span>
@@ -528,6 +538,8 @@
                             <option value="Campaign">Communication Campaigns</option>
                             <option value="MaintenanceLog">Maintenance Logs</option>
                             <option value="BCDRTestLog">BCDR Test Logs</option>
+                            <option value="OnboardingProcess">Onboarding Processes</option>
+                            <option value="OffboardingProcess">Offboarding Processes</option>
                         </select>
                     </div>
 
@@ -597,6 +609,40 @@
                                 <option value="">Any plan</option>
                             </select>
                             <div class="form-text">Leave blank to match any passed BCDR test.</div>
+                        </div>
+                    </div>
+
+                    <div id="criteria-onboarding" class="d-none">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Find the most recent onboarding process. Optionally filter by user tag.
+                        </div>
+                        <div class="mb-3">
+                            <label for="onboardingTagInput" class="form-label">User Tag Filter (optional)</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-tag"></i></span>
+                                <input type="text" class="form-control" id="onboardingTagInput" name="criteria_tag"
+                                    placeholder="e.g. Developers">
+                            </div>
+                            <div class="form-text">If set, only onboardings for users with this tag will be considered.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="criteria-offboarding" class="d-none">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Find the most recent offboarding process. Optionally filter by user tag.
+                        </div>
+                        <div class="mb-3">
+                            <label for="offboardingTagInput" class="form-label">User Tag Filter (optional)</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-tag"></i></span>
+                                <input type="text" class="form-control" id="offboardingTagInput" name="criteria_tag"
+                                    placeholder="e.g. Sales">
+                            </div>
+                            <div class="form-text">If set, only offboardings for users with this tag will be considered.
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -913,6 +959,8 @@
         const criteriaCampaign = document.getElementById('criteria-campaign');
         const criteriaMaintenance = document.getElementById('criteria-maintenance');
         const criteriaBcdr = document.getElementById('criteria-bcdr');
+        const criteriaOnboarding = document.getElementById('criteria-onboarding');
+        const criteriaOffboarding = document.getElementById('criteria-offboarding');
 
         targetModelSelect.addEventListener('change', function () {
             // Hide all
@@ -920,6 +968,8 @@
             criteriaCampaign.classList.add('d-none');
             criteriaMaintenance.classList.add('d-none');
             criteriaBcdr.classList.add('d-none');
+            criteriaOnboarding.classList.add('d-none');
+            criteriaOffboarding.classList.add('d-none');
 
             // Show relevant and lazy-init Tom-Select
             switch (this.value) {
@@ -938,6 +988,12 @@
                 case 'BCDRTestLog':
                     criteriaBcdr.classList.remove('d-none');
                     initBcdrPlanSelect();
+                    break;
+                case 'OnboardingProcess':
+                    criteriaOnboarding.classList.remove('d-none');
+                    break;
+                case 'OffboardingProcess':
+                    criteriaOffboarding.classList.remove('d-none');
                     break;
             }
         });

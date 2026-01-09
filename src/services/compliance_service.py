@@ -44,6 +44,10 @@ class ComplianceEvaluator:
                 evidence, evidence_date = self._evaluate_maintenance(rule)
             elif target_model == 'BCDRTestLog':
                 evidence, evidence_date = self._evaluate_bcdr_test(rule)
+            elif target_model == 'OnboardingProcess':
+                evidence, evidence_date = self._evaluate_onboarding(rule)
+            elif target_model == 'OffboardingProcess':
+                evidence, evidence_date = self._evaluate_offboarding(rule)
             else:
                 return self._unknown_result(f"Unknown target_model: {target_model}")
             
@@ -406,6 +410,68 @@ class ComplianceEvaluator:
             if test_log:
                 evidence_date = datetime.combine(test_log.test_date, datetime.min.time())
                 return test_log, evidence_date
+        
+        return None, None
+    
+    def _evaluate_onboarding(self, rule):
+        """
+        Evaluate rule against OnboardingProcess model.
+        
+        Criteria format:
+            {"tag": "Developers"} (optional - filter by user tag)
+        
+        Returns:
+            tuple: (evidence_object, evidence_date) or (None, None)
+        """
+        from src.models.onboarding import OnboardingProcess
+        from src.models.auth import User
+        
+        criteria = rule.get_criteria()
+        tag_name = criteria.get('tag')
+        
+        query = OnboardingProcess.query
+        
+        # Filter by user tag if specified
+        if tag_name:
+            query = query.join(User, OnboardingProcess.user_id == User.id)
+            query = query.filter(User.tags.any(name=tag_name))
+        
+        # Get the most recent onboarding process
+        latest_process = query.order_by(OnboardingProcess.created_at.desc()).first()
+        
+        if latest_process:
+            return latest_process, latest_process.created_at
+        
+        return None, None
+    
+    def _evaluate_offboarding(self, rule):
+        """
+        Evaluate rule against OffboardingProcess model.
+        
+        Criteria format:
+            {"tag": "Sales"} (optional - filter by user tag)
+        
+        Returns:
+            tuple: (evidence_object, evidence_date) or (None, None)
+        """
+        from src.models.onboarding import OffboardingProcess
+        from src.models.auth import User
+        
+        criteria = rule.get_criteria()
+        tag_name = criteria.get('tag')
+        
+        query = OffboardingProcess.query
+        
+        # Filter by user tag if specified
+        if tag_name:
+            query = query.join(User, OffboardingProcess.user_id == User.id)
+            query = query.filter(User.tags.any(name=tag_name))
+        
+        # Get the most recent offboarding process
+        latest_process = query.order_by(OffboardingProcess.created_at.desc()).first()
+        
+        if latest_process:
+            return latest_process, latest_process.created_at
         
         return None, None
     

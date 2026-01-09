@@ -1034,6 +1034,16 @@ def create_rule():
         else:
             criteria = {"method": "any_passed"}
     
+    elif target_model == 'OnboardingProcess':
+        tag = request.form.get('criteria_tag', '').strip()
+        if tag:
+            criteria = {"tag": tag}
+    
+    elif target_model == 'OffboardingProcess':
+        tag = request.form.get('criteria_tag', '').strip()
+        if tag:
+            criteria = {"tag": tag}
+    
     # Create and save the rule
     rule = ComplianceRule(
         framework_control_id=framework_control_id,
