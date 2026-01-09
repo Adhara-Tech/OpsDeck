@@ -1,8 +1,10 @@
 import requests
 import smtplib
+import traceback
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
+from smtplib import SMTPException, SMTPAuthenticationError, SMTPConnectError, SMTPRecipientsRefused
 
 # Import the models needed for the notification logic
 from .models import Subscription, NotificationSetting
@@ -13,9 +15,18 @@ from .models.communications import ScheduledCommunication
 # --- Notification Functions ---
 
 def send_email(app, subject, body, to_emails):
-    """Send email notification using app config."""
+    """
+    Send email notification using app config.
+    
+    Returns:
+        bool: True if email sent successfully, False otherwise.
+        
+    Note: All SMTP errors are logged with full traceback for debugging.
+    Check server logs for detailed error information when this returns False.
+    """
     # Check for both a recipient and an email username in config
     if not to_emails or not app.config.get('EMAIL_USERNAME'):
+        app.logger.warning(f"❌ Email not sent: Missing recipients or EMAIL_USERNAME config")
         return False
     
     try:
@@ -30,10 +41,34 @@ def send_email(app, subject, body, to_emails):
         server.login(app.config['EMAIL_USERNAME'], app.config['EMAIL_PASSWORD'])
         server.send_message(msg)
         server.quit()
-        app.logger.info(f"Sent renewal email to {to_emails}")
+        app.logger.info(f"✅ Sent email to {to_emails} | Subject: {subject[:50]}...")
         return True
+    
+    except SMTPAuthenticationError as e:
+        app.logger.error(f"❌ SMTP Authentication Error: Invalid credentials for {app.config.get('EMAIL_USERNAME')}")
+        app.logger.error(f"   SMTP Response: {e.smtp_code} - {e.smtp_error}")
+        app.logger.debug(traceback.format_exc())
+        return False
+    
+    except SMTPConnectError as e:
+        app.logger.error(f"❌ SMTP Connection Error: Cannot reach {app.config.get('SMTP_SERVER')}:{app.config.get('SMTP_PORT')}")
+        app.logger.error(f"   Details: {str(e)}")
+        return False
+    
+    except SMTPRecipientsRefused as e:
+        refused = list(e.recipients.keys()) if hasattr(e, 'recipients') else to_emails
+        app.logger.error(f"❌ SMTP Recipients Refused: {refused}")
+        app.logger.error(f"   Server rejected these email addresses as invalid")
+        return False
+    
+    except SMTPException as e:
+        app.logger.error(f"❌ SMTP Error sending to {to_emails}: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return False
+    
     except Exception as e:
-        app.logger.error(f"Failed to send email: {e}")
+        app.logger.error(f"❌ General Email Error to {to_emails}: {type(e).__name__}: {str(e)}")
+        app.logger.error(traceback.format_exc())
         return False
 
 def send_webhook(app, url, data):
