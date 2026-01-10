@@ -61,6 +61,56 @@ class ComplianceEvaluator:
         except Exception as e:
             return self._unknown_result(f"Evaluation error: {str(e)}")
     
+    def collect_evidence(self, rule, months_lookback: int, sample_size: int = None):
+        """
+        Collect historical evidence for a rule over a time period.
+        
+        Args:
+            rule: ComplianceRule instance
+            months_lookback: Number of months to look back for evidence
+            sample_size: Optional limit on number of items to return (random sample)
+            
+        Returns:
+            List of evidence objects found within the time period
+        """
+        if not rule or not rule.enabled:
+            return []
+        
+        try:
+            # Calculate threshold date
+            from dateutil.relativedelta import relativedelta
+            threshold_date = datetime.now() - relativedelta(months=months_lookback)
+            
+            # Dispatch based on target_model
+            target_model = rule.target_model
+            
+            if target_model == 'ActivityExecution':
+                results = self._collect_activity_execution(rule, threshold_date)
+            elif target_model == 'Campaign':
+                results = self._collect_campaign(rule, threshold_date)
+            elif target_model == 'MaintenanceLog':
+                results = self._collect_maintenance(rule, threshold_date)
+            elif target_model == 'BCDRTestLog':
+                results = self._collect_bcdr_test(rule, threshold_date)
+            elif target_model == 'SecurityAssessment':
+                results = self._collect_supplier_assessment(rule, threshold_date)
+            elif target_model == 'RiskAssessment':
+                results = self._collect_risk_assessment(rule, threshold_date)
+            else:
+                return []
+            
+            # Apply random sampling if requested
+            if sample_size and len(results) > sample_size:
+                import random
+                results = random.sample(results, sample_size)
+            
+            return results
+            
+        except Exception as e:
+            import logging
+            logging.warning(f"Error collecting evidence for rule {rule.id}: {e}")
+            return []
+    
     def evaluate_all_rules(self):
         """
         Evaluate all enabled ComplianceRules.
@@ -532,6 +582,178 @@ class ComplianceEvaluator:
             return latest, latest.created_at
         
         return None, None
+    
+    # -------------------------------------------------------------------------
+    # Private: Collection Methods for Historical Evidence
+    # -------------------------------------------------------------------------
+    
+    def _collect_activity_execution(self, rule, threshold_date):
+        """Collect ActivityExecution records within the time period."""
+        from src.models.activities import ActivityExecution, SecurityActivity
+        
+        criteria = rule.get_criteria()
+        method = criteria.get('method', 'parent_match')
+        
+        if method == 'parent_match':
+            activity_id = criteria.get('value')
+            if not activity_id:
+                activity_name = criteria.get('activity_name')
+                if activity_name:
+                    activity = SecurityActivity.query.filter_by(name=activity_name).first()
+                    if activity:
+                        activity_id = activity.id
+            
+            if not activity_id:
+                return []
+            
+            # Get all executions for this activity within the time period
+            executions = ActivityExecution.query.filter(
+                ActivityExecution.activity_id == activity_id,
+                ActivityExecution.execution_date >= threshold_date.date()
+            ).order_by(ActivityExecution.execution_date.desc()).all()
+            
+            return executions
+        
+        return []
+    
+    def _collect_campaign(self, rule, threshold_date):
+        """Collect Campaign records within the time period."""
+        from src.models.communications import Campaign
+        
+        criteria = rule.get_criteria()
+        method = criteria.get('method', 'tag_match')
+        
+        if method == 'tag_match':
+            tag_names = criteria.get('tags', [])
+            if not tag_names:
+                return []
+            
+            # Find campaigns with matching tags that are finished or ongoing
+            campaigns = Campaign.query.filter(
+                Campaign.status.in_(['finished', 'ongoing'])
+            ).order_by(Campaign.processed_at.desc(), Campaign.created_at.desc()).all()
+            
+            # Filter by date and tags
+            results = []
+            for campaign in campaigns:
+                campaign_date = campaign.processed_at or campaign.created_at
+                if campaign_date and campaign_date >= threshold_date:
+                    campaign_tag_names = [t.name for t in campaign.tags]
+                    if any(tag in campaign_tag_names for tag in tag_names):
+                        results.append(campaign)
+            
+            return results
+        
+        elif method == 'title_match':
+            title_pattern = criteria.get('title_pattern', '')
+            if not title_pattern:
+                return []
+            
+            campaigns = Campaign.query.filter(
+                Campaign.status.in_(['finished', 'ongoing']),
+                Campaign.title.ilike(f'%{title_pattern}%')
+            ).order_by(Campaign.processed_at.desc(), Campaign.created_at.desc()).all()
+            
+            # Filter by date
+            results = []
+            for campaign in campaigns:
+                campaign_date = campaign.processed_at or campaign.created_at
+                if campaign_date and campaign_date >= threshold_date:
+                    results.append(campaign)
+            
+            return results
+        
+        return []
+    
+    def _collect_maintenance(self, rule, threshold_date):
+        """Collect MaintenanceLog records within the time period."""
+        from src.models.assets import MaintenanceLog
+        
+        criteria = rule.get_criteria()
+        method = criteria.get('method', 'event_type_match')
+        
+        if method == 'event_type_match':
+            event_type = criteria.get('event_type')
+            if not event_type:
+                return []
+            
+            logs = MaintenanceLog.query.filter(
+                MaintenanceLog.event_type == event_type,
+                MaintenanceLog.status == 'Completed',
+                MaintenanceLog.created_at >= threshold_date
+            ).order_by(MaintenanceLog.created_at.desc()).all()
+            
+            return logs
+        
+        elif method == 'any_completed':
+            logs = MaintenanceLog.query.filter(
+                MaintenanceLog.status == 'Completed',
+                MaintenanceLog.created_at >= threshold_date
+            ).order_by(MaintenanceLog.created_at.desc()).all()
+            
+            return logs
+        
+        return []
+    
+    def _collect_bcdr_test(self, rule, threshold_date):
+        """Collect BCDRTestLog records within the time period."""
+        from src.models.bcdr import BCDRTestLog
+        
+        criteria = rule.get_criteria()
+        method = criteria.get('method', 'any_passed')
+        
+        if method == 'plan_match':
+            plan_id = criteria.get('plan_id')
+            if not plan_id:
+                return []
+            
+            test_logs = BCDRTestLog.query.filter(
+                BCDRTestLog.plan_id == plan_id,
+                BCDRTestLog.status == 'Passed',
+                BCDRTestLog.test_date >= threshold_date.date()
+            ).order_by(BCDRTestLog.test_date.desc()).all()
+            
+            return test_logs
+        
+        elif method == 'any_passed':
+            test_logs = BCDRTestLog.query.filter(
+                BCDRTestLog.status == 'Passed',
+                BCDRTestLog.test_date >= threshold_date.date()
+            ).order_by(BCDRTestLog.test_date.desc()).all()
+            
+            return test_logs
+        
+        return []
+    
+    def _collect_supplier_assessment(self, rule, threshold_date):
+        """Collect SecurityAssessment records within the time period."""
+        from src.models.security import SecurityAssessment
+        from src.models.procurement import Supplier
+        
+        criteria = rule.get_criteria()
+        supplier_id = criteria.get('supplier_id')
+        
+        query = SecurityAssessment.query.join(Supplier)
+        
+        if supplier_id:
+            query = query.filter(SecurityAssessment.supplier_id == supplier_id)
+        
+        # Filter by date
+        assessments = query.filter(
+            SecurityAssessment.assessment_date >= threshold_date.date()
+        ).order_by(SecurityAssessment.assessment_date.desc()).all()
+        
+        return assessments
+    
+    def _collect_risk_assessment(self, rule, threshold_date):
+        """Collect RiskAssessment records within the time period."""
+        from src.models.risk_assessment import RiskAssessment
+        
+        assessments = RiskAssessment.query.filter(
+            RiskAssessment.created_at >= threshold_date
+        ).order_by(RiskAssessment.created_at.desc()).all()
+        
+        return assessments
     
     # -------------------------------------------------------------------------
     # Private: Status Calculation

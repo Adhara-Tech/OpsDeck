@@ -47,6 +47,11 @@ def new_audit():
                 framework_id = request.form.get('framework_id')
                 auditor_contact_id = request.form.get('auditor_contact_id') or None
                 copy_links = request.form.get('copy_links') == 'on'
+                
+                # Evidence collection configuration
+                evidence_months = int(request.form.get('evidence_months', 6))
+                enable_sampling = request.form.get('enable_sampling') == 'on'
+                sample_size = int(request.form.get('sample_size', 3)) if enable_sampling else None
 
                 if not name or not framework_id:
                     flash('Audit Name and Framework are required for fresh starts.', 'danger')
@@ -57,7 +62,9 @@ def new_audit():
                     name=name,
                     auditor_contact_id=int(auditor_contact_id) if auditor_contact_id else None,
                     internal_lead_id=int(internal_lead_id),
-                    copy_links=copy_links
+                    copy_links=copy_links,
+                    evidence_months=evidence_months,
+                    sample_size=sample_size
                 )
             
             elif creation_strategy == 'clone':

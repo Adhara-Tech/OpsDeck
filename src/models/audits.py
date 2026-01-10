@@ -82,10 +82,20 @@ class ComplianceAudit(db.Model):
     )
 
     @classmethod
-    def create_snapshot(cls, framework_id, name, auditor_contact_id, internal_lead_id, copy_links=False):
+    def create_snapshot(cls, framework_id, name, auditor_contact_id, internal_lead_id, 
+                       copy_links=False, evidence_months=6, sample_size=None):
         """
         Creates a new ComplianceAudit and snapshots all controls from the given framework.
         If copy_links is True, it also snapshots the evidence links.
+        
+        Args:
+            framework_id: ID of the framework to snapshot
+            name: Name for the audit
+            auditor_contact_id: External auditor contact ID
+            internal_lead_id: Internal lead user ID
+            copy_links: Whether to copy manual compliance links
+            evidence_months: Number of months to look back for automated evidence (default: 6)
+            sample_size: Optional limit on evidence items per control (random sample)
         """
         # 1. Get the source Framework
         framework = Framework.query.get(framework_id)
@@ -139,7 +149,7 @@ class ComplianceAudit(db.Model):
                     )
                     db.session.add(audit_link)
             
-            # 5. Capture Automated Evidence from ComplianceRules
+            # 5. Capture Automated Evidence from ComplianceRules (Historical Collection)
             from .security import ComplianceRule
             from ..services.compliance_service import get_compliance_evaluator
             
@@ -151,28 +161,27 @@ class ComplianceAudit(db.Model):
                     continue
                     
                 try:
-                    result = evaluator.evaluate_rule(rule)
-                    status = result.get('status', 'unknown')
+                    # Collect historical evidence over the specified time period
+                    evidence_list = evaluator.collect_evidence(rule, evidence_months, sample_size)
                     
-                    # Only capture evidence if compliant or warning (valid evidence exists)
-                    if status in ('compliant', 'warning') and result.get('evidence'):
-                        evidence = result['evidence']
-                        evidence_date = result.get('last_evidence_date')
+                    # Create a link for each piece of evidence found
+                    for evidence in evidence_list:
+                        # Extract the relevant date from the evidence object
+                        evidence_date = cls._extract_evidence_date(evidence, rule.target_model)
+                        date_str = evidence_date.strftime('%Y-%m-%d') if evidence_date else 'N/A'
                         
                         # Determine linkable_type from target_model
                         linkable_type = rule.target_model  # e.g., 'ActivityExecution', 'Campaign'
-                        
-                        # Format evidence date for description
-                        date_str = evidence_date.strftime('%Y-%m-%d') if evidence_date else 'N/A'
                         
                         audit_link = AuditControlLink(
                             audit_item_id=audit_item.id,
                             linkable_type=linkable_type,
                             linkable_id=evidence.id,
-                            description=f"Automated Evidence: {rule.name} - Verified on {date_str}",
+                            description=f"Automated Evidence: {rule.name} - Found on {date_str}",
                             is_automated=True
                         )
                         db.session.add(audit_link)
+                        
                 except Exception as e:
                     # Log but don't fail the snapshot for a single rule error
                     import logging
@@ -182,6 +191,38 @@ class ComplianceAudit(db.Model):
         db.session.commit()
         
         return audit
+
+    @staticmethod
+    def _extract_evidence_date(evidence, model_type):
+        """
+        Extract the relevant date from an evidence object based on its model type.
+        
+        Args:
+            evidence: The evidence object
+            model_type: String identifier of the model type
+            
+        Returns:
+            datetime or date object, or None if not found
+        """
+        from datetime import datetime, date
+        
+        date_field_map = {
+            'ActivityExecution': 'execution_date',
+            'Campaign': 'processed_at',
+            'MaintenanceLog': 'created_at',
+            'BCDRTestLog': 'test_date',
+            'SecurityAssessment': 'assessment_date',
+            'RiskAssessment': 'created_at'
+        }
+        
+        field_name = date_field_map.get(model_type, 'created_at')
+        evidence_date = getattr(evidence, field_name, None)
+        
+        # Convert date to datetime for consistency
+        if evidence_date and isinstance(evidence_date, date) and not isinstance(evidence_date, datetime):
+            evidence_date = datetime.combine(evidence_date, datetime.min.time())
+        
+        return evidence_date
 
 
     @classmethod
@@ -334,24 +375,61 @@ class AuditControlLink(db.Model):
         if not obj:
             return "Elemento no encontrado"
         
-        # 1. Políticas y Cursos usan 'title'
+        # Special handling for automated evidence types
+        
+        # 1. SecurityAssessment - show supplier name and date
+        if self.linkable_type == 'SecurityAssessment':
+            supplier_name = obj.supplier.name if hasattr(obj, 'supplier') and obj.supplier else 'Unknown Supplier'
+            date_str = obj.assessment_date.strftime('%Y-%m-%d') if hasattr(obj, 'assessment_date') else 'N/A'
+            return f"Security Assessment: {supplier_name} ({date_str})"
+        
+        # 2. MaintenanceLog - show event type and description
+        if self.linkable_type == 'MaintenanceLog':
+            event_type = obj.event_type if hasattr(obj, 'event_type') else 'Maintenance'
+            description = obj.description[:50] if hasattr(obj, 'description') and obj.description else ''
+            if len(description) > 50:
+                description = description[:47] + '...'
+            return f"{event_type}: {description}" if description else event_type
+        
+        # 3. RiskAssessment - show name
+        if self.linkable_type == 'RiskAssessment':
+            return getattr(obj, 'name', 'Risk Assessment')
+        
+        # 4. ActivityExecution - show activity name and date
+        if self.linkable_type == 'ActivityExecution':
+            activity_name = obj.activity.name if hasattr(obj, 'activity') and obj.activity else 'Activity'
+            date_str = obj.execution_date.strftime('%Y-%m-%d') if hasattr(obj, 'execution_date') else ''
+            return f"{activity_name} ({date_str})" if date_str else activity_name
+        
+        # 5. BCDRTestLog - show plan name and date
+        if self.linkable_type == 'BCDRTestLog':
+            plan_name = obj.plan.name if hasattr(obj, 'plan') and obj.plan else 'BCDR Test'
+            date_str = obj.test_date.strftime('%Y-%m-%d') if hasattr(obj, 'test_date') else ''
+            return f"{plan_name} Test ({date_str})" if date_str else f"{plan_name} Test"
+        
+        # 6. Campaign - use title
+        if self.linkable_type == 'Campaign':
+            return getattr(obj, 'title', 'Campaign')
+        
+        # 7. Políticas y Cursos usan 'title'
         if hasattr(obj, 'title'):
             return obj.title
             
-        # 2. Riesgos usan 'risk_description'
+        # 8. Riesgos usan 'risk_description'
         if hasattr(obj, 'risk_description'):
-            # Opcional: Truncar si es muy largo, ya que suelen ser textos
-            return obj.risk_description 
+            # Truncate if too long
+            desc = obj.risk_description
+            return desc[:50] + '...' if len(desc) > 50 else desc
 
-        # 3. Procesos de Onboarding
+        # 9. Procesos de Onboarding
         if self.linkable_type == 'Onboarding':
             return f"Onboarding: {obj.new_hire_name or (obj.user.name if obj.user else 'Unknown')}"
 
-        # 4. Procesos de Offboarding
+        # 10. Procesos de Offboarding
         if self.linkable_type == 'Offboarding':
             return f"Offboarding: {obj.user.name if obj.user else 'Unknown'}"
             
-        # 5. El resto (Assets, Users, etc.) usan 'name'
+        # 11. El resto (Assets, Users, etc.) usan 'name'
         return getattr(obj, 'name', str(obj))
     
     @property
@@ -363,13 +441,13 @@ class AuditControlLink(db.Model):
         from .core import Link, Documentation
         from .policy import Policy
         from .training import Course
-        from .bcdr import BCDRPlan
+        from .bcdr import BCDRPlan, BCDRTestLog
         from .security import SecurityIncident, SecurityAssessment, Risk, AssetInventory
         from .services import BusinessService
         from .auth import OrgChartSnapshot
         from .activities import ActivityExecution, SecurityActivity
         from .communications import Campaign
-        from .bcdr import BCDRTestLog
+        from .risk_assessment import RiskAssessment
         
         # Map types to models
         model_map = {
@@ -392,6 +470,7 @@ class AuditControlLink(db.Model):
             'SecurityIncident': SecurityIncident,
             'SecurityAssessment': SecurityAssessment,
             'Risk': Risk,
+            'RiskAssessment': RiskAssessment,
             'AssetInventory': AssetInventory,
             'BusinessService': BusinessService,
             'Onboarding': OnboardingProcess,
