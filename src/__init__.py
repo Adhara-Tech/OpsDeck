@@ -177,7 +177,11 @@ def create_app(test_config=None):
     from .api import api_bp
     api.register_blueprint(api_bp)
 
-    # --- Custom 429 Error Handler with logging ---
+    # --- Custom Error Handlers ---
+    @app.errorhandler(404)
+    def page_not_found(e):
+        return render_template('404.html'), 404
+    
     @app.errorhandler(429)
     def ratelimit_handler(e):
         from .utils.logger import log_audit
@@ -188,6 +192,17 @@ def create_app(test_config=None):
             error_message=e.description
         )
         return render_template('429.html', error=e.description), 429
+    
+    @app.errorhandler(500)
+    def internal_server_error(e):
+        from .utils.logger import log_audit
+        log_audit(
+            event_type='system.internal_error',
+            action='error',
+            outcome='failure',
+            error_message=str(e)
+        )
+        return render_template('500.html'), 500
     
     # --- REGISTER THE CUSTOM MARKDOWN FILTER ---
     @app.template_filter('markdown')
