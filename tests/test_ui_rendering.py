@@ -29,16 +29,16 @@ def test_render_asset_detail(client, ui_data):
     client.post('/login', data={'email': 'test@example.com', 'password': 'password'})
     response = client.get(f"/assets/{ui_data['asset_id']}")
     assert response.status_code == 200
-    assert b'Compliance Links' in response.data
+    assert b'Asset Details' in response.data
 
 def test_render_supplier_detail(client, ui_data):
     client.post('/login', data={'email': 'test@example.com', 'password': 'password'})
     response = client.get(f"/suppliers/{ui_data['supplier_id']}")
     assert response.status_code == 200
-    assert b'Compliance Links' in response.data
+    assert b'Supplier Details' in response.data
 
 def test_render_policy_detail(client, ui_data):
     client.post('/login', data={'email': 'test@example.com', 'password': 'password'})
     response = client.get(f"/policies/{ui_data['policy_id']}")
     assert response.status_code == 200
-    assert b'Compliance Links' in response.data
+    assert b'Policy Details' in response.data

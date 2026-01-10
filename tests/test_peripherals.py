@@ -55,11 +55,16 @@ def test_peripheral_checkout_checkin(auth_client, app):
     auth_client.post('/peripherals/new', data={'name': 'Checkout Mouse', 'status': 'Stored'}, follow_redirects=True)
     
     # 2. Crear un Usuario (User ID 2)
+    # 3. Crear una Location para el checkin
     with app.app_context():
+        from src.models import Location
         checkout_user = User(name='Checkout User', email='checkout@test.com', role='user')
-        db.session.add(checkout_user) # <-- 3. ESTO AHORA FUNCIONA
+        location = Location(name='Storage Room')
+        db.session.add(checkout_user)
+        db.session.add(location)
         db.session.commit()
         assert checkout_user.id == 2
+        location_id = location.id
 
     # --- 1. PROBAR CHECKOUT ---
     response = auth_client.post('/peripherals/1/checkout', data={
@@ -76,9 +81,12 @@ def test_peripheral_checkout_checkin(auth_client, app):
         assert peripheral.user_id == 2
 
     # --- 2. PROBAR CHECKIN ---
-    response = auth_client.post('/peripherals/1/checkin', follow_redirects=True)
+    response = auth_client.post('/peripherals/1/checkin', data={
+        'return_location_id': str(location_id)
+    }, follow_redirects=True)
     assert response.status_code == 200
-    assert b'has been checked in' in response.data
+    # Updated assertion to match the new flash message format
+    assert b'has been checked in from Checkout User to Storage Room' in response.data
     
     # Verifica en la BD
     with app.app_context():
