@@ -334,12 +334,13 @@ def create_app(test_config=None):
     # --- Make user and role available in all templates ---
     @app.context_processor
     def inject_user_context():
+        from datetime import date
         user_id = session.get('user_id')
         if user_id:
             user = User.query.get(user_id)
             if user:
-                return dict(current_user=user, current_user_role=user.role)
-        return dict(current_user=None, current_user_role=None)
+                return dict(current_user=user, current_user_role=user.role, today=date.today())
+        return dict(current_user=None, current_user_role=None, today=date.today())
 
     # --- Force admin to change the default password ---
     from .routes.main import password_change_required
