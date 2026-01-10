@@ -865,7 +865,7 @@ def link_control():
 
     if not linkable_type or not linkable_id:
         flash('Missing linkable object information.', 'error')
-        return redirect(url_for('main.dashboard'))
+        return redirect(url_for('risk.dashboard'))
 
     if request.method == 'POST':
         framework_control_id = request.form.get('framework_control_id')
@@ -899,7 +899,7 @@ def link_control():
                     return redirect(url_for('risk.detail', id=linkable_id))
                 # Add other types as needed
                 
-                return redirect(url_for('main.dashboard'))
+                return redirect(url_for('risk.dashboard'))
 
     frameworks = Framework.query.filter_by(is_active=True).order_by(Framework.name).all()
     return render_template('compliance/link_control.html', 

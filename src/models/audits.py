@@ -148,12 +148,36 @@ class ComplianceAudit(db.Model):
                         is_automated=False
                     )
                     db.session.add(audit_link)
-            
-            # 5. Capture Automated Evidence from ComplianceRules (Historical Collection)
-            from .security import ComplianceRule
-            from ..services.compliance_service import get_compliance_evaluator
-            
-            evaluator = get_compliance_evaluator()
+
+        # 5. Commit the audit structure
+        db.session.commit()
+        
+        # 6. Populate automated evidence from compliance rules
+        audit._populate_automated_evidence(evidence_months, sample_size)
+        
+        return audit
+
+    def _populate_automated_evidence(self, evidence_months, sample_size=None):
+        """
+        Populates automated evidence for all audit items by evaluating compliance rules.
+        This method should be called after the audit structure (items) has been created and committed.
+        
+        Args:
+            evidence_months: Number of months to look back for evidence
+            sample_size: Optional limit on evidence items per control (random sample)
+        """
+        from .security import ComplianceRule
+        from ..services.compliance_service import get_compliance_evaluator
+        
+        evaluator = get_compliance_evaluator()
+        
+        # Iterate over all audit items in this audit
+        for audit_item in self.audit_items:
+            # Get the original control to access its rules
+            if not audit_item.original_control:
+                continue
+                
+            control = audit_item.original_control
             rules = control.rules.all() if hasattr(control, 'rules') else []
             
             for rule in rules:
@@ -167,7 +191,7 @@ class ComplianceAudit(db.Model):
                     # Create a link for each piece of evidence found
                     for evidence in evidence_list:
                         # Extract the relevant date from the evidence object
-                        evidence_date = cls._extract_evidence_date(evidence, rule.target_model)
+                        evidence_date = ComplianceAudit._extract_evidence_date(evidence, rule.target_model)
                         date_str = evidence_date.strftime('%Y-%m-%d') if evidence_date else 'N/A'
                         
                         # Determine linkable_type from target_model
@@ -186,11 +210,10 @@ class ComplianceAudit(db.Model):
                     # Log but don't fail the snapshot for a single rule error
                     import logging
                     logging.warning(f"Failed to capture automated evidence for rule {rule.id}: {e}")
-
-        # 6. Commit transaction
-        db.session.commit()
         
-        return audit
+        # Commit all automated evidence links
+        db.session.commit()
+
 
     @staticmethod
     def _extract_evidence_date(evidence, model_type):
@@ -226,12 +249,31 @@ class ComplianceAudit(db.Model):
 
 
     @classmethod
-    def clone(cls, source_id, new_owner_id, target_date):
+    def clone(cls, source_id, new_owner_id, target_date, copy_audit_extras=False, 
+              evidence_months=6, sample_size=None):
         """
-        Clones an existing audit for a new period (Rollover).
-        - Preserves: SOA (is_applicable), Justifications, Comments, Evidence Links.
-        - Resets: Status (Compliant/Gap -> Pending), Dates, Auditor.
-        - Metadata: New Name = "Renewal [Year]: [Old Name]", Owner = new_owner_id.
+        Clones an existing audit for a new period (Intelligent Deep Clone).
+        
+        Evidence Import Strategy (Per Control):
+        1. ALWAYS import framework structural evidence (Policies, Procedures)
+        2. ALWAYS import manual evidence from previous audit
+        3. ALWAYS regenerate automated evidence from fresh compliance rule evaluations
+        4. PREVENT duplicates using tuple-based deduplication (linkable_type, linkable_id)
+        
+        Args:
+            source_id: ID of the source audit to clone
+            new_owner_id: ID of the user who will own the new audit
+            target_date: Target completion date for the new audit
+            copy_audit_extras: Deprecated parameter (kept for compatibility)
+            evidence_months: Number of months to look back for automated evidence
+            sample_size: Optional limit on evidence items per control
+            
+        Preserves:
+            - SOA (is_applicable, justification, internal_comments)
+            
+        Resets:
+            - Status (Compliant/Gap -> Pending)
+            - Dates, Auditor
         """
         source = cls.query.get(source_id)
         if not source:
@@ -254,52 +296,91 @@ class ComplianceAudit(db.Model):
         db.session.add(new_audit)
         db.session.flush() # Generate ID
 
-        # 2. Clone Controls
-        # Iterate over source items to carry over decisions + evidence
+        # 2. Clone Controls with Intelligent Evidence Import
         for old_item in source.audit_items:
             new_item = AuditControlItem(
                 audit_id=new_audit.id,
                 original_control_id=old_item.original_control_id,
                 
                 # --- SNAPSHOT TEXT ---
-                # We copy from the OLD item to preserve the snapshot state 
-                # (unless we want to re-sync with framework, but requirement says "Preserve")
+                # Copy from the OLD item to preserve the snapshot state
                 control_code=old_item.control_code,
                 control_title=old_item.control_title,
                 control_description=old_item.control_description,
 
-                # --- COPY TEXT DATA ---
+                # --- COPY SOA & TEXT DATA ---
                 justification=old_item.justification,
                 internal_comments=old_item.internal_comments,
-                
-                # --- SOA LOGIC ---
                 is_applicable=old_item.is_applicable
             )
             
             # --- STATUS RESET LOGIC ---
             if not old_item.is_applicable:
-                new_item.status = 'Not Applicable' # Explicit string
+                new_item.status = 'Not Applicable'
             else:
                 new_item.status = 'Pending' # Reset to Pending for re-validation
 
             db.session.add(new_item)
             db.session.flush() # Need ID for links
             
-            # --- CLONE EVIDENCES (Reference Copy) ---
-            # We copy the LINKS (pointers to assets/docs), not the attachments themselves (files)
-            # Logic: "We used Policy X last year, we likely use it this year too"
+            # --- INTELLIGENT EVIDENCE IMPORT (3 PHASES) ---
+            
+            # Deduplication tracker: stores (linkable_type, linkable_id) tuples
+            existing_links = set()
+            
+            # PHASE 1: Import Framework Evidence (ALWAYS)
+            # This is the structural evidence defined in the live framework
+            if old_item.original_control:
+                framework_links = old_item.original_control.compliance_links.all()
+                for link in framework_links:
+                    # Create the audit link
+                    new_link = AuditControlLink(
+                        audit_item_id=new_item.id,
+                        linkable_type=link.linkable_type,
+                        linkable_id=link.linkable_id,
+                        description=link.description,
+                        is_automated=False
+                    )
+                    db.session.add(new_link)
+                    
+                    # Track this link to prevent duplicates
+                    existing_links.add((link.linkable_type, link.linkable_id))
+            
+            # PHASE 2: Import Manual Evidence from Previous Audit (ALWAYS)
+            # Copy all manual (non-automated) evidence from the previous audit
             for link in old_item.linked_objects:
-                 new_link = AuditControlLink(
-                     audit_item_id=new_item.id,
-                     linkable_type=link.linkable_type,
-                     linkable_id=link.linkable_id,
-                     description=link.description,
-                     is_automated=link.is_automated if hasattr(link, 'is_automated') else False
-                 )
-                 db.session.add(new_link)
+                # Skip automated evidence (it's stale, will be regenerated in Phase 3)
+                if link.is_automated:
+                    continue
+                
+                # Skip if already imported from framework (deduplication)
+                link_tuple = (link.linkable_type, link.linkable_id)
+                if link_tuple in existing_links:
+                    continue
+                
+                # This is a manual link from the previous audit
+                # Import it to save auditor time
+                new_link = AuditControlLink(
+                    audit_item_id=new_item.id,
+                    linkable_type=link.linkable_type,
+                    linkable_id=link.linkable_id,
+                    description=link.description,
+                    is_automated=False
+                )
+                db.session.add(new_link)
+                
+                # Track to prevent duplicates (though unlikely at this point)
+                existing_links.add(link_tuple)
 
+        # 3. Commit the audit structure
         db.session.commit()
+        
+        # PHASE 3: Regenerate Automated Evidence (ALWAYS)
+        # This ensures we have fresh, current compliance data
+        new_audit._populate_automated_evidence(evidence_months, sample_size)
+        
         return new_audit
+
 
 class AuditControlItem(db.Model):
     """

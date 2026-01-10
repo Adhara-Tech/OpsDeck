@@ -39,6 +39,11 @@ def new_audit():
         if not internal_lead_id:
             flash('Internal Lead is required.', 'danger')
             return redirect(url_for('audits.new_audit'))
+        
+        # Automated Evidence Configuration (applies to both strategies)
+        evidence_months = int(request.form.get('evidence_months', 6))
+        enable_sampling = request.form.get('enable_sampling') == 'on'
+        sample_size = int(request.form.get('sample_size', 3)) if enable_sampling else None
 
         try:
             audit = None
@@ -47,11 +52,6 @@ def new_audit():
                 framework_id = request.form.get('framework_id')
                 auditor_contact_id = request.form.get('auditor_contact_id') or None
                 copy_links = request.form.get('copy_links') == 'on'
-                
-                # Evidence collection configuration
-                evidence_months = int(request.form.get('evidence_months', 6))
-                enable_sampling = request.form.get('enable_sampling') == 'on'
-                sample_size = int(request.form.get('sample_size', 3)) if enable_sampling else None
 
                 if not name or not framework_id:
                     flash('Audit Name and Framework are required for fresh starts.', 'danger')
@@ -70,6 +70,7 @@ def new_audit():
             elif creation_strategy == 'clone':
                 source_audit_id = request.form.get('source_audit_id')
                 target_date_str = request.form.get('target_date')
+                copy_audit_extras = request.form.get('copy_audit_extras') == 'on'
                 
                 if not source_audit_id:
                     flash('Source Audit is required for renewal.', 'danger')
@@ -82,7 +83,10 @@ def new_audit():
                 audit = ComplianceAudit.clone(
                     source_id=int(source_audit_id),
                     new_owner_id=int(internal_lead_id),
-                    target_date=target_date
+                    target_date=target_date,
+                    copy_audit_extras=copy_audit_extras,
+                    evidence_months=evidence_months,
+                    sample_size=sample_size
                 )
             
             flash('Audit created successfully.', 'success')
