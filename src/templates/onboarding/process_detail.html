@@ -121,15 +121,43 @@
                         <i class="fas fa-external-link-alt"></i> View
                     </a>
                     {% if type == 'offboarding' and not item.is_completed %}
-                    <form action="{{ url_for('assets.checkin_asset', id=item.linked_object_id) }}" method="POST"
-                        class="d-inline">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                        <input type="hidden" name="redirect_url" value="{{ request.url }}" />
-                        <button type="submit" class="btn btn-sm btn-warning"
-                            onclick="return confirm('Check in this asset?');">
-                            <i class="fas fa-undo"></i> Check In
-                        </button>
-                    </form>
+                    <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal"
+                        data-bs-target="#checkinAssetModal{{ item.id }}">
+                        <i class="fas fa-undo"></i> Check In
+                    </button>
+                    <!-- Modal for Asset Return -->
+                    <div class="modal fade" id="checkinAssetModal{{ item.id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <form action="{{ url_for('assets.checkin_asset', id=item.linked_object_id) }}"
+                                method="POST">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="redirect_url" value="{{ request.url }}">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Return Asset: {{ item.description }}</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                            aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">Return to Location</label>
+                                            <select class="form-select" name="return_location_id" required>
+                                                <option value="">-- Select Location --</option>
+                                                {% for loc in locations %}
+                                                <option value="{{ loc.id }}">{{ loc.name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary"
+                                            data-bs-dismiss="modal">Cancel</button>
+                                        <button type="submit" class="btn btn-primary">Confirm Return</button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
                     {% elif type == 'offboarding' and item.is_completed %}
                     <span class="badge bg-success"><i class="fas fa-check"></i> Checked In</span>
                     {% endif %}
@@ -139,15 +167,43 @@
                         <i class="fas fa-external-link-alt"></i> View
                     </a>
                     {% if type == 'offboarding' and not item.is_completed %}
-                    <form action="{{ url_for('peripherals.checkin_peripheral', id=item.linked_object_id) }}"
-                        method="POST" class="d-inline">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                        <input type="hidden" name="redirect_url" value="{{ request.url }}" />
-                        <button type="submit" class="btn btn-sm btn-warning"
-                            onclick="return confirm('Check in this peripheral?');">
-                            <i class="fas fa-undo"></i> Check In
-                        </button>
-                    </form>
+                    <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal"
+                        data-bs-target="#checkinPeripheralModal{{ item.id }}">
+                        <i class="fas fa-undo"></i> Check In
+                    </button>
+                    <!-- Modal for Peripheral Return -->
+                    <div class="modal fade" id="checkinPeripheralModal{{ item.id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog">
+                            <form action="{{ url_for('peripherals.checkin_peripheral', id=item.linked_object_id) }}"
+                                method="POST">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="redirect_url" value="{{ request.url }}">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Return Peripheral: {{ item.description }}</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                            aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <div class="mb-3">
+                                            <label class="form-label">Return to Location</label>
+                                            <select class="form-select" name="return_location_id" required>
+                                                <option value="">-- Select Location --</option>
+                                                {% for loc in locations %}
+                                                <option value="{{ loc.id }}">{{ loc.name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary"
+                                            data-bs-dismiss="modal">Cancel</button>
+                                        <button type="submit" class="btn btn-primary">Confirm Return</button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
                     {% elif type == 'offboarding' and item.is_completed %}
                     <span class="badge bg-success"><i class="fas fa-check"></i> Checked In</span>
                     {% endif %}
@@ -244,7 +300,7 @@
                         method="POST" class="d-inline">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="btn btn-sm btn-danger"
-                            onclick="return confirm('Revoke access for this user and mark as done?');">
+                            data-confirm='Revoke access for this user and mark as done?'>
                             <i class="fas fa-user-times"></i> Revoke Access
                         </button>
                     </form>
@@ -348,7 +404,7 @@
                         method="POST" class="d-inline">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="btn btn-sm btn-danger"
-                            onclick="return confirm('Revoke access for this user and mark as done?');">
+                            data-confirm='Revoke access for this user and mark as done?'>
                             <i class="fas fa-user-times"></i> Revoke Access
                         </button>
                     </form>
@@ -482,8 +538,7 @@
                         <form action="{{ url_for('onboarding.send_communication_now', id=comm.id) }}" method="POST"
                             class="d-inline">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="btn btn-sm btn-primary"
-                                onclick="return confirm('Send this email now?');">
+                            <button type="submit" class="btn btn-sm btn-primary" data-confirm='Send this email now?'>
                                 <i class="fas fa-paper-plane me-1"></i>Send Now
                             </button>
                         </form>
@@ -491,7 +546,7 @@
                             class="d-inline">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="btn btn-sm btn-outline-secondary"
-                                onclick="return confirm('Cancel this scheduled email?');">
+                                data-confirm='Cancel this scheduled email?'>
                                 <i class="fas fa-times"></i>
                             </button>
                         </form>

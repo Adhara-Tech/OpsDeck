@@ -8,6 +8,7 @@ from datetime import datetime
 from ..extensions import db
 from ..models import User, Group
 from ..models.communications import Campaign, ScheduledCommunication
+from ..models.core import Tag
 from ..routes.admin import admin_required
 from ..routes.main import login_required
 from ..utils.communications_context import validate_template_syntax
@@ -99,6 +100,12 @@ def new_campaign():
             groups = Group.query.filter(Group.id.in_([int(i) for i in group_ids])).all()
             campaign.target_groups = groups
         
+        # Add tags
+        tag_ids = request.form.getlist('tag_ids')
+        if tag_ids:
+            tags = Tag.query.filter(Tag.id.in_([int(i) for i in tag_ids])).all()
+            campaign.tags = tags
+        
         db.session.add(campaign)
         db.session.commit()
         
@@ -108,7 +115,8 @@ def new_campaign():
     # GET - show form
     users = User.query.filter_by(is_archived=False).order_by(User.name).all()
     groups = Group.query.order_by(Group.name).all()
-    return render_template('campaigns/form.html', campaign=None, users=users, groups=groups)
+    tags = Tag.query.filter_by(is_archived=False).order_by(Tag.name).all()
+    return render_template('campaigns/form.html', campaign=None, users=users, groups=groups, tags=tags)
 
 
 @campaigns_bp.route('/<int:id>')
@@ -211,13 +219,19 @@ def edit_campaign(id):
             groups = Group.query.filter(Group.id.in_([int(i) for i in group_ids])).all() if group_ids else []
             campaign.target_groups = groups
         
+        # Update tags
+        tag_ids = request.form.getlist('tag_ids')
+        tags = Tag.query.filter(Tag.id.in_([int(i) for i in tag_ids])).all() if tag_ids else []
+        campaign.tags = tags
+        
         db.session.commit()
         flash('Campaign updated.', 'success')
         return redirect(url_for('campaigns.detail', id=id))
     
     users = User.query.filter_by(is_archived=False).order_by(User.name).all()
     groups = Group.query.order_by(Group.name).all()
-    return render_template('campaigns/form.html', campaign=campaign, users=users, groups=groups)
+    tags = Tag.query.filter_by(is_archived=False).order_by(Tag.name).all()
+    return render_template('campaigns/form.html', campaign=campaign, users=users, groups=groups, tags=tags)
 
 
 @campaigns_bp.route('/<int:id>/archive', methods=['POST'])

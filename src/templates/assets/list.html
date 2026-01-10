@@ -43,13 +43,32 @@
                         <td>{{ asset.serial_number or '-' }}</td>
                         <td><span class="badge bg-secondary">{{ asset.status }}</span></td>
                         <td>{{ asset.user.name if asset.user else '-' }}</td>
-                        <td>{{ asset.location.name if asset.location else '-' }}</td>
                         <td>
-                            <a href="{{ url_for('assets.edit_asset', id=asset.id) }}" class="btn btn-sm btn-outline-primary me-1" title="Edit">
+                            <span class="badge {{ 'bg-primary' if asset.location else 'bg-info' }}">
+                                {{ asset.location_display }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if asset.user %}
+                            <button type="button" class="btn btn-sm btn-warning me-1" title="Check In"
+                                data-bs-toggle="modal" data-bs-target="#checkinModal" data-asset-id="{{ asset.id }}"
+                                data-asset-name="{{ asset.name }}" data-asset-user="{{ asset.user.name }}">
+                                <i class="fas fa-sign-in-alt"></i>
+                            </button>
+                            {% else %}
+                            <button type="button" class="btn btn-sm btn-success me-1" title="Check Out"
+                                data-bs-toggle="modal" data-bs-target="#checkoutModal" data-asset-id="{{ asset.id }}"
+                                data-asset-name="{{ asset.name }}">
+                                <i class="fas fa-sign-out-alt"></i>
+                            </button>
+                            {% endif %}
+                            <a href="{{ url_for('assets.edit_asset', id=asset.id) }}"
+                                class="btn btn-sm btn-outline-primary me-1" title="Edit">
                                 <i class="fas fa-edit"></i>
                             </a>
-                            <form action="{{ url_for('assets.archive_asset', id=asset.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to archive this asset?');">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <form action="{{ url_for('assets.archive_asset', id=asset.id) }}" method="POST"
+                                class="d-inline" data-confirm="Are you sure you want to archive this asset?">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="btn btn-sm btn-outline-warning" title="Archive">
                                     <i class="fas fa-archive"></i>
                                 </button>
@@ -66,4 +85,141 @@
         </div>
     </div>
 </div>
+
+<!-- Checkout Modal -->
+<div class="modal fade" id="checkoutModal" tabindex="-1" aria-labelledby="checkoutModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="checkoutForm" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="checkoutModalLabel">
+                        <i class="fas fa-sign-out-alt"></i> Check Out Asset
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3">Checking out: <strong id="checkoutAssetName"></strong></p>
+                    <div class="mb-3">
+                        <label for="checkout_user_id" class="form-label">Assign To *</label>
+                        <select class="form-select" id="checkout_user_id" name="user_id" required>
+                            <option value="">Select a user...</option>
+                            {% for user in users %}
+                            <option value="{{ user.id }}">{{ user.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="checkout_notes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="checkout_notes" name="notes" rows="2"
+                            placeholder="Optional notes..."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Physical Location</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="location_mode" id="checkout_locKeep"
+                                value="keep" checked>
+                            <label class="form-check-label" for="checkout_locKeep">
+                                <i class="fas fa-building text-secondary"></i> Stay at current location
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="location_mode" id="checkout_locRemote"
+                                value="remote">
+                            <label class="form-check-label" for="checkout_locRemote">
+                                <i class="fas fa-home text-info"></i> Take away / Remote
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-sign-out-alt"></i> Check Out
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Checkin Modal -->
+<div class="modal fade" id="checkinModal" tabindex="-1" aria-labelledby="checkinModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="checkinForm" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="redirect_url" value="{{ url_for('assets.assets') }}">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="checkinModalLabel">
+                        <i class="fas fa-sign-in-alt"></i> Check In Asset
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3">Returning <strong id="checkinAssetName"></strong> from <strong
+                            id="checkinUserName"></strong>.</p>
+                    <div class="mb-3">
+                        <label for="return_location_id" class="form-label">Return to Location *</label>
+                        <select class="form-select" id="return_location_id" name="return_location_id" required>
+                            <option value="">-- Select Storage / Office --</option>
+                            {% for loc in locations %}
+                            <option value="{{ loc.id }}">{{ loc.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-sign-in-alt"></i> Check In
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const checkoutModal = document.getElementById('checkoutModal');
+        if (checkoutModal) {
+            checkoutModal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                const assetId = button.getAttribute('data-asset-id');
+                const assetName = button.getAttribute('data-asset-name');
+
+                // Update modal content
+                document.getElementById('checkoutAssetName').textContent = assetName;
+                document.getElementById('checkoutForm').action = `/assets/${assetId}/checkout`;
+
+                // Reset form
+                document.getElementById('checkout_user_id').value = '';
+                document.getElementById('checkout_notes').value = '';
+                document.querySelector('input[name="location_mode"][value="keep"]').checked = true;
+            });
+        }
+
+        // Checkin modal handler
+        const checkinModal = document.getElementById('checkinModal');
+        if (checkinModal) {
+            checkinModal.addEventListener('show.bs.modal', function (event) {
+                const button = event.relatedTarget;
+                const assetId = button.getAttribute('data-asset-id');
+                const assetName = button.getAttribute('data-asset-name');
+                const userName = button.getAttribute('data-asset-user');
+
+                // Update modal content
+                document.getElementById('checkinAssetName').textContent = assetName;
+                document.getElementById('checkinUserName').textContent = userName;
+                document.getElementById('checkinForm').action = `/assets/${assetId}/checkin`;
+
+                // Reset form
+                document.getElementById('return_location_id').value = '';
+            });
+        }
+    });
+</script>
 {% endblock %}

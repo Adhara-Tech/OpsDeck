@@ -1,4 +1,9 @@
 {% macro compliance_links(object, object_type) %}
+{#
+PHASE 2 GRC MIGRATION: Compliance Links UI temporarily hidden.
+This content will be migrated to "Manual Mappings" in a future phase.
+The macro remains callable to avoid breaking templates that invoke it.
+
 <div class="card mt-4 shadow-sm">
     <div class="card-header bg-light d-flex justify-content-between align-items-center">
         <h5 class="mb-0"><i class="fas fa-shield-alt me-2"></i>Compliance Links</h5>
@@ -8,7 +13,6 @@
         </button>
     </div>
     <div class="card-body">
-        <!-- List of existing links -->
         <div id="compliance-links-list-{{ object.id }}" class="list-group mb-3">
             {% for link in object.compliance_links %}
             <div class="list-group-item d-flex justify-content-between align-items-start"
@@ -31,7 +35,6 @@
             {% endfor %}
         </div>
 
-        <!-- Add Link Form -->
         <div class="collapse" id="addComplianceLinkCollapse">
             <div class="card card-body bg-light">
                 <form id="add-compliance-link-form-{{ object.id }}" class="add-compliance-link-form"
@@ -40,7 +43,6 @@
                         <label for="framework-select-{{ object.id }}" class="form-label">Framework</label>
                         <select class="form-select framework-select" id="framework-select-{{ object.id }}" required>
                             <option value="" selected disabled>Select Framework...</option>
-                            <!-- Populated via JS -->
                         </select>
                     </div>
                     <div class="mb-3">
@@ -74,7 +76,6 @@
         const form = document.getElementById(`add-compliance-link-form-${objectId}`);
         const linksList = document.getElementById(`compliance-links-list-${objectId}`);
 
-        // Load Frameworks
         fetch('/compliance/frameworks')
             .then(response => response.json())
             .then(data => {
@@ -87,7 +88,6 @@
             })
             .catch(error => console.error('Error loading frameworks:', error));
 
-        // Load Controls on Framework Change
         frameworkSelect.addEventListener('change', function () {
             const fwId = this.value;
             controlSelect.innerHTML = '<option value="" selected disabled>Loading...</option>';
@@ -99,7 +99,6 @@
                     .then(data => {
                         controlSelect.innerHTML = '<option value="" selected disabled>Select Control...</option>';
                         data.forEach(ctrl => {
-                            // Check if already linked (simple client-side check if possible, otherwise server handles it)
                             const option = document.createElement('option');
                             option.value = ctrl.id;
                             option.textContent = `${ctrl.control_id} - ${ctrl.name}`;
@@ -114,7 +113,6 @@
             }
         });
 
-        // Handle Form Submit
         form.addEventListener('submit', function (e) {
             e.preventDefault();
             const controlId = controlSelect.value;
@@ -124,7 +122,7 @@
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': "{{ csrf_token() if csrf_token else '' }}" // Handle CSRF if available
+                    'X-CSRFToken': "{{ csrf_token() if csrf_token else '' }}"
                 },
                 body: JSON.stringify({
                     framework_control_id: controlId,
@@ -140,7 +138,6 @@
                     return response.json();
                 })
                 .then(data => {
-                    // Reload page to show new link (simplest approach for now)
                     window.location.reload();
                 })
                 .catch(error => {
@@ -148,7 +145,6 @@
                 });
         });
 
-        // Handle Delete
         linksList.addEventListener('click', function (e) {
             if (e.target.closest('.delete-compliance-link')) {
                 if (!confirm('Are you sure you want to remove this compliance link?')) return;
@@ -166,7 +162,6 @@
                         if (response.ok) {
                             document.getElementById(`compliance-link-${linkId}`).remove();
                             if (linksList.children.length === 0 || (linksList.children.length === 1 && linksList.children[0].id.startsWith('no-links'))) {
-                                // Optional: Show "no links" message again if empty
                                 window.location.reload();
                             }
                         } else {
@@ -177,4 +172,5 @@
         });
     });
 </script>
+#}
 {% endmacro %}

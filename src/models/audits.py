@@ -82,10 +82,20 @@ class ComplianceAudit(db.Model):
     )
 
     @classmethod
-    def create_snapshot(cls, framework_id, name, auditor_contact_id, internal_lead_id, copy_links=False):
+    def create_snapshot(cls, framework_id, name, auditor_contact_id, internal_lead_id, 
+                       copy_links=False, evidence_months=6, sample_size=None):
         """
         Creates a new ComplianceAudit and snapshots all controls from the given framework.
         If copy_links is True, it also snapshots the evidence links.
+        
+        Args:
+            framework_id: ID of the framework to snapshot
+            name: Name for the audit
+            auditor_contact_id: External auditor contact ID
+            internal_lead_id: Internal lead user ID
+            copy_links: Whether to copy manual compliance links
+            evidence_months: Number of months to look back for automated evidence (default: 6)
+            sample_size: Optional limit on evidence items per control (random sample)
         """
         # 1. Get the source Framework
         framework = Framework.query.get(framework_id)
@@ -126,7 +136,7 @@ class ComplianceAudit(db.Model):
             db.session.add(audit_item)
             db.session.flush() # Need ID for links
 
-            # 4. Copy Links if requested
+            # 4. Copy Manual Links if requested
             if copy_links:
                 original_links = control.compliance_links.all()
                 for link in original_links:
@@ -134,23 +144,136 @@ class ComplianceAudit(db.Model):
                         audit_item_id=audit_item.id,
                         linkable_type=link.linkable_type,
                         linkable_id=link.linkable_id,
-                        description=link.description
+                        description=link.description,
+                        is_automated=False
                     )
                     db.session.add(audit_link)
 
-        # 5. Commit transaction
+        # 5. Commit the audit structure
         db.session.commit()
+        
+        # 6. Populate automated evidence from compliance rules
+        audit._populate_automated_evidence(evidence_months, sample_size)
         
         return audit
 
+    def _populate_automated_evidence(self, evidence_months, sample_size=None):
+        """
+        Populates automated evidence for all audit items by evaluating compliance rules.
+        This method should be called after the audit structure (items) has been created and committed.
+        
+        Args:
+            evidence_months: Number of months to look back for evidence
+            sample_size: Optional limit on evidence items per control (random sample)
+        """
+        from .security import ComplianceRule
+        from ..services.compliance_service import get_compliance_evaluator
+        
+        evaluator = get_compliance_evaluator()
+        
+        # Iterate over all audit items in this audit
+        for audit_item in self.audit_items:
+            # Get the original control to access its rules
+            if not audit_item.original_control:
+                continue
+                
+            control = audit_item.original_control
+            rules = control.rules.all() if hasattr(control, 'rules') else []
+            
+            for rule in rules:
+                if not rule.enabled:
+                    continue
+                    
+                try:
+                    # Collect historical evidence over the specified time period
+                    evidence_list = evaluator.collect_evidence(rule, evidence_months, sample_size)
+                    
+                    # Create a link for each piece of evidence found
+                    for evidence in evidence_list:
+                        # Extract the relevant date from the evidence object
+                        evidence_date = ComplianceAudit._extract_evidence_date(evidence, rule.target_model)
+                        date_str = evidence_date.strftime('%Y-%m-%d') if evidence_date else 'N/A'
+                        
+                        # Determine linkable_type from target_model
+                        linkable_type = rule.target_model  # e.g., 'ActivityExecution', 'Campaign'
+                        
+                        audit_link = AuditControlLink(
+                            audit_item_id=audit_item.id,
+                            linkable_type=linkable_type,
+                            linkable_id=evidence.id,
+                            description=f"Automated Evidence: {rule.name} - Found on {date_str}",
+                            is_automated=True
+                        )
+                        db.session.add(audit_link)
+                        
+                except Exception as e:
+                    # Log but don't fail the snapshot for a single rule error
+                    import logging
+                    logging.warning(f"Failed to capture automated evidence for rule {rule.id}: {e}")
+        
+        # Commit all automated evidence links
+        db.session.commit()
+
+
+    @staticmethod
+    def _extract_evidence_date(evidence, model_type):
+        """
+        Extract the relevant date from an evidence object based on its model type.
+        
+        Args:
+            evidence: The evidence object
+            model_type: String identifier of the model type
+            
+        Returns:
+            datetime or date object, or None if not found
+        """
+        from datetime import datetime, date
+        
+        date_field_map = {
+            'ActivityExecution': 'execution_date',
+            'Campaign': 'processed_at',
+            'MaintenanceLog': 'created_at',
+            'BCDRTestLog': 'test_date',
+            'SecurityAssessment': 'assessment_date',
+            'RiskAssessment': 'created_at'
+        }
+        
+        field_name = date_field_map.get(model_type, 'created_at')
+        evidence_date = getattr(evidence, field_name, None)
+        
+        # Convert date to datetime for consistency
+        if evidence_date and isinstance(evidence_date, date) and not isinstance(evidence_date, datetime):
+            evidence_date = datetime.combine(evidence_date, datetime.min.time())
+        
+        return evidence_date
+
 
     @classmethod
-    def clone(cls, source_id, new_owner_id, target_date):
+    def clone(cls, source_id, new_owner_id, target_date, copy_audit_extras=False, 
+              evidence_months=6, sample_size=None):
         """
-        Clones an existing audit for a new period (Rollover).
-        - Preserves: SOA (is_applicable), Justifications, Comments, Evidence Links.
-        - Resets: Status (Compliant/Gap -> Pending), Dates, Auditor.
-        - Metadata: New Name = "Renewal [Year]: [Old Name]", Owner = new_owner_id.
+        Clones an existing audit for a new period (Intelligent Deep Clone).
+        
+        Evidence Import Strategy (Per Control):
+        1. ALWAYS import framework structural evidence (Policies, Procedures)
+        2. ALWAYS import manual evidence from previous audit
+        3. ALWAYS regenerate automated evidence from fresh compliance rule evaluations
+        4. PREVENT duplicates using tuple-based deduplication (linkable_type, linkable_id)
+        
+        Args:
+            source_id: ID of the source audit to clone
+            new_owner_id: ID of the user who will own the new audit
+            target_date: Target completion date for the new audit
+            copy_audit_extras: Deprecated parameter (kept for compatibility)
+            evidence_months: Number of months to look back for automated evidence
+            sample_size: Optional limit on evidence items per control
+            
+        Preserves:
+            - SOA (is_applicable, justification, internal_comments)
+            
+        Resets:
+            - Status (Compliant/Gap -> Pending)
+            - Dates, Auditor
         """
         source = cls.query.get(source_id)
         if not source:
@@ -173,51 +296,91 @@ class ComplianceAudit(db.Model):
         db.session.add(new_audit)
         db.session.flush() # Generate ID
 
-        # 2. Clone Controls
-        # Iterate over source items to carry over decisions + evidence
+        # 2. Clone Controls with Intelligent Evidence Import
         for old_item in source.audit_items:
             new_item = AuditControlItem(
                 audit_id=new_audit.id,
                 original_control_id=old_item.original_control_id,
                 
                 # --- SNAPSHOT TEXT ---
-                # We copy from the OLD item to preserve the snapshot state 
-                # (unless we want to re-sync with framework, but requirement says "Preserve")
+                # Copy from the OLD item to preserve the snapshot state
                 control_code=old_item.control_code,
                 control_title=old_item.control_title,
                 control_description=old_item.control_description,
 
-                # --- COPY TEXT DATA ---
+                # --- COPY SOA & TEXT DATA ---
                 justification=old_item.justification,
                 internal_comments=old_item.internal_comments,
-                
-                # --- SOA LOGIC ---
                 is_applicable=old_item.is_applicable
             )
             
             # --- STATUS RESET LOGIC ---
             if not old_item.is_applicable:
-                new_item.status = 'Not Applicable' # Explicit string
+                new_item.status = 'Not Applicable'
             else:
                 new_item.status = 'Pending' # Reset to Pending for re-validation
 
             db.session.add(new_item)
             db.session.flush() # Need ID for links
             
-            # --- CLONE EVIDENCES (Reference Copy) ---
-            # We copy the LINKS (pointers to assets/docs), not the attachments themselves (files)
-            # Logic: "We used Policy X last year, we likely use it this year too"
+            # --- INTELLIGENT EVIDENCE IMPORT (3 PHASES) ---
+            
+            # Deduplication tracker: stores (linkable_type, linkable_id) tuples
+            existing_links = set()
+            
+            # PHASE 1: Import Framework Evidence (ALWAYS)
+            # This is the structural evidence defined in the live framework
+            if old_item.original_control:
+                framework_links = old_item.original_control.compliance_links.all()
+                for link in framework_links:
+                    # Create the audit link
+                    new_link = AuditControlLink(
+                        audit_item_id=new_item.id,
+                        linkable_type=link.linkable_type,
+                        linkable_id=link.linkable_id,
+                        description=link.description,
+                        is_automated=False
+                    )
+                    db.session.add(new_link)
+                    
+                    # Track this link to prevent duplicates
+                    existing_links.add((link.linkable_type, link.linkable_id))
+            
+            # PHASE 2: Import Manual Evidence from Previous Audit (ALWAYS)
+            # Copy all manual (non-automated) evidence from the previous audit
             for link in old_item.linked_objects:
-                 new_link = AuditControlLink(
-                     audit_item_id=new_item.id,
-                     linkable_type=link.linkable_type,
-                     linkable_id=link.linkable_id,
-                     description=link.description
-                 )
-                 db.session.add(new_link)
+                # Skip automated evidence (it's stale, will be regenerated in Phase 3)
+                if link.is_automated:
+                    continue
+                
+                # Skip if already imported from framework (deduplication)
+                link_tuple = (link.linkable_type, link.linkable_id)
+                if link_tuple in existing_links:
+                    continue
+                
+                # This is a manual link from the previous audit
+                # Import it to save auditor time
+                new_link = AuditControlLink(
+                    audit_item_id=new_item.id,
+                    linkable_type=link.linkable_type,
+                    linkable_id=link.linkable_id,
+                    description=link.description,
+                    is_automated=False
+                )
+                db.session.add(new_link)
+                
+                # Track to prevent duplicates (though unlikely at this point)
+                existing_links.add(link_tuple)
 
+        # 3. Commit the audit structure
         db.session.commit()
+        
+        # PHASE 3: Regenerate Automated Evidence (ALWAYS)
+        # This ensures we have fresh, current compliance data
+        new_audit._populate_automated_evidence(evidence_months, sample_size)
+        
         return new_audit
+
 
 class AuditControlItem(db.Model):
     """
@@ -284,6 +447,7 @@ class AuditControlLink(db.Model):
     linkable_id = db.Column(db.Integer, nullable=False)
     
     description = db.Column(db.Text) # Context for why this is evidence
+    is_automated = db.Column(db.Boolean, default=False, nullable=False) # True if captured from ComplianceRule
     
     @property
     def display_name(self):
@@ -292,24 +456,61 @@ class AuditControlLink(db.Model):
         if not obj:
             return "Elemento no encontrado"
         
-        # 1. Políticas y Cursos usan 'title'
+        # Special handling for automated evidence types
+        
+        # 1. SecurityAssessment - show supplier name and date
+        if self.linkable_type == 'SecurityAssessment':
+            supplier_name = obj.supplier.name if hasattr(obj, 'supplier') and obj.supplier else 'Unknown Supplier'
+            date_str = obj.assessment_date.strftime('%Y-%m-%d') if hasattr(obj, 'assessment_date') else 'N/A'
+            return f"Security Assessment: {supplier_name} ({date_str})"
+        
+        # 2. MaintenanceLog - show event type and description
+        if self.linkable_type == 'MaintenanceLog':
+            event_type = obj.event_type if hasattr(obj, 'event_type') else 'Maintenance'
+            description = obj.description[:50] if hasattr(obj, 'description') and obj.description else ''
+            if len(description) > 50:
+                description = description[:47] + '...'
+            return f"{event_type}: {description}" if description else event_type
+        
+        # 3. RiskAssessment - show name
+        if self.linkable_type == 'RiskAssessment':
+            return getattr(obj, 'name', 'Risk Assessment')
+        
+        # 4. ActivityExecution - show activity name and date
+        if self.linkable_type == 'ActivityExecution':
+            activity_name = obj.activity.name if hasattr(obj, 'activity') and obj.activity else 'Activity'
+            date_str = obj.execution_date.strftime('%Y-%m-%d') if hasattr(obj, 'execution_date') else ''
+            return f"{activity_name} ({date_str})" if date_str else activity_name
+        
+        # 5. BCDRTestLog - show plan name and date
+        if self.linkable_type == 'BCDRTestLog':
+            plan_name = obj.plan.name if hasattr(obj, 'plan') and obj.plan else 'BCDR Test'
+            date_str = obj.test_date.strftime('%Y-%m-%d') if hasattr(obj, 'test_date') else ''
+            return f"{plan_name} Test ({date_str})" if date_str else f"{plan_name} Test"
+        
+        # 6. Campaign - use title
+        if self.linkable_type == 'Campaign':
+            return getattr(obj, 'title', 'Campaign')
+        
+        # 7. Políticas y Cursos usan 'title'
         if hasattr(obj, 'title'):
             return obj.title
             
-        # 2. Riesgos usan 'risk_description'
+        # 8. Riesgos usan 'risk_description'
         if hasattr(obj, 'risk_description'):
-            # Opcional: Truncar si es muy largo, ya que suelen ser textos
-            return obj.risk_description 
+            # Truncate if too long
+            desc = obj.risk_description
+            return desc[:50] + '...' if len(desc) > 50 else desc
 
-        # 3. Procesos de Onboarding
+        # 9. Procesos de Onboarding
         if self.linkable_type == 'Onboarding':
             return f"Onboarding: {obj.new_hire_name or (obj.user.name if obj.user else 'Unknown')}"
 
-        # 4. Procesos de Offboarding
+        # 10. Procesos de Offboarding
         if self.linkable_type == 'Offboarding':
             return f"Offboarding: {obj.user.name if obj.user else 'Unknown'}"
             
-        # 5. El resto (Assets, Users, etc.) usan 'name'
+        # 11. El resto (Assets, Users, etc.) usan 'name'
         return getattr(obj, 'name', str(obj))
     
     @property
@@ -321,10 +522,13 @@ class AuditControlLink(db.Model):
         from .core import Link, Documentation
         from .policy import Policy
         from .training import Course
-        from .bcdr import BCDRPlan
+        from .bcdr import BCDRPlan, BCDRTestLog
         from .security import SecurityIncident, SecurityAssessment, Risk, AssetInventory
         from .services import BusinessService
         from .auth import OrgChartSnapshot
+        from .activities import ActivityExecution, SecurityActivity
+        from .communications import Campaign
+        from .risk_assessment import RiskAssessment
         
         # Map types to models
         model_map = {
@@ -343,13 +547,19 @@ class AuditControlLink(db.Model):
             'Policy': Policy,
             'Course': Course,
             'BCDRPlan': BCDRPlan,
+            'BCDRTestLog': BCDRTestLog,
             'SecurityIncident': SecurityIncident,
             'SecurityAssessment': SecurityAssessment,
             'Risk': Risk,
+            'RiskAssessment': RiskAssessment,
             'AssetInventory': AssetInventory,
             'BusinessService': BusinessService,
             'Onboarding': OnboardingProcess,
-            'Offboarding': OffboardingProcess
+            'Offboarding': OffboardingProcess,
+            # Automated Evidence Types
+            'ActivityExecution': ActivityExecution,
+            'SecurityActivity': SecurityActivity,
+            'Campaign': Campaign,
         }
         
         model = model_map.get(self.linkable_type)

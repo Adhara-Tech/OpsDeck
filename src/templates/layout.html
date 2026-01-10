@@ -81,7 +81,7 @@
 
     <nav class="sidebar">
         <div class="container-fluid"><a class="navbar-brand text-white mb-3 d-block text-center"
-                href="{{ url_for('main.dashboard') }}"><i class="fas fa-sync-alt"></i> OpsDeck</a></div>
+                href="{{ url_for('main.organizational_health') }}"><i class="fas fa-sync-alt"></i> OpsDeck</a></div>
         <div class="p-2 position-relative"><input type="search" id="global-search-input" class="form-control"
                 placeholder="Search..." autocomplete="off">
             <div id="global-search-results" class="list-group"></div>
@@ -89,8 +89,10 @@
 
         <div class="sidebar-body" id="sidebar-accordion">
             <ul class="nav flex-column">
-                <li class="nav-item"><a class="nav-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}"
-                        href="{{ url_for('main.dashboard') }}"><i class="fas fa-tachometer-alt"></i> Dashboard</a></li>
+                <li class="nav-item"><a
+                        class="nav-link {% if request.endpoint == 'main.organizational_health' %}active{% endif %}"
+                        href="{{ url_for('main.organizational_health') }}"><i class="fas fa-heartbeat"></i> Health
+                        Dashboard</a></li>
 
                 <hr class="text-white">
                 <h6 class="sidebar-heading" data-bs-toggle="collapse" data-bs-target="#crm-menu" aria-expanded="false">
@@ -119,6 +121,11 @@
                 <h6 class="sidebar-heading" data-bs-toggle="collapse" data-bs-target="#operations-menu"
                     aria-expanded="false">Operations <i class="fa-fw fas fa-chevron-down float-end"></i></h6>
                 <div class="collapse" id="operations-menu" data-bs-parent="#sidebar-accordion">
+                    <li class="nav-item"><a
+                            class="nav-link {% if request.endpoint == 'main.ops_finance_dashboard' %}active{% endif %}"
+                            href="{{ url_for('main.ops_finance_dashboard') }}"><i
+                                class="fa-fw fas fa-tachometer-alt"></i>
+                            Ops & Finance</a></li>
                     <li class="nav-item"><a class="nav-link {% if request.blueprint == 'services' %}active{% endif %}"
                             href="{{ url_for('services.list_services') }}"><i class="fa-fw fas fa-server"></i>
                             Service Catalog</a></li>
@@ -291,6 +298,10 @@
                             class="nav-link {% if request.endpoint == 'reports.depreciation_report' %}active{% endif %}"
                             href="{{ url_for('reports.depreciation_report') }}"><i class="fa-fw fas fa-chart-area"></i>
                             Depreciation</a></li>
+                    <li class="nav-item"><a
+                            class="nav-link {% if request.endpoint == 'finance.exchange_rates' %}active{% endif %}"
+                            href="{{ url_for('finance.exchange_rates') }}"><i class="fa-fw fas fa-exchange-alt"></i>
+                            Exchange Rates</a></li>
                 </div>
 
                 <hr class="text-white">
@@ -474,6 +485,21 @@
     <script src="{{ url_for('static', filename='vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
     <script src="{{ url_for('static', filename='vendor/simple-datatables/js/simple-datatables.js') }}"></script>
     <script src="{{ url_for('static', filename='vendor/tom-select/js/tom-select.complete.min.js') }}"></script>
+
+    {# Global Modal for replacing native alert/confirm/prompt #}
+    <div class="modal fade" id="globalModal" tabindex="-1" aria-hidden="true" role="dialog" aria-modal="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="globalModalTitle"></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="globalModalBody"></div>
+                <div class="modal-footer" id="globalModalFooter"></div>
+            </div>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='js/modal.js') }}"></script>
 
     {# ADD Global Initialization Script #}
     <script>

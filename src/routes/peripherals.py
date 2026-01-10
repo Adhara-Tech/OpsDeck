@@ -12,7 +12,8 @@ peripherals_bp = Blueprint('peripherals', __name__)
 @login_required
 def peripherals():
     peripherals = Peripheral.query.filter_by(is_archived=False).all()
-    return render_template('peripherals/list.html', peripherals=peripherals)
+    users = User.query.filter_by(is_archived=False).order_by(User.name).all()
+    return render_template('peripherals/list.html', peripherals=peripherals, users=users)
 
 @peripherals_bp.route('/<int:id>')
 @login_required
@@ -123,6 +124,7 @@ def checkout_peripheral(id):
             return redirect(url_for('peripherals.checkout_peripheral', id=id))
         
         peripheral.user = user
+        peripheral.status = 'In Use'  # Auto-update status on checkout
         assignment = PeripheralAssignment(peripheral_id=id, user_id=user_id, notes=notes)
         db.session.add(assignment)
 
@@ -144,13 +146,27 @@ def checkin_peripheral(id):
         flash('This peripheral is already checked in.', 'warning')
         return redirect(redirect_url or url_for('peripherals.peripheral_detail', id=id))
 
+    # REQUIRED: Select return location
+    return_location_id = request.form.get('return_location_id')
+    if not return_location_id:
+        flash('You must select a location to return the peripheral to.', 'danger')
+        return redirect(redirect_url or url_for('peripherals.peripheral_detail', id=id))
+        
+    from ..models import Location
+    target_location = Location.query.get(return_location_id)
+    if not target_location:
+         flash('Selected location not found.', 'danger')
+         return redirect(redirect_url or url_for('peripherals.peripheral_detail', id=id))
+
     assignment = PeripheralAssignment.query.filter_by(peripheral_id=id, checked_in_date=None).order_by(PeripheralAssignment.checked_out_date.desc()).first()
     
     if assignment:
         assignment.checked_in_date = datetime.utcnow()
 
-    flash(f'Peripheral "{peripheral.name}" has been checked in from {peripheral.user.name}.', 'success')
+    flash(f'Peripheral "{peripheral.name}" has been checked in from {peripheral.user.name} to {target_location.name}.', 'success')
     peripheral.user = None
+    peripheral.location_id = target_location.id # Update location
+    peripheral.status = 'Available'  # Auto-update status on checkin
     
     # Auto-complete related offboarding item if exists
     from ..models.onboarding import ProcessItem
@@ -196,3 +212,75 @@ def unarchive_peripheral(id):
     db.session.commit()
     flash(f'Peripheral "{peripheral.name}" has been restored.')
     return redirect(url_for('peripherals.archived_peripherals'))
+
+
+@peripherals_bp.route('/<int:id>/history')
+@login_required
+def peripheral_history(id):
+    """Displays the full history for a peripheral as a visual timeline."""
+    peripheral = Peripheral.query.get_or_404(id)
+    
+    # Build unified timeline from multiple sources
+    timeline_events = []
+    
+    # 1. Purchase/Creation event
+    if peripheral.purchase_date:
+        timeline_events.append({
+            'date': datetime.combine(peripheral.purchase_date, datetime.min.time()),
+            'event_type': 'purchase',
+            'icon': 'fa-shopping-cart',
+            'color': 'success',
+            'title': 'Peripheral Purchased',
+            'description': f'Purchased for {peripheral.currency} {peripheral.cost:.2f}' if peripheral.cost else 'Purchase date recorded'
+        })
+    elif peripheral.created_at:
+        timeline_events.append({
+            'date': peripheral.created_at,
+            'event_type': 'creation',
+            'icon': 'fa-plus-circle',
+            'color': 'success',
+            'title': 'Peripheral Created',
+            'description': 'Peripheral was added to the system'
+        })
+    
+    # 2. Assignment events (checkout/checkin)
+    for assignment in peripheral.assignments:
+        user_name = assignment.user.name if assignment.user else 'Unknown User'
+        
+        # Checkout event
+        timeline_events.append({
+            'date': assignment.checked_out_date,
+            'event_type': 'checkout',
+            'icon': 'fa-sign-out-alt',
+            'color': 'primary',
+            'title': f'Checked Out to {user_name}',
+            'description': assignment.notes or 'Assigned to employee'
+        })
+        
+        # Checkin event (if returned)
+        if assignment.checked_in_date:
+            timeline_events.append({
+                'date': assignment.checked_in_date,
+                'event_type': 'checkin',
+                'icon': 'fa-sign-in-alt',
+                'color': 'warning',
+                'title': f'Checked In from {user_name}',
+                'description': 'Peripheral returned'
+            })
+    
+    # 3. Maintenance events
+    for log in peripheral.maintenance_logs:
+        timeline_events.append({
+            'date': datetime.combine(log.event_date, datetime.min.time()),
+            'event_type': 'maintenance',
+            'icon': 'fa-tools',
+            'color': 'danger',
+            'title': f'{log.event_type}',
+            'description': log.description,
+            'status': log.status
+        })
+    
+    # Sort by date descending (newest first)
+    timeline_events.sort(key=lambda x: x['date'], reverse=True)
+    
+    return render_template('peripherals/history.html', peripheral=peripheral, timeline_events=timeline_events)

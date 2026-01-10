@@ -7,149 +7,284 @@
     <style>
         @page {
             size: A4;
-            margin: 2cm;
+            margin: 1.5cm;
         }
 
         body {
             font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-            font-size: 12px;
-            line-height: 1.5;
+            font-size: 11px;
+            line-height: 1.4;
             color: #333;
         }
 
         h1 {
-            font-size: 24px;
+            font-size: 22px;
             border-bottom: 2px solid #333;
-            padding-bottom: 10px;
-            margin-bottom: 20px;
+            padding-bottom: 8px;
+            margin-bottom: 15px;
         }
 
         h2 {
-            font-size: 18px;
-            margin-top: 30px;
+            font-size: 16px;
+            margin-top: 25px;
             margin-bottom: 10px;
             background-color: #f8f9fa;
-            padding: 10px;
-            border-left: 5px solid #0d6efd;
-        }
-
-        h3 {
-            font-size: 14px;
-            margin-top: 20px;
-            margin-bottom: 5px;
-            color: #555;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 5px;
+            padding: 8px 10px;
+            border-left: 4px solid #0d6efd;
         }
 
         .meta {
             font-size: 10px;
             color: #777;
-            margin-bottom: 30px;
-        }
-
-        .control-block {
             margin-bottom: 20px;
-            page-break-inside: avoid;
         }
 
-        .control-id {
+        /* Stats Row */
+        .stats-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .stat-box {
+            flex: 1;
+            padding: 8px;
+            text-align: center;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .stat-box .number {
+            font-size: 20px;
             font-weight: bold;
-            color: #0d6efd;
         }
 
-        .no-evidence {
+        .stat-box .label {
+            font-size: 9px;
+            color: #666;
+            text-transform: uppercase;
+        }
+
+        .stat-compliant {
+            border-color: #198754;
+        }
+
+        .stat-compliant .number {
+            color: #198754;
+        }
+
+        .stat-warning {
+            border-color: #ffc107;
+        }
+
+        .stat-warning .number {
+            color: #856404;
+        }
+
+        .stat-noncompliant {
+            border-color: #dc3545;
+        }
+
+        .stat-noncompliant .number {
             color: #dc3545;
-            font-style: italic;
         }
 
+        .stat-manual {
+            border-color: #0dcaf0;
+        }
+
+        .stat-manual .number {
+            color: #0dcaf0;
+        }
+
+        /* Main Table */
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 5px;
-            font-size: 11px;
+            font-size: 10px;
+            margin-bottom: 20px;
         }
 
         th,
         td {
             border: 1px solid #ddd;
-            padding: 6px;
+            padding: 5px 6px;
             text-align: left;
+            vertical-align: top;
         }
 
         th {
             background-color: #f2f2f2;
+            font-weight: bold;
         }
 
-        .badge {
+        /* Status Badges - Simple for PDF */
+        .status {
             display: inline-block;
-            padding: 2px 5px;
-            font-size: 10px;
+            padding: 2px 6px;
+            font-size: 9px;
             font-weight: bold;
-            color: #fff;
-            background-color: #6c757d;
             border-radius: 3px;
+        }
+
+        .status-compliant {
+            background-color: #d1e7dd;
+            color: #0f5132;
+        }
+
+        .status-warning {
+            background-color: #fff3cd;
+            color: #664d03;
+        }
+
+        .status-noncompliant {
+            background-color: #f8d7da;
+            color: #842029;
+        }
+
+        .status-manual {
+            background-color: #cff4fc;
+            color: #055160;
+        }
+
+        .status-uncovered {
+            background-color: #e9ecef;
+            color: #495057;
+        }
+
+        /* Source Badge */
+        .source {
+            font-size: 9px;
+            padding: 1px 4px;
+            border-radius: 2px;
+        }
+
+        .source-auto {
+            background-color: #cfe2ff;
+            color: #084298;
+        }
+
+        .source-manual {
+            background-color: #e2e3e5;
+            color: #41464b;
+        }
+
+        /* Page Break */
+        .page-break {
+            page-break-after: always;
+        }
+
+        .no-data {
+            color: #6c757d;
+            font-style: italic;
+            padding: 20px;
+            text-align: center;
         }
     </style>
 </head>
 
 <body>
-    <h1>Compliance Report</h1>
+    <h1>Compliance Dashboard Report</h1>
     <div class="meta">
-        Generated on: {{ generated_at }}<br>
+        Generated on: {{ generated_at }} UTC<br>
         Generated by: {{ generated_by }}
     </div>
 
-    {% for framework in frameworks %}
-    <h2>{{ framework.name }}</h2>
-    {% if framework.description %}
-    <p>{{ framework.description }}</p>
+    {% if dashboard_data %}
+    {% for fw_data in dashboard_data %}
+
+    <h2>{{ fw_data.framework.name }}</h2>
+    {% if fw_data.framework.description %}
+    <p style="color: #666; margin-bottom: 10px;">{{ fw_data.framework.description }}</p>
     {% endif %}
 
-    {% for control in framework.framework_controls %}
-    <div class="control-block">
-        <h3><span class="control-id">{{ control.control_id }}</span> {{ control.name }}</h3>
-        {% if control.description %}
-        <p style="color: #666; font-style: italic;">{{ control.description }}</p>
-        {% endif %}
-
-        {% if control.compliance_links.count() > 0 %}
-        <table>
-            <thead>
-                <tr>
-                    <th style="width: 15%;">Type</th>
-                    <th style="width: 30%;">Object</th>
-                    <th style="width: 55%;">Justification</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for link in control.compliance_links %}
-                <tr>
-                    <td>{{ link.linkable_type }}</td>
-                    <td>
-                        {% if link.linked_object %}
-                        {{ link.linked_object.name or link.linked_object.title or link.linked_object.description or
-                        'Unknown' }}
-                        {% else %}
-                        Object Deleted (ID: {{ link.linkable_id }})
-                        {% endif %}
-                    </td>
-                    <td>{{ link.description }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-        <p class="no-evidence">No evidence linked to this control.</p>
-        {% endif %}
+    <!-- Stats Summary -->
+    <div class="stats-row">
+        <div class="stat-box stat-compliant">
+            <div class="number">{{ fw_data.stats.compliant }}</div>
+            <div class="label">Compliant</div>
+        </div>
+        <div class="stat-box stat-warning">
+            <div class="number">{{ fw_data.stats.warning }}</div>
+            <div class="label">Warning</div>
+        </div>
+        <div class="stat-box stat-noncompliant">
+            <div class="number">{{ fw_data.stats.non_compliant }}</div>
+            <div class="label">Non-Compliant</div>
+        </div>
+        <div class="stat-box stat-manual">
+            <div class="number">{{ fw_data.stats.manual }}</div>
+            <div class="label">Manual</div>
+        </div>
     </div>
-    {% endfor %}
+
+    <!-- Controls Table -->
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 12%;">Control ID</th>
+                <th style="width: 38%;">Name</th>
+                <th style="width: 15%;">Status</th>
+                <th style="width: 12%;">Source</th>
+                <th style="width: 23%;">Last Evidence</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ctrl in fw_data.controls %}
+            <tr>
+                <td><strong>{{ ctrl.control_id }}</strong></td>
+                <td>{{ ctrl.name | truncate(80) }}</td>
+                <td>
+                    {% if ctrl.status == 'compliant' %}
+                    <span class="status status-compliant">✓ Compliant</span>
+                    {% elif ctrl.status == 'warning' %}
+                    <span class="status status-warning">⚠ Warning</span>
+                    {% elif ctrl.status == 'non_compliant' %}
+                    <span class="status status-noncompliant">✗ Non-Compliant</span>
+                    {% elif ctrl.status == 'manual' %}
+                    <span class="status status-manual">📄 Manual</span>
+                    {% else %}
+                    <span class="status status-uncovered">— Uncovered</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if ctrl.coverage_type == 'automated' %}
+                    <span class="source source-auto">🤖 Auto ({{ ctrl.rules_count }})</span>
+                    {% elif ctrl.coverage_type == 'manual' %}
+                    <span class="source source-manual">📄 Manual ({{ ctrl.manual_links_count }})</span>
+                    {% else %}
+                    <span style="color: #999;">—</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if ctrl.oldest_evidence_date %}
+                    {{ ctrl.oldest_evidence_date.strftime('%Y-%m-%d') }}
+                    {% else %}
+                    <span style="color: #999;">N/A</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Summary Line -->
+    <p style="font-size: 10px; color: #666;">
+        Total: {{ fw_data.stats.total }} controls |
+        Uncovered: {{ fw_data.stats.uncovered }}
+    </p>
 
     {% if not loop.last %}
-    <div style="page-break-after: always;"></div>
+    <div class="page-break"></div>
     {% endif %}
 
     {% endfor %}
+    {% else %}
+    <div class="no-data">
+        No active frameworks found. Enable a framework to generate compliance reports.
+    </div>
+    {% endif %}
+
 </body>
 
 </html>

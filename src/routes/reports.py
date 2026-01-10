@@ -4,7 +4,8 @@ from flask import (
 from sqlalchemy import func
 from datetime import date, datetime
 from dateutil.relativedelta import relativedelta
-from ..models import db, Subscription, Asset, Supplier, User, Group, Peripheral, Location, CURRENCY_RATES, License, Purchase
+from ..models import db, Subscription, Asset, Supplier, User, Group, Peripheral, Location, License, Purchase
+from ..services.finance_service import get_conversion_rate
 from .main import login_required
 
 reports_bp = Blueprint('reports', __name__)
@@ -195,8 +196,7 @@ def assets_dashboard():
     for asset in all_assets:
         if asset.cost:
             # Convert to EUR for aggregation
-            from ..models import CURRENCY_RATES
-            rate_to_eur = CURRENCY_RATES.get(asset.currency, 1.0)
+            rate_to_eur = get_conversion_rate(asset.currency)
             cost_eur = asset.cost * rate_to_eur
             total_capex += cost_eur
             
@@ -370,8 +370,7 @@ def assets_dashboard_pdf():
     
     for asset in all_assets:
         if asset.cost:
-            from ..models import CURRENCY_RATES
-            rate_to_eur = CURRENCY_RATES.get(asset.currency, 1.0)
+            rate_to_eur = get_conversion_rate(asset.currency)
             cost_eur = asset.cost * rate_to_eur
             total_capex += cost_eur
             
@@ -659,7 +658,7 @@ def depreciation_report():
     for item in results_to_depreciate:
         cost = item.cost # Already filtered for cost is not None
         depreciated_value_original_currency = None
-        rate_to_eur = CURRENCY_RATES.get(item.currency, 1.0) # Rate to convert item's currency to EUR
+        rate_to_eur = get_conversion_rate(item.currency)
         original_value_eur = cost * rate_to_eur
 
         if item.purchase_date: # Already filtered for purchase_date is not None
@@ -712,7 +711,7 @@ def depreciation_report():
 
         if currency and currency != item.currency:
             # Convert to the target display currency via EUR
-            rate_from_eur = CURRENCY_RATES.get(currency, 1.0)
+            rate_from_eur = get_conversion_rate(currency)
             if rate_from_eur != 0: # Avoid division by zero if target currency is unknown
                  display_currency_code = currency
                  display_cost = original_value_eur / rate_from_eur

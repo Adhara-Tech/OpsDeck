@@ -51,21 +51,26 @@ def test_asset_checkout_checkin(auth_client, app):
     """
     Prueba el flujo de asignar (checkout) y retornar (checkin) un activo.
     """
+    from src.models import Location
+    
     # --- PREPARACIÓN ---
     # 1. Crear el Activo (Asset ID 1)
     auth_client.post('/assets/new', data={'name': 'Checkout Laptop', 'status': 'Stored'}, follow_redirects=True)
     
-    # 2. Crear un Usuario para asignárselo (User ID 2, ya que el ID 1 es el admin)
-    # Lo creamos directamente en la BD para este test
+    # 2. Crear un Usuario y Location para el test
     with app.app_context():
         checkout_user = User(name='Checkout User', email='checkout@test.com', role='user')
-        db.session.add(checkout_user) # <-- 3. ESTO AHORA FUNCIONA
+        db.session.add(checkout_user)
+        test_location = Location(name='Test Office')
+        db.session.add(test_location)
         db.session.commit()
-        assert checkout_user.id == 2 # Confirmamos que el ID es 2
+        user_id = checkout_user.id
+        location_id = test_location.id
 
     # --- 1. PROBAR CHECKOUT ---
     response = auth_client.post('/assets/1/checkout', data={
-        'user_id': '2' # Asignar al User ID 2
+        'user_id': str(user_id),
+        'location_mode': 'keep'  # Keep at current location
     }, follow_redirects=True)
     
     assert response.status_code == 200
@@ -73,24 +78,23 @@ def test_asset_checkout_checkin(auth_client, app):
     
     # Verifica en la BD
     with app.app_context():
-        # 2. CORREGIR LegacyAPIWarning
         asset = db.session.get(Asset, 1)
-        assert asset.user_id == 2
-        # 2. CORREGIR LegacyAPIWarning (implícito)
+        assert asset.user_id == user_id
         assignment = db.session.query(AssetAssignment).first()
         assert assignment is not None
         assert assignment.checked_in_date is None
 
-    # --- 2. PROBAR CHECKIN ---
-    response = auth_client.post('/assets/1/checkin', follow_redirects=True)
+    # --- 2. PROBAR CHECKIN (now requires return_location_id) ---
+    response = auth_client.post('/assets/1/checkin', data={
+        'return_location_id': str(location_id)
+    }, follow_redirects=True)
     assert response.status_code == 200
-    assert b'has been checked in' in response.data
+    assert b'has been returned to Test Office' in response.data
     
     # Verifica en la BD
     with app.app_context():
-        # 2. CORREGIR LegacyAPIWarning
         asset = db.session.get(Asset, 1)
         assert asset.user_id is None
-        # 2. CORREGIR LegacyAPIWarning (implícito)
+        assert asset.location_id == location_id  # Location should be set
         assignment = db.session.query(AssetAssignment).first()
         assert assignment.checked_in_date is not None

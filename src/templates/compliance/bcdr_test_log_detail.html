@@ -39,7 +39,7 @@
         {% for att in test_log.attachments %}
         <li class="list-group-item d-flex justify-content-between align-items-center">
             <a href="{{ url_for('attachments.download_file', attachment_id=att.id) }}">{{ att.filename }}</a>
-            <form action="{{ url_for('attachments.delete_attachment', attachment_id=att.id) }}" method="POST" onsubmit="return confirm('Are you sure?');">
+            <form action="{{ url_for('attachments.delete_attachment', attachment_id=att.id) }}" method="POST" data-confirm='Are you sure?'>
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
             </form>

@@ -1,0 +1,483 @@
+{% extends "layout.html" %}
+
+{% block title %}Organizational Health - {{ super() }}{% endblock %}
+
+{% block head_extra %}
+<style>
+    /* Health Score Gauge */
+    .health-gauge {
+        position: relative;
+        width: 140px;
+        height: 140px;
+    }
+
+    .health-gauge-circle {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        background: conic-gradient(var(--gauge-color, #198754) calc(var(--gauge-value, 0) * 3.6deg),
+                #e9ecef calc(var(--gauge-value, 0) * 3.6deg));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .health-gauge-inner {
+        width: 110px;
+        height: 110px;
+        border-radius: 50%;
+        background: white;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .health-gauge-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        line-height: 1;
+    }
+
+    .health-gauge-label {
+        font-size: 0.75rem;
+        color: #6c757d;
+    }
+
+    /* Global Status Badge */
+    .status-badge-xl {
+        font-size: 1.25rem;
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.5rem;
+    }
+
+    /* Bento Grid Layout */
+    .bento-grid {
+        display: grid;
+        grid-template-columns: repeat(12, 1fr);
+        gap: 1rem;
+    }
+
+    .bento-full {
+        grid-column: span 12;
+    }
+
+    .bento-half {
+        grid-column: span 6;
+    }
+
+    .bento-third {
+        grid-column: span 4;
+    }
+
+    .bento-two-thirds {
+        grid-column: span 8;
+    }
+
+    @media (max-width: 992px) {
+
+        .bento-half,
+        .bento-third,
+        .bento-two-thirds {
+            grid-column: span 12;
+        }
+    }
+
+    /* Critical Items Styling */
+    .critical-item {
+        border-left: 4px solid #dc3545;
+        background: rgba(220, 53, 69, 0.05);
+    }
+
+    .critical-item:hover {
+        background: rgba(220, 53, 69, 0.1);
+    }
+
+    /* Warning Items Styling */
+    .warning-item {
+        border-left: 4px solid #ffc107;
+    }
+
+    /* Horizon Tabs */
+    .horizon-tabs .nav-link {
+        border-radius: 0.5rem 0.5rem 0 0;
+    }
+
+    .horizon-tabs .nav-link.active {
+        background: #fff3cd;
+        border-color: #ffc107;
+        color: #856404;
+    }
+
+    /* Expiry Progress Bar */
+    .expiry-progress {
+        height: 6px;
+        border-radius: 3px;
+    }
+
+    /* Summary Cards */
+    .summary-stat {
+        font-size: 2rem;
+        font-weight: 700;
+    }
+
+    .summary-trend {
+        font-size: 0.875rem;
+    }
+
+    .summary-trend.up {
+        color: #dc3545;
+    }
+
+    .summary-trend.down {
+        color: #198754;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Header Row -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-heartbeat text-danger"></i> Organizational Health</h2>
+    <span class="badge bg-secondary">{{ today.strftime('%B %d, %Y') }}</span>
+</div>
+
+<div class="bento-grid">
+
+    <!-- Zone A: Organizational Risks -->
+    <div class="bento-half">
+        <div class="card border-primary h-100">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="fas fa-shield-alt"></i> Organizational Risks</h5>
+            </div>
+            <div class="card-body">
+                <div class="row align-items-center">
+                    <!-- Risk Score Gauge -->
+                    <div class="col-6 text-center">
+                        <div class="health-gauge mx-auto"
+                            style="--gauge-value: {{ health_score }}; --gauge-color: {{ 'var(--bs-success)' if health_score >= 70 else ('var(--bs-warning)' if health_score >= 40 else 'var(--bs-danger)') }};">
+                            <div class="health-gauge-circle">
+                                <div class="health-gauge-inner">
+                                    <span class="health-gauge-value">{{ health_score }}</span>
+                                    <span class="health-gauge-label">RISK SCORE</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Global Status -->
+                    <div class="col-6 text-center">
+                        <h6 class="text-muted text-uppercase mb-2">Risk Status</h6>
+                        {% if global_status == 'critical' %}
+                        <span class="badge bg-danger status-badge-xl">
+                            <i class="fas fa-exclamation-triangle"></i> CRITICAL
+                        </span>
+                        <p class="text-danger mt-2 mb-0 small"><i class="fas fa-fire"></i> Severe risks — immediate
+                            action required</p>
+                        {% elif global_status == 'degraded' %}
+                        <span class="badge bg-warning text-dark status-badge-xl">
+                            <i class="fas fa-exclamation-circle"></i> ELEVATED
+                        </span>
+                        <p class="text-warning mt-2 mb-0 small"><i class="fas fa-eye"></i> Elevated — review recommended
+                        </p>
+                        {% else %}
+                        <span class="badge bg-success status-badge-xl">
+                            <i class="fas fa-check-circle"></i> ACCEPTABLE
+                        </span>
+                        <p class="text-success mt-2 mb-0 small"><i class="fas fa-shield-alt"></i> Within acceptable
+                            thresholds</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Zone A2: Findings Summary -->
+    <div class="bento-half">
+        <div class="card border-secondary h-100">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0"><i class="fas fa-search"></i> Compliance Tasks </h5>
+            </div>
+            <div class="card-body d-flex align-items-center justify-content-center">
+                <div class="row text-center w-100">
+                    <div class="col-4">
+                        <h2 class="mb-0 text-danger">{{ critical_count }}</h2>
+                        <small class="text-muted">Critical</small>
+                        <p class="text-muted small mb-0">Require immediate action</p>
+                    </div>
+                    <div class="col-4">
+                        <h2 class="mb-0 text-warning">{{ warning_count }}</h2>
+                        <small class="text-muted">Warnings</small>
+                        <p class="text-muted small mb-0">Expiring in ≤30 days</p>
+                    </div>
+                    <div class="col-4">
+                        <h2 class="mb-0 text-info">{{ expiring_count }}</h2>
+                        <small class="text-muted">Upcoming</small>
+                        <p class="text-muted small mb-0">Expiring in 90 days</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Zone B: Critical Action Items (Red State) -->
+    <div class="bento-half">
+        <div class="card border-danger h-100">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0"><i class="fas fa-exclamation-circle"></i> Critical Action Items</h5>
+            </div>
+            <div class="card-body p-0" style="max-height: 400px; overflow-y: auto;">
+                {% if critical_items %}
+                <ul class="list-group list-group-flush">
+                    {% for item in critical_items %}
+                    <li class="list-group-item critical-item d-flex justify-content-between align-items-start">
+                        <div>
+                            <span class="badge bg-{{ 'danger' if item.severity == 'critical' else 'warning' }} me-2">
+                                {{ item.type | upper }}
+                            </span>
+                            <strong>{{ item.title }}</strong>
+                            <p class="text-muted small mb-0">{{ item.description }}</p>
+                        </div>
+                        <a href="{{ item.link }}" class="btn btn-sm btn-outline-danger">
+                            <i class="fas fa-arrow-right"></i>
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                    <p class="mb-0">No critical items. Great job!</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Zone C: The Horizon - Upcoming Expirations (Yellow State) -->
+    <div class="bento-half">
+        <div class="card border-warning h-100">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0"><i class="fas fa-calendar-alt"></i> The Horizon (30-60-90 Day View)</h5>
+            </div>
+            <div class="card-body p-0">
+                <ul class="nav nav-tabs horizon-tabs px-2 pt-2" role="tablist">
+                    <li class="nav-item">
+                        <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-finance">
+                            💳 Fins <span class="badge bg-secondary">{{ expirations.finance | length }}</span>
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-identity">
+                            🔐 Creds <span class="badge bg-secondary">{{ expirations.identity | length }}</span>
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-certs">
+                            📜 Certs <span class="badge bg-secondary">{{ expirations.certificates | length }}</span>
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-legal">
+                            ⚖️ Renews <span class="badge bg-secondary">{{ expirations.legal | length }}</span>
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content" style="max-height: 300px; overflow-y: auto;">
+                    <!-- Financial Tab -->
+                    <div class="tab-pane fade show active" id="tab-finance">
+                        <ul class="list-group list-group-flush">
+                            {% for item in expirations.finance %}
+                            <li class="list-group-item warning-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>{{ item.name }}</strong>
+                                        {% if item.meta %}<small class="text-muted ms-2">{{ item.meta }}</small>{% endif
+                                        %}
+                                    </div>
+                                    <span
+                                        class="badge bg-{{ 'danger' if item.days <= 7 else ('warning text-dark' if item.days <= 30 else 'info') }}">
+                                        {{ item.days }} days
+                                    </span>
+                                </div>
+                                <div class="progress expiry-progress mt-1">
+                                    <div class="progress-bar bg-{{ 'danger' if item.days <= 7 else ('warning' if item.days <= 30 else 'info') }}"
+                                        style="width: {{ [100 - (item.days / 90 * 100), 100] | min }}%"></div>
+                                </div>
+                            </li>
+                            {% else %}
+                            <li class="list-group-item text-muted text-center">No financial items expiring soon.</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+
+                    <!-- Identity Tab -->
+                    <div class="tab-pane fade" id="tab-identity">
+                        <ul class="list-group list-group-flush">
+                            {% for item in expirations.identity %}
+                            <li class="list-group-item warning-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>{{ item.name }}</strong>
+                                        <small class="text-muted ms-2">{{ item.type }}</small>
+                                    </div>
+                                    <span
+                                        class="badge bg-{{ 'danger' if item.days <= 7 else ('warning text-dark' if item.days <= 30 else 'info') }}">
+                                        {{ item.days }} days
+                                    </span>
+                                </div>
+                                <div class="progress expiry-progress mt-1">
+                                    <div class="progress-bar bg-{{ 'danger' if item.days <= 7 else ('warning' if item.days <= 30 else 'info') }}"
+                                        style="width: {{ [100 - (item.days / 90 * 100), 100] | min }}%"></div>
+                                </div>
+                            </li>
+                            {% else %}
+                            <li class="list-group-item text-muted text-center">No credentials expiring soon.</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+
+                    <!-- Certificates Tab -->
+                    <div class="tab-pane fade" id="tab-certs">
+                        <ul class="list-group list-group-flush">
+                            {% for item in expirations.certificates %}
+                            <li class="list-group-item warning-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>{{ item.name }}</strong>
+                                        {% if item.issuer %}<small class="text-muted ms-2">{{ item.issuer }}</small>{%
+                                        endif %}
+                                    </div>
+                                    <span
+                                        class="badge bg-{{ 'danger' if item.days <= 7 else ('warning text-dark' if item.days <= 30 else 'info') }}">
+                                        {{ item.days }} days
+                                    </span>
+                                </div>
+                                <div class="progress expiry-progress mt-1">
+                                    <div class="progress-bar bg-{{ 'danger' if item.days <= 7 else ('warning' if item.days <= 30 else 'info') }}"
+                                        style="width: {{ [100 - (item.days / 90 * 100), 100] | min }}%"></div>
+                                </div>
+                            </li>
+                            {% else %}
+                            <li class="list-group-item text-muted text-center">No certificates expiring soon.</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+
+                    <!-- Legal/Subscriptions Tab -->
+                    <div class="tab-pane fade" id="tab-legal">
+                        <ul class="list-group list-group-flush">
+                            {% for item in expirations.legal %}
+                            <li class="list-group-item warning-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>{{ item.name }}</strong>
+                                        {% if item.cost %}<small class="text-muted ms-2">€{{ "%.2f"|format(item.cost)
+                                            }}</small>{% endif %}
+                                    </div>
+                                    <span
+                                        class="badge bg-{{ 'danger' if item.days <= 7 else ('warning text-dark' if item.days <= 30 else 'info') }}">
+                                        {{ item.days }} days
+                                    </span>
+                                </div>
+                                <div class="progress expiry-progress mt-1">
+                                    <div class="progress-bar bg-{{ 'danger' if item.days <= 7 else ('warning' if item.days <= 30 else 'info') }}"
+                                        style="width: {{ [100 - (item.days / 90 * 100), 100] | min }}%"></div>
+                                </div>
+                            </li>
+                            {% else %}
+                            <li class="list-group-item text-muted text-center">No subscriptions or licenses expiring
+                                soon.</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Zone D: Summary Cards -->
+    <div class="bento-half">
+        <div class="card border-info h-100">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0"><i class="fas fa-chart-bar"></i> Operations Pulse</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <p class="text-muted mb-1">Monthly Spend Projection</p>
+                        <span class="summary-stat text-primary">€{{ "{:,.0f}".format(ops_summary.projected_spend)
+                            }}</span>
+                        {% if ops_summary.spend_trend != 0 %}
+                        <p class="summary-trend {{ 'up' if ops_summary.spend_trend > 0 else 'down' }}">
+                            <i class="fas fa-arrow-{{ 'up' if ops_summary.spend_trend > 0 else 'down' }}"></i>
+                            {{ ops_summary.spend_trend | abs }}% vs last month
+                        </p>
+                        {% endif %}
+                    </div>
+                    <div class="col-6">
+                        <p class="text-muted mb-1">Asset Health</p>
+                        <span
+                            class="summary-stat text-{{ 'success' if ops_summary.asset_health >= 90 else ('warning' if ops_summary.asset_health >= 70 else 'danger') }}">
+                            {{ ops_summary.asset_health }}%
+                        </span>
+                        <p class="text-muted small">
+                            {{ ops_summary.healthy_assets }} / {{ ops_summary.total_assets }} operational
+                        </p>
+                    </div>
+                </div>
+                <hr>
+                <div class="text-center">
+                    <a href="{{ url_for('main.ops_finance_dashboard') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-tachometer-alt"></i> View Full Ops Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="bento-half">
+        <div class="card h-100" style="border-color: #6f42c1;">
+            <div class="card-header text-white" style="background-color: #6f42c1;">
+                <h5 class="mb-0"><i class="fas fa-clipboard-check"></i> Compliance Radar</h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <p class="text-muted mb-1">Overall Compliance</p>
+                        <span
+                            class="summary-stat text-{{ 'success' if compliance_summary.score >= 80 else ('warning' if compliance_summary.score >= 60 else 'danger') }}">
+                            {{ compliance_summary.score }}%
+                        </span>
+                        <p class="text-muted small">{{ compliance_summary.compliant_controls }} / {{
+                            compliance_summary.total_controls }} controls</p>
+                    </div>
+                    <div class="col-6">
+                        <p class="text-muted mb-1">Pending Audits</p>
+                        <span
+                            class="summary-stat text-{{ 'danger' if compliance_summary.pending_audits > 0 else 'success' }}">
+                            {{ compliance_summary.pending_audits }}
+                        </span>
+                        <p class="text-muted small">
+                            {% if compliance_summary.pending_audits > 0 %}
+                            Require attention
+                            {% else %}
+                            All up to date
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+                <hr>
+                <div class="text-center">
+                    <a href="{{ url_for('compliance.dashboard') }}" class="btn btn-outline-success">
+                        <i class="fas fa-clipboard-check"></i> View Compliance Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

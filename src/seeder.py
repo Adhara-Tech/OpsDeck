@@ -7,7 +7,8 @@ from .models import (
     BCDRPlan, BCDRTestLog, Course, CourseAssignment, Group, Policy, PolicyVersion, Opportunity,
     Documentation, Link, Software, License, Framework, FrameworkControl, ComplianceLink,
     BusinessService, ComplianceAudit, Contact, RiskAssessment,
-    EmailTemplate, NotificationEvent
+    EmailTemplate, NotificationEvent,
+    SecurityActivity, ActivityExecution
 )
 from . import create_app
 
@@ -70,6 +71,17 @@ def seed_data(app=None):
             PaymentMethod(name='Bank Transfer (ACH)', method_type='Bank Transfer')
         ]
         tags = [Tag(name='SaaS'), Tag(name='Hardware'), Tag(name='Marketing'), Tag(name='Development'), Tag(name='Office Supply'), Tag(name='Cloud Infrastructure'), Tag(name='Design'), Tag(name='Security')]
+        
+        # Activity Category Tags (for Security Activities)
+        activity_category_tags = [
+            Tag(name='Identity'),
+            Tag(name='Awareness'),
+            Tag(name='Vulnerability Mgmt'),
+            Tag(name='Network'),
+            Tag(name='BCDR'),
+            Tag(name='GRC')
+        ]
+        tags.extend(activity_category_tags)
         
         db.session.add_all(locations)
         db.session.add_all(payment_methods)
@@ -393,7 +405,12 @@ def seed_data(app=None):
             FrameworkControl(framework_id=fake_framework.id, control_id="GSS.1.1", name="Planetary Defense", description="Ensure planetary shields are active."),
             FrameworkControl(framework_id=fake_framework.id, control_id="GSS.1.2", name="Droid Security", description="Prevent unauthorized droid hacking."),
             FrameworkControl(framework_id=fake_framework.id, control_id="GSS.2.1", name="Hologram Encryption", description="Encrypt all holographic communications."),
-            FrameworkControl(framework_id=fake_framework.id, control_id="GSS.3.1", name="Warp Drive Safety", description="Regular maintenance of warp cores.")
+            FrameworkControl(framework_id=fake_framework.id, control_id="GSS.3.1", name="Warp Drive Safety", description="Regular maintenance of warp cores."),
+            # Stress test items
+            FrameworkControl(framework_id=fake_framework.id, control_id="GSS.4.1", name="Turbo Encabulator", description="Legacy hardware interface for retrograde capacitance."),
+            FrameworkControl(framework_id=fake_framework.id, control_id="GSS.4.2", name="Recursive Logic", description="Infinite loop testing and stack overflow prevention."),
+            FrameworkControl(framework_id=fake_framework.id, control_id="GSS.5.1", name="Null Pointer", description="Void reference handling and exception management."),
+            FrameworkControl(framework_id=fake_framework.id, control_id="GSS.5.2", name="Secret Cow Level", description="Easter egg implementation and hidden feature access.")
         ]
         db.session.add_all(fake_controls)
         db.session.commit()
@@ -714,6 +731,175 @@ def seed_data(app=None):
             )
         ]
         db.session.add_all(notification_events)
+        db.session.commit()
+        
+        # Add Compliance Breach Template and Event
+        compliance_breach_template = EmailTemplate(
+            name="Compliance Control Breach Alert",
+            subject="🚨 Compliance Breach: {{ control_id }} - {{ control_name }}",
+            body_html="""
+<h2 style="color: #dc3545;">⚠️ Compliance Control Failure Detected</h2>
+<p>Hello {{ recipient_name }},</p>
+<p>An automated compliance check has detected a <strong style="color: #dc3545;">Non-Compliant</strong> status for the following control:</p>
+
+<div style="background: #f8d7da; padding: 15px; border-radius: 5px; margin: 15px 0; border: 1px solid #f5c6cb;">
+    <strong>Framework:</strong> {{ framework_name }}<br>
+    <strong>Control ID:</strong> {{ control_id }}<br>
+    <strong>Control Name:</strong> {{ control_name }}<br>
+    <strong>Rule:</strong> {{ rule_name }}<br>
+    <strong>Target Model:</strong> {{ target_model }}<br>
+    <strong>Frequency SLA:</strong> {{ frequency_days }} days<br>
+    <strong>Last Evidence:</strong> {{ last_evidence_date or 'No evidence found' }}<br>
+    <strong>Days Overdue:</strong> {{ days_overdue }}
+</div>
+
+<p><strong>Required Action:</strong> Please execute the required activity or upload evidence to restore compliance status.</p>
+
+<p>
+    <a href="{{ dashboard_url }}" style="display: inline-block; background: #0d6efd; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
+        View Compliance Dashboard
+    </a>
+</p>
+
+<p style="color: #6c757d; font-size: 12px;">
+    This is an automated notification from OpsDeck Compliance Monitoring.
+</p>
+            """,
+            category="system",
+            is_active=True,
+            is_system=True
+        )
+        db.session.add(compliance_breach_template)
+        db.session.commit()
+        
+        compliance_breach_event = NotificationEvent(
+            event_code="COMPLIANCE_BREACH",
+            name="Compliance Control Failure",
+            description="Alerts when an automated compliance rule fails (turns red). Checks are performed daily.",
+            template_id=compliance_breach_template.id,
+            enabled=True,
+            days_offset=1,  # Check daily
+            channels=['email']
+        )
+        db.session.add(compliance_breach_event)
+        db.session.commit()
+
+        # 16. Create Standard Security Activities
+        print("Creating standard security activities...")
+        
+        # Retrieve activity category tags by name
+        tag_identity = Tag.query.filter_by(name='Identity').first()
+        tag_awareness = Tag.query.filter_by(name='Awareness').first()
+        tag_vuln = Tag.query.filter_by(name='Vulnerability Mgmt').first()
+        tag_network = Tag.query.filter_by(name='Network').first()
+        tag_bcdr = Tag.query.filter_by(name='BCDR').first()
+        tag_grc = Tag.query.filter_by(name='GRC').first()
+        
+        security_activities = [
+            # Identity & Access
+            SecurityActivity(
+                name="Quarterly User Access Review",
+                description="Revisión trimestral de cuentas de usuario, privilegios y accesos a sistemas críticos.",
+                frequency="Quarterly",
+                owner_id=users[0].id,  # Alice (VP of Engineering)
+                owner_type='User'
+            ),
+            
+            # Awareness & Training
+            SecurityActivity(
+                name="Phishing Simulation Campaign",
+                description="Envío de correos simulados de phishing para evaluar la concienciación de los empleados.",
+                frequency="Monthly",
+                owner_id=users[0].id,
+                owner_type='User'
+            ),
+            SecurityActivity(
+                name="Security Newsletter",
+                description="Boletín mensual con actualizaciones de seguridad y mejores prácticas.",
+                frequency="Monthly",
+                owner_id=users[0].id,
+                owner_type='User'
+            ),
+            
+            # Vulnerability Management
+            SecurityActivity(
+                name="Annual Penetration Test",
+                description="Test de intrusión externo realizado por un proveedor certificado.",
+                frequency="Yearly",
+                owner_id=users[0].id,
+                owner_type='User'
+            ),
+            SecurityActivity(
+                name="External Vulnerability Scan",
+                description="Escaneo automatizado de vulnerabilidades en activos expuestos a internet.",
+                frequency="Weekly",
+                owner_id=users[0].id,
+                owner_type='User'
+            ),
+            
+            # Infrastructure & Operations
+            SecurityActivity(
+                name="Firewall Rules Review",
+                description="Revisión de reglas de firewall para eliminar accesos obsoletos o inseguros.",
+                frequency="Semiannual",
+                owner_id=users[2].id,  # Charlie (Engineering Manager)
+                owner_type='User'
+            ),
+            SecurityActivity(
+                name="Backup Restoration Test",
+                description="Prueba aleatoria de restauración de backups para verificar integridad de datos.",
+                frequency="Quarterly",
+                owner_id=users[4].id,  # Fiona (Senior Backend Developer)
+                owner_type='User'
+            ),
+            
+            # Governance
+            SecurityActivity(
+                name="Vendor Risk Assessment Review",
+                description="Reevaluación de riesgos de proveedores críticos.",
+                frequency="Yearly",
+                owner_id=users[1].id,  # Bob (VP of Sales)
+                owner_type='User'
+            )
+        ]
+        
+        db.session.add_all(security_activities)
+        db.session.commit()
+        
+        # Assign category tags to activities
+        security_activities[0].tags.append(tag_identity)  # Quarterly User Access Review
+        security_activities[1].tags.append(tag_awareness)  # Phishing Simulation
+        security_activities[2].tags.append(tag_awareness)  # Security Newsletter
+        security_activities[3].tags.append(tag_vuln)       # Annual Penetration Test
+        security_activities[4].tags.append(tag_vuln)       # External Vulnerability Scan
+        security_activities[5].tags.append(tag_network)    # Firewall Rules Review
+        security_activities[6].tags.append(tag_bcdr)       # Backup Restoration Test
+        security_activities[7].tags.append(tag_grc)        # Vendor Risk Assessment Review
+        
+        db.session.commit()
+        
+        # Create historical executions for "Quarterly User Access Review" (80 days ago)
+        # This allows testing of overdue/expired alerts
+        past_execution_date = date.today() - timedelta(days=80)
+        
+        activity_executions = [
+            ActivityExecution(
+                activity_id=security_activities[0].id,  # Quarterly User Access Review
+                executor_id=users[0].id,  # Alice
+                execution_date=past_execution_date,
+                status='success',
+                outcome_notes='Revisión completada. Se revocaron 5 accesos obsoletos de empleados que dejaron la empresa.'
+            ),
+            ActivityExecution(
+                activity_id=security_activities[0].id,  # Quarterly User Access Review
+                executor_id=users[2].id,  # Charlie
+                execution_date=past_execution_date - timedelta(days=90),  # ~170 days ago
+                status='success',
+                outcome_notes='Revisión de Q3. Se identificaron 3 cuentas con privilegios excesivos y se corrigieron.'
+            )
+        ]
+        
+        db.session.add_all(activity_executions)
         db.session.commit()
 
         print("Database seeding complete!")

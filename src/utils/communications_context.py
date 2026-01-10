@@ -115,6 +115,80 @@ def get_template_context(scheduled_comm):
             }
             context['manager'] = None
     
+    elif scheduled_comm.target_type == 'compliance_rule':
+        # For compliance breach alerts, load the rule and its evaluation
+        from ..models.security import ComplianceRule
+        from ..services.compliance_service import get_compliance_evaluator
+        
+        rule = ComplianceRule.query.get(scheduled_comm.target_id)
+        if rule:
+            evaluator = get_compliance_evaluator()
+            result = evaluator.evaluate_rule(rule)
+            
+            control = rule.control
+            framework = control.framework if control else None
+            
+            # Calculate days overdue
+            days_since = result.get('days_since', -1)
+            if days_since >= 0 and rule.total_sla_days:
+                days_overdue = max(0, days_since - rule.total_sla_days)
+            else:
+                days_overdue = 'N/A'
+            
+            # Format evidence date
+            evidence_date = result.get('last_evidence_date')
+            if evidence_date:
+                last_evidence_date = evidence_date.strftime('%Y-%m-%d')
+            else:
+                last_evidence_date = None
+            
+            context.update({
+                'recipient_name': scheduled_comm.recipient_name or 'Administrator',
+                'rule_name': rule.name,
+                'target_model': rule.target_model,
+                'frequency_days': rule.frequency_days,
+                'grace_period_days': rule.grace_period_days,
+                'control_id': control.control_id if control else 'Unknown',
+                'control_name': control.name if control else 'Unknown Control',
+                'framework_name': framework.name if framework else 'Unknown Framework',
+                'last_evidence_date': last_evidence_date,
+                'days_since': days_since,
+                'days_overdue': days_overdue,
+                'status': result.get('status', 'unknown'),
+                'message': result.get('message', ''),
+                'dashboard_url': '/compliance/dashboard'  # Relative URL for now
+            })
+    
+    elif scheduled_comm.target_type == 'license':
+        # For license expiry notifications
+        from ..models.assets import License
+        
+        license = License.query.get(scheduled_comm.target_id)
+        if license:
+            days_left = (license.expiry_date - datetime.utcnow().date()).days if license.expiry_date else 0
+            context.update({
+                'recipient_name': scheduled_comm.recipient_name or 'User',
+                'license_name': license.name,
+                'expiry_date': license.expiry_date.strftime('%Y-%m-%d') if license.expiry_date else 'N/A',
+                'days_left': days_left
+            })
+    
+    elif scheduled_comm.target_type == 'subscription':
+        # For subscription renewal notifications
+        from ..models.procurement import Subscription
+        
+        subscription = Subscription.query.get(scheduled_comm.target_id)
+        if subscription:
+            renewal_date = subscription.next_renewal_date
+            days_left = (renewal_date - datetime.utcnow().date()).days if renewal_date else 0
+            context.update({
+                'recipient_name': scheduled_comm.recipient_name or 'Admin',
+                'subscription_name': subscription.name,
+                'renewal_date': renewal_date.strftime('%Y-%m-%d') if renewal_date else 'N/A',
+                'days_left': days_left,
+                'cost': f"${subscription.cost:,.2f}" if subscription.cost else 'N/A'
+            })
+    
     return context
 
 

@@ -148,6 +148,12 @@ class PostIncidentReview(db.Model):
     lessons_learned = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Locking mechanism for finalized reports
+    is_locked = db.Column(db.Boolean, default=False, nullable=False)
+    locked_at = db.Column(db.DateTime, nullable=True)
+    locked_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    locked_by = db.relationship('User', foreign_keys=[locked_by_id])
 
     # Relationships
     timeline_events = db.relationship('IncidentTimelineEvent', backref='review', lazy=True, cascade='all, delete-orphan', order_by='IncidentTimelineEvent.order')
@@ -615,5 +621,60 @@ class FrameworkControl(db.Model):
 
     def __repr__(self):
         return f'<FrameworkControl {self.id}: {self.control_id}>'
-    
 
+
+class ComplianceRule(db.Model):
+    """
+    Declarative rule for automated compliance checking.
+    Links a FrameworkControl to a target model (e.g., ActivityExecution, Campaign)
+    with filter criteria and SLA timing for traffic-light status.
+    """
+    __tablename__ = 'compliance_rule'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    
+    # Relationship with the Control (Parent)
+    framework_control_id = db.Column(db.Integer, db.ForeignKey('framework_control.id'), nullable=False)
+    
+    # Metadata
+    name = db.Column(db.String(150), nullable=False)
+    description = db.Column(db.Text)
+    
+    # Selection Logic (Declarative Polymorphism)
+    # Examples: 'ActivityExecution', 'Campaign', 'BCDRTestLog'
+    target_model = db.Column(db.String(50), nullable=False)
+    # JSON string with filters, e.g. {"activity_name": "Quarterly User Access Review"}
+    criteria = db.Column(db.Text, nullable=False, default='{}')
+    
+    # SLA Logic (Traffic Light)
+    frequency_days = db.Column(db.Integer, nullable=False, default=90)  # Ideal frequency (Green)
+    grace_period_days = db.Column(db.Integer, nullable=False, default=7)  # Buffer zone (Yellow)
+    
+    # State
+    enabled = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    control = db.relationship('FrameworkControl', backref=db.backref('rules', lazy='dynamic'))
+    
+    @property
+    def total_sla_days(self):
+        """Returns the absolute limit of days before considering non-compliance (Red)."""
+        return self.frequency_days + self.grace_period_days
+    
+    def get_criteria(self):
+        """Helper to get the criteria dict from JSON text."""
+        import json
+        try:
+            return json.loads(self.criteria) if self.criteria else {}
+        except ValueError:
+            return {}
+    
+    def set_criteria(self, criteria_dict):
+        """Helper to save the dict as JSON text."""
+        import json
+        self.criteria = json.dumps(criteria_dict)
+    
+    def __repr__(self):
+        return f'<ComplianceRule {self.id}: {self.name} -> {self.target_model}>'

@@ -35,10 +35,9 @@
                 </td>
                 <td>
                     <form action="{{ url_for('licenses.restore_license', id=license.id) }}" method="POST"
-                        class="d-inline">
+                        class="d-inline" data-confirm="Restore this license?">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="btn btn-sm btn-success"
-                            onclick="return confirm('Restore this license?')">
+                        <button type="submit" class="btn btn-sm btn-success">
                             <i class="bi bi-arrow-counterclockwise"></i> Restore
                         </button>
                     </form>

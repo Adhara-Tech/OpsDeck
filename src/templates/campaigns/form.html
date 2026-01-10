@@ -110,6 +110,26 @@
                 </div>
             </div>
 
+            <!-- Step 4: Tags -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0"><i class="fas fa-tags me-2"></i>4. Tags (Optional)</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="tag_ids" class="form-label">Campaign Tags</label>
+                        <select id="tag_ids" name="tag_ids" multiple placeholder="Select or search tags...">
+                            {% for tag in tags %}
+                            <option value="{{ tag.id }}" {{ 'selected' if campaign and tag in campaign.tags else '' }}>
+                                {{ tag.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">Tags help categorize campaigns for compliance automation rules</small>
+                    </div>
+                </div>
+            </div>
+
             <div class="d-flex gap-2">
                 <button type="submit" class="btn btn-primary">
                     <i class="fas fa-save me-1"></i> {{ 'Update' if campaign else 'Create' }} Draft
@@ -193,6 +213,14 @@
         // Sync editor content to textarea before form submit
         document.querySelector('form').addEventListener('submit', function () {
             editor.save();
+        });
+
+        // Initialize Tom-Select for tags
+        new TomSelect('#tag_ids', {
+            plugins: ['remove_button', 'checkbox_options'],
+            create: false,
+            closeAfterSelect: false,
+            hideSelected: false
         });
     });
 </script>

@@ -14,7 +14,9 @@ assets_bp = Blueprint('assets', __name__)
 @login_required
 def assets():
     assets = Asset.query.filter_by(is_archived=False).all()
-    return render_template('assets/list.html', assets=assets)
+    users = User.query.filter_by(is_archived=False).order_by(User.name).all()
+    locations = Location.query.filter_by(is_archived=False).order_by(Location.name).all()
+    return render_template('assets/list.html', assets=assets, users=users, locations=locations)
 
 @assets_bp.route('/archived')
 @login_required
@@ -226,7 +228,8 @@ def edit_asset(id):
 @login_required
 def asset_detail(id):
     asset = Asset.query.get_or_404(id)
-    return render_template('assets/detail.html', asset=asset)
+    locations = Location.query.filter_by(is_archived=False).order_by(Location.name).all()
+    return render_template('assets/detail.html', asset=asset, locations=locations)
 
 @assets_bp.route('/<int:id>/checkout', methods=['GET', 'POST'])
 @login_required
@@ -239,6 +242,7 @@ def checkout_asset(id):
     if request.method == 'POST':
         user_id = request.form.get('user_id')
         notes = request.form.get('notes')
+        location_mode = request.form.get('location_mode', 'keep')
         
         if not user_id:
             flash('You must select a user.', 'danger')
@@ -250,11 +254,21 @@ def checkout_asset(id):
             return redirect(url_for('assets.checkout_asset', id=id))
         
         asset.user = user
+        asset.status = 'In Use'  # Auto-update status on checkout
+        log_msg = f'Checked out to {user.name}'
+        
+        # Handle location mode
+        if location_mode == 'remote':
+            old_loc = asset.location.name if asset.location else 'None'
+            asset.location = None
+            log_msg += f' (Moved to Remote from {old_loc})'
+        else:
+            log_msg += f' (Kept at {asset.location.name if asset.location else "Unknown"})'
         
         assignment = AssetAssignment(asset_id=id, user_id=user_id, notes=notes)
         db.session.add(assignment)
         
-        history_entry = AssetHistory(asset_id=id, field_changed='Status', old_value=asset.status, new_value=f'Checked out to {user.name}')
+        history_entry = AssetHistory(asset_id=id, field_changed='Status', old_value=asset.status, new_value=log_msg)
         db.session.add(history_entry)
 
         db.session.commit()
@@ -262,7 +276,8 @@ def checkout_asset(id):
         return redirect(url_for('assets.asset_detail', id=id))
         
     users = User.query.order_by(User.name).filter_by(is_archived=False).all()
-    return render_template('assets/checkout.html', asset=asset, users=users)
+    locations = Location.query.filter_by(is_archived=False).order_by(Location.name).all()
+    return render_template('assets/checkout.html', asset=asset, users=users, locations=locations)
 
 
 @assets_bp.route('/<int:id>/checkin', methods=['POST'])
@@ -276,15 +291,28 @@ def checkin_asset(id):
         flash('This asset is already checked in.', 'warning')
         return redirect(redirect_url or url_for('assets.asset_detail', id=id))
 
+    # REQUIRED: Select return location
+    return_location_id = request.form.get('return_location_id')
+    if not return_location_id:
+        flash('You must select a location to return the asset to.', 'danger')
+        return redirect(redirect_url or url_for('assets.asset_detail', id=id))
+    
+    target_location = Location.query.get(return_location_id)
+    if not target_location:
+        flash('Selected location not found.', 'danger')
+        return redirect(redirect_url or url_for('assets.asset_detail', id=id))
+
     assignment = AssetAssignment.query.filter_by(asset_id=id, checked_in_date=None).order_by(AssetAssignment.checked_out_date.desc()).first()
     
     if assignment:
         assignment.checked_in_date = datetime.utcnow()
 
-    history_entry = AssetHistory(asset_id=id, field_changed='Status', old_value=f'Checked out to {asset.user.name}', new_value='Checked In')
+    history_entry = AssetHistory(asset_id=id, field_changed='Status', old_value=f'Checked out to {asset.user.name}', new_value=f'Checked In to {target_location.name}')
     db.session.add(history_entry)
     
     asset.user = None
+    asset.location = target_location
+    asset.status = 'Available'  # Auto-update status on checkin
     
     # Auto-complete related offboarding item if exists
     from ..models.onboarding import ProcessItem
@@ -297,7 +325,7 @@ def checkin_asset(id):
         offboarding_item.is_completed = True
     
     db.session.commit()
-    flash(f'Asset "{asset.name}" has been checked in.', 'success')
+    flash(f'Asset "{asset.name}" has been returned to {target_location.name}.', 'success')
     return redirect(redirect_url or url_for('assets.asset_detail', id=id))
 
 @assets_bp.route('/warranties')
@@ -319,7 +347,81 @@ def warranties():
 @assets_bp.route('/<int:id>/history')
 @login_required
 def asset_history(id):
-    """Displays the full history for a single asset."""
+    """Displays the full history for a single asset as a visual timeline."""
     asset = Asset.query.get_or_404(id)
-    # The history is ordered by date in the model, so no need to sort here
-    return render_template('assets/history.html', asset=asset)
+    
+    # Build unified timeline from multiple sources
+    timeline_events = []
+    
+    # 1. Purchase/Creation event
+    if asset.purchase_date:
+        timeline_events.append({
+            'date': datetime.combine(asset.purchase_date, datetime.min.time()),
+            'event_type': 'purchase',
+            'icon': 'fa-shopping-cart',
+            'color': 'success',
+            'title': 'Asset Purchased',
+            'description': f'Purchased for {asset.currency} {asset.cost:.2f}' if asset.cost else 'Purchase date recorded'
+        })
+    elif asset.created_at:
+        timeline_events.append({
+            'date': asset.created_at,
+            'event_type': 'creation',
+            'icon': 'fa-plus-circle',
+            'color': 'success',
+            'title': 'Asset Created',
+            'description': 'Asset was added to the system'
+        })
+    
+    # 2. Assignment events (checkout/checkin)
+    for assignment in asset.assignments:
+        user_name = assignment.user.name if assignment.user else 'Unknown User'
+        
+        # Checkout event
+        timeline_events.append({
+            'date': assignment.checked_out_date,
+            'event_type': 'checkout',
+            'icon': 'fa-sign-out-alt',
+            'color': 'primary',
+            'title': f'Checked Out to {user_name}',
+            'description': assignment.notes or 'Assigned to employee'
+        })
+        
+        # Checkin event (if returned)
+        if assignment.checked_in_date:
+            timeline_events.append({
+                'date': assignment.checked_in_date,
+                'event_type': 'checkin',
+                'icon': 'fa-sign-in-alt',
+                'color': 'warning',
+                'title': f'Checked In from {user_name}',
+                'description': 'Asset returned'
+            })
+    
+    # 3. Maintenance events
+    for log in asset.maintenance_logs:
+        timeline_events.append({
+            'date': datetime.combine(log.event_date, datetime.min.time()),
+            'event_type': 'maintenance',
+            'icon': 'fa-tools',
+            'color': 'danger',
+            'title': f'{log.event_type}',
+            'description': log.description,
+            'status': log.status
+        })
+    
+    # 4. Field change history
+    for entry in asset.history:
+        timeline_events.append({
+            'date': entry.changed_at,
+            'event_type': 'change',
+            'icon': 'fa-edit',
+            'color': 'secondary',
+            'title': f'Field Changed: {entry.field_changed}',
+            'description': f'{entry.old_value or "N/A"} → {entry.new_value or "N/A"}'
+        })
+    
+    # Sort by date descending (newest first)
+    timeline_events.sort(key=lambda x: x['date'], reverse=True)
+    
+    return render_template('assets/history.html', asset=asset, timeline_events=timeline_events)

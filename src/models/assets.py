@@ -112,6 +112,21 @@ class Asset(db.Model):
             return 0
         return max(r.residual_score for r in risks)
 
+    @property
+    def location_display(self):
+        """
+        Hybrid location display:
+        1. If has physical location, show location name
+        2. If no location but has user, show 'User Name (Remote)'
+        3. Otherwise, 'Unassigned / Stock'
+        """
+        if self.location:
+            return self.location.name
+        elif self.user:
+            return f"📍 {self.user.name} (Remote)"
+        else:
+            return "Unassigned / Stock"
+
 class AssetAssignment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     asset_id = db.Column(db.Integer, db.ForeignKey('asset.id'), nullable=False)
@@ -161,6 +176,7 @@ class Peripheral(db.Model):
     
     # Relationships
     asset_id = db.Column(db.Integer, db.ForeignKey('asset.id'))
+    location_id = db.Column(db.Integer, db.ForeignKey('location.id')) # New: Support physical location
     purchase_id = db.Column(db.Integer, db.ForeignKey('purchase.id'))
     supplier_id = db.Column(db.Integer, db.ForeignKey('supplier.id'))
     
@@ -192,6 +208,21 @@ class Peripheral(db.Model):
         if self.purchase_date and self.warranty_length:
             return self.purchase_date + relativedelta(months=+self.warranty_length)
         return None
+
+    @property
+    def location_display(self):
+        """
+        Hybrid location display for peripherals:
+        1. If has user assigned, show 'User Name (Assigned)'
+        2. If attached to an asset, use asset's location_display
+        3. Otherwise, 'Unassigned / Stock'
+        """
+        if self.user:
+            return f"📍 {self.user.name} (Assigned)"
+        elif self.asset:
+            return self.asset.location_display
+        else:
+            return "Unassigned / Stock"
 
 class License(db.Model):
     id = db.Column(db.Integer, primary_key=True)

@@ -5,7 +5,7 @@
 {% block content %}
 <div class="row">
     <div class="col-sm-8">
-        <h1 class="mb-0">{{ framework.name }}</h1>
+        <h1 class="mb-0"><i class="fa-solid fa-layer-group me-2"></i>{{ framework.name }}</h1>
     </div>
     <div class="col-sm-4 text-end">
         <a href="{{ url_for('frameworks.edit', id=framework.id) }}" class="btn btn-primary">
@@ -27,7 +27,7 @@
                     {{ framework.description | default('N/A', true) }}
                 </p>
                 <p>
-                    <strong>Enlace:</strong><br>
+                    <strong>Link:</strong><br>
                     {% if framework.link %}
                     <a href="{{ framework.link }}" target="_blank">{{ framework.link }}</a>
                     {% else %}
@@ -37,17 +37,17 @@
                 <p>
                     <strong>Status:</strong>
                     {% if framework.is_active %}
-                    <span class="badge bg-success">Activo</span>
+                    <span class="badge bg-success">Active</span>
                     {% else %}
-                    <span class="badge bg-secondary">Inactivo</span>
+                    <span class="badge bg-secondary">Inactive</span>
                     {% endif %}
                 </p>
                 <p>
-                    <strong>Tipo:</strong>
+                    <strong>Type:</strong>
                     {% if framework.is_custom %}
-                    <span class="badge bg-info">Personalizado</span>
+                    <span class="badge bg-info">Custom</span>
                     {% else %}
-                    <span class="badge bg-light text-dark">Incorporado</span>
+                    <span class="badge bg-light text-dark">Built-in</span>
                     {% endif %}
                 </p>
             </div>
@@ -60,7 +60,7 @@
         <div class="card">
             <div class="card-header">
                 <h5 class="card-title mb-0">
-                    Controles ({{ controls|length }})
+                    Controls ({{ controls|length }})
                 </h5>
             </div>
             <div class="card-body p-0">
@@ -85,7 +85,7 @@
                     </li>
                     {% else %}
                     <li class="list-group-item text-center">
-                        Este framework aún no tiene controles.
+                        This framework has no controls yet.
                     </li>
                     {% endfor %}
                 </ul>

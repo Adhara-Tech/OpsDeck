@@ -2,11 +2,38 @@
 {% block title %}Post-Incident Review - {{ super() }}{% endblock %}
 
 {% block content %}
-<h2>Post-Incident Review for: {{ incident.title }}</h2>
-<p>
-    <a href="{{ url_for('compliance.incident_detail', id=incident.id) }}"><i class="fas fa-arrow-left"></i> Back to
-        Incident</a>
-</p>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2>Post-Incident Review for: {{ incident.title }}</h2>
+        <a href="{{ url_for('compliance.incident_detail', id=incident.id) }}">
+            <i class="fas fa-arrow-left"></i> Back to Incident
+        </a>
+    </div>
+    <div>
+        {% if review.is_locked %}
+        <span class="badge bg-secondary fs-6 me-2">
+            <i class="fas fa-lock"></i> Finalized / Read-Only
+        </span>
+        {% endif %}
+        <form action="{{ url_for('compliance.toggle_pir_lock', review_id=review.id) }}" method="POST" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% if review.is_locked %}
+            <button type="submit" class="btn btn-outline-warning">
+                <i class="fas fa-unlock"></i> Unlock for Editing
+            </button>
+            {% else %}
+            <button type="submit" class="btn btn-success">
+                <i class="fas fa-lock"></i> Finalize Report
+            </button>
+            {% endif %}
+        </form>
+        {% if review.is_locked %}
+        <a href="{{ url_for('compliance.export_pir_pdf', id=incident.id) }}" class="btn btn-primary">
+            <i class="fas fa-file-pdf"></i> Export PDF
+        </a>
+        {% endif %}
+    </div>
+</div>
 
 <!-- Formulario principal para los campos de texto -->
 <form method="POST">
@@ -62,7 +89,11 @@
             </div>
         </div>
         <div class="card-footer text-end">
+            {% if not review.is_locked %}
             <button type="submit" class="btn btn-primary">Save Review</button>
+            {% else %}
+            <span class="text-muted"><i class="fas fa-lock"></i> Report is locked</span>
+            {% endif %}
         </div>
     </div>
 </form>
@@ -81,9 +112,11 @@
                 </div>
                 <div>
                     <i class="fas fa-grip-vertical me-2" style="cursor: grab;"></i>
+                    {% if not review.is_locked %}
                     <button class="btn btn-sm btn-outline-danger delete-timeline-event" data-event-id="{{ event.id }}">
                         <i class="fas fa-trash"></i>
                     </button>
+                    {% endif %}
                 </div>
             </li>
             {% endfor %}
@@ -92,6 +125,7 @@
             {% endif %}
         </ul>
     </div>
+    {% if not review.is_locked %}
     <div class="card-footer">
         <div class="input-group">
             <input type="datetime-local" id="timeline-time" class="form-control" style="max-width: 250px;">
@@ -101,6 +135,7 @@
             </button>
         </div>
     </div>
+    {% endif %}
 </div>
 {% endblock %}
 
@@ -150,7 +185,10 @@
 
             fetch(`/compliance/incidents/review/${reviewId}/timeline`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                },
                 body: JSON.stringify({ time: time, description: description })
             })
                 .then(response => response.json())
@@ -167,9 +205,11 @@
                     const newLi = document.createElement('li');
                     newLi.className = 'list-group-item d-flex justify-content-between align-items-center';
                     newLi.setAttribute('data-event-id', data.id);
+                    // Format the time string (already in YYYY-MM-DDTHH:MM format)
+                    const formattedTime = data.time.replace('T', ' ');
                     newLi.innerHTML = `
                     <div>
-                        <strong>${new Date(data.time).toLocaleString('sv-SE', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(' ', ' ')}</strong> - ${data.description}
+                        <strong>${formattedTime}</strong> - ${data.description}
                     </div>
                     <div>
                         <i class="fas fa-grip-vertical me-2" style="cursor: grab;"></i>
@@ -184,14 +224,23 @@
         });
 
 
-        list.addEventListener('click', function (e) {
+        list.addEventListener('click', async function (e) {
             const deleteBtn = e.target.closest('.delete-timeline-event');
             if (deleteBtn) {
                 const eventId = deleteBtn.dataset.eventId;
                 const li = deleteBtn.closest('li');
 
-                if (confirm('Are you sure you want to delete this event?')) {
-                    fetch(`/compliance/incidents/review/timeline/${eventId}`, { method: 'DELETE' })
+                const confirmed = await OpsDeck.showConfirm({
+                    title: 'Delete Event',
+                    body: 'Are you sure you want to delete this event?',
+                    okText: 'Delete',
+                    variant: 'danger'
+                });
+                if (confirmed) {
+                    fetch(`/compliance/incidents/review/timeline/${eventId}`, {
+                        method: 'DELETE',
+                        headers: { 'X-CSRFToken': '{{ csrf_token() }}' }
+                    })
                         .then(response => response.json())
                         .then(data => {
                             if (data.success) {
@@ -213,7 +262,10 @@
 
                     fetch(`/compliance/incidents/review/${reviewId}/timeline/reorder`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': '{{ csrf_token() }}'
+                        },
                         body: JSON.stringify({ ordered_ids: orderedIds })
                     })
                         .catch(error => console.error('Error reordering:', error));

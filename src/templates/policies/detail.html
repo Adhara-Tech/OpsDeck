@@ -62,7 +62,7 @@
                         {% if version.status == 'Draft' %}
                         <form action="{{ url_for('policies.activate_version', id=version.id) }}" method="POST"
                             class="d-inline"
-                            onsubmit="return confirm('Are you sure? This will archive any other active version.');">
+                            data-confirm='Are you sure? This will archive any other active version.'>
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="btn btn-sm btn-outline-success">Activate</button>
                         </form>
@@ -88,7 +88,7 @@
             <a href="{{ url_for('attachments.download_file', attachment_id=att.id) }}">{{ att.filename }}</a>
             {% if current_user_role == 'admin' %}
             <form action="{{ url_for('attachments.delete_attachment', attachment_id=att.id) }}" method="POST"
-                onsubmit="return confirm('Are you sure?');">
+                data-confirm='Are you sure?'>
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
             </form>

@@ -12,8 +12,8 @@
         </a>
         {% if peripheral.user_id %}
         <form action="{{ url_for('peripherals.checkin_peripheral', id=peripheral.id) }}" method="POST" class="d-inline"
-            onsubmit="return confirm('Are you sure you want to check in this peripheral?');">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            data-confirm='Are you sure you want to check in this peripheral?'>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-warning"><i class="fas fa-sign-in-alt"></i> Check In</button>
         </form>
         {% else %}
@@ -77,12 +77,27 @@
                     {% endif %}
                 </p>
                 <p><strong>Supplier:</strong> {{ peripheral.supplier.name if peripheral.supplier else 'N/A' }}</p>
+                <p><strong>Location:</strong>
+                    <span class="badge {{ 'bg-info' if peripheral.user else 'bg-secondary' }}">
+                        {{ peripheral.location_display }}
+                    </span>
+                </p>
                 <p><strong>Cost:</strong> {{ peripheral.currency }} {{ "%.2f"|format(peripheral.cost) if peripheral.cost
                     is not none else 'N/A' }}</p>
                 <p><strong>Warranty End:</strong> {{ peripheral.warranty_end_date.strftime('%Y-%m-%d') if
                     peripheral.warranty_end_date else 'N/A' }}</p>
             </div>
         </div>
+    </div>
+</div>
+
+<div class="card mt-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="fas fa-history"></i> Peripheral History</span>
+        <a href="{{ url_for('peripherals.peripheral_history', id=peripheral.id) }}"
+            class="btn btn-sm btn-outline-primary">
+            View Full History <i class="fas fa-external-link-alt"></i>
+        </a>
     </div>
 </div>
 
@@ -159,8 +174,8 @@
         <li class="list-group-item d-flex justify-content-between align-items-center">
             <a href="{{ url_for('attachments.download_file', attachment_id=att.id) }}">{{ att.filename }}</a>
             <form action="{{ url_for('attachments.delete_attachment', attachment_id=att.id) }}" method="POST"
-                onsubmit="return confirm('Are you sure?');">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                data-confirm='Are you sure?'>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
             </form>
         </li>
@@ -170,7 +185,7 @@
     </ul>
     <div class="card-body">
         <form action="{{ url_for('attachments.upload_file') }}" method="POST" enctype="multipart/form-data">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="peripheral_id" value="{{ peripheral.id }}">
             <div class="input-group">
                 <input type="file" class="form-control" name="file" required>

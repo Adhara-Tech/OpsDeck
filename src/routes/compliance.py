@@ -3,11 +3,131 @@ import uuid
 from werkzeug.utils import secure_filename
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, current_app
 from datetime import datetime
-from ..models import db, Supplier, SecurityAssessment, PolicyVersion, User, AssetInventory, AssetInventoryItem, Asset, BCDRPlan, BCDRTestLog, Subscription, SecurityIncident, PostIncidentReview, IncidentTimelineEvent, MaintenanceLog, Attachment, Framework, FrameworkControl, ComplianceLink
+from ..models import db, Supplier, SecurityAssessment, PolicyVersion, User, AssetInventory, AssetInventoryItem, Asset, BCDRPlan, BCDRTestLog, Subscription, SecurityIncident, PostIncidentReview, IncidentTimelineEvent, MaintenanceLog, Attachment, Framework, FrameworkControl, ComplianceLink, ComplianceRule, Risk, Policy
+from ..models.activities import SecurityActivity
+from ..models.communications import Campaign
+from ..models.core import Tag
 from .main import login_required
 from .admin import admin_required
 
 compliance_bp = Blueprint('compliance', __name__)
+
+@compliance_bp.route('/json/linkable-objects')
+@login_required
+def get_linkable_objects():
+    """
+    Endpoint polimórfico para selectores dinámicos.
+    Uso: /compliance/json/linkable-objects?type=Asset&q=macbook
+    """
+    obj_type = request.args.get('type')
+    query = request.args.get('q', '').lower()
+    
+    results = []
+    
+    # Mapeo de String a Clase de Modelo + Campos de Búsqueda
+    model_map = {
+        'Asset': (Asset, ['name', 'serial_number']), 
+        'Policy': (Policy, ['title']), # Note: Policy uses 'title', not 'name' in some models, checking...
+        'Risk': (Risk, ['risk_description', 'extended_description']), # Risk uses risk_description
+        'User': (User, ['name', 'email']),
+        'Vendor': (Supplier, ['name']),
+        # Añade 'Procedure', 'Control', etc. según necesites
+    }
+
+    if obj_type in model_map:
+        model, search_fields = model_map[obj_type]
+        
+        # Construir query dinámica
+        q_obj = model.query
+        if query:
+            # Filtro OR simple sobre los campos definidos
+            filters = [getattr(model, field).ilike(f'%{query}%') for field in search_fields if getattr(model, field) is not None]
+            q_obj = q_obj.filter(db.or_(*filters))
+            
+        # Limitar resultados para no matar el navegador
+        items = q_obj.limit(50).all()
+        
+        results = []
+        for item in items:
+            # Safe attribute access depending on model
+            name = "Unknown"
+            details = ""
+            item_id = item.id
+
+            if obj_type == 'Asset':
+                name = item.name
+                details = item.serial_number or item.status
+            elif obj_type == 'Policy':
+                name = item.title
+                details = item.category
+            elif obj_type == 'Risk':
+                name = item.risk_description
+                details = f"Risk #{item.id}"
+            elif obj_type == 'User':
+                name = item.name
+                details = item.email
+            elif obj_type == 'Vendor':
+                name = item.name
+                details = item.compliance_status
+            
+            results.append({
+                'id': item_id,
+                'name': name,
+                'details': details
+            })
+
+    return jsonify(results)
+
+# --- JSON APIs for Automation Rules Dynamic Selectors ---
+
+@compliance_bp.route('/json/activities')
+@login_required
+def get_activities():
+    """Returns list of Security Activities for dropdown."""
+    q = request.args.get('q', '').lower()
+    query = SecurityActivity.query.order_by(SecurityActivity.name)
+    if q:
+        query = query.filter(SecurityActivity.name.ilike(f'%{q}%'))
+    activities = query.limit(50).all()
+    return jsonify([{
+        'id': a.id,
+        'name': a.name,
+        'frequency': a.frequency or ''
+    } for a in activities])
+
+@compliance_bp.route('/json/tags')
+@login_required
+def get_all_tags():
+    """Returns list of all non-archived Tags for dropdowns."""
+    try:
+        tags = Tag.query.filter_by(is_archived=False).order_by(Tag.name).all()
+        return jsonify([{
+            'id': t.id,
+            'name': t.name
+        } for t in tags])
+    except Exception as e:
+        return jsonify([]), 500
+
+@compliance_bp.route('/json/maintenance-types')
+@login_required
+def get_maintenance_types():
+    """Returns distinct event_type values from MaintenanceLog."""
+    types = db.session.query(MaintenanceLog.event_type).distinct().order_by(MaintenanceLog.event_type).all()
+    return jsonify([t[0] for t in types if t[0]])
+
+@compliance_bp.route('/json/bcdr-plans')
+@login_required
+def get_bcdr_plans():
+    """Returns list of BCDR Plans for dropdown."""
+    q = request.args.get('q', '').lower()
+    query = BCDRPlan.query.order_by(BCDRPlan.name)
+    if q:
+        query = query.filter(BCDRPlan.name.ilike(f'%{q}%'))
+    plans = query.limit(50).all()
+    return jsonify([{
+        'id': p.id,
+        'name': p.name
+    } for p in plans])
 
 @compliance_bp.route('/vendors')
 @login_required
@@ -461,6 +581,11 @@ def incident_review(id):
         db.session.commit()
 
     if request.method == 'POST':
+        # Block edits if report is locked
+        if review.is_locked:
+            flash('This report is locked. Unlock it to make changes.', 'warning')
+            return redirect(url_for('compliance.incident_review', id=id))
+        
         # Update the text fields
         review.summary = request.form.get('summary')
         review.lead_up = request.form.get('lead_up')
@@ -476,17 +601,52 @@ def incident_review(id):
 
     return render_template('compliance/pir_form.html', incident=incident, review=review)
 
+@compliance_bp.route('/incidents/review/<int:review_id>/toggle-lock', methods=['POST'])
+@login_required
+@admin_required
+def toggle_pir_lock(review_id):
+    """Toggle lock state of a Post-Incident Review."""
+    review = PostIncidentReview.query.get_or_404(review_id)
+    
+    if review.is_locked:
+        # Unlock
+        review.is_locked = False
+        review.locked_at = None
+        review.locked_by_id = None
+        flash('Post-Incident Review has been unlocked for editing.', 'success')
+    else:
+        # Lock
+        review.is_locked = True
+        review.locked_at = datetime.utcnow()
+        review.locked_by_id = session.get('user_id')
+        flash('Post-Incident Review has been finalized and locked.', 'success')
+    
+    db.session.commit()
+    return redirect(url_for('compliance.incident_review', id=review.incident_id))
+
 @compliance_bp.route('/incidents/review/<int:review_id>/timeline', methods=['POST'])
 @login_required
 @admin_required
 def add_timeline_event(review_id):
     review = PostIncidentReview.query.get_or_404(review_id)
+    
+    # Block timeline additions when locked
+    if review.is_locked:
+        return jsonify({'error': 'Report is locked'}), 403
+    
     data = request.json
     max_order = db.session.query(db.func.max(IncidentTimelineEvent.order)).filter_by(review_id=review.id).scalar() or -1
     
+    # Parse datetime-local format (YYYY-MM-DDTHH:MM)
+    time_str = data['time']
+    try:
+        event_time = datetime.strptime(time_str, '%Y-%m-%dT%H:%M')
+    except ValueError:
+        return jsonify({'error': 'Invalid date format'}), 400
+    
     event = IncidentTimelineEvent(
         review_id=review.id,
-        event_time=datetime.fromisoformat(data['time']),
+        event_time=event_time,
         description=data['description'],
         order=max_order + 1
     )
@@ -514,6 +674,47 @@ def reorder_timeline_events(review_id):
             event.order = index
     db.session.commit()
     return jsonify({'success': True})
+
+@compliance_bp.route('/incidents/<int:id>/export_pdf')
+@login_required
+@admin_required
+def export_pir_pdf(id):
+    """Export Post-Incident Review as professional PDF."""
+    from weasyprint import HTML
+    from flask import make_response
+    from ..models.core import OrganizationSettings
+    
+    incident = SecurityIncident.query.get_or_404(id)
+    review = incident.review
+    
+    if not review:
+        flash('No Post-Incident Review found for this incident.', 'warning')
+        return redirect(url_for('compliance.incident_detail', id=id))
+    
+    # Get organization settings for logo
+    org_settings = OrganizationSettings.query.first()
+    user = User.query.get(session.get('user_id'))
+    
+    # Sort timeline by event_time
+    sorted_timeline = sorted(review.timeline_events, key=lambda e: e.event_time)
+    
+    html_content = render_template(
+        'compliance/pir_pdf.html',
+        incident=incident,
+        review=review,
+        sorted_timeline=sorted_timeline,
+        org_settings=org_settings,
+        generated_at=datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
+        generated_by=user.name if user else 'System'
+    )
+    
+    pdf_file = HTML(string=html_content).write_pdf()
+    
+    response = make_response(pdf_file)
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = f'attachment; filename=PIR_{incident.id}_{incident.title[:20].replace(" ", "_")}.pdf'
+    
+    return response
 
 @compliance_bp.route('/data-erasures')
 @login_required
@@ -609,6 +810,52 @@ def delete_compliance_link(link_id):
     db.session.commit()
     return jsonify({'status': 'success', 'message': 'Link deleted successfully'})
 
+
+@compliance_bp.route('/link/manual/create', methods=['POST'])
+@login_required
+def create_manual_link():
+    """
+    Processes the manual link modal form.
+    Expects: framework_control_id, linkable_type, linkable_id, description
+    """
+    framework_control_id = request.form.get('framework_control_id', type=int)
+    linkable_type = request.form.get('linkable_type')
+    linkable_id = request.form.get('linkable_id', type=int)
+    description = request.form.get('description', '').strip()
+
+    if not all([framework_control_id, linkable_type, linkable_id]):
+        flash('Missing required fields.', 'error')
+        return redirect(request.referrer or url_for('frameworks.list'))
+
+    # Validate control exists
+    control = FrameworkControl.query.get(framework_control_id)
+    if not control:
+        flash('Control not found.', 'error')
+        return redirect(request.referrer or url_for('frameworks.list'))
+
+    # Check for existing link to avoid duplicates
+    existing = ComplianceLink.query.filter_by(
+        framework_control_id=framework_control_id,
+        linkable_type=linkable_type,
+        linkable_id=linkable_id
+    ).first()
+
+    if existing:
+        flash('This item is already linked to this control.', 'warning')
+    else:
+        link = ComplianceLink(
+            framework_control_id=framework_control_id,
+            linkable_type=linkable_type,
+            linkable_id=linkable_id,
+            description=description or f'Manual link to {linkable_type}'
+        )
+        db.session.add(link)
+        db.session.commit()
+        flash('Item linked successfully.', 'success')
+
+    # Redirect back to the control detail page
+    return redirect(url_for('frameworks.control_detail', id=framework_control_id))
+
 @compliance_bp.route('/link/new', methods=['GET', 'POST'])
 @login_required
 def link_control():
@@ -618,7 +865,7 @@ def link_control():
 
     if not linkable_type or not linkable_id:
         flash('Missing linkable object information.', 'error')
-        return redirect(url_for('main.dashboard'))
+        return redirect(url_for('risk.dashboard'))
 
     if request.method == 'POST':
         framework_control_id = request.form.get('framework_control_id')
@@ -652,7 +899,7 @@ def link_control():
                     return redirect(url_for('risk.detail', id=linkable_id))
                 # Add other types as needed
                 
-                return redirect(url_for('main.dashboard'))
+                return redirect(url_for('risk.dashboard'))
 
     frameworks = Framework.query.filter_by(is_active=True).order_by(Framework.name).all()
     return render_template('compliance/link_control.html', 
@@ -663,23 +910,44 @@ def link_control():
 @compliance_bp.route('/dashboard')
 @login_required
 def dashboard():
-    """Displays the compliance dashboard."""
+    """Displays the compliance dashboard with real-time status evaluation."""
+    from src.services.compliance_service import get_compliance_evaluator
+    
+    evaluator = get_compliance_evaluator()
     frameworks = Framework.query.filter_by(is_active=True).order_by(Framework.name).all()
-    return render_template('compliance/dashboard.html', frameworks=frameworks)
+    
+    # Build dashboard data with evaluated status for each framework
+    dashboard_data = []
+    for framework in frameworks:
+        framework_status = evaluator.get_framework_status(framework.id)
+        if framework_status:
+            dashboard_data.append(framework_status)
+    
+    return render_template('compliance/dashboard.html', dashboard_data=dashboard_data, now=datetime.now)
 
 @compliance_bp.route('/dashboard/pdf')
 @login_required
 def export_dashboard_pdf():
-    """Exports the compliance dashboard to PDF."""
+    """Exports the compliance dashboard to PDF using the same data as the HTML dashboard."""
     from weasyprint import HTML
     from flask import make_response
+    from src.services.compliance_service import get_compliance_evaluator
 
+    # Use the same data logic as the HTML dashboard
+    evaluator = get_compliance_evaluator()
     frameworks = Framework.query.filter_by(is_active=True).order_by(Framework.name).all()
+    
+    dashboard_data = []
+    for framework in frameworks:
+        framework_status = evaluator.get_framework_status(framework.id)
+        if framework_status:
+            dashboard_data.append(framework_status)
+    
     user = User.query.get(session.get('user_id'))
     
     html_content = render_template(
         'compliance/dashboard_pdf.html', 
-        frameworks=frameworks,
+        dashboard_data=dashboard_data,
         generated_at=datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
         generated_by=user.name if user else 'System'
     )
@@ -691,3 +959,147 @@ def export_dashboard_pdf():
     response.headers['Content-Disposition'] = 'attachment; filename=compliance_report.pdf'
     
     return response
+
+
+# --- Automation Rules Management ---
+
+@compliance_bp.route('/rules/create', methods=['POST'])
+@login_required
+@admin_required
+def create_rule():
+    """Creates a new ComplianceRule for automated compliance checking."""
+    import json
+    
+    framework_control_id = request.form.get('framework_control_id', type=int)
+    name = request.form.get('name', '').strip()
+    target_model = request.form.get('target_model', '').strip()
+    frequency_days = request.form.get('frequency_days', 90, type=int)
+    grace_period_days = request.form.get('grace_period_days', 7, type=int)
+    
+    if not all([framework_control_id, name, target_model]):
+        flash('Missing required fields for automation rule.', 'error')
+        return redirect(request.referrer or url_for('compliance.dashboard'))
+    
+    # Validate control exists
+    control = FrameworkControl.query.get(framework_control_id)
+    if not control:
+        flash('Control not found.', 'error')
+        return redirect(request.referrer or url_for('compliance.dashboard'))
+    
+    # Build criteria JSON based on target_model
+    criteria = {}
+    
+    if target_model == 'ActivityExecution':
+        activity_id = request.form.get('activity_id', type=int)
+        if activity_id:
+            criteria = {
+                "method": "parent_match",
+                "value": activity_id
+            }
+        else:
+            # Try activity name
+            activity_name = request.form.get('activity_name', '').strip()
+            if activity_name:
+                criteria = {
+                    "method": "parent_match",
+                    "activity_name": activity_name
+                }
+    
+    elif target_model == 'Campaign':
+        tags_str = request.form.get('tags', '').strip()
+        if tags_str:
+            tags = [t.strip() for t in tags_str.split(',') if t.strip()]
+            criteria = {
+                "method": "tag_match",
+                "tags": tags
+            }
+    
+    elif target_model == 'MaintenanceLog':
+        event_type = request.form.get('event_type', '').strip()
+        if event_type:
+            criteria = {
+                "method": "event_type_match",
+                "event_type": event_type
+            }
+        else:
+            criteria = {"method": "any_completed"}
+    
+    elif target_model == 'BCDRTestLog':
+        plan_id = request.form.get('plan_id', type=int)
+        if plan_id:
+            criteria = {
+                "method": "plan_match",
+                "plan_id": plan_id
+            }
+        else:
+            criteria = {"method": "any_passed"}
+    
+    elif target_model == 'OnboardingProcess':
+        tag = request.form.get('criteria_tag', '').strip()
+        if tag:
+            criteria = {"tag": tag}
+    
+    elif target_model == 'OffboardingProcess':
+        tag = request.form.get('criteria_tag', '').strip()
+        if tag:
+            criteria = {"tag": tag}
+    
+    elif target_model == 'SecurityAssessment':
+        # Optional: Filter by specific supplier
+        supplier_id = request.form.get('supplier_id', type=int)
+        if supplier_id:
+            criteria = {"supplier_id": supplier_id}
+        else:
+            criteria = {}  # Any supplier assessment counts
+    
+    elif target_model == 'RiskAssessment':
+        # Simple mode: No criteria needed, just finds most recent
+        criteria = {}
+    
+    # Create and save the rule
+    rule = ComplianceRule(
+        framework_control_id=framework_control_id,
+        name=name,
+        target_model=target_model,
+        criteria=json.dumps(criteria),
+        frequency_days=frequency_days,
+        grace_period_days=grace_period_days,
+        enabled=True
+    )
+    
+    db.session.add(rule)
+    db.session.commit()
+    
+    flash(f'Automation rule "{name}" created successfully.', 'success')
+    return redirect(request.referrer or url_for('frameworks.control_detail', id=framework_control_id))
+
+
+@compliance_bp.route('/rules/<int:rule_id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def delete_rule(rule_id):
+    """Deletes a ComplianceRule."""
+    rule = ComplianceRule.query.get_or_404(rule_id)
+    rule_name = rule.name
+    control_id = rule.framework_control_id
+    
+    db.session.delete(rule)
+    db.session.commit()
+    
+    flash(f'Automation rule "{rule_name}" has been deleted.', 'success')
+    return redirect(request.referrer or url_for('frameworks.control_detail', id=control_id))
+
+
+@compliance_bp.route('/rules/<int:rule_id>/toggle', methods=['POST'])
+@login_required
+@admin_required
+def toggle_rule(rule_id):
+    """Toggles a ComplianceRule enabled/disabled state."""
+    rule = ComplianceRule.query.get_or_404(rule_id)
+    
+    rule.enabled = not rule.enabled
+    db.session.commit()
+    
+    status = 'enabled' if rule.enabled else 'disabled'
+    flash(f'Automation rule "{rule.name}" has been {status}.', 'success')
+    return redirect(request.referrer or url_for('frameworks.control_detail', id=rule.framework_control_id))

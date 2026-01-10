@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2">Compliance Dashboard</h1>
+    <h1 class="h2"><i class="fas fa-shield-alt me-2"></i>Compliance Dashboard</h1>
     <div class="btn-toolbar mb-2 mb-md-0">
         <div class="btn-group me-2">
             <a href="{{ url_for('compliance.export_dashboard_pdf') }}" class="btn btn-sm btn-outline-secondary">
@@ -14,164 +14,275 @@
     </div>
 </div>
 
-{% macro object_link(obj, type) %}
-{% if type == 'Asset' %}
-<a href="{{ url_for('assets.asset_detail', id=obj.id) }}">{{ obj.name }}</a>
-{% elif type == 'Peripheral' %}
-<a href="{{ url_for('peripherals.peripheral_detail', id=obj.id) }}">{{ obj.name }}</a>
-{% elif type == 'Software' %}
-<a href="{{ url_for('software.detail', id=obj.id) }}">{{ obj.name }}</a>
-{% elif type == 'License' %}
-<a href="{{ url_for('licenses.detail', id=obj.id) }}">{{ obj.name }}</a>
-{% elif type == 'MaintenanceLog' %}
-<a href="{{ url_for('maintenance.log_detail', id=obj.id) }}">{{ obj.description | truncate(50) }}</a>
-{% elif type == 'SecurityAssessment' %}
-<a href="{{ url_for('compliance.assessment_detail', id=obj.id) }}">{{ obj.supplier.name }} Assessment ({{
-    obj.assessment_date }})</a>
-{% elif type == 'AssetInventory' %}
-<a href="{{ url_for('compliance.inventory_detail', id=obj.id) }}">{{ obj.name }}</a>
-{% elif type == 'BCDRPlan' %}
-<a href="{{ url_for('compliance.bcdr_detail', id=obj.id) }}">{{ obj.name }}</a>
-{% elif type == 'SecurityIncident' %}
-<a href="{{ url_for('compliance.incident_detail', id=obj.id) }}">{{ obj.title }}</a>
-{% elif type == 'Risk' %}
-<a href="{{ url_for('risk.detail', id=obj.id) }}">{{ obj.description | truncate(50) }}</a>
-{% elif type == 'Supplier' %}
-<a href="{{ url_for('suppliers.supplier_detail', id=obj.id) }}">{{ obj.name }}</a>
-{% elif type == 'Purchase' %}
-<a href="{{ url_for('purchases.purchase_detail', id=obj.id) }}">{{ obj.description | truncate(50) }}</a>
-{% elif type == 'Budget' %}
-<a href="{{ url_for('budgets.budget_detail', id=obj.id) }}">{{ obj.name }}</a>
-{% elif type == 'Subscription' %}
-<a href="{{ url_for('subscriptions.subscription_detail', id=obj.id) }}">{{ obj.name }}</a>
-{% elif type == 'Link' %}
-<a href="{{ url_for('links.detail', id=obj.id) }}">{{ obj.title }}</a>
-{% elif type == 'Documentation' %}
-<a href="{{ url_for('documentation.detail', id=obj.id) }}">{{ obj.title }}</a>
-{% elif type == 'Course' %}
-<a href="{{ url_for('training.course_detail', id=obj.id) }}">{{ obj.title }}</a>
-{% elif type == 'Policy' %}
-<a href="{{ url_for('policies.detail', id=obj.id) }}">{{ obj.title }}</a>
-{% elif type == 'BusinessService' %}
-<a href="{{ url_for('services.detail', id=obj.id) }}">{{ obj.name }}</a>
-{% else %}
-{{ obj.name or obj.title or obj.description or 'Unknown' }}
-{% endif %}
-{% endmacro %}
+{% if dashboard_data %}
+{# Framework Tabs #}
+<ul class="nav nav-tabs mb-4" id="frameworkTabs" role="tablist">
+    {% for fw_data in dashboard_data %}
+    <li class="nav-item" role="presentation">
+        <button class="nav-link {{ 'active' if loop.first else '' }}" id="tab-{{ fw_data.framework.id }}"
+            data-bs-toggle="tab" data-bs-target="#pane-{{ fw_data.framework.id }}" type="button" role="tab"
+            aria-controls="pane-{{ fw_data.framework.id }}" aria-selected="{{ 'true' if loop.first else 'false' }}">
+            {{ fw_data.framework.name }}
+            {% set non_compliant = fw_data.stats.non_compliant %}
+            {% set warning = fw_data.stats.warning %}
+            {% if non_compliant > 0 %}
+            <span class="badge bg-danger ms-1">{{ non_compliant }}</span>
+            {% elif warning > 0 %}
+            <span class="badge bg-warning text-dark ms-1">{{ warning }}</span>
+            {% endif %}
+        </button>
+    </li>
+    {% endfor %}
+</ul>
 
-<div class="row mb-4">
-    <div class="col-md-6">
-        <input type="text" id="controlSearch" class="form-control"
-            placeholder="Search controls (ID, name, description)...">
-    </div>
-</div>
+{# Tab Content #}
+<div class="tab-content" id="frameworkTabsContent">
+    {% for fw_data in dashboard_data %}
+    <div class="tab-pane fade {{ 'show active' if loop.first else '' }}" id="pane-{{ fw_data.framework.id }}"
+        role="tabpanel" aria-labelledby="tab-{{ fw_data.framework.id }}">
 
-{% for framework in frameworks %}
-<div class="card mb-4 shadow-sm">
-    <div class="card-header bg-light">
-        <h4 class="my-0 font-weight-normal">{{ framework.name }}</h4>
-        {% if framework.description %}
-        <small class="text-muted">{{ framework.description }}</small>
-        {% endif %}
-    </div>
-    <div class="card-body">
-        <div class="accordion" id="accordion-{{ framework.id }}">
-            {% for control in framework.framework_controls %}
-            <div class="accordion-item control-item"
-                data-search-content="{{ control.control_id }} {{ control.name }} {{ control.description }}">
-                <h2 class="accordion-header" id="heading-{{ control.id }}">
-                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                        data-bs-target="#collapse-{{ control.id }}" aria-expanded="false"
-                        aria-controls="collapse-{{ control.id }}">
-                        <div class="d-flex w-100 justify-content-between align-items-center me-3">
-                            <div>
-                                <span class="badge bg-secondary me-2">{{ control.control_id }}</span>
-                                <span>{{ control.name }}</span>
-                            </div>
-                            <div>
-                                {% if control.compliance_links.count() > 0 %}
-                                <span class="badge bg-success">{{ control.compliance_links.count() }} Links</span>
-                                {% else %}
-                                <span class="badge bg-warning text-dark">No Evidence</span>
-                                {% endif %}
-                            </div>
+        {# Stats Cards Row #}
+        <div class="row mb-4">
+            <div class="col-md-3 col-sm-6 mb-3">
+                <div class="card border-success h-100">
+                    <div class="card-body text-center">
+                        <h2 class="text-success mb-0">{{ fw_data.stats.compliant }}</h2>
+                        <small class="text-muted">Compliant</small>
+                        <div class="mt-2">
+                            <i class="fas fa-check-circle fa-2x text-success opacity-50"></i>
                         </div>
-                    </button>
-                </h2>
-                <div id="collapse-{{ control.id }}" class="accordion-collapse collapse"
-                    aria-labelledby="heading-{{ control.id }}" data-bs-parent="#accordion-{{ framework.id }}">
-                    <div class="accordion-body">
-                        {% if control.description %}
-                        <p class="text-muted mb-3"><em>{{ control.description }}</em></p>
-                        {% endif %}
-
-                        {% if control.compliance_links.count() > 0 %}
-                        <div class="table-responsive">
-                            <table class="table table-sm table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>Type</th>
-                                        <th>Object</th>
-                                        <th>Justification</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for link in control.compliance_links %}
-                                    <tr>
-                                        <td><span class="badge bg-info text-dark">{{ link.linkable_type }}</span></td>
-                                        <td>
-                                            {% if link.linked_object %}
-                                            <strong>{{ object_link(link.linked_object, link.linkable_type) }}</strong>
-                                            {% else %}
-                                            <span class="text-danger">Object Deleted (ID: {{ link.linkable_id }})</span>
-                                            {% endif %}
-                                        </td>
-                                        <td>{{ link.description }}</td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                        {% else %}
-                        <div class="alert alert-light border" role="alert">
-                            <i class="fas fa-exclamation-circle text-warning"></i> No evidence linked to this control
-                            yet.
-                        </div>
-                        {% endif %}
                     </div>
                 </div>
             </div>
-            {% endfor %}
+            <div class="col-md-3 col-sm-6 mb-3">
+                <div class="card border-warning h-100">
+                    <div class="card-body text-center">
+                        <h2 class="text-warning mb-0">{{ fw_data.stats.warning }}</h2>
+                        <small class="text-muted">Warning</small>
+                        <div class="mt-2">
+                            <i class="fas fa-exclamation-triangle fa-2x text-warning opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6 mb-3">
+                <div class="card border-danger h-100">
+                    <div class="card-body text-center">
+                        <h2 class="text-danger mb-0">{{ fw_data.stats.non_compliant }}</h2>
+                        <small class="text-muted">Non-Compliant</small>
+                        <div class="mt-2">
+                            <i class="fas fa-times-circle fa-2x text-danger opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 col-sm-6 mb-3">
+                <div class="card border-info h-100">
+                    <div class="card-body text-center">
+                        <h2 class="text-info mb-0">{{ fw_data.stats.manual }}</h2>
+                        <small class="text-muted">Manual/Static</small>
+                        <div class="mt-2">
+                            <i class="fas fa-file-alt fa-2x text-info opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# Secondary Stats #}
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body py-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-layer-group me-2 text-secondary"></i>Total Controls</span>
+                            <strong>{{ fw_data.stats.total }}</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body py-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span><i class="fas fa-question-circle me-2 text-secondary"></i>Uncovered</span>
+                            <strong class="{{ 'text-muted' if fw_data.stats.uncovered == 0 else 'text-secondary' }}">
+                                {{ fw_data.stats.uncovered }}
+                            </strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {# Search Box #}
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <input type="text" class="form-control control-search" data-framework="{{ fw_data.framework.id }}"
+                    placeholder="Search controls (ID, name)...">
+            </div>
+        </div>
+
+        {# Controls Table #}
+        <div class="card shadow">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0" id="controls-table-{{ fw_data.framework.id }}">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 100px;">Control ID</th>
+                                <th>Name</th>
+                                <th class="text-center" style="width: 100px;">Coverage</th>
+                                <th class="text-center" style="width: 80px;">Linked</th>
+                                <th class="text-center" style="width: 120px;">Status</th>
+                                <th class="text-center" style="width: 140px;">Last Evidence</th>
+                                <th class="text-end" style="width: 100px;">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ctrl in fw_data.controls %}
+                            <tr class="control-row" data-search="{{ ctrl.control_id }} {{ ctrl.name }}">
+                                <td>
+                                    <span class="badge bg-secondary">{{ ctrl.control_id }}</span>
+                                </td>
+                                <td>
+                                    <strong>{{ ctrl.name | truncate(60) }}</strong>
+                                    {% if ctrl.description %}
+                                    <br><small class="text-muted">{{ ctrl.description | truncate(80) }}</small>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if ctrl.coverage_type == 'automated' %}
+                                    <span class="badge bg-primary" title="Automated ({{ ctrl.rules_count }} rules)">
+                                        <i class="fas fa-robot"></i> Auto
+                                    </span>
+                                    {% elif ctrl.coverage_type == 'manual' %}
+                                    <span class="badge bg-info text-dark"
+                                        title="Manual ({{ ctrl.manual_links_count }} links)">
+                                        <i class="fas fa-file-alt"></i> Manual
+                                    </span>
+                                    {% else %}
+                                    <span class="badge bg-light text-dark" title="No coverage">
+                                        <i class="fas fa-minus"></i>
+                                    </span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if ctrl.linked_items_count > 0 %}
+                                    <a href="{{ url_for('frameworks.control_detail', id=ctrl.id) }}"
+                                        class="text-decoration-none" title="View linked items">
+                                        <span class="badge bg-secondary">{{ ctrl.linked_items_count }}</span>
+                                    </a>
+                                    {% else %}
+                                    <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if ctrl.status == 'compliant' %}
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-check me-1"></i>Compliant
+                                    </span>
+                                    {% elif ctrl.status == 'warning' %}
+                                    <span class="badge bg-warning text-dark">
+                                        <i class="fas fa-exclamation-triangle me-1"></i>Warning
+                                    </span>
+                                    {% elif ctrl.status == 'non_compliant' %}
+                                    <span class="badge bg-danger">
+                                        <i class="fas fa-times me-1"></i>Non-Compliant
+                                    </span>
+                                    {% elif ctrl.status == 'manual' %}
+                                    <span class="badge bg-info text-dark">
+                                        <i class="fas fa-file-alt me-1"></i>Manual
+                                    </span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">
+                                        <i class="fas fa-question me-1"></i>Uncovered
+                                    </span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if ctrl.oldest_evidence_date %}
+                                    {% set days_ago = (now() - ctrl.oldest_evidence_date).days if
+                                    ctrl.oldest_evidence_date else -1 %}
+                                    <span
+                                        class="{{ 'text-danger fw-bold' if ctrl.status in ['warning', 'non_compliant'] else '' }}">
+                                        {{ ctrl.oldest_evidence_date.strftime('%Y-%m-%d') }}
+                                    </span>
+                                    <br><small class="text-muted">{{ days_ago }}d ago</small>
+                                    {% else %}
+                                    <span class="text-muted">N/A</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    <a href="{{ url_for('frameworks.control_detail', id=ctrl.id) }}"
+                                        class="btn btn-sm btn-outline-primary" title="View Details">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center text-muted py-4">
+                                    No controls defined for this framework.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        {# Legend #}
+        <div class="mt-3">
+            <small class="text-muted">
+                <strong>Legend:</strong>
+                <span class="badge bg-success ms-2">Compliant</span> Within SLA
+                <span class="badge bg-warning text-dark ms-2">Warning</span> Grace period
+                <span class="badge bg-danger ms-2">Non-Compliant</span> Overdue
+                <span class="badge bg-info text-dark ms-2">Manual</span> Static evidence links
+                <span class="badge bg-secondary ms-2">Uncovered</span> No rules or links
+            </small>
         </div>
     </div>
+    {% endfor %}
 </div>
+
 {% else %}
-<div class="alert alert-info">
-    No active frameworks found. Please enable a framework in the settings.
+{# No Frameworks Active #}
+<div class="alert alert-info d-flex align-items-center" role="alert">
+    <i class="fas fa-info-circle fa-2x me-3"></i>
+    <div>
+        <h5 class="alert-heading mb-1">No Active Frameworks</h5>
+        <p class="mb-0">
+            There are no compliance frameworks enabled.
+            <a href="{{ url_for('frameworks.list') }}" class="alert-link">Go to Frameworks</a>
+            to activate one and start tracking compliance.
+        </p>
+    </div>
 </div>
-{% endfor %}
+{% endif %}
 
 {% endblock %}
 
 {% block scripts_extra %}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        const searchInput = document.getElementById('controlSearch');
-        if (searchInput) {
-            searchInput.addEventListener('keyup', function () {
+        // Control search functionality for each framework tab
+        document.querySelectorAll('.control-search').forEach(input => {
+            input.addEventListener('keyup', function () {
                 const searchTerm = this.value.toLowerCase();
-                const controlItems = document.querySelectorAll('.control-item');
+                const frameworkId = this.dataset.framework;
+                const table = document.getElementById('controls-table-' + frameworkId);
 
-                controlItems.forEach(item => {
-                    const content = item.getAttribute('data-search-content').toLowerCase();
-                    if (content.includes(searchTerm)) {
-                        item.style.display = '';
-                    } else {
-                        item.style.display = 'none';
-                    }
+                if (!table) return;
+
+                table.querySelectorAll('.control-row').forEach(row => {
+                    const content = row.dataset.search.toLowerCase();
+                    row.style.display = content.includes(searchTerm) ? '' : 'none';
                 });
             });
-        }
+        });
     });
 </script>
 {% endblock %}

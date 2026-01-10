@@ -4,7 +4,6 @@ from dateutil.relativedelta import relativedelta
 from sqlalchemy.orm import foreign
 from sqlalchemy import and_
 from ..extensions import db
-from .core import CURRENCY_RATES
 
 # Association table for Subscriptions and Tags
 subscription_tags = db.Table('subscription_tags',
@@ -284,7 +283,8 @@ class Subscription(db.Model):
     
     @property
     def cost_eur(self):
-        rate = CURRENCY_RATES.get(self.currency, 1.0)
+        from ..services.finance_service import get_conversion_rate
+        rate = get_conversion_rate(self.currency)
         return self.cost * rate
     
     @property

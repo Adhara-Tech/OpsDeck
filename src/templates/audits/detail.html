@@ -42,7 +42,7 @@
         <form action="{{ url_for('audits.unlock_audit', id=audit.id) }}" method="POST" class="d-inline me-2">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-sm btn-outline-warning"
-                onclick="return confirm('Are you sure you want to unlock this audit?');">
+                data-confirm='Are you sure you want to unlock this audit?'>
                 <i class="fas fa-unlock"></i> Unlock
             </button>
         </form>
@@ -50,7 +50,7 @@
         <form action="{{ url_for('audits.lock_audit', id=audit.id) }}" method="POST" class="d-inline me-2">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-sm btn-outline-dark"
-                onclick="return confirm('Lock this audit? All editing will be disabled.');">
+                data-confirm='Lock this audit? All editing will be disabled.'>
                 <i class="fas fa-lock"></i> Lock Audit
             </button>
         </form>
@@ -64,7 +64,7 @@
         </a>
         {% if not audit.is_locked %}
         <form action="{{ url_for('audits.delete_audit', id=audit.id) }}" method="POST" class="d-inline"
-            onsubmit="return confirm('Are you sure you want to delete this audit? This cannot be undone.');">
+            data-confirm='Are you sure you want to delete this audit? This cannot be undone.'>
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-sm btn-outline-danger">
                 <i class="fas fa-trash"></i>
@@ -390,6 +390,30 @@
                                                         <a href="{{ url_for('onboarding.offboarding_detail', id=link.linkable_id) }}"
                                                             class="text-truncate" title="{{ link.display_name }}">{{
                                                             link.display_name }}</a>
+                                                        {% elif link.linkable_type == 'Campaign' %}
+                                                        <a href="{{ url_for('campaigns.detail', id=link.linkable_id) }}"
+                                                            class="text-truncate" title="{{ link.display_name }}">{{
+                                                            link.display_name }}</a>
+                                                        {% elif link.linkable_type == 'SecurityAssessment' %}
+                                                        <a href="{{ url_for('compliance.assessment_detail', id=link.linkable_id) }}"
+                                                            class="text-truncate" title="{{ link.display_name }}">{{
+                                                            link.display_name }}</a>
+                                                        {% elif link.linkable_type == 'RiskAssessment' %}
+                                                        <a href="{{ url_for('risk_assessment.view_assessment', id=link.linkable_id) }}"
+                                                            class="text-truncate" title="{{ link.display_name }}">{{
+                                                            link.display_name }}</a>
+                                                        {% elif link.linkable_type == 'MaintenanceLog' %}
+                                                        <a href="{{ url_for('maintenance.log_detail', id=link.linkable_id) }}"
+                                                            class="text-truncate" title="{{ link.display_name }}">{{
+                                                            link.display_name }}</a>
+                                                        {% elif link.linkable_type == 'ActivityExecution' %}
+                                                        <a href="{{ url_for('activities.execution_detail', id=link.linkable_id) }}"
+                                                            class="text-truncate" title="{{ link.display_name }}">{{
+                                                            link.display_name }}</a>
+                                                        {% elif link.linkable_type == 'BCDRTestLog' %}
+                                                        <a href="{{ url_for('services.bcdr_test_detail', id=link.linkable_id) }}"
+                                                            class="text-truncate" title="{{ link.display_name }}">{{
+                                                            link.display_name }}</a>
                                                         {% else %}
                                                         <span class="text-truncate" title="{{ link.display_name }}">
                                                             {{ link.display_name }}
@@ -525,79 +549,6 @@
                     </div>
                     <small class="text-muted">Upload final report, signed proposal, etc.</small>
                 </form>
-            </div>
-        </div>
-
-        <div class="card shadow mb-4">
-            <div class="card-header py-3 d-flex justify-content-between align-items-center">
-                <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-tasks"></i> Process Evidence</h6>
-                {% if not audit.is_locked %}
-                <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
-                    data-bs-target="#linkEvidenceModal">
-                    <i class="fas fa-plus"></i>
-                </button>
-                {% endif %}
-            </div>
-            <div class="card-body">
-                {% if audit.onboardings %}
-                <h6 class="small text-muted mb-2">Onboarding Processes</h6>
-                <ul class="list-group list-group-flush mb-3">
-                    {% for proc in audit.onboardings %}
-                    <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-1">
-                        <div>
-                            <a href="{{ url_for('onboarding.process_detail', id=proc.id) }}">
-                                {{ proc.new_hire_name or proc.user.name }}
-                            </a>
-                            <br>
-                            <small class="text-muted">{{ proc.start_date.strftime('%Y-%m-%d') }}</small>
-                        </div>
-                        {% if not audit.is_locked %}
-                        <form action="{{ url_for('audits.unlink_evidence', id=audit.id) }}" method="POST"
-                            class="d-inline">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <input type="hidden" name="type" value="onboarding">
-                            <input type="hidden" name="process_id" value="{{ proc.id }}">
-                            <button type="submit" class="btn btn-sm btn-link text-danger p-0">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        </form>
-                        {% endif %}
-                    </li>
-                    {% endfor %}
-                </ul>
-                {% endif %}
-
-                {% if audit.offboardings %}
-                <h6 class="small text-muted mb-2">Offboarding Processes</h6>
-                <ul class="list-group list-group-flush">
-                    {% for proc in audit.offboardings %}
-                    <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-1">
-                        <div>
-                            <a href="{{ url_for('onboarding.offboarding_detail', id=proc.id) }}">
-                                {{ proc.user.name }}
-                            </a>
-                            <br>
-                            <small class="text-muted">{{ proc.departure_date.strftime('%Y-%m-%d') }}</small>
-                        </div>
-                        {% if not audit.is_locked %}
-                        <form action="{{ url_for('audits.unlink_evidence', id=audit.id) }}" method="POST"
-                            class="d-inline">
-                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <input type="hidden" name="type" value="offboarding">
-                            <input type="hidden" name="process_id" value="{{ proc.id }}">
-                            <button type="submit" class="btn btn-sm btn-link text-danger p-0">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        </form>
-                        {% endif %}
-                    </li>
-                    {% endfor %}
-                </ul>
-                {% endif %}
-
-                {% if not audit.onboardings and not audit.offboardings %}
-                <p class="text-muted small mb-0">No processes linked as evidence.</p>
-                {% endif %}
             </div>
         </div>
 

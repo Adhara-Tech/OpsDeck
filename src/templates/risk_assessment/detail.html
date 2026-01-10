@@ -127,7 +127,7 @@
                                         <form
                                             action="{{ url_for('risk_assessment.delete_evidence', id=assessment.id, evidence_id=ev.id) }}"
                                             method="POST" class="d-inline"
-                                            onsubmit="return confirm('Remove this evidence?');">
+                                            data-confirm='Remove this evidence?'>
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <button type="submit" class="btn btn-link btn-sm p-0 ms-1 text-danger"
                                                 style="font-size: 0.7rem;">

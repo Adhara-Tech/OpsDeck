@@ -1,11 +1,11 @@
 {% extends "layout.html" %}
 
-{% block title %}Marcos de Trabajo y Normativas{% endblock %}
+{% block title %}Frameworks & Standards{% endblock %}
 
 {% block content %}
 <div class="row">
     <div class="col-sm-8">
-        <h1 class="mb-0">Marcos de Trabajo y Normativas</h1>
+        <h1 class="mb-0"><i class="fa-solid fa-layer-group me-2"></i>Frameworks & Standards</h1>
     </div>
     <div class="col-sm-4 text-end">
         <a href="{{ url_for('frameworks.create') }}" class="btn btn-primary">
@@ -22,8 +22,8 @@
                 <thead>
                     <tr>
                         <th>Name</th>
-                        <th>Tipo</th>
-                        <th class="text-center">Controles</th>
+                        <th>Type</th>
+                        <th class="text-center">Controls</th>
                         <th class="text-center">Status</th>
                         <th>Actions</th>
                     </tr>
@@ -39,17 +39,17 @@
                         </td>
                         <td>
                             {% if framework.is_custom %}
-                            <span class="badge bg-info">Personalizado</span>
+                            <span class="badge bg-info">Custom</span>
                             {% else %}
-                            <span class="badge bg-light text-dark">Incorporado</span>
+                            <span class="badge bg-light text-dark">Built-in</span>
                             {% endif %}
                         </td>
                         <td class="text-center">{{ framework.framework_controls.count() }}</td>
                         <td class="text-center">
                             {% if framework.is_active %}
-                            <span class="badge bg-success">Activo</span>
+                            <span class="badge bg-success">Active</span>
                             {% else %}
-                            <span class="badge bg-secondary">Inactivo</span>
+                            <span class="badge bg-secondary">Inactive</span>
                             {% endif %}
                         </td>
                         <td>
@@ -63,7 +63,7 @@
                     {% else %}
                     <tr>
                         <td colspan="5" class="text-center">
-                            No se han encontrado marcos de trabajo.
+                            No frameworks found.
                         </td>
                     </tr>
                     {% endif %}

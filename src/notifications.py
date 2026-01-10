@@ -1,8 +1,10 @@
 import requests
 import smtplib
+import traceback
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
+from smtplib import SMTPException, SMTPAuthenticationError, SMTPConnectError, SMTPRecipientsRefused
 
 # Import the models needed for the notification logic
 from .models import Subscription, NotificationSetting
@@ -13,9 +15,18 @@ from .models.communications import ScheduledCommunication
 # --- Notification Functions ---
 
 def send_email(app, subject, body, to_emails):
-    """Send email notification using app config."""
+    """
+    Send email notification using app config.
+    
+    Returns:
+        bool: True if email sent successfully, False otherwise.
+        
+    Note: All SMTP errors are logged with full traceback for debugging.
+    Check server logs for detailed error information when this returns False.
+    """
     # Check for both a recipient and an email username in config
     if not to_emails or not app.config.get('EMAIL_USERNAME'):
+        app.logger.warning(f"❌ Email not sent: Missing recipients or EMAIL_USERNAME config")
         return False
     
     try:
@@ -30,10 +41,34 @@ def send_email(app, subject, body, to_emails):
         server.login(app.config['EMAIL_USERNAME'], app.config['EMAIL_PASSWORD'])
         server.send_message(msg)
         server.quit()
-        app.logger.info(f"Sent renewal email to {to_emails}")
+        app.logger.info(f"✅ Sent email to {to_emails} | Subject: {subject[:50]}...")
         return True
+    
+    except SMTPAuthenticationError as e:
+        app.logger.error(f"❌ SMTP Authentication Error: Invalid credentials for {app.config.get('EMAIL_USERNAME')}")
+        app.logger.error(f"   SMTP Response: {e.smtp_code} - {e.smtp_error}")
+        app.logger.debug(traceback.format_exc())
+        return False
+    
+    except SMTPConnectError as e:
+        app.logger.error(f"❌ SMTP Connection Error: Cannot reach {app.config.get('SMTP_SERVER')}:{app.config.get('SMTP_PORT')}")
+        app.logger.error(f"   Details: {str(e)}")
+        return False
+    
+    except SMTPRecipientsRefused as e:
+        refused = list(e.recipients.keys()) if hasattr(e, 'recipients') else to_emails
+        app.logger.error(f"❌ SMTP Recipients Refused: {refused}")
+        app.logger.error(f"   Server rejected these email addresses as invalid")
+        return False
+    
+    except SMTPException as e:
+        app.logger.error(f"❌ SMTP Error sending to {to_emails}: {str(e)}")
+        app.logger.error(traceback.format_exc())
+        return False
+    
     except Exception as e:
-        app.logger.error(f"Failed to send email: {e}")
+        app.logger.error(f"❌ General Email Error to {to_emails}: {type(e).__name__}: {str(e)}")
+        app.logger.error(traceback.format_exc())
         return False
 
 def send_webhook(app, url, data):
@@ -395,6 +430,116 @@ def check_certificate_expirations(app):
             app.logger.info("No certificates require expiration notification today.")
 
 
+def check_compliance_breaches(app):
+    """
+    Checks for compliance rules that have failed (non_compliant status) and
+    queues alert notifications to administrators.
+    Uses 24-hour deduplication to prevent notification spam.
+    """
+    from datetime import timedelta
+    from .extensions import db
+    from .models.notifications import NotificationEvent
+    from .models.communications import ScheduledCommunication
+    from .models.security import ComplianceRule
+    from .services.compliance_service import get_compliance_evaluator
+    
+    with app.app_context():
+        today = datetime.now().date()
+        now = datetime.now()
+        queued_count = 0
+        
+        # Find the compliance breach event
+        breach_event = NotificationEvent.query.filter_by(
+            event_code='COMPLIANCE_BREACH'
+        ).first()
+        
+        if not breach_event or not breach_event.enabled:
+            app.logger.info("Compliance breach notifications: Event disabled or not configured.")
+            return
+        
+        if not breach_event.template_id:
+            app.logger.warning("Compliance breach notifications: No template configured.")
+            return
+        
+        # Get evaluator and process all enabled rules
+        evaluator = get_compliance_evaluator()
+        
+        try:
+            rules = ComplianceRule.query.filter_by(enabled=True).all()
+        except Exception as e:
+            app.logger.error(f"Compliance breach check: Could not query rules - {e}")
+            return
+        
+        app.logger.info(f"Compliance breach check: Evaluating {len(rules)} enabled rules...")
+        
+        for rule in rules:
+            try:
+                result = evaluator.evaluate_rule(rule)
+                
+                if result.get('status') != 'non_compliant':
+                    continue
+                
+                # Deduplication: Check if we already sent an alert in the last 24 hours
+                cutoff_time = now - timedelta(hours=24)
+                existing_alert = ScheduledCommunication.query.filter(
+                    ScheduledCommunication.target_type == 'compliance_rule',
+                    ScheduledCommunication.target_id == rule.id,
+                    ScheduledCommunication.status.in_(['pending', 'sent']),
+                    ScheduledCommunication.created_at >= cutoff_time
+                ).first()
+                
+                if existing_alert:
+                    app.logger.debug(f"Compliance rule {rule.id}: Recent alert exists, skipping.")
+                    continue
+                
+                # Determine recipient - use admin email from NotificationSetting
+                from .models import NotificationSetting
+                settings = NotificationSetting.query.first()
+                
+                if not settings or not settings.email_recipient:
+                    app.logger.warning(f"Compliance rule {rule.id}: No admin email configured, skipping.")
+                    continue
+                
+                recipient_email = settings.email_recipient
+                
+                # Get configured channels (default to email only)
+                channels = breach_event.channels or ['email']
+                
+                for channel in channels:
+                    # Create scheduled communication
+                    comm = ScheduledCommunication(
+                        template_id=breach_event.template_id,
+                        status='pending',
+                        scheduled_date=today,
+                        target_type='compliance_rule',
+                        target_id=rule.id,
+                        recipient_email=recipient_email,
+                        recipient_name='Admin',
+                        recipient_type='admin',
+                        channel=channel,
+                        slack_target_channel=breach_event.slack_target_channel if channel == 'slack' else None
+                    )
+                    db.session.add(comm)
+                    queued_count += 1
+                    
+                    control = rule.control
+                    app.logger.info(
+                        f"Queued compliance breach alert ({channel}) for rule '{rule.name}' "
+                        f"(Control: {control.control_id if control else 'N/A'})"
+                    )
+                    
+            except Exception as e:
+                app.logger.error(f"Error evaluating compliance rule {rule.id}: {e}")
+                continue
+        
+        # Commit all queued communications
+        if queued_count > 0:
+            db.session.commit()
+            app.logger.info(f"Queued {queued_count} compliance breach notification(s) for processing.")
+        else:
+            app.logger.info("No compliance breaches detected today.")
+
+
 def process_communications_queue(app):
     """
     Process pending scheduled communications.
@@ -613,6 +758,7 @@ def _send_webhook_notification(app, comm, subject, body_html):
         'subscription': 'SUBSCRIPTION_RENEWAL',
         'credential': 'CREDENTIAL_EXPIRING',
         'certificate': 'CERTIFICATE_EXPIRING',
+        'compliance_rule': 'COMPLIANCE_BREACH',
     }
     
     event_code = event_code_map.get(comm.target_type, comm.target_type.upper())

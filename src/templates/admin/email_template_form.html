@@ -223,7 +223,7 @@
                 const email = emailInput.value;
 
                 if (!email) {
-                    alert('Please enter an email address.');
+                    OpsDeck.showAlert({ body: 'Please enter an email address.', variant: 'warning' });
                     return;
                 }
 
@@ -246,13 +246,13 @@
                     testModal.hide();
 
                     if (data.success) {
-                        alert('✅ ' + data.message);
+                        OpsDeck.showAlert({ title: 'Success', body: data.message, variant: 'success' });
                     } else {
-                        alert('❌ ' + data.message);
+                        OpsDeck.showAlert({ title: 'Error', body: data.message, variant: 'danger' });
                     }
                 } catch (err) {
                     testModal.hide();
-                    alert('❌ Error sending test email: ' + err.message);
+                    OpsDeck.showAlert({ title: 'Error', body: 'Error sending test email: ' + err.message, variant: 'danger' });
                 } finally {
                     this.disabled = false;
                     this.innerHTML = originalHtml;

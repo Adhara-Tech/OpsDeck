@@ -255,13 +255,51 @@ def delete_control(id):
 @frameworks_bp.route('/control/<int:id>/detail')
 @login_required
 def control_detail(id):
-    """Displays control detail with cross-mappings."""
+    """Displays control detail with cross-mappings and linked evidence."""
+    from ..models.core import Tag, Link, Documentation
+    from ..models.policy import Policy
+    from ..models.services import BusinessService
+    from ..services.compliance_service import get_compliance_evaluator
+    
     control = FrameworkControl.query.get_or_404(id)
     all_frameworks = Framework.query.order_by(Framework.name).all()
+    all_tags = Tag.query.filter_by(is_archived=False).order_by(Tag.name).all()
+    
+    # Evaluate automation rules in real-time
+    evaluator = get_compliance_evaluator()
+    automated_evidence = []
+    for rule in control.rules:
+        if rule.enabled:
+            result = evaluator.evaluate_rule(rule)
+            automated_evidence.append({
+                'rule': rule,
+                'status': result['status'],
+                'evidence': result.get('evidence'),
+                'last_check': result.get('last_evidence_date'),
+                'message': result.get('message', ''),
+                'days_since': result.get('days_since', -1)
+            })
+    
+    # Manual compliance links
+    manual_links = control.compliance_links.all()
+    
+    # Load available items for the manual linking modal
+    available_policies = Policy.query.order_by(Policy.title).all()
+    available_services = BusinessService.query.order_by(BusinessService.name).all()
+    available_docs = Documentation.query.order_by(Documentation.name).all()
+    available_links = Link.query.order_by(Link.name).all()
+    
     return render_template(
         'frameworks/control_detail.html',
         control=control,
-        all_frameworks=all_frameworks
+        all_frameworks=all_frameworks,
+        all_tags=all_tags,
+        automated_evidence=automated_evidence,
+        manual_links=manual_links,
+        available_policies=available_policies,
+        available_services=available_services,
+        available_docs=available_docs,
+        available_links=available_links
     )
 
 

@@ -11,7 +11,7 @@ def test_list_frameworks(auth_client, app):
 
     response = auth_client.get('/frameworks/')
     assert response.status_code == 200
-    assert b"Marcos de Trabajo y Normativas" in response.data
+    assert b"Frameworks & Standards" in response.data
     # Comprueba que los frameworks del seeder (de 'seed-db-prod') están
     assert b"ISO27001:2022" in response.data
     assert b"ITIL v4" in response.data
@@ -29,7 +29,7 @@ def test_framework_access_as_user(user_client, app):
     # Los usuarios pueden ver la lista
     response = user_client.get('/frameworks/')
     assert response.status_code == 200
-    assert b"Marcos de Trabajo y Normativas" in response.data
+    assert b"Frameworks & Standards" in response.data
 
     # Los usuarios NO pueden crear
     response = user_client.get('/frameworks/new')
