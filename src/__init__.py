@@ -342,6 +342,47 @@ def create_app(test_config=None):
                 return dict(current_user=user, current_user_role=user.role, today=date.today())
         return dict(current_user=None, current_user_role=None, today=date.today())
 
+
+    # --- GLOBAL AUTHENTICATION GUARD (Security by Default) ---
+    @app.before_request
+    def require_login():
+        """
+        Global authentication wall: All routes require login by default.
+        Only whitelisted endpoints are accessible without authentication.
+        """
+        # Lista de endpoints que NO requieren autenticación (Whitelist)
+        public_endpoints = [
+            'main.login',
+            'main.google_callback',
+            'main.mfa_verify',  # Necesario para el flujo de 2FA
+            'static',
+            'favicon',
+            # API endpoints use token authentication, not session
+            'api-v1.AuthLogin',
+            'api-v1.AuthRefresh',
+        ]
+
+        # Permitir acceso si:
+        # 1. El usuario ya está autenticado (tiene user_id en sesión)
+        if 'user_id' in session:
+            return None
+
+        # 2. La petición es un recurso estático o endpoint None (404)
+        if request.endpoint is None:
+            return None
+            
+        # 3. La petición es a un endpoint público
+        if request.endpoint in public_endpoints:
+            return None
+            
+        # 4. Permitir endpoints de API (usan autenticación por token)
+        if request.endpoint and request.endpoint.startswith('api-v1.'):
+            return None
+
+        # Si llegamos aquí, bloquear y redirigir a login
+        # Guardar la URL solicitada para redirigir después del login
+        return redirect(url_for('main.login', next=request.url))
+
     # --- Force admin to change the default password ---
     from .routes.main import password_change_required
     @app.before_request
