@@ -20,3 +20,5 @@ from .risk_assessment import *
 from .communications import EmailTemplate, PackCommunication, ScheduledCommunication, Campaign
 from .notifications import NotificationEvent
 from .finance import FinanceSettings, ExchangeRate
+from .change import Change
+

@@ -129,6 +129,9 @@
                     <li class="nav-item"><a class="nav-link {% if request.blueprint == 'services' %}active{% endif %}"
                             href="{{ url_for('services.list_services') }}"><i class="fa-fw fas fa-server"></i>
                             Service Catalog</a></li>
+                    <li class="nav-item"><a class="nav-link {% if request.blueprint == 'changes' %}active{% endif %}"
+                            href="{{ url_for('changes.list_changes') }}"><i class="fa-fw fas fa-exchange-alt"></i>
+                            Change Management</a></li>
                     <li class="nav-item"><a
                             class="nav-link {% if request.endpoint.startswith('subscriptions.subscriptions') %}active{% endif %}"
                             href="{{ url_for('subscriptions.subscriptions') }}"><i class="fa-fw fas fa-cogs"></i>

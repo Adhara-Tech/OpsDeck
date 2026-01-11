@@ -143,3 +143,49 @@ def history(id):
     config = Configuration.query.get_or_404(id)
     versions = config.versions.order_by(ConfigurationVersion.version_number.desc()).all()
     return render_template('configuration/history.html', configuration=config, versions=versions)
+
+@configuration_bp.route('/<int:id>/versions')
+@login_required
+def get_versions(id):
+    """API endpoint to get versions for a configuration."""
+    config = Configuration.query.get_or_404(id)
+    versions = config.versions.order_by(ConfigurationVersion.version_number.desc()).all()
+    return jsonify([{
+        'id': v.id,
+        'version_number': v.version_number,
+        'commit_message': v.commit_message,
+        'created_at': v.created_at.strftime('%Y-%m-%d %H:%M')
+    } for v in versions])
+
+@configuration_bp.route('/<int:id>/versions/create_from_change', methods=['POST'])
+@login_required
+def create_version_from_change(id):
+    """API endpoint to create a new version (clone latest) directly from change request context."""
+    config = Configuration.query.get_or_404(id)
+    latest = config.latest_version
+    
+    # Calculate new version number
+    new_version_number = (latest.version_number + 1) if latest else 1
+    
+    # Clone data from latest version, or empty if none
+    data = latest.data if latest else {}
+    
+    # Custom commit message
+    commit_message = f"Branched from Change Request (v{new_version_number})"
+    
+    version = ConfigurationVersion(
+        configuration_id=config.id,
+        version_number=new_version_number,
+        data=data,
+        created_by_id=session['user_id'],
+        commit_message=commit_message
+    )
+    db.session.add(version)
+    db.session.commit()
+    
+    return jsonify({
+        'id': version.id,
+        'version_number': version.version_number,
+        'commit_message': version.commit_message,
+        'message': 'New version created successfully.'
+    })

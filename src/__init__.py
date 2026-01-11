@@ -285,6 +285,10 @@ def create_app(test_config=None):
     app.register_blueprint(leads_bp)
     app.register_blueprint(documentation_bp, url_prefix='/documentation')
     app.register_blueprint(frameworks_bp)
+    
+    from .routes.changes import changes_bp
+    app.register_blueprint(changes_bp, url_prefix='/changes')
+
     from .routes.audits import audits_bp
     app.register_blueprint(audits_bp)
     from .routes.services import services_bp

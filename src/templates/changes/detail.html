@@ -1,0 +1,409 @@
+{% extends "layout.html" %}
+
+{% block title %}Change #{{ change.id }} - OpsDeck{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <div>
+        <h1 class="h2">Change #{{ change.id }}: {{ change.title }}</h1>
+        <div class="mt-2">
+            <!-- Status Badge -->
+            {% if change.status == 'Draft' %}
+            <span class="badge bg-secondary fs-6">Draft</span>
+            {% elif change.status == 'Pending Approval' %}
+            <span class="badge bg-warning text-dark fs-6">Pending Approval</span>
+            {% elif change.status == 'Approved' %}
+            <span class="badge bg-info fs-6">Approved</span>
+            {% elif change.status == 'In Progress' %}
+            <span class="badge bg-primary fs-6">In Progress</span>
+            {% elif change.status == 'Completed' %}
+            <span class="badge bg-success fs-6">Completed</span>
+            {% elif change.status == 'Failed' %}
+            <span class="badge bg-danger fs-6">Failed</span>
+            {% elif change.status == 'Cancelled' %}
+            <span class="badge bg-secondary fs-6">Cancelled</span>
+            {% endif %}
+
+            <!-- Priority Badge -->
+            <span class="badge border border-secondary text-secondary ms-2">{{ change.priority }} Priority</span>
+
+            <!-- Type Badge -->
+            <span class="badge border border-info text-info ms-2">{{ change.change_type }}</span>
+        </div>
+    </div>
+
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <!-- ACTION BUTTONS -->
+        {% if change.status not in ['Completed', 'Cancelled', 'Failed'] %}
+        <a href="{{ url_for('changes.edit_change', id=change.id) }}" class="btn btn-secondary me-2">
+            <i class="fas fa-edit"></i> Edit
+        </a>
+        {% endif %}
+
+        {% if change.status == 'Pending Approval' %}
+        <form action="{{ url_for('changes.approve_change', id=change.id) }}" method="POST" class="d-inline"
+            data-confirm="Are you sure you want to approve this change?">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            {% if change.requester_id == current_user.id and current_user_role != 'admin' %}
+            <button class="btn btn-success me-2" disabled
+                title="Segregation of Duties: You cannot approve your own request.">
+                <i class="fas fa-check"></i> Approve
+            </button>
+            {% else %}
+            <button class="btn btn-success me-2">
+                <i class="fas fa-check"></i> Approve
+            </button>
+            {% endif %}
+        </form>
+        {% endif %}
+
+        {% if change.status == 'Approved' %}
+        <form action="{{ url_for('changes.start_change', id=change.id) }}" method="POST" class="d-inline"
+            data-confirm="Ready to start execution?">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-primary me-2">
+                <i class="fas fa-play"></i> Start Execution
+            </button>
+        </form>
+        {% endif %}
+
+        {% if change.status == 'In Progress' %}
+        <form action="{{ url_for('changes.complete_change', id=change.id) }}" method="POST" class="d-inline me-2"
+            data-confirm="Mark change as success?">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn btn-success">
+                <i class="fas fa-flag-checkered"></i> Complete
+            </button>
+        </form>
+        {% endif %}
+
+        {% if change.status in ['Draft', 'Pending Approval', 'Approved', 'In Progress'] %}
+        <div class="dropdown">
+            <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="moreActions"
+                data-bs-toggle="dropdown">
+                More
+            </button>
+            <div class="dropdown-menu dropdown-menu-end">
+                <form action="{{ url_for('changes.cancel_change', id=change.id) }}" method="POST"
+                    data-confirm="Cancel this change request?">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button class="dropdown-item text-danger">
+                        <i class="fas fa-ban"></i> Cancel Request
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- TIMELINE -->
+<div class="card shadow mb-4">
+    <div class="card-body">
+        <div class="position-relative m-4">
+            <div class="progress" style="height: 2px;">
+                <div class="progress-bar" role="progressbar" style="width: 
+                    {% if change.requires_approval %}
+                        {% if change.status == 'Draft' %}0%{% elif change.status == 'Pending Approval' %}25%{% elif change.status == 'Approved' %}50%{% elif change.status == 'In Progress' %}75%{% elif change.status == 'Completed' %}100%{% else %}0%{% endif %}
+                    {% else %}
+                        {# 4 Steps: Created(0) -> Approved(33) -> Executed(66) -> Closed(100) #}
+                        {% if change.status == 'Draft' %}0%{% elif change.status == 'Approved' %}33%{% elif change.status == 'In Progress' %}66%{% elif change.status == 'Completed' %}100%{% else %}0%{% endif %}
+                    {% endif %};" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+
+            <div class="d-flex justify-content-between position-absolute top-0 w-100 mt-n2">
+                <!-- Created -->
+                <div class="text-center">
+                    <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center"
+                        style="width: 20px; height: 20px;"></div>
+                    <small>Created</small>
+                </div>
+
+                {% if change.requires_approval %}
+                <!-- Pending (Only if required) -->
+                <div class="text-center">
+                    <div class="rounded-circle {% if change.status in ['Pending Approval', 'Approved', 'In Progress', 'Completed'] %}bg-primary{% else %}bg-secondary{% endif %} text-white d-flex align-items-center justify-content-center"
+                        style="width: 20px; height: 20px;"></div>
+                    <small>Pending</small>
+                </div>
+                {% endif %}
+
+                <!-- Approved -->
+                <div class="text-center">
+                    <div class="rounded-circle {% if change.status in ['Approved', 'In Progress', 'Completed'] %}bg-primary{% else %}bg-secondary{% endif %} text-white d-flex align-items-center justify-content-center"
+                        style="width: 20px; height: 20px;"></div>
+                    <small>Approved</small>
+                </div>
+                <!-- Executed -->
+                <div class="text-center">
+                    <div class="rounded-circle {% if change.status in ['In Progress', 'Completed'] %}bg-primary{% else %}bg-secondary{% endif %} text-white d-flex align-items-center justify-content-center"
+                        style="width: 20px; height: 20px;"></div>
+                    <small>Executed</small>
+                </div>
+                <!-- Closed -->
+                <div class="text-center">
+                    <div class="rounded-circle {% if change.status == 'Completed' %}bg-success{% else %}bg-secondary{% endif %} text-white d-flex align-items-center justify-content-center"
+                        style="width: 20px; height: 20px;"></div>
+                    <small>Closed</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- LEFT COLUMN: Main Content -->
+    <div class="col-lg-8">
+        <ul class="nav nav-tabs mb-3" id="detailTabs" role="tablist">
+            <li class="nav-item">
+                <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview"
+                    type="button">Overview</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" id="plan-tab" data-bs-toggle="tab" data-bs-target="#plan"
+                    type="button">Implementation Plan</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link text-danger" id="rollback-tab" data-bs-toggle="tab" data-bs-target="#rollback"
+                    type="button">Rollback Plan</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link text-info" id="test-tab" data-bs-toggle="tab" data-bs-target="#test"
+                    type="button">Test Plan</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" id="evidence-tab" data-bs-toggle="tab" data-bs-target="#evidence"
+                    type="button">Evidence</button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="detailTabsContent">
+            <!-- OVERVIEW -->
+            <div class="tab-pane fade show active" id="overview" role="tabpanel">
+                <div class="card shadow mb-4">
+                    <div class="card-body">
+                        <h5>Description</h5>
+                        {% if change.description %}
+                        <div class="markdown-body p-3 bg-light rounded">
+                            {{ change.description | markdown | safe }}
+                        </div>
+                        {% else %}
+                        <p class="text-muted">No description provided.</p>
+                        {% endif %}
+
+                        <hr>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>Target System</h6>
+                                {% if change.service %}
+                                <a href="{{ url_for('services.detail', id=change.service_id) }}"><i
+                                        class="fas fa-server"></i> {{ change.service.name }}</a>
+                                {% elif change.asset %}
+                                <a href="{{ url_for('assets.asset_detail', id=change.asset_id) }}"><i
+                                        class="fas fa-laptop"></i> {{ change.asset.name }}</a>
+                                {% elif change.software %}
+                                <a href="{{ url_for('software.detail', id=change.software_id) }}"><i
+                                        class="fas fa-compact-disc"></i> {{ change.software.name }}</a>
+                                {% elif change.configuration %}
+                                <a href="{{ url_for('configuration.detail', id=change.configuration_id) }}"><i
+                                        class="fas fa-cogs"></i> {{ change.configuration.name }}</a>
+                                {% if change.configuration_version %}
+                                <div class="small text-muted mt-1">
+                                    <i class="fas fa-code-branch"></i> Version {{
+                                    change.configuration_version.version_number }}
+                                    (ID: {{ change.configuration_version.id }})
+                                </div>
+                                {% endif %}
+                                {% else %}
+                                <span class="text-muted">None specified</span>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Risk Assessment</h6>
+                                {% if change.risk_impact == 'High' %}
+                                <span class="badg bg-danger">High Risk</span>
+                                {% elif change.risk_impact == 'Medium' %}
+                                <span class="badge bg-warning text-dark">Medium Risk</span>
+                                {% else %}
+                                <span class="badge bg-success">Low Risk</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PLANS (Markdown Rendered) -->
+            <div class="tab-pane fade" id="plan" role="tabpanel">
+                <div class="card shadow mb-4 border-left-primary">
+                    <div class="card-body">
+                        {% if change.implementation_plan %}
+                        {{ change.implementation_plan | markdown | safe }}
+                        {% else %}
+                        <p class="text-muted">No implementation plan defined.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="rollback" role="tabpanel">
+                <div class="card shadow mb-4 border-left-danger">
+                    <div class="card-body">
+                        {% if change.rollback_plan %}
+                        {{ change.rollback_plan | markdown | safe }}
+                        {% else %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle"></i> No rollback plan defined!
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="test" role="tabpanel">
+                <div class="card shadow mb-4 border-left-info">
+                    <div class="card-body">
+                        {% if change.test_plan %}
+                        {{ change.test_plan | markdown | safe }}
+                        {% else %}
+                        <p class="text-muted">No test plan defined.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- EVIDENCE -->
+            <div class="tab-pane fade" id="evidence" role="tabpanel">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                        <h6 class="m-0 font-weight-bold text-primary">Attachments & Logs</h6>
+                    </div>
+                    <div class="card-body">
+                        {% if change.attachments %}
+                        <div class="list-group mb-3">
+                            {% for att in change.attachments %}
+                            <a href="{{ url_for('attachments.download_file', filename=att.secure_filename) }}"
+                                class="list-group-item list-group-item-action">
+                                <i class="fas fa-paperclip me-2"></i> {{ att.filename }}
+                                <span class="float-end text-muted small">{{ att.created_at.strftime('%Y-%m-%d
+                                    %H:%M')
+                                    }}</span>
+                            </a>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <p class="text-muted text-center py-3">No evidence uploaded yet.</p>
+                        {% endif %}
+
+                        <hr>
+                        <h6>Upload Evidence</h6>
+                        <form action="{{ url_for('changes.add_evidence', id=change.id) }}" method="POST"
+                            enctype="multipart/form-data">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <div class="input-group">
+                                <input type="file" class="form-control" name="file" required>
+                                <button class="btn btn-outline-primary" type="submit">Upload</button>
+                            </div>
+                            <small class="text-muted">Upload logs, screenshots, or signed approval docs.</small>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT COLUMN: Metadata sidebar -->
+    <div class="col-lg-4">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Details</h6>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm table-borderless">
+                    <tr>
+                        <th class="ps-0">Requester:</th>
+                        <td class="text-end">{{ change.requester.name }}</td>
+                    </tr>
+                    <tr>
+                        <th class="ps-0">Assignee:</th>
+                        <td class="text-end">
+                            {% if change.assignee %}
+                            {{ change.assignee.name }}
+                            {% else %}
+                            <span class="text-muted">Unassigned</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th class="ps-0 pt-3">Approved By:</th>
+                        <td class="text-end pt-3">
+                            {% if change.approved_by %}
+                            {{ change.approved_by.name }}<br>
+                            <small class="text-muted">{{ change.approved_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+                <hr>
+                <table class="table table-sm table-borderless">
+                    <tr>
+                        <th class="ps-0">Scheduled:</th>
+                        <td class="text-end">
+                            {% if change.scheduled_start %}
+                            {{ change.scheduled_start.strftime('%d/%m %H:%M') }} <br>to<br>
+                            {{ change.scheduled_end.strftime('%d/%m %H:%M') }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th class="ps-0">Est. Duration:</th>
+                        <td class="text-end">{{ change.duration_display }}</td>
+                    </tr>
+                </table>
+                <hr>
+                <table class="table table-sm table-borderless mb-0">
+                    <tr>
+                        <th class="ps-0">Executed At:</th>
+                        <td class="text-end">
+                            {% if change.executed_at %}
+                            {{ change.executed_at.strftime('%Y-%m-%d %H:%M') }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th class="ps-0">Closed At:</th>
+                        <td class="text-end">
+                            {% if change.closed_at %}
+                            {{ change.closed_at.strftime('%Y-%m-%d %H:%M') }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- TAGS -->
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Tags</h6>
+            </div>
+            <div class="card-body">
+                {% for tag in change.tags %}
+                <span class="badge bg-secondary me-1">{{ tag.name }}</span>
+                {% else %}
+                <span class="text-muted">No tags.</span>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
