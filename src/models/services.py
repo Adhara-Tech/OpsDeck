@@ -171,9 +171,37 @@ class BusinessService(db.Model):
                             'ref': linked_obj
                         })
         
+        
         return access_list
 
+    def get_tickets(self):
+        """
+        Aggregates all related tickets:
+        - Changes
+        Returns a sorted list (by date desc) of dicts.
+        """
+        tickets = []
+        
+        # 1. Changes
+        for change in self.changes:
+            tickets.append({
+                'type': 'Change',
+                'category': change.change_type,
+                'title': change.title,
+                'status': change.status,
+                'date': change.created_at,
+                'url': f"/changes/{change.id}",
+                'tags': [t.name for t in change.tags],
+                'id': change.id,
+                'assignee': change.assignee.name if change.assignee else None
+            })
+            
+        # Sort by date descending
+        tickets.sort(key=lambda x: x['date'], reverse=True)
+        return tickets
+
 class ServiceComponent(db.Model):
+
     """
     Polymorphic link to infrastructure components (Assets, Software, etc.)
     """

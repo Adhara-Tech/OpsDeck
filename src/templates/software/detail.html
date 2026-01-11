@@ -1,6 +1,7 @@
 {% extends "layout.html" %}
 {% from "components/compliance_link_macro.html" import compliance_links %}
 {% from "components/credential_list_macro.html" import credential_list %}
+{% from "components/ticket_list.html" import ticket_list %}
 {% block title %}{{ software.name }} - {{ super() }}{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -8,96 +9,126 @@
     <a href="{{ url_for('software.edit_software', id=software.id) }}" class="btn btn-secondary">Edit</a>
 </div>
 
-<div class="card mb-4">
-    <div class="card-header">Details</div>
-    <div class="card-body">
-        <div class="row">
-            <div class="col-md-6">
-                <p><strong>Category:</strong> {{ software.category or 'N/A' }}</p>
-                <p><strong>Owner:</strong> {{ software.owner.name if software.owner else 'N/A' }} ({{
-                    software.owner_type }})</p>
-                <p><strong>Supplier:</strong> {{ software.supplier.name if software.supplier else 'N/A' }}</p>
+
+<ul class="nav nav-tabs mb-4" id="softwareTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button"
+            role="tab">Overview</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tickets-tab" data-bs-toggle="tab" data-bs-target="#tickets" type="button"
+            role="tab">Tickets</button>
+    </li>
+</ul>
+
+<div class="tab-content" id="softwareTabsContent">
+    <div class="tab-pane fade show active" id="overview" role="tabpanel">
+        <div class="card mb-4">
+            <div class="card-header">Details</div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Category:</strong> {{ software.category or 'N/A' }}</p>
+                        <p><strong>Owner:</strong> {{ software.owner.name if software.owner else 'N/A' }} ({{
+                            software.owner_type }})</p>
+                        <p><strong>Supplier:</strong> {{ software.supplier.name if software.supplier else 'N/A' }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>ISO 27001 Controls:</strong> {{ software.iso_27001_control_references or 'N/A' }}</p>
+                    </div>
+                </div>
+                <hr>
+                <p><strong>Description:</strong> {{ software.description or 'N/A' }}</p>
             </div>
-            <div class="col-md-6">
-                <p><strong>ISO 27001 Controls:</strong> {{ software.iso_27001_control_references or 'N/A' }}</p>
+        </div>
+
+        {{ credential_list(software.credentials) }}
+
+        <div class="card mt-4 mb-4">
+            <div class="card-header">
+                <i class="fas fa-cogs"></i> Associated Subscriptions ({{ software.subscriptions.count() }})
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped table-sm">
+                        <thead>
+                            <tr>
+                                <th>Subscription Name</th>
+                                <th>Supplier</th>
+                                <th>Cost (EUR)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sub in software.subscriptions %}
+                            <tr>
+                                <td><a href="{{ url_for('subscriptions.subscription_detail', id=sub.id) }}">{{ sub.name
+                                        }}</a>
+                                </td>
+                                <td>{{ sub.supplier.name }}</td>
+                                <td>€{{ "%.2f"|format(sub.cost_eur) }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="3" class="text-center">No subscriptions associated with this software.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
-        <hr>
-        <p><strong>Description:</strong> {{ software.description or 'N/A' }}</p>
-    </div>
-</div>
 
-{{ credential_list(software.credentials) }}
+        <div class="card mt-4">
+            <div class="card-header">
+                <i class="fas fa-id-badge"></i> All Licenses ({{ combined_licenses|length }})
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped table-sm">
+                        <thead>
+                            <tr>
+                                <th>License Name</th>
+                                <th>User</th>
+                                <th>Status</th>
+                                <th>Origin</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in combined_licenses %}
+                            <tr>
+                                <td><a href="{{ url_for('licenses.detail', id=item.license.id) }}">{{ item.license.name
+                                        }}</a>
+                                </td>
+                                <td>{{ item.license.user.name if item.license.user else 'Unassigned' }}</td>
+                                <td><span class="badge bg-secondary">{{ item.license.status }}</span></td>
+                                <td>{{ item.origin }}</td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center">No licenses found for this software or its
+                                    subscriptions.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
 
-<div class="card mt-4 mb-4">
-    <div class="card-header">
-        <i class="fas fa-cogs"></i> Associated Subscriptions ({{ software.subscriptions.count() }})
+        {{ compliance_links(software, 'Software') }}
     </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-striped table-sm">
-                <thead>
-                    <tr>
-                        <th>Subscription Name</th>
-                        <th>Supplier</th>
-                        <th>Cost (EUR)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for sub in software.subscriptions %}
-                    <tr>
-                        <td><a href="{{ url_for('subscriptions.subscription_detail', id=sub.id) }}">{{ sub.name }}</a>
-                        </td>
-                        <td>{{ sub.supplier.name }}</td>
-                        <td>€{{ "%.2f"|format(sub.cost_eur) }}</td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="3" class="text-center">No subscriptions associated with this software.</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+
+    <div class="tab-pane fade" id="tickets" role="tabpanel">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary">Associated Tickets</h6>
+            </div>
+            <div class="card-body">
+                {{ ticket_list(software.get_tickets()) }}
+            </div>
         </div>
     </div>
 </div>
-
-<div class="card mt-4">
-    <div class="card-header">
-        <i class="fas fa-id-badge"></i> All Licenses ({{ combined_licenses|length }})
-    </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-striped table-sm">
-                <thead>
-                    <tr>
-                        <th>License Name</th>
-                        <th>User</th>
-                        <th>Status</th>
-                        <th>Origin</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in combined_licenses %}
-                    <tr>
-                        <td><a href="{{ url_for('licenses.detail', id=item.license.id) }}">{{ item.license.name }}</a>
-                        </td>
-                        <td>{{ item.license.user.name if item.license.user else 'Unassigned' }}</td>
-                        <td><span class="badge bg-secondary">{{ item.license.status }}</span></td>
-                        <td>{{ item.origin }}</td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="4" class="text-center">No licenses found for this software or its subscriptions.
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
-{{ compliance_links(software, 'Software') }}
 
 {% endblock %}

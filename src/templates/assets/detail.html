@@ -1,6 +1,7 @@
 {% extends "layout.html" %}
 {% from "components/compliance_link_macro.html" import compliance_links %}
 {% from "components/credential_list_macro.html" import credential_list %}
+{% from "components/ticket_list.html" import ticket_list %}
 
 {% block title %}{{ asset.name }} - {{ super() }}{% endblock %}
 
@@ -50,225 +51,237 @@
     </div>
 </div>
 
-<div class="card mb-4">
-    <div class="card-header">Asset Details</div>
-    <div class="card-body">
-        <div class="row">
-            <div class="col-md-6">
-                <p><strong>Model:</strong> {{ asset.model or 'N/A' }}</p>
-                <p><strong>Brand:</strong> {{ asset.brand or 'N/A' }}</p>
-                <p><strong>Serial Number:</strong> {{ asset.serial_number or 'N/A' }}</p>
-                <p><strong>Status:</strong>
-                    <span class="badge bg-info">{{ asset.status }}</span>
-                    {% if asset.disposal_record %}
-                    (<a href="{{ url_for('disposal.disposal_detail', id=asset.disposal_record.id) }}">View Disposal
-                        Record</a>)
-                    {% endif %}
-                </p>
-            </div>
-            <div class="col-md-6">
-                <p><strong>Assigned To:</strong>
-                    {% if asset.user %}
-                    <a href="{{ url_for('users.user_detail', id=asset.user.id) }}">{{ asset.user.name }}</a>
-                    {% else %}
-                    <span class="text-muted">Not Assigned</span>
-                    {% endif %}
-                </p>
-                <p><strong>Location:</strong>
-                    <span class="badge {{ 'bg-primary' if asset.location else 'bg-info' }}">
-                        {{ asset.location_display }}
-                    </span>
-                </p>
-                <p><strong>Supplier:</strong> {{ asset.supplier.name if asset.supplier else 'N/A' }}</p>
-                <p><strong>Cost:</strong> {{ asset.currency }} {{ "%.2f"|format(asset.cost) if asset.cost is not none
-                    else 'N/A' }}</p>
-                <p>
-                    <strong>Warranty End:</strong>
-                    {% if asset.warranty_end_date %}
-                    {% if asset.status not in ['Retired', 'Disposed'] %}
-                    {% if asset.warranty_end_date < today %} <span class="text-danger fw-bold">
-                        {{ asset.warranty_end_date.strftime('%Y-%m-%d') }}
-                        <i class="fas fa-times-circle ms-1" title="Warranty Expired"></i>
-                        <span class="badge bg-danger ms-1">Expired</span>
-                        </span>
-                        {% elif (asset.warranty_end_date - today).days <= 30 %} <span class="text-warning fw-bold">
-                            {{ asset.warranty_end_date.strftime('%Y-%m-%d') }}
-                            <i class="fas fa-clock ms-1" title="Expiring Soon"></i>
-                            <span class="badge bg-warning text-dark ms-1">Expiring Soon</span>
+
+<ul class="nav nav-tabs mb-4" id="assetTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button"
+            role="tab" aria-controls="overview" aria-selected="true">Overview</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tickets-tab" data-bs-toggle="tab" data-bs-target="#tickets" type="button"
+            role="tab" aria-controls="tickets" aria-selected="false">Tickets</button>
+    </li>
+</ul>
+
+<div class="tab-content" id="assetTabsContent">
+    <div class="tab-pane fade show active" id="overview" role="tabpanel" aria-labelledby="overview-tab">
+        <div class="card mb-4">
+            <div class="card-header">Asset Details</div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>Model:</strong> {{ asset.model or 'N/A' }}</p>
+                        <p><strong>Brand:</strong> {{ asset.brand or 'N/A' }}</p>
+                        <p><strong>Serial Number:</strong> {{ asset.serial_number or 'N/A' }}</p>
+                        <p><strong>Status:</strong>
+                            <span class="badge bg-info">{{ asset.status }}</span>
+                            {% if asset.disposal_record %}
+                            (<a href="{{ url_for('disposal.disposal_detail', id=asset.disposal_record.id) }}">View
+                                Disposal
+                                Record</a>)
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Assigned To:</strong>
+                            {% if asset.user %}
+                            <a href="{{ url_for('users.user_detail', id=asset.user.id) }}">{{ asset.user.name }}</a>
+                            {% else %}
+                            <span class="text-muted">Not Assigned</span>
+                            {% endif %}
+                        </p>
+                        <p><strong>Location:</strong>
+                            <span class="badge {{ 'bg-primary' if asset.location else 'bg-info' }}">
+                                {{ asset.location_display }}
                             </span>
-                            {% else %}
-                            {{ asset.warranty_end_date.strftime('%Y-%m-%d') }}
-                            {% endif %}
-                            {% else %}
-                            {{ asset.warranty_end_date.strftime('%Y-%m-%d') }}
-                            {% endif %}
+                        </p>
+                        <p><strong>Supplier:</strong> {{ asset.supplier.name if asset.supplier else 'N/A' }}</p>
+                        <p><strong>Cost:</strong> {{ asset.currency }} {{ "%.2f"|format(asset.cost) if asset.cost is not
+                            none
+                            else 'N/A' }}</p>
+                        <p>
+                            <strong>Warranty End:</strong>
+                            {% if asset.warranty_end_date %}
+                            {% if asset.status not in ['Retired', 'Disposed'] %}
+                            {% if asset.warranty_end_date < today %} <span class="text-danger fw-bold">
+                                {{ asset.warranty_end_date.strftime('%Y-%m-%d') }}
+                                <i class="fas fa-times-circle ms-1" title="Warranty Expired"></i>
+                                <span class="badge bg-danger ms-1">Expired</span>
+                                </span>
+                                {% elif (asset.warranty_end_date - today).days <= 30 %} <span
+                                    class="text-warning fw-bold">
+                                    {{ asset.warranty_end_date.strftime('%Y-%m-%d') }}
+                                    <i class="fas fa-clock ms-1" title="Expiring Soon"></i>
+                                    <span class="badge bg-warning text-dark ms-1">Expiring Soon</span>
+                                    </span>
+                                    {% else %}
+                                    {{ asset.warranty_end_date.strftime('%Y-%m-%d') }}
+                                    {% endif %}
+                                    {% else %}
+                                    {{ asset.warranty_end_date.strftime('%Y-%m-%d') }}
+                                    {% endif %}
+                                    {% else %}
+                                    N/A
+                                    {% endif %}
+                        </p>
+                        <p><strong>Associated Purchase:</strong>
+                            {% if asset.purchase %}
+                            <a href="{{ url_for('purchases.purchase_detail', id=asset.purchase.id) }}">{{
+                                asset.purchase.description }}</a>
                             {% else %}
                             N/A
                             {% endif %}
-                </p>
-                <p><strong>Associated Purchase:</strong>
-                    {% if asset.purchase %}
-                    <a href="{{ url_for('purchases.purchase_detail', id=asset.purchase.id) }}">{{
-                        asset.purchase.description }}</a>
-                    {% else %}
-                    N/A
-                    {% endif %}
-                </p>
-            </div>
-        </div>
-        {% if asset.comments %}
-        <hr>
-        <p class="mb-0"><strong>Comments:</strong></p>
-        <p>{{ asset.comments }}</p>
-        {% endif %}
-    </div>
-</div>
-
-{{ credential_list(asset.credentials) }}
-
-<!-- Risk Profile Card -->
-{% set risks = asset.linked_risks %}
-<div class="card mb-4">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <span><i class="fas fa-shield-alt"></i> Risk Profile</span>
-        {% if asset.max_risk_score > 0 %}
-        <span
-            class="badge {% if asset.max_risk_score > 15 %}bg-danger{% elif asset.max_risk_score > 8 %}bg-warning text-dark{% else %}bg-success{% endif %}">
-            Max Score: {{ asset.max_risk_score }}
-        </span>
-        {% endif %}
-    </div>
-    <div class="card-body p-0">
-        {% if risks %}
-        <ul class="list-group list-group-flush">
-            {% for risk in risks %}
-            <li class="list-group-item d-flex justify-content-between align-items-center">
-                <div>
-                    <a href="{{ url_for('risk.detail', id=risk.id) }}" class="fw-bold">
-                        {{ risk.risk_description|truncate(60) }}
-                    </a>
-                    <div class="small text-muted">
-                        {{ risk.status }} | {{ risk.treatment_strategy or 'No strategy' }}
+                        </p>
                     </div>
                 </div>
-                <span
-                    class="badge {% if risk.residual_score > 15 %}bg-danger{% elif risk.residual_score > 8 %}bg-warning text-dark{% else %}bg-success{% endif %}">
-                    {{ risk.residual_score }}
-                </span>
-            </li>
-            {% endfor %}
-        </ul>
-        {% else %}
-        <div class="p-3 text-muted">
-            <i class="fas fa-check-circle text-success"></i> No active risks linked to this asset.
-        </div>
-        {% endif %}
-    </div>
-</div>
-
-<div class="card mt-4">
-    <div class="card-header"><i class="fas fa-retweet"></i> Assignment History</div>
-    <div class="card-body">
-        <table class="table table-striped">
-            <thead>
-                <tr>
-                    <th>User</th>
-                    <th>Checked Out</th>
-                    <th>Checked In</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for entry in asset.assignments %}
-                <tr>
-                    <td>{{ entry.user.name if entry.user else 'N/A' }}</td>
-                    <td>{{ entry.checked_out_date.strftime('%Y-%m-%d %H:%M') }}</td>
-                    <td>{{ entry.checked_in_date.strftime('%Y-%m-%d %H:%M') if entry.checked_in_date else 'Currently
-                        Checked Out' }}</td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="3" class="text-center">No assignment history found.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-
-
-<div class="card mt-4">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <span><i class="fas fa-history"></i> Asset History</span>
-        <a href="{{ url_for('assets.asset_history', id=asset.id) }}" class="btn btn-sm btn-outline-primary">
-            View Full History <i class="fas fa-external-link-alt"></i>
-        </a>
-    </div>
-</div>
-
-<div class="card mt-4">
-    <div class="card-header"><i class="fas fa-tools"></i> Maintenance History</div>
-    <div class="card-body">
-        <table class="table table-striped">
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Type</th>
-                    <th>Description</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for log in asset.maintenance_logs %}
-                <tr>
-                    <td>{{ log.event_date.strftime('%Y-%m-%d') }}</td>
-                    <td>{{ log.event_type }}</td>
-                    <td>{{ log.description|truncate(70) }}</td>
-                    <td><span class="badge bg-info">{{ log.status }}</span></td>
-                    <td>
-                        <a href="{{ url_for('maintenance.edit_log', id=log.id) }}"
-                            class="btn btn-sm btn-outline-secondary">Details</a>
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="5" class="text-center">No maintenance history found for this asset.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<div class="card mt-4">
-    <div class="card-header"><i class="fas fa-paperclip"></i> Attachments</div>
-    <ul class="list-group list-group-flush">
-        {% for att in asset.attachments %}
-        <li class="list-group-item d-flex justify-content-between align-items-center">
-            <a href="{{ url_for('attachments.download_file', attachment_id=att.id) }}">{{ att.filename }}</a>
-            <form action="{{ url_for('attachments.delete_attachment', attachment_id=att.id) }}" method="POST"
-                data-confirm="Are you sure?">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
-            </form>
-        </li>
-        {% else %}
-        <li class="list-group-item text-muted">No files attached.</li>
-        {% endfor %}
-    </ul>
-    <div class="card-body">
-        <form action="{{ url_for('attachments.upload_file') }}" method="POST" enctype="multipart/form-data">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="asset_id" value="{{ asset.id }}">
-            <div class="input-group">
-                <input type="file" class="form-control" name="file" required>
-                <button class="btn btn-outline-primary" type="submit">Upload</button>
+                {% if asset.comments %}
+                <hr>
+                <p class="mb-0"><strong>Comments:</strong></p>
+                <p>{{ asset.comments }}</p>
+                {% endif %}
             </div>
-        </form>
+        </div>
+
+        {{ credential_list(asset.credentials) }}
+
+        <!-- Risk Profile Card -->
+        {% set risks = asset.linked_risks %}
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-shield-alt"></i> Risk Profile</span>
+                {% if asset.max_risk_score > 0 %}
+                <span
+                    class="badge {% if asset.max_risk_score > 15 %}bg-danger{% elif asset.max_risk_score > 8 %}bg-warning text-dark{% else %}bg-success{% endif %}">
+                    Max Score: {{ asset.max_risk_score }}
+                </span>
+                {% endif %}
+            </div>
+            <div class="card-body p-0">
+                {% if risks %}
+                <ul class="list-group list-group-flush">
+                    {% for risk in risks %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <a href="{{ url_for('risk.detail', id=risk.id) }}" class="fw-bold">
+                                {{ risk.risk_description|truncate(60) }}
+                            </a>
+                            <div class="small text-muted">
+                                {{ risk.status }} | {{ risk.treatment_strategy or 'No strategy' }}
+                            </div>
+                        </div>
+                        <span
+                            class="badge {% if risk.residual_score > 15 %}bg-danger{% elif risk.residual_score > 8 %}bg-warning text-dark{% else %}bg-success{% endif %}">
+                            {{ risk.residual_score }}
+                        </span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <div class="p-3 text-muted">
+                    <i class="fas fa-check-circle text-success"></i> No active risks linked to this asset.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header"><i class="fas fa-retweet"></i> Assignment History</div>
+            <div class="card-body">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Checked Out</th>
+                            <th>Checked In</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in asset.assignments %}
+                        <tr>
+                            <td>{{ entry.user.name if entry.user else 'N/A' }}</td>
+                            <td>{{ entry.checked_out_date.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>{{ entry.checked_in_date.strftime('%Y-%m-%d %H:%M') if entry.checked_in_date else
+                                'Currently
+                                Checked Out' }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="3" class="text-center">No assignment history found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+
+        <div class="card mt-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="fas fa-history"></i> Asset History</span>
+                <a href="{{ url_for('assets.asset_history', id=asset.id) }}" class="btn btn-sm btn-outline-primary">
+                    View Full History <i class="fas fa-external-link-alt"></i>
+                </a>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header"><i class="fas fa-paperclip"></i> Attachments</div>
+            <ul class="list-group list-group-flush">
+                {% for att in asset.attachments %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <a href="{{ url_for('attachments.download_file', attachment_id=att.id) }}">{{ att.filename }}</a>
+                    <form action="{{ url_for('attachments.delete_attachment', attachment_id=att.id) }}" method="POST"
+                        data-confirm="Are you sure?">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger"><i
+                                class="fas fa-trash"></i></button>
+                    </form>
+                </li>
+                {% else %}
+                <li class="list-group-item text-muted">No files attached.</li>
+                {% endfor %}
+            </ul>
+            <div class="card-body">
+                <form action="{{ url_for('attachments.upload_file') }}" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="asset_id" value="{{ asset.id }}">
+                    <div class="input-group">
+                        <input type="file" class="form-control" name="file" required>
+                        <button class="btn btn-outline-primary" type="submit">Upload</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {{ compliance_links(asset, 'Asset') }}
+    </div>
+
+    <div class="tab-pane fade" id="tickets" role="tabpanel" aria-labelledby="tickets-tab">
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+                <h6 class="m-0 font-weight-bold text-primary">Associated Tickets</h6>
+                <div class="dropdown no-arrow">
+                    <a class="dropdown-toggle" href="#" role="button" id="dropdownMenuLink" data-bs-toggle="dropdown"
+                        aria-haspopup="true" aria-expanded="false">
+                        <i class="fas fa-ellipsis-v fa-sm fa-fw text-gray-400"></i>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-right shadow animated--fade-in"
+                        aria-labelledby="dropdownMenuLink">
+                        <div class="dropdown-header">Actions:</div>
+                        <a class="dropdown-item" href="{{ url_for('maintenance.new_log', asset_id=asset.id) }}">New
+                            Maintenance Log</a>
+                        <a class="dropdown-item"
+                            href="{{ url_for('maintenance.new_log', asset_id=asset.id, event_type='Data Erasure') }}">Log
+                            Data Erasure</a>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                {{ ticket_list(asset.get_tickets()) }}
+            </div>
+        </div>
     </div>
 </div>
-
-{{ compliance_links(asset, 'Asset') }}
 
 <!-- Check-in Modal -->
 {% if asset.user_id %}

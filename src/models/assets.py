@@ -127,7 +127,74 @@ class Asset(db.Model):
         else:
             return "Unassigned / Stock"
 
+    def get_tickets(self):
+        """
+        Aggregates all related tickets:
+        - Changes
+        - Maintenance Logs
+        - Disposal Record
+        Returns a sorted list (by date desc) of dicts:
+        {
+            'type': 'Change'|'Maintenance'|'Disposal',
+            'title': str,
+            'status': str,
+            'date': datetime,
+            'url': str,
+            'tags': list[str] (names),
+            'obj': object (optional)
+        }
+        """
+        tickets = []
+        
+        # 1. Changes
+        for change in self.changes:
+            tickets.append({
+                'type': 'Change',
+                'category': change.change_type, # Standard, Normal, Emergency
+                'title': change.title,
+                'status': change.status,
+                'date': change.created_at,
+                'url': f"/changes/{change.id}",
+                'tags': [t.name for t in change.tags],
+                'id': change.id,
+                'assignee': change.assignee.name if change.assignee else None
+            })
+
+        # 2. Maintenance Logs
+        for log in self.maintenance_logs:
+            tickets.append({
+                'type': 'Maintenance',
+                'category': log.event_type, # Repair, Planned, etc.
+                'title': log.description,
+                'status': log.status,
+                'date': datetime.combine(log.event_date, datetime.min.time()),
+                'url': f"/maintenance/log/{log.id}/edit",
+                'tags': [], 
+                'id': log.id,
+                'assignee': log.assigned_to.name if log.assigned_to else None
+            })
+
+        # 3. Disposal Record
+        if self.disposal_record:
+            rec = self.disposal_record
+            tickets.append({
+                'type': 'Disposal',
+                'category': rec.disposal_method,
+                'title': f"Disposal: {rec.disposal_method}",
+                'status': 'Closed',
+                'date': datetime.combine(rec.disposal_date, datetime.min.time()),
+                'url': f"/disposal/{rec.id}",
+                'tags': [],
+                'id': rec.id,
+                'assignee': None
+            })
+            
+        # Sort by date descending
+        tickets.sort(key=lambda x: x['date'], reverse=True)
+        return tickets
+
 class AssetAssignment(db.Model):
+
     id = db.Column(db.Integer, primary_key=True)
     asset_id = db.Column(db.Integer, db.ForeignKey('asset.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True) # Can be unassigned
@@ -307,7 +374,33 @@ class Software(db.Model):
             return Group.query.get(self.owner_id)
         return None
 
+    def get_tickets(self):
+        """
+        Aggregates all related tickets:
+        - Changes
+        Returns a sorted list (by date desc) of dicts.
+        """
+        tickets = []
+        
+        # 1. Changes
+        for change in self.changes:
+            tickets.append({
+                'type': 'Change',
+                'category': change.change_type,
+                'title': change.title,
+                'status': change.status,
+                'date': change.created_at,
+                'url': f"/changes/{change.id}",
+                'tags': [t.name for t in change.tags],
+                'id': change.id
+            })
+            
+        # Sort by date descending
+        tickets.sort(key=lambda x: x['date'], reverse=True)
+        return tickets
+
 class MaintenanceLog(db.Model):
+
     id = db.Column(db.Integer, primary_key=True)
     event_type = db.Column(db.String(100), nullable=False) # e.g., Repair, Planned Maintenance, Unplanned Maintenance
     description = db.Column(db.Text, nullable=False)

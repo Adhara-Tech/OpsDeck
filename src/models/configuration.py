@@ -23,7 +23,56 @@ class Configuration(db.Model):
     def latest_version(self):
         return self.versions.order_by(ConfigurationVersion.version_number.desc()).first()
 
+    def get_tickets(self):
+        """
+        Aggregates all related tickets:
+        - Changes
+        Returns a sorted list (by date desc) of dicts.
+        """
+        tickets = []
+        
+        # 1. Changes
+        for change in self.changes:
+            tickets.append({
+                'type': 'Change',
+                'category': change.change_type,
+                'title': change.title,
+                'status': change.status,
+                'date': change.created_at,
+                'url': f"/changes/{change.id}",
+                'tags': [t.name for t in change.tags],
+                'id': change.id,
+                'assignee': change.assignee.name if change.assignee else None
+            })
+        
+        # Also include changes linked to versions?
+        # The requirement says: "For CMBD, the list should be shown at the container level, not in the individual versions."
+        # This implies we should aggregate changes from versions too?
+        # "The list should be shown at the container level, not in the individual versions."
+        # Use case: I want to see all changes affecting this config, regardless of version.
+        
+        for version in self.versions:
+            for change in version.changes:
+                # Avoid duplicates if change is linked to both (unlikely but possible)
+                if not any(t['id'] == change.id for t in tickets):
+                    tickets.append({
+                        'type': 'Change',
+                        'category': change.change_type,
+                        'title': change.title,
+                        'status': change.status,
+                        'date': change.created_at,
+                        'url': f"/changes/{change.id}",
+                        'tags': [t.name for t in change.tags],
+                        'id': change.id,
+                        'assignee': change.assignee.name if change.assignee else None
+                    })
+            
+        # Sort by date descending
+        tickets.sort(key=lambda x: x['date'], reverse=True)
+        return tickets
+
 class ConfigurationVersion(db.Model):
+
     id = db.Column(db.Integer, primary_key=True)
     configuration_id = db.Column(db.Integer, db.ForeignKey('configuration.id'), nullable=False)
     version_number = db.Column(db.Integer, nullable=False)

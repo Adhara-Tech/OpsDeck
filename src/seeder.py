@@ -1,13 +1,13 @@
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from faker import Faker
 from .models import (
     db, Supplier, User, Location, PaymentMethod, Tag, Budget, Purchase,
     Asset, Peripheral, Subscription, Risk, SecurityIncident,
-    MaintenanceLog, DisposalRecord,
+    MaintenanceLog, DisposalRecord, AssetAssignment,
     BCDRPlan, BCDRTestLog, Course, CourseAssignment, Group, Policy, PolicyVersion, Opportunity,
-    Documentation, Link, Software, License, Framework, FrameworkControl, ComplianceLink,
-    BusinessService, ComplianceAudit, Contact, RiskAssessment,
-    EmailTemplate, NotificationEvent,
+    Documentation, Link, Software, License, Framework, FrameworkControl, ComplianceLink, ComplianceRule,
+    BusinessService, ServiceComponent, ComplianceAudit, Contact, RiskAssessment,
+    EmailTemplate, NotificationEvent, Change,
     SecurityActivity, ActivityExecution
 )
 from . import create_app
@@ -357,6 +357,38 @@ def seed_data(app=None):
         disposal = DisposalRecord(disposal_method="Recycled", disposal_partner="eWaste Inc.", asset=assets[5])
         db.session.add(disposal)
 
+        # More Maintenances for Asset 0
+        m_log2 = MaintenanceLog(event_type="Planned Maintenance", description="Annual hardware diagnostic check.", status="Completed", asset=assets[0], assigned_to=users[8], event_date=date(2024, 12, 10))
+        m_log3 = MaintenanceLog(event_type="Upgrade", description="RAM upgrade to 32GB.", status="Completed", asset=assets[0], assigned_to=users[0], event_date=date(2025, 1, 15))
+        db.session.add_all([m_log2, m_log3])
+        
+        # More Erasures (for Asset 5 - EOL-LT-001)
+        # It already has one. Let's add one to another asset that is retired? 
+        # Or just another log type for Asset 5.
+        erasure_log_2 = MaintenanceLog(event_type="Data Erasure", description="Drive physical destruction.", status="Completed", asset=assets[5], assigned_to=users[0], event_date=date(2025, 1, 5))
+        db.session.add(erasure_log_2)
+        
+        # Asset History (Assignments)
+        # Asset 0 (DEV-LT-001) is currently assigned to users[0] (Alice).
+        # Let's say it was previously checked out to users[4] (Fiona).
+        assignment_hist = AssetAssignment(
+            asset_id=assets[0].id,
+            user_id=users[4].id,
+            checked_out_date=datetime(2024, 1, 15, 9, 0, 0),
+            checked_in_date=datetime(2024, 11, 20, 17, 0, 0),
+            notes="Temporary loaner while waiting for new laptop."
+        )
+        # Current assignment is implicit in the Asset model user_id, but the separate table tracks history.
+        # Let's add a current open assignment record for consistency if the app uses it?
+        # The app uses asset.assignments for history.
+        assignment_curr = AssetAssignment(
+            asset_id=assets[0].id,
+            user_id=users[0].id,
+            checked_out_date=datetime(2024, 11, 21, 9, 0, 0),
+            notes="Primary device."
+        )
+        db.session.add_all([assignment_hist, assignment_curr])
+
         db.session.commit()
 
         # 9. Create Documentation, Links, Software, Licenses
@@ -413,6 +445,31 @@ def seed_data(app=None):
             FrameworkControl(framework_id=fake_framework.id, control_id="GSS.5.2", name="Secret Cow Level", description="Easter egg implementation and hidden feature access.")
         ]
         db.session.add_all(fake_controls)
+        db.session.commit()
+        
+        # Automation Rules
+        print("Creating automation rules...")
+        # Rule 1: Maintenance required every 90 days for Warp Drive Safety
+        rule1 = ComplianceRule(
+            framework_control_id=fake_controls[3].id, # GSS.3.1
+            name="Quarterly Maintenance Check",
+            target_model="MaintenanceLog",
+            criteria='{"event_type": "Planned Maintenance"}',
+            frequency_days=90,
+            grace_period_days=14,
+            enabled=True
+        )
+        
+        # Rule 2: Droid Security - Check for specific software
+        rule2 = ComplianceRule(
+            framework_control_id=fake_controls[1].id, # GSS.1.2
+            name="Anti-Hack Software Check",
+            target_model="Software",
+            criteria='{"category": "Security"}', # Just an example
+            frequency_days=30, 
+            enabled=True
+        )
+        db.session.add_all([rule1, rule2])
         db.session.commit()
 
         # Link controls to assets/docs
@@ -494,6 +551,65 @@ def seed_data(app=None):
         # Logistics API -> Depends on: Inventory
         services[7].upstream_dependencies.append(services[1])
 
+        db.session.commit()
+
+        # Service Components (Infrastructure)
+        print("Linking service components...")
+        # Link Firewall (Asset 6) to Payment Gateway (Service 2)
+        comp_fw = ServiceComponent(
+            service_id=services[2].id,
+            component_type='Asset',
+            component_id=assets[6].id,
+            notes="Primary firewall for payment processing segment."
+        )
+        # Link Okta Subscription (Subscription 2) to IdP Service (Service 6)
+        # Note: subscriptions_data[2] was Okta. It was added to session but we didn't keep the object ref in a list.
+        # We need to fetch it or query it.
+        okta_sub = Subscription.query.filter_by(name='Okta Identity Provider').first()
+        if okta_sub:
+            comp_okta = ServiceComponent(
+                service_id=services[6].id,
+                component_type='Subscription',
+                component_id=okta_sub.id,
+                notes="Underlying subscription for the IdP service."
+            )
+            db.session.add(comp_okta)
+            
+        db.session.add(comp_fw)
+        db.session.commit()
+
+        # 12b. Changes
+        print("Creating changes...")
+        change1 = Change(
+            title="Upgrade Payment Gateway Firewall Firmware",
+            change_type="Standard",
+            priority="High",
+            status="Completed",
+            requester=users[0],
+            assignee=users[8], # Ian
+            description="Routine firmware upgrade to patch vulnerability CVE-2024-XXXX.",
+            implementation_plan="1. Backup config.\n2. Upload firmware.\n3. Reboot.",
+            service=services[2], # Payment Gateway
+            asset=assets[6], # FW-NYC-01
+            executed_at=datetime(2025, 1, 10, 23, 0, 0),
+            closed_at=datetime(2025, 1, 11, 1, 0, 0)
+        )
+        change2 = Change(
+            title="Migrate E-Commerce DB to New Server",
+            change_type="Normal",
+            priority="Critical",
+            status="In Progress",
+            requester=users[2], # Charlie
+            assignee=users[4], # Fiona
+            description="Migration to improve IOPS performance.",
+            implementation_plan="Detailed steps...",
+            service=services[0], # E-Commerce
+            requires_approval=True,
+            approved_by=users[0],
+            approved_at=datetime.utcnow()
+        )
+        
+        db.session.add_all([change1, change2])
         db.session.commit()
 
         # 13. Compliance Audit (Defense Room)
