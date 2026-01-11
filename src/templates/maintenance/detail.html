@@ -26,6 +26,13 @@
                 <p><strong>Date:</strong> {{ log.event_date.strftime('%Y-%m-%d') }}</p>
                 <p><strong>Type:</strong> {{ log.event_type }}</p>
                 <p><strong>Assigned To:</strong> {{ log.assigned_to.name if log.assigned_to else 'Unassigned' }}</p>
+                <p><strong>Tags:</strong>
+                    {% for tag in log.tags %}
+                    <span class="badge bg-secondary">{{ tag.name }}</span>
+                    {% else %}
+                    <span class="text-muted">No tags</span>
+                    {% endfor %}
+                </p>
                 {% if log.ticket_link %}
                 <p><strong>Ticket:</strong> <a href="{{ log.ticket_link }}" target="_blank">External Link <i
                             class="fas fa-external-link-alt"></i></a></p>
@@ -63,7 +70,7 @@
             <a href="{{ url_for('attachments.download_file', attachment_id=att.id) }}">{{ att.filename }}</a>
             <form action="{{ url_for('attachments.delete_attachment', attachment_id=att.id) }}" method="POST"
                 data-confirm='Are you sure?'>
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
             </form>
         </li>

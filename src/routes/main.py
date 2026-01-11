@@ -289,9 +289,20 @@ def organizational_health():
     ninety_days = today + timedelta(days=90)
     
     # ----- HEALTH SCORE CALCULATION -----
-    # Based on inverse of critical/high risks
-    critical_risks = Risk.query.filter(Risk.residual_likelihood >= 4, Risk.residual_impact >= 4).count()
-    high_risks = Risk.query.filter(Risk.residual_likelihood >= 3, Risk.residual_impact >= 3).count()
+    # Based on inverse of critical/high risks (Excluding Closed and Accepted)
+    critical_risks = Risk.query.filter(
+        Risk.status != 'Closed',
+        Risk.treatment_strategy != 'Accept',
+        Risk.residual_likelihood >= 4, 
+        Risk.residual_impact >= 4
+    ).count()
+    
+    high_risks = Risk.query.filter(
+        Risk.status != 'Closed',
+        Risk.treatment_strategy != 'Accept',
+        Risk.residual_likelihood >= 3, 
+        Risk.residual_impact >= 3
+    ).count()
     health_score = max(0, 100 - (critical_risks * 15) - (high_risks * 5))
     
     # ----- GLOBAL STATUS -----

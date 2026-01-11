@@ -2,7 +2,7 @@ from datetime import datetime, date
 from sqlalchemy.orm import foreign
 from sqlalchemy import and_
 from ..extensions import db
-from .core import Attachment
+from .core import Attachment, Tag
 from .auth import User
 
 class ComplianceLink(db.Model):
@@ -97,6 +97,12 @@ incident_suppliers = db.Table('incident_suppliers',
     db.Column('supplier_id', db.Integer, db.ForeignKey('supplier.id'), primary_key=True)
 )
 
+# Tags for Incidents
+incident_tags = db.Table('incident_tags',
+    db.Column('incident_id', db.Integer, db.ForeignKey('security_incident.id'), primary_key=True),
+    db.Column('tag_id', db.Integer, db.ForeignKey('tag.id'), primary_key=True)
+)
+
 class SecurityIncident(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(255), nullable=False)
@@ -119,6 +125,13 @@ class SecurityIncident(db.Model):
     reported_by = db.relationship('User', foreign_keys=[reported_by_id])
     owner = db.relationship('User', foreign_keys=[owner_id])
     
+    # Assignee (Resolver)
+    assignee_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    assignee = db.relationship('User', foreign_keys=[assignee_id])
+
+    # Tags
+    tags = db.relationship('Tag', secondary=incident_tags, backref=db.backref('security_incidents', lazy='dynamic'))
+
     affected_assets = db.relationship('Asset', secondary=incident_assets, backref='incidents')
     affected_users = db.relationship('User', secondary=incident_users, backref='incidents')
     affected_subscriptions = db.relationship('Subscription', secondary=incident_subscriptions, backref='incidents')

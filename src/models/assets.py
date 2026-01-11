@@ -399,6 +399,12 @@ class Software(db.Model):
         tickets.sort(key=lambda x: x['date'], reverse=True)
         return tickets
 
+# Association table for MaintenanceLog tags
+maintenance_log_tags = db.Table('maintenance_log_tags',
+    db.Column('maintenance_log_id', db.Integer, db.ForeignKey('maintenance_log.id'), primary_key=True),
+    db.Column('tag_id', db.Integer, db.ForeignKey('tag.id'), primary_key=True)
+)
+
 class MaintenanceLog(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
@@ -415,6 +421,8 @@ class MaintenanceLog(db.Model):
     peripheral_id = db.Column(db.Integer, db.ForeignKey('peripheral.id'))
     
     assigned_to = db.relationship('User', backref='maintenance_logs')
+    tags = db.relationship('Tag', secondary=maintenance_log_tags, backref=db.backref('maintenance_logs', lazy='dynamic'))
+
     attachments = db.relationship('Attachment',
                             primaryjoin="and_(MaintenanceLog.id==foreign(Attachment.linkable_id), "
                                         "Attachment.linkable_type=='MaintenanceLog')",

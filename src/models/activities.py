@@ -15,6 +15,12 @@ activity_tags = db.Table('activity_tags',
     db.Column('tag_id', db.Integer, db.ForeignKey('tag.id'), primary_key=True)
 )
 
+# Tags for Execution Logs
+activity_execution_tags = db.Table('activity_execution_tags',
+    db.Column('execution_id', db.Integer, db.ForeignKey('activity_execution.id'), primary_key=True),
+    db.Column('tag_id', db.Integer, db.ForeignKey('tag.id'), primary_key=True)
+)
+
 class ActivityRelatedObject(db.Model):
     """
     Polymorphic association table for linking SecurityActivity to other system objects
@@ -135,6 +141,9 @@ class ActivityExecution(db.Model):
     # Relationships
     executor = db.relationship('User', foreign_keys=[executor_id])
     
+    # Tags
+    tags = db.relationship('Tag', secondary=activity_execution_tags, backref=db.backref('activity_executions', lazy='dynamic'))
+
     # Polymorphic: Attachments (for evidence files)
     attachments = db.relationship('Attachment',
                             primaryjoin="and_(ActivityExecution.id==foreign(Attachment.linkable_id), "

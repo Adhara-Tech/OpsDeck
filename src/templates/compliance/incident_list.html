@@ -23,7 +23,9 @@
                     <th>Severity</th>
                     <th>Impact</th>
                     <th>Status</th>
+                    <th>Tags</th>
                     <th>Owner</th>
+                    <th>Assignee</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -31,13 +33,21 @@
                 {% for incident in incidents %}
                 <tr>
                     <td>{{ incident.incident_date.strftime('%Y-%m-%d %H:%M') }}</td>
-                    <td><a href="{{ url_for('compliance.incident_detail', id=incident.id) }}">{{ incident.title }}</a></td>
+                    <td><a href="{{ url_for('compliance.incident_detail', id=incident.id) }}">{{ incident.title }}</a>
+                    </td>
                     <td><span class="badge bg-danger">{{ incident.severity }}</span></td>
                     <td><span class="badge bg-warning text-dark">{{ incident.impact }}</span></td>
                     <td><span class="badge bg-info">{{ incident.status }}</span></td>
-                    <td>{{ incident.owner.name if incident.owner else 'N/A' }}</td>
                     <td>
-                        <a href="{{ url_for('compliance.incident_detail', id=incident.id) }}" class="btn btn-sm btn-outline-primary">View</a>
+                        {% for tag in incident.tags %}
+                        <span class="badge bg-secondary">{{ tag.name }}</span>
+                        {% endfor %}
+                    </td>
+                    <td>{{ incident.owner.name if incident.owner else 'N/A' }}</td>
+                    <td>{{ incident.assignee.name if incident.assignee else 'N/A' }}</td>
+                    <td>
+                        <a href="{{ url_for('compliance.incident_detail', id=incident.id) }}"
+                            class="btn btn-sm btn-outline-primary">View</a>
                     </td>
                 </tr>
                 {% else %}

@@ -27,6 +27,14 @@
             <div class="col-md-6">
                 <p><strong>Reported By:</strong> {{ incident.reported_by.name if incident.reported_by else 'N/A' }}</p>
                 <p><strong>Owner:</strong> {{ incident.owner.name if incident.owner else 'N/A' }}</p>
+                <p><strong>Assignee:</strong> {{ incident.assignee.name if incident.assignee else 'Unassigned' }}</p>
+                <p><strong>Tags:</strong>
+                    {% for tag in incident.tags %}
+                    <span class="badge bg-secondary">{{ tag.name }}</span>
+                    {% else %}
+                    <span class="text-muted">No tags</span>
+                    {% endfor %}
+                </p>
                 <p><strong>Data Breach:</strong> {{ 'Yes' if incident.data_breach else 'No' }}</p>
                 <p><strong>Third Party Impacted:</strong> {{ 'Yes' if incident.third_party_impacted else 'No' }}</p>
             </div>
@@ -103,7 +111,7 @@
             <a href="{{ url_for('attachments.download_file', attachment_id=att.id) }}">{{ att.filename }}</a>
             <form action="{{ url_for('attachments.delete_attachment', attachment_id=att.id) }}" method="POST"
                 data-confirm='Are you sure?'>
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
             </form>
         </li>
@@ -113,7 +121,7 @@
     </ul>
     <div class="card-body">
         <form action="{{ url_for('attachments.upload_file') }}" method="POST" enctype="multipart/form-data">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="security_incident_id" value="{{ incident.id }}">
             <div class="input-group">
                 <input type="file" class="form-control" name="file" required>

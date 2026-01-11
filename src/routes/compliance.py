@@ -415,8 +415,15 @@ def log_bcdr_test(plan_id):
             plan_id=plan.id,
             test_date=datetime.strptime(request.form['test_date'], '%Y-%m-%d').date(),
             status=request.form['status'],
-            notes=request.form.get('notes')
+            notes=request.form.get('notes'),
+            assignee_id=request.form.get('assignee_id') or None
         )
+
+        # Handle Tags
+        tag_ids = request.form.get('tags', '').split(',')
+        if tag_ids and tag_ids[0]:
+             test_log.tags = Tag.query.filter(Tag.id.in_(tag_ids)).all()
+
         db.session.add(test_log)
         db.session.commit() # Hacemos commit para obtener el test_log.id
         
@@ -441,8 +448,9 @@ def log_bcdr_test(plan_id):
         flash('BCDR test log has been recorded.', 'success')
         # Redirigimos a la nueva vista de detalles del log
         return redirect(url_for('compliance.bcdr_test_log_detail', test_id=test_log.id))
-
-    return render_template('compliance/bcdr_test_log_form.html', plan=plan, today_date=datetime.utcnow().strftime('%Y-%m-%d'))
+    
+    users = User.query.order_by(User.name).all()
+    return render_template('compliance/bcdr_test_log_form.html', plan=plan, today_date=datetime.utcnow().strftime('%Y-%m-%d'), users=users)
 
 @compliance_bp.route('/bcdr/test/<int:test_id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -454,7 +462,15 @@ def edit_bcdr_test(test_id):
         test_log.test_date = datetime.strptime(request.form['test_date'], '%Y-%m-%d').date()
         test_log.status = request.form['status']
         test_log.notes = request.form.get('notes')
+        test_log.assignee_id = request.form.get('assignee_id') or None
         
+        # Handle Tags
+        tag_ids = request.form.get('tags', '').split(',')
+        if tag_ids and tag_ids[0]:
+             test_log.tags = Tag.query.filter(Tag.id.in_(tag_ids)).all()
+        else:
+             test_log.tags = []
+
         if 'file' in request.files:
             file = request.files['file']
             if file.filename != '':
@@ -484,11 +500,12 @@ def edit_bcdr_test(test_id):
         
         db.session.commit()
 
-        flash('BCDR test log has been updated.', 'success')
+        flash('BCDR test log updated.', 'success')
         # Redirigimos a la nueva vista de detalles del log
         return redirect(url_for('compliance.bcdr_test_log_detail', test_id=test_log.id))
 
-    return render_template('compliance/bcdr_test_log_form.html', plan=plan, test_log=test_log, today_date=test_log.test_date.strftime('%Y-%m-%d'))
+    users = User.query.order_by(User.name).all()
+    return render_template('compliance/bcdr_test_log_form.html', plan=plan, test_log=test_log, users=users, today_date=test_log.test_date.strftime('%Y-%m-%d'))
 
 @compliance_bp.route('/incidents')
 @login_required
@@ -518,6 +535,15 @@ def new_incident():
         incident.affected_users = User.query.filter(User.id.in_(request.form.getlist('user_ids'))).all()
         incident.affected_subscriptions = Subscription.query.filter(Subscription.id.in_(request.form.getlist('subscription_ids'))).all()
         incident.affected_suppliers = Supplier.query.filter(Supplier.id.in_(request.form.getlist('supplier_ids'))).all()
+        
+        # Handle Assignee
+        incident.assignee_id = request.form.get('assignee_id') or None
+
+        # Handle Tags
+        tag_ids = request.form.get('tags', '').split(',')
+        if tag_ids and tag_ids[0]:
+             incident.tags = Tag.query.filter(Tag.id.in_(tag_ids)).all()
+
         db.session.add(incident)
         db.session.commit()
         flash('Security incident logged successfully.', 'success')
@@ -558,6 +584,17 @@ def edit_incident(id):
         incident.affected_users = User.query.filter(User.id.in_(request.form.getlist('user_ids'))).all()
         incident.affected_subscriptions = Subscription.query.filter(Subscription.id.in_(request.form.getlist('subscription_ids'))).all()
         incident.affected_suppliers = Supplier.query.filter(Supplier.id.in_(request.form.getlist('supplier_ids'))).all()
+        
+        # Handle Assignee
+        incident.assignee_id = request.form.get('assignee_id') or None
+
+        # Handle Tags
+        tag_ids = request.form.get('tags', '').split(',')
+        if tag_ids and tag_ids[0]:
+             incident.tags = Tag.query.filter(Tag.id.in_(tag_ids)).all()
+        else:
+             incident.tags = []
+
         db.session.commit()
         flash('Incident details updated.', 'success')
         return redirect(url_for('compliance.incident_detail', id=id))

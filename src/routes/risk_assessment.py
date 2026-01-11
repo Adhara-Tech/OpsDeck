@@ -94,25 +94,32 @@ def lock_assessment(id):
     assessment.locked_at = datetime.utcnow()
     assessment.calculate_total_risk()
     
-    # 2. Write-back: Update live risks if requested
+    # 2. Write-back: Update live risks (Mandatory Sync)
     updated_count = 0
-    if sync_to_live:
-        for item in assessment.items:
-            # Only update if there's a linked original risk
-            if item.original_risk_id:
-                live_risk = Risk.query.get(item.original_risk_id)
-                if live_risk:
-                    # Update residual scores from assessment
-                    live_risk.residual_impact = item.residual_impact
-                    live_risk.residual_likelihood = item.residual_likelihood
-                    
-                    # Conditional status update based on residual score
+    # sync_to_live check removed - ALWAYS sync
+    for item in assessment.items:
+        # Only update if there's a linked original risk
+        if item.original_risk_id:
+            live_risk = Risk.query.get(item.original_risk_id)
+            if live_risk:
+                # Update residual scores from assessment
+                live_risk.residual_impact = item.residual_impact
+                live_risk.residual_likelihood = item.residual_likelihood
+                
+                # Conditional status update/suggestion
+                # If risk was 'Draft' or 'Identified', move it along.
+                # If it was 'Accepted', we might not want to auto-change it, but score MUST update.
+                
+                # Logic: If status is NOT closed, update status based on score
+                if live_risk.status not in ['Closed', 'Accepted']:
                     if item.residual_score < 5:
                         live_risk.status = 'Mitigated'
                     elif item.residual_score >= 15:
                         live_risk.status = 'In Treatment'
-                    
-                    updated_count += 1
+                    else:
+                        live_risk.status = 'Assessed'
+                
+                updated_count += 1
     
     db.session.commit()
     
