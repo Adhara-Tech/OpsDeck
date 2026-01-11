@@ -5,7 +5,7 @@ import sys
 import logging
 from logging.handlers import RotatingFileHandler
 import atexit
-from flask import Flask, session, render_template, request
+from flask import Flask, session, render_template, request, redirect, url_for
 from apscheduler.schedulers.background import BackgroundScheduler
 import ecs_logging
 from flask_limiter import Limiter
@@ -384,11 +384,30 @@ def create_app(test_config=None):
         return redirect(url_for('main.login', next=request.url))
 
     # --- Force admin to change the default password ---
-    from .routes.main import password_change_required
     @app.before_request
-    def before_request_hook():
-        # This now correctly calls the updated password_change_required decorator
-        password_change_required(lambda: None)()
+    def enforce_password_change():
+        """
+        Force users with default admin credentials to change their password.
+        This runs after authentication but before any route handler.
+        """
+        user_id = session.get('user_id')
+        if user_id:
+            # Skip check for allowed endpoints
+            if request.endpoint in ['main.change_password', 'main.logout', 'static', 'favicon']:
+                return None
+                
+            user = User.query.get(user_id)
+            if user:
+                # Get configured admin credentials from app config
+                default_admin_email = app.config.get('DEFAULT_ADMIN_EMAIL', 'admin@example.com')
+                default_admin_password = app.config.get('DEFAULT_ADMIN_INITIAL_PASSWORD', 'admin123')
+                
+                # Check if user is using the default admin credentials
+                if user.email == default_admin_email and user.check_password(default_admin_password):
+                    # Force redirect to password change page
+                    return redirect(url_for('main.change_password'))
+        
+        return None
 
     # --- Scheduler and Notifications ---
     # Only start the scheduler if not in testing mode
