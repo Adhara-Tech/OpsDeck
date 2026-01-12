@@ -75,14 +75,15 @@ flask data-import suppliers <filename.csv>
 | `email` | No | General contact email. |
 | `phone` | No | General contact phone. |
 | `address` | No | Physical address. |
+| `website` | No | Corporate website URL. |
 | `compliance_status` | No | e.g., `Approved`, `Pending`, `Rejected`. Defaults to `Pending`. |
 
 **Example `suppliers.csv`**
 
 ```csv
-name,email,phone,compliance_status
-Acme Corp,contact@acme.com,555-0199,Approved
-Tech Supplies Inc,sales@techsupplies.com,,Pending
+name,email,phone,website,compliance_status
+Acme Corp,contact@acme.com,555-0199,https://acme.com,Approved
+Tech Supplies Inc,sales@techsupplies.com,,https://techsupplies.com,Pending
 
 ```
 

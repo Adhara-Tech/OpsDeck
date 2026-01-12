@@ -584,12 +584,12 @@ def ops_finance_dashboard():
     
     # Query only non-archived items with warranty info
     expiring_assets = Asset.query.filter(
-        not Asset.is_archived,
+        Asset.is_archived == False,
         Asset.purchase_date.isnot(None), 
         Asset.warranty_length.isnot(None)
     ).all()
     expiring_peripherals = Peripheral.query.filter(
-        not Peripheral.is_archived,
+        Peripheral.is_archived == False,
         Peripheral.purchase_date.isnot(None), 
         Peripheral.warranty_length.isnot(None)
     ).all()
@@ -604,7 +604,7 @@ def ops_finance_dashboard():
     ninety_days_from_now = today + timedelta(days=90)
     expiring_payment_methods = []
     all_payment_methods = PaymentMethod.query.filter(
-        not PaymentMethod.is_archived,
+        PaymentMethod.is_archived == False,
         PaymentMethod.expiry_date.isnot(None)
     ).order_by(PaymentMethod.expiry_date).all()
 
