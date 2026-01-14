@@ -24,8 +24,8 @@ By unifying vendor management, budget forecasting, policy enforcement, and opera
 Follow these steps to get the application running locally.
 
 ### 1. Prerequisites
-* Python 3.10+
-* A virtual environment tool (venv)
+* Python 3+
+* A virtual environment tool (optional)
 
 ### 2. Installation
 ```bash
