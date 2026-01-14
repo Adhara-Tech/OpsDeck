@@ -99,20 +99,20 @@
                     PROCUREMENT <i class="fa-fw fas fa-chevron-down float-end"></i></h6>
                 <div class="collapse" id="crm-menu" data-bs-parent="#sidebar-accordion">
                     <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint.startswith('leads.') %}active{% endif %}"
+                            class="nav-link {% if request.endpoint and request.endpoint.startswith('leads.') %}active{% endif %}"
                             href="{{ url_for('leads.list_leads') }}"><i class="fa-fw fas fa-bullhorn"></i>
                             Requirements</a>
                     </li>
                     <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint.startswith('opportunities.') %}active{% endif %}"
+                            class="nav-link {% if request.endpoint and request.endpoint.startswith('opportunities.') %}active{% endif %}"
                             href="{{ url_for('opportunities.list_opportunities') }}"><i
                                 class="fa-fw fas fa-lightbulb"></i> Evaluations</a></li>
                     <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint.startswith('suppliers.') %}active{% endif %}"
+                            class="nav-link {% if request.endpoint and request.endpoint.startswith('suppliers.') %}active{% endif %}"
                             href="{{ url_for('suppliers.suppliers') }}"><i class="fa-fw fas fa-building"></i>
                             Suppliers</a></li>
                     <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint.startswith('contacts.') %}active{% endif %}"
+                            class="nav-link {% if request.endpoint and request.endpoint.startswith('contacts.') %}active{% endif %}"
                             href="{{ url_for('contacts.contacts') }}"><i class="fa-fw fas fa-address-book"></i>
                             Contacts</a></li>
                 </div>
@@ -125,10 +125,10 @@
                             href="{{ url_for('services.list_services') }}"><i class="fa-fw fas fa-server"></i>
                             Services</a></li>
                     <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint.startswith('assets.') and 'warranties' not in request.endpoint %}active{% endif %}"
+                            class="nav-link {% if request.endpoint and request.endpoint.startswith('assets.') and 'warranties' not in request.endpoint %}active{% endif %}"
                             href="{{ url_for('assets.assets') }}"><i class="fa-fw fas fa-laptop"></i> Assets</a></li>
                     <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint.startswith('peripherals.') %}active{% endif %}"
+                            class="nav-link {% if request.endpoint and request.endpoint.startswith('peripherals.') %}active{% endif %}"
                             href="{{ url_for('peripherals.peripherals') }}"><i class="fa-fw fas fa-keyboard"></i>
                             Peripherals</a></li>
                     <li class="nav-item"><a class="nav-link {% if request.blueprint == 'software' %}active{% endif %}"
@@ -138,7 +138,7 @@
                             href="{{ url_for('licenses.list_licenses') }}"><i class="fa-fw fas fa-id-badge"></i>
                             Licenses</a></li>
                     <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint.startswith('subscriptions.subscriptions') %}active{% endif %}"
+                            class="nav-link {% if request.endpoint and request.endpoint.startswith('subscriptions.subscriptions') %}active{% endif %}"
                             href="{{ url_for('subscriptions.subscriptions') }}"><i class="fa-fw fas fa-cogs"></i>
                             Subscriptions</a></li>
                     <li class="nav-item"><a
@@ -189,11 +189,11 @@
                             href="{{ url_for('changes.list_changes') }}"><i class="fa-fw fas fa-exchange-alt"></i>
                             Changes</a></li>
                     <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint.startswith('maintenance.') %}active{% endif %}"
+                            class="nav-link {% if request.endpoint and request.endpoint.startswith('maintenance.') %}active{% endif %}"
                             href="{{ url_for('maintenance.list_logs') }}"><i class="fa-fw fas fa-tools"></i>
                             Maintenance</a></li>
                     <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint.startswith('disposal.') %}active{% endif %}"
+                            class="nav-link {% if request.endpoint and request.endpoint.startswith('disposal.') %}active{% endif %}"
                             href="{{ url_for('disposal.list_disposals') }}"><i class="fa-fw fas fa-archive"></i>
                             Disposals</a></li>
                     <li class="nav-item"><a class="nav-link {% if 'erasure' in request.endpoint %}active{% endif %}"
@@ -223,7 +223,7 @@
                             href="{{ url_for('risk.dashboard') }}"><i class="fa-fw fas fa-chart-pie"></i>
                             Risk Dashboard</a></li>
                     <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint.startswith('risk.') and request.endpoint != 'risk.dashboard' %}active{% endif %}"
+                            class="nav-link {% if request.endpoint and request.endpoint.startswith('risk.') and request.endpoint != 'risk.dashboard' %}active{% endif %}"
                             href="{{ url_for('risk.list_risks') }}"><i class="fa-fw fas fa-exclamation-triangle"></i>
                             Risk Register</a></li>
                     <li class="nav-item"><a
@@ -272,30 +272,30 @@
                     aria-expanded="false">Knowledge & Policy <i class="fa-fw fas fa-chevron-down float-end"></i></h6>
                 <div class="collapse" id="knowledge-policy-menu" data-bs-parent="#sidebar-accordion">
                     <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint.startswith('documentation.') %}active{% endif %}"
+                            class="nav-link {% if request.endpoint and request.endpoint.startswith('documentation.') %}active{% endif %}"
                             href="
                             {{ url_for('documentation.list_docs') }}"><i class="fas fa-book-open"></i>
                             Documentation</a>
                     </li>
                     <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint.startswith('links.') %}active{% endif %}"
+                            class="nav-link {% if request.endpoint and request.endpoint.startswith('links.') %}active{% endif %}"
                             href="{{ url_for('links.list_links') }}"><i class="fas fa-link"></i> Links</a></li>
                     <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint.startswith('policies.') %}active{% endif %}"
+                            class="nav-link {% if request.endpoint and request.endpoint.startswith('policies.') %}active{% endif %}"
                             href="{{ url_for('policies.list_policies') }}"><i class="fa-fw fas fa-file-contract"></i>
                             Policies</a></li>
                     <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint.startswith('certificates.') %}active{% endif %}"
+                            class="nav-link {% if request.endpoint and request.endpoint.startswith('certificates.') %}active{% endif %}"
                             href="{{ url_for('certificates.list_certificates') }}"><i
                                 class="fa-fw fas fa-certificate"></i>
                             Certificates</a></li>
                     <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint.startswith('training.') and request.endpoint == 'training.my_training' %}active{% endif %}"
+                            class="nav-link {% if request.endpoint and request.endpoint.startswith('training.') and request.endpoint == 'training.my_training' %}active{% endif %}"
                             href="{{ url_for('training.my_training') }}"><i class="fa-fw fas fa-graduation-cap"></i> My
                             Training</a></li>
                     {% if current_user_role == 'admin' %}
                     <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint.startswith('training.') and request.endpoint != 'training.my_training' %}active{% endif %}"
+                            class="nav-link {% if request.endpoint and request.endpoint.startswith('training.') and request.endpoint != 'training.my_training' %}active{% endif %}"
                             href="{{ url_for('training.list_courses') }}"><i
                                 class="fa-fw fas fa-chalkboard-teacher"></i> Manage Courses</a></li>
                     {% endif %}
@@ -308,18 +308,18 @@
                     aria-expanded="false">Finance <i class="fa-fw fas fa-chevron-down float-end"></i></h6>
                 <div class="collapse" id="finance-menu" data-bs-parent="#sidebar-accordion">
                     <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint.startswith('purchases.') %}active{% endif %}"
+                            class="nav-link {% if request.endpoint and request.endpoint.startswith('purchases.') %}active{% endif %}"
                             href="{{ url_for('purchases.purchases') }}"><i class="fa-fw fas fa-shopping-cart"></i>
                             Purchases</a></li>
                     <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint.startswith('budgets.') %}active{% endif %}"
+                            class="nav-link {% if request.endpoint and request.endpoint.startswith('budgets.') %}active{% endif %}"
                             href="{{ url_for('budgets.budgets') }}"><i class="fa-fw fas fa-wallet"></i> Budgets</a></li>
                     <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint.startswith('cost_centers.') %}active{% endif %}"
+                            class="nav-link {% if request.endpoint and request.endpoint.startswith('cost_centers.') %}active{% endif %}"
                             href="{{ url_for('cost_centers.list_cost_centers') }}"><i class="fa-fw fas fa-building"></i>
                             Cost Centers</a></li>
                     <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint.startswith('payment_methods.') %}active{% endif %}"
+                            class="nav-link {% if request.endpoint and request.endpoint.startswith('payment_methods.') %}active{% endif %}"
                             href="{{ url_for('payment_methods.payment_methods') }}"><i
                                 class="fa-fw fas fa-credit-card"></i> Payment Methods</a></li>
                     <li class="nav-item"><a
@@ -422,22 +422,22 @@
 
                 <div class="collapse" id="admin-menu" data-bs-parent="#sidebar-accordion">
                     <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint.startswith('users.') %}active{% endif %}"
+                            class="nav-link {% if request.endpoint and request.endpoint.startswith('users.') %}active{% endif %}"
                             href="{{ url_for('users.users') }}"><i class="fa-fw fas fa-users"></i> Users</a></li>
                     <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint.startswith('groups.') %}active{% endif %}"
+                            class="nav-link {% if request.endpoint and request.endpoint.startswith('groups.') %}active{% endif %}"
                             href="{{ url_for('groups.list_groups') }}"><i class="fa-fw fas fa-users-cog"></i>
                             Groups</a>
                     </li>
                     <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint.startswith('locations.') %}active{% endif %}"
+                            class="nav-link {% if request.endpoint and request.endpoint.startswith('locations.') %}active{% endif %}"
                             href="{{ url_for('locations.locations') }}"><i class="fa-fw fas fa-map-marker-alt"></i>
                             Locations</a></li>
                     <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint.startswith('tags.') %}active{% endif %}"
+                            class="nav-link {% if request.endpoint and request.endpoint.startswith('tags.') %}active{% endif %}"
                             href="{{ url_for('tags.tags') }}"><i class="fa-fw fas fa-tags"></i> Tags</a></li>
                     <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint.startswith('treeview.') %}active{% endif %}"
+                            class="nav-link {% if request.endpoint and request.endpoint.startswith('treeview.') %}active{% endif %}"
                             href="{{ url_for('treeview.tree_view') }}"><i class="fa-fw fas fa-sitemap"></i> Tree
                             View</a></li>
                 </div>
