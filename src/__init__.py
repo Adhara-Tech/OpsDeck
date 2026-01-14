@@ -359,6 +359,7 @@ def create_app(test_config=None):
             'main.login',
             'main.google_callback',
             'main.mfa_verify',  # Necesario para el flujo de 2FA
+            'main.health_check',  # Health check for Kubernetes probes
             'static',
             'favicon',
             # API endpoints use token authentication, not session

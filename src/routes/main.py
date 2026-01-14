@@ -53,6 +53,17 @@ def login():
     return render_template('login.html')
 
 
+@main_bp.route('/health', methods=['GET'])
+def health_check():
+    """
+    Health check endpoint for Kubernetes probes.
+    Returns 200 OK if the application is running.
+    No rate limiting or authentication required.
+    """
+    return jsonify({'status': 'healthy'}), 200
+
+
+
 def verify_ip_and_login(user):
     """Verify user's IP and either login directly or trigger MFA flow."""
     ip = request.remote_addr

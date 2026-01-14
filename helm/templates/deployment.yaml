@@ -69,19 +69,34 @@ spec:
           {{- end }}
 
           # --- 4. Health Checks ---
-          livenessProbe:
+          # Startup probe: gives the app up to 5 minutes to start (60 * 5s = 300s)
+          # This prevents liveness/readiness from killing the pod during initialization
+          startupProbe:
             httpGet:
-              path: /login
+              path: /health
               port: http
             initialDelaySeconds: 10
-            periodSeconds: 30
+            periodSeconds: 5
+            failureThreshold: 60
+            timeoutSeconds: 3
           
+          # Liveness probe: only starts checking AFTER startup probe succeeds
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          
+          # Readiness probe: only starts checking AFTER startup probe succeeds
           readinessProbe:
             httpGet:
-              path: /login
+              path: /health
               port: http
-            initialDelaySeconds: 5
             periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
 
           resources:
             limits:
