@@ -145,8 +145,13 @@ def execute_activity(id):
             outcome_notes=request.form.get('outcome_notes')
         )
         
+        # Handle Tags
+        tag_ids = request.form.get('tags', '').split(',')
+        if tag_ids and tag_ids[0]:
+             execution.tags = Tag.query.filter(Tag.id.in_(tag_ids)).all()
+
         db.session.add(execution)
-        db.session.commit()  # Commit to get execution.id
+        db.session.commit() # Commit to get execution.id
         
         # Handle file uploads (evidence)
         if 'files' in request.files:
@@ -204,6 +209,13 @@ def edit_execution(id):
         execution.status = request.form['status']
         execution.outcome_notes = request.form.get('outcome_notes')
         
+        # Handle Tags
+        tag_ids = request.form.get('tags', '').split(',')
+        if tag_ids and tag_ids[0]:
+             execution.tags = Tag.query.filter(Tag.id.in_(tag_ids)).all()
+        else:
+             execution.tags = []
+
         # Handle new file uploads
         if 'files' in request.files:
             files = request.files.getlist('files')

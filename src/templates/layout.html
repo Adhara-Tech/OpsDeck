@@ -118,6 +118,40 @@
                 </div>
 
                 <hr class="text-white">
+                <h6 class="sidebar-heading" data-bs-toggle="collapse" data-bs-target="#core-inventory-menu"
+                    aria-expanded="false">Core Inventory <i class="fa-fw fas fa-chevron-down float-end"></i></h6>
+                <div class="collapse" id="core-inventory-menu" data-bs-parent="#sidebar-accordion">
+                    <li class="nav-item"><a class="nav-link {% if request.blueprint == 'services' %}active{% endif %}"
+                            href="{{ url_for('services.list_services') }}"><i class="fa-fw fas fa-server"></i>
+                            Services</a></li>
+                    <li class="nav-item"><a
+                            class="nav-link {% if request.endpoint.startswith('assets.') and 'warranties' not in request.endpoint %}active{% endif %}"
+                            href="{{ url_for('assets.assets') }}"><i class="fa-fw fas fa-laptop"></i> Assets</a></li>
+                    <li class="nav-item"><a
+                            class="nav-link {% if request.endpoint.startswith('peripherals.') %}active{% endif %}"
+                            href="{{ url_for('peripherals.peripherals') }}"><i class="fa-fw fas fa-keyboard"></i>
+                            Peripherals</a></li>
+                    <li class="nav-item"><a class="nav-link {% if request.blueprint == 'software' %}active{% endif %}"
+                            href="{{ url_for('software.list_software') }}"><i class="fa-fw fas fa-compact-disc"></i>
+                            Software</a></li>
+                    <li class="nav-item"><a class="nav-link {% if request.blueprint == 'licenses' %}active{% endif %}"
+                            href="{{ url_for('licenses.list_licenses') }}"><i class="fa-fw fas fa-id-badge"></i>
+                            Licenses</a></li>
+                    <li class="nav-item"><a
+                            class="nav-link {% if request.endpoint.startswith('subscriptions.subscriptions') %}active{% endif %}"
+                            href="{{ url_for('subscriptions.subscriptions') }}"><i class="fa-fw fas fa-cogs"></i>
+                            Subscriptions</a></li>
+                    <li class="nav-item"><a
+                            class="nav-link {% if request.blueprint == 'configuration' %}active{% endif %}"
+                            href="{{ url_for('configuration.index') }}"><i class="fa-fw fas fa-sliders-h"></i>
+                            CMDB</a></li>
+                    <li class="nav-item"><a
+                            class="nav-link {% if request.endpoint == 'credentials.list_credentials' %}active{% endif %}"
+                            href="{{ url_for('credentials.list_credentials') }}"><i class="fa-fw fas fa-key"></i>
+                            Credentials</a></li>
+                </div>
+
+                <hr class="text-white">
                 <h6 class="sidebar-heading" data-bs-toggle="collapse" data-bs-target="#operations-menu"
                     aria-expanded="false">Operations <i class="fa-fw fas fa-chevron-down float-end"></i></h6>
                 <div class="collapse" id="operations-menu" data-bs-parent="#sidebar-accordion">
@@ -126,38 +160,19 @@
                             href="{{ url_for('main.ops_finance_dashboard') }}"><i
                                 class="fa-fw fas fa-tachometer-alt"></i>
                             Ops & Finance</a></li>
-                    <li class="nav-item"><a class="nav-link {% if request.blueprint == 'services' %}active{% endif %}"
-                            href="{{ url_for('services.list_services') }}"><i class="fa-fw fas fa-server"></i>
-                            Service Catalog</a></li>
-                    <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint.startswith('subscriptions.subscriptions') %}active{% endif %}"
-                            href="{{ url_for('subscriptions.subscriptions') }}"><i class="fa-fw fas fa-cogs"></i>
-                            Subscriptions</a></li>
-                    <li class="nav-item"><a class="nav-link {% if request.blueprint == 'licenses' %}active{% endif %}"
-                            href="{{ url_for('licenses.list_licenses') }}"><i class="fa-fw fas fa-id-badge"></i>
-                            Licenses</a></li>
-                    <li class="nav-item"><a class="nav-link {% if request.blueprint == 'software' %}active{% endif %}"
-                            href="{{ url_for('software.list_software') }}"><i class="fa-fw fas fa-compact-disc"></i>
-                            Software</a></li>
+
+
+
+
+
                     <li class="nav-item"><a
                             class="nav-link {% if request.endpoint == 'subscriptions.calendar' %}active{% endif %}"
                             href="{{ url_for('subscriptions.calendar') }}"><i class="fa-fw fas fa-calendar"></i>
                             Renewals</a></li>
-                    <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint.startswith('assets.') and 'warranties' not in request.endpoint %}active{% endif %}"
-                            href="{{ url_for('assets.assets') }}"><i class="fa-fw fas fa-laptop"></i> Assets</a></li>
-                    <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint.startswith('peripherals.') %}active{% endif %}"
-                            href="{{ url_for('peripherals.peripherals') }}"><i class="fa-fw fas fa-keyboard"></i>
-                            Peripherals</a></li>
-                    <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint.startswith('maintenance.') %}active{% endif %}"
-                            href="{{ url_for('maintenance.list_logs') }}"><i class="fa-fw fas fa-tools"></i>
-                            Maintenance</a></li>
-                    <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint.startswith('disposal.') %}active{% endif %}"
-                            href="{{ url_for('disposal.list_disposals') }}"><i class="fa-fw fas fa-archive"></i>
-                            Disposals</a></li>
+
+
+
+
                     <li class="nav-item"><a
                             class="nav-link {% if request.endpoint == 'assets.warranties' %}active{% endif %}"
                             href="{{ url_for('assets.warranties') }}"><i class="fa-fw fas fa-shield-alt"></i>
@@ -167,31 +182,65 @@
                             href="{{ url_for('reports.assets_dashboard') }}"><i class="fa-fw fas fa-chart-bar"></i>
                             Asset
                             Reports</a></li>
-                    <!-- Add the credentials screen -->
-                    <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint == 'credentials.list_credentials' %}active{% endif %}"
-                            href="{{ url_for('credentials.list_credentials') }}"><i class="fa-fw fas fa-key"></i>
-                            Credentials</a></li>
-                    <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint.startswith('certificates.') %}active{% endif %}"
-                            href="{{ url_for('certificates.list_certificates') }}"><i
-                                class="fa-fw fas fa-certificate"></i>
-                            Certificates</a></li>
 
+
+
+                    <li class="nav-item"><a class="nav-link {% if request.blueprint == 'changes' %}active{% endif %}"
+                            href="{{ url_for('changes.list_changes') }}"><i class="fa-fw fas fa-exchange-alt"></i>
+                            Changes</a></li>
                     <li class="nav-item"><a
-                            class="nav-link {% if request.blueprint == 'configuration' %}active{% endif %}"
-                            href="{{ url_for('configuration.index') }}"><i class="fa-fw fas fa-sliders-h"></i>
-                            CMDB</a></li>
+                            class="nav-link {% if request.endpoint.startswith('maintenance.') %}active{% endif %}"
+                            href="{{ url_for('maintenance.list_logs') }}"><i class="fa-fw fas fa-tools"></i>
+                            Maintenance</a></li>
+                    <li class="nav-item"><a
+                            class="nav-link {% if request.endpoint.startswith('disposal.') %}active{% endif %}"
+                            href="{{ url_for('disposal.list_disposals') }}"><i class="fa-fw fas fa-archive"></i>
+                            Disposals</a></li>
+                    <li class="nav-item"><a class="nav-link {% if 'erasure' in request.endpoint %}active{% endif %}"
+                            href="{{ url_for('compliance.list_erasures') }}"><i class="fa-fw fas fa-eraser"></i> Erasure
+                            Log</a></li>
+                    <li class="nav-item"><a class="nav-link {% if 'incident' in request.endpoint %}active{% endif %}"
+                            href="{{ url_for('compliance.list_incidents') }}"><i
+                                class="fa-fw fas fa-exclamation-circle"></i> Incidents</a></li>
+                    <li class="nav-item"><a class="nav-link {% if request.blueprint == 'activities' %}active{% endif %}"
+                            href="{{ url_for('activities.list_activities') }}"><i class="fa-fw fas fa-tasks"></i>
+                            Security Activities</a></li>
+                    <li class="nav-item"><a class="nav-link {% if 'bcdr' in request.endpoint %}active{% endif %}"
+                            href="{{ url_for('compliance.list_bcdr_plans') }}"><i class="fa-fw fas fa-shield-alt"></i>
+                            BCDR</a></li>
+                </div>
+
+                <hr class="text-white">
+                <h6 class="sidebar-heading" data-bs-toggle="collapse" data-bs-target="#risk-governance-menu"
+                    aria-expanded="false">Risk & Governance <i class="fa-fw fas fa-chevron-down float-end"></i></h6>
+                <div class="collapse" id="risk-governance-menu" data-bs-parent="#sidebar-accordion">
+                    <li class="nav-item"><a
+                            class="nav-link {% if request.endpoint == 'compliance.dashboard' %}active{% endif %}"
+                            href="{{ url_for('compliance.dashboard') }}"><i class="fa-fw fas fa-tachometer-alt"></i>
+                            Compliance Dashboard</a></li>
+                    <li class="nav-item"><a
+                            class="nav-link {% if request.endpoint == 'risk.dashboard' %}active{% endif %}"
+                            href="{{ url_for('risk.dashboard') }}"><i class="fa-fw fas fa-chart-pie"></i>
+                            Risk Dashboard</a></li>
+                    <li class="nav-item"><a
+                            class="nav-link {% if request.endpoint.startswith('risk.') and request.endpoint != 'risk.dashboard' %}active{% endif %}"
+                            href="{{ url_for('risk.list_risks') }}"><i class="fa-fw fas fa-exclamation-triangle"></i>
+                            Risk Register</a></li>
+                    <li class="nav-item"><a
+                            class="nav-link {% if request.blueprint == 'risk_assessment' %}active{% endif %}"
+                            href="{{ url_for('risk_assessment.list_assessments') }}"><i
+                                class="fa-fw fas fa-clipboard-check"></i>
+                            Risk Assessments</a></li>
+                    <li class="nav-item"><a class="nav-link {% if request.blueprint == 'audits' %}active{% endif %}"
+                            href="{{ url_for('audits.list_audits') }}"><i class="fa-fw fas fa-clipboard-list"></i>
+                            Audits</a></li>
                 </div>
 
                 <hr class="text-white">
                 <h6 class="sidebar-heading" data-bs-toggle="collapse" data-bs-target="#compliance-menu"
                     aria-expanded="false">Compliance <i class="fa-fw fas fa-chevron-down float-end"></i></h6>
                 <div class="collapse" id="compliance-menu" data-bs-parent="#sidebar-accordion">
-                    <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint == 'compliance.dashboard' %}active{% endif %}"
-                            href="{{ url_for('compliance.dashboard') }}"><i class="fa-fw fas fa-tachometer-alt"></i>
-                            Dashboard</a></li>
+
                     <li class="nav-item"><a class="nav-link {% if request.blueprint == 'frameworks' %}active{% endif %}"
                             href="{{ url_for('frameworks.list') }}"><i class="fa-fw fas fa-layer-group"></i>
                             Frameworks</a></li>
@@ -214,21 +263,19 @@
                             class="nav-link {% if request.endpoint == 'compliance.vendor_compliance' %}active{% endif %}"
                             href="{{ url_for('compliance.vendor_compliance') }}"><i class="fa-fw fas fa-tasks"></i>
                             Vendor Compliance</a></li>
-                    <li class="nav-item"><a class="nav-link {% if 'erasure' in request.endpoint %}active{% endif %}"
-                            href="{{ url_for('compliance.list_erasures') }}"><i class="fa-fw fas fa-eraser"></i> Erasure
-                            Log</a></li>
-                    <li class="nav-item"><a class="nav-link {% if request.blueprint == 'audits' %}active{% endif %}"
-                            href="{{ url_for('audits.list_audits') }}"><i class="fa-fw fas fa-clipboard-list"></i>
-                            Audits</a></li>
+
+
                 </div>
 
                 <hr class="text-white">
-                <h6 class="sidebar-heading" data-bs-toggle="collapse" data-bs-target="#governance-menu"
-                    aria-expanded="false">Governance <i class="fa-fw fas fa-chevron-down float-end"></i></h6>
-                <div class="collapse" id="governance-menu" data-bs-parent="#sidebar-accordion">
+                <h6 class="sidebar-heading" data-bs-toggle="collapse" data-bs-target="#knowledge-policy-menu"
+                    aria-expanded="false">Knowledge & Policy <i class="fa-fw fas fa-chevron-down float-end"></i></h6>
+                <div class="collapse" id="knowledge-policy-menu" data-bs-parent="#sidebar-accordion">
                     <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint.startswith('documentation.') %}active{% endif %}"" href="
-                            {{ url_for('documentation.list_docs') }}"><i class="fas fa-book-open"></i> Documentation</a>
+                            class="nav-link {% if request.endpoint.startswith('documentation.') %}active{% endif %}"
+                            href="
+                            {{ url_for('documentation.list_docs') }}"><i class="fas fa-book-open"></i>
+                            Documentation</a>
                     </li>
                     <li class="nav-item"><a
                             class="nav-link {% if request.endpoint.startswith('links.') %}active{% endif %}"
@@ -238,27 +285,10 @@
                             href="{{ url_for('policies.list_policies') }}"><i class="fa-fw fas fa-file-contract"></i>
                             Policies</a></li>
                     <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint == 'risk.dashboard' %}active{% endif %}"
-                            href="{{ url_for('risk.dashboard') }}"><i class="fa-fw fas fa-chart-pie"></i>
-                            Risk Dashboard</a></li>
-                    <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint.startswith('risk.') and request.endpoint != 'risk.dashboard' %}active{% endif %}"
-                            href="{{ url_for('risk.list_risks') }}"><i class="fa-fw fas fa-exclamation-triangle"></i>
-                            Risk Register</a></li>
-                    <li class="nav-item"><a
-                            class="nav-link {% if request.blueprint == 'risk_assessment' %}active{% endif %}"
-                            href="{{ url_for('risk_assessment.list_assessments') }}"><i
-                                class="fa-fw fas fa-clipboard-check"></i>
-                            Risk Assessments</a></li>
-                    <li class="nav-item"><a class="nav-link {% if 'incident' in request.endpoint %}active{% endif %}"
-                            href="{{ url_for('compliance.list_incidents') }}"><i
-                                class="fa-fw fas fa-exclamation-circle"></i> Incidents</a></li>
-                    <li class="nav-item"><a class="nav-link {% if 'bcdr' in request.endpoint %}active{% endif %}"
-                            href="{{ url_for('compliance.list_bcdr_plans') }}"><i class="fa-fw fas fa-shield-alt"></i>
-                            BCDR</a></li>
-                    <li class="nav-item"><a class="nav-link {% if request.blueprint == 'activities' %}active{% endif %}"
-                            href="{{ url_for('activities.list_activities') }}"><i class="fa-fw fas fa-tasks"></i>
-                            Security Activities</a></li>
+                            class="nav-link {% if request.endpoint.startswith('certificates.') %}active{% endif %}"
+                            href="{{ url_for('certificates.list_certificates') }}"><i
+                                class="fa-fw fas fa-certificate"></i>
+                            Certificates</a></li>
                     <li class="nav-item"><a
                             class="nav-link {% if request.endpoint.startswith('training.') and request.endpoint == 'training.my_training' %}active{% endif %}"
                             href="{{ url_for('training.my_training') }}"><i class="fa-fw fas fa-graduation-cap"></i> My
@@ -270,6 +300,8 @@
                                 class="fa-fw fas fa-chalkboard-teacher"></i> Manage Courses</a></li>
                     {% endif %}
                 </div>
+
+
 
                 <hr class="text-white">
                 <h6 class="sidebar-heading" data-bs-toggle="collapse" data-bs-target="#finance-menu"

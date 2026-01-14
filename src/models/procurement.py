@@ -45,6 +45,7 @@ class Supplier(db.Model):
     email = db.Column(db.String(100))
     phone = db.Column(db.String(20))
     address = db.Column(db.Text)
+    website = db.Column(db.String(255), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_archived = db.Column(db.Boolean, default=False, nullable=False)
     compliance_status = db.Column(db.String(50), default='Pending')

@@ -130,20 +130,17 @@
                             <hr>
 
                             <h5 class="mb-3">Residual Risk (Post-Mitigation)</h5>
-                            {% if risk %}
                             <div class="alert alert-info py-2 mb-3">
-                                <i class="fas fa-lock"></i> <strong>Read-Only:</strong> Residual risk is managed via
-                                Risk Assessments only. Create or update an assessment to modify these values.
+                                <i class="fas fa-lock"></i> <strong>Read-Only:</strong> Residual risk is initially set
+                                to Inherent Risk. Thereafter, it is managed via Risk Assessments only.
                             </div>
-                            {% endif %}
                             <div class="row g-3">
                                 <div class="col-md-6">
                                     <label for="residual_likelihood" class="form-label">Likelihood (1-5)</label>
                                     <input type="range" class="form-range" min="1" max="5" step="1"
                                         id="residual_likelihood" name="residual_likelihood"
                                         value="{{ risk.residual_likelihood if risk else 5 }}"
-                                        oninput="updateOutput('res_like_val', this.value)" {% if risk %}disabled{% endif
-                                        %}>
+                                        oninput="updateOutput('res_like_val', this.value)" disabled>
                                     <div class="text-center fw-bold" id="res_like_val">{{ risk.residual_likelihood if
                                         risk else 5 }}</div>
                                 </div>
@@ -151,8 +148,7 @@
                                     <label for="residual_impact" class="form-label">Impact (1-5)</label>
                                     <input type="range" class="form-range" min="1" max="5" step="1" id="residual_impact"
                                         name="residual_impact" value="{{ risk.residual_impact if risk else 5 }}"
-                                        oninput="updateOutput('res_imp_val', this.value)" {% if risk %}disabled{% endif
-                                        %}>
+                                        oninput="updateOutput('res_imp_val', this.value)" disabled>
                                     <div class="text-center fw-bold" id="res_imp_val">{{ risk.residual_impact if risk
                                         else 5 }}</div>
                                 </div>
@@ -249,8 +245,26 @@
 </form>
 
 <script>
+    // Detect if new risk (risk object is None/null in template)
+    const isNewRisk = {{ 'false' if risk else 'true' }};
+
     function updateOutput(id, value) {
         document.getElementById(id).innerText = value;
+        
+        // MIRROR EFFECT: Only on creation
+        // When Inherent changes, Residual automatically follows
+        if (isNewRisk) {
+            if (id === 'inh_like_val') {
+                // Update Residual Likelihood Slider and Label
+                document.getElementById('residual_likelihood').value = value;
+                document.getElementById('res_like_val').innerText = value;
+            }
+            if (id === 'inh_imp_val') {
+                // Update Residual Impact Slider and Label
+                document.getElementById('residual_impact').value = value;
+                document.getElementById('res_imp_val').innerText = value;
+            }
+        }
     }
 
     function showInherentWarning() {

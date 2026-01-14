@@ -372,8 +372,10 @@ def edit_risk(id):
         risk.inherent_impact = int(request.form.get('inherent_impact', 5))
         risk.inherent_likelihood = int(request.form.get('inherent_likelihood', 5))
         
-        risk.residual_impact = int(request.form.get('residual_impact', 5))
-        risk.residual_likelihood = int(request.form.get('residual_likelihood', 5))
+        # INTEGRITY RULE: Residual risk cannot be edited manually.
+        # It updates only via Assessments.
+        # risk.residual_impact = int(request.form.get('residual_impact', 5))
+        # risk.residual_likelihood = int(request.form.get('residual_likelihood', 5))
         
         risk.mitigation_plan = request.form.get('mitigation_plan')
         risk.link = request.form.get('link')

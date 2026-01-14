@@ -31,6 +31,7 @@
                         <th>Status</th>
                         <th>User</th>
                         <th>Location</th>
+                        <th>Warranty</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -47,6 +48,27 @@
                             <span class="badge {{ 'bg-primary' if asset.location else 'bg-info' }}">
                                 {{ asset.location_display }}
                             </span>
+                        </td>
+                        <td>
+                            {% if asset.warranty_end_date %}
+                            {% if asset.status not in ['Retired', 'Disposed'] %}
+                            {% if asset.warranty_end_date < today %} <span class="text-danger">
+                                <i class="fas fa-times-circle" title="Warranty Expired"></i>
+                                {{ asset.warranty_end_date.strftime('%Y-%m-%d') }}
+                                </span>
+                                {% elif (asset.warranty_end_date - today).days <= 30 %} <span class="text-warning">
+                                    <i class="fas fa-clock" title="Expiring Soon"></i>
+                                    {{ asset.warranty_end_date.strftime('%Y-%m-%d') }}
+                                    </span>
+                                    {% else %}
+                                    {{ asset.warranty_end_date.strftime('%Y-%m-%d') }}
+                                    {% endif %}
+                                    {% else %}
+                                    <span class="text-muted">{{ asset.warranty_end_date.strftime('%Y-%m-%d') }}</span>
+                                    {% endif %}
+                                    {% else %}
+                                    -
+                                    {% endif %}
                         </td>
                         <td>
                             {% if asset.user %}
@@ -77,7 +99,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="8" class="text-center">No assets found.</td>
+                        <td colspan="9" class="text-center">No assets found.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

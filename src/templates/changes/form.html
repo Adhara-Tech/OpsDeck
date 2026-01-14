@@ -1,0 +1,471 @@
+{% extends "layout.html" %}
+
+{% block title %}{% if change %}Edit Change #{{ change.id }}{% else %}New Change Request{% endif %} - OpsDeck{% endblock
+%}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">{% if change %}Edit Change <small class="text-muted">#{{ change.id }}</small>{% else %}New Change
+        Request{% endif %}</h1>
+</div>
+
+<form method="POST"
+    action="{% if change %}{{ url_for('changes.edit_change', id=change.id) }}{% else %}{{ url_for('changes.new_change') }}{% endif %}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="row">
+        <div class="col-md-12">
+            <!-- Tabs Navigation -->
+            <ul class="nav nav-tabs mb-3" id="changeTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="general-tab" data-bs-toggle="tab" data-bs-target="#general"
+                        type="button" role="tab">
+                        <i class="fas fa-info-circle"></i> General Information
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="planning-tab" data-bs-toggle="tab" data-bs-target="#planning"
+                        type="button" role="tab">
+                        <i class="fas fa-clipboard-list"></i> Planning & Validation
+                    </button>
+                </li>
+            </ul>
+
+            <div class="tab-content" id="changeTabsContent">
+
+                <!-- TAB 1: GENERAL -->
+                <div class="tab-pane fade show active" id="general" role="tabpanel">
+                    <div class="card shadow mb-4">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">Title <span
+                                                class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" name="title" required
+                                            placeholder="e.g., Upgrade Database Server to v14"
+                                            value="{{ change.title if change else '' }}">
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label">Description / Business Case</label>
+                                        <textarea class="form-control" name="description" rows="3"
+                                            placeholder="Why are we doing this change? What is the expected outcome?">{{ change.description if change else '' }}</textarea>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Target Type</label>
+                                            <select class="form-select" name="target_type" id="targetTypeSelect">
+                                                <option value="" {% if not change %}selected{% endif %}>-- Select Type
+                                                    --</option>
+                                                <option value="service" {% if change and change.service_id %}selected{%
+                                                    endif %}>Business Service</option>
+                                                <option value="asset" {% if change and change.asset_id %}selected{%
+                                                    endif %}>Asset</option>
+                                                <option value="software" {% if change and change.software_id
+                                                    %}selected{% endif %}>Software</option>
+                                                <option value="configuration" {% if change and change.configuration_id
+                                                    %}selected{% endif %}>Configuration (CMDB)</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Target Item</label>
+
+                                            <!-- SERVICE DROPDOWN -->
+                                            <div id="target-service-wrapper" class="target-wrapper"
+                                                style="display:none;">
+                                                <select class="form-select tom-select" name="service_id"
+                                                    id="serviceSelect">
+                                                    <option value="">-- Select Service --</option>
+                                                    {% for service in services %}
+                                                    <option value="{{ service.id }}" {% if change and
+                                                        change.service_id==service.id %}selected{% endif %}>{{
+                                                        service.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+
+                                            <!-- ASSET DROPDOWN -->
+                                            <div id="target-asset-wrapper" class="target-wrapper" style="display:none;">
+                                                <select class="form-select tom-select" name="asset_id" id="assetSelect">
+                                                    <option value="">-- Select Asset --</option>
+                                                    {% for asset in assets %}
+                                                    <option value="{{ asset.id }}" {% if change and
+                                                        change.asset_id==asset.id %}selected{% endif %}>{{ asset.name }}
+                                                        ({{ asset.serial_number }})</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+
+                                            <!-- SOFTWARE DROPDOWN -->
+                                            <div id="target-software-wrapper" class="target-wrapper"
+                                                style="display:none;">
+                                                <select class="form-select tom-select" name="software_id"
+                                                    id="softwareSelect">
+                                                    <option value="">-- Select Software --</option>
+                                                    {% for sw in software %}
+                                                    <option value="{{ sw.id }}" {% if change and
+                                                        change.software_id==sw.id %}selected{% endif %}>{{ sw.name }}
+                                                    </option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+
+                                            <!-- CONFIGURATION DROPDOWNS -->
+                                            <div id="target-configuration-wrapper" class="target-wrapper"
+                                                style="display:none;">
+                                                <div class="mb-2">
+                                                    <select class="form-select tom-select" name="configuration_id"
+                                                        id="configurationSelect">
+                                                        <option value="">-- Select Configuration --</option>
+                                                        {% for config in configurations %}
+                                                        <option value="{{ config.id }}" {% if change and
+                                                            change.configuration_id==config.id %}selected{% endif %}>{{
+                                                            config.name }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                                <div class="input-group">
+                                                    <select class="form-select" name="configuration_version_id"
+                                                        id="configurationVersionSelect" disabled>
+                                                        <option value="">-- Select Version --</option>
+                                                        <!-- Populated via JS -->
+                                                    </select>
+                                                    <button class="btn btn-outline-secondary" type="button"
+                                                        id="btnCreateVersion" disabled
+                                                        title="Create new version from latest">
+                                                        <i class="fas fa-plus"></i> New Ver.
+                                                    </button>
+                                                </div>
+                                                <input type="hidden" id="initialVersionId"
+                                                    value="{{ change.configuration_version_id if change and change.configuration_version_id else '' }}">
+                                            </div>
+
+                                            <input type="hidden" name="target_id" id="legacyTargetId">
+                                            <!-- Legacy fallback if needed or removal -->
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label">Tags</label>
+                                        <select class="form-select tom-select" name="tag_ids" multiple>
+                                            {% for tag in tags %}
+                                            <option value="{{ tag.id }}" {% if change and tag in change.tags
+                                                %}selected{% endif %}>{{ tag.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <div class="card bg-light border-0">
+                                        <div class="card-body">
+                                            <div class="mb-3">
+                                                <div class="form-check form-switch">
+                                                    <input class="form-check-input" type="checkbox"
+                                                        id="requiresApproval" name="requires_approval" {% if not change
+                                                        or change.requires_approval %}checked{% endif %} {% if change
+                                                        %}disabled{% endif %}>
+                                                    <label class="form-check-label" for="requiresApproval">Requires
+                                                        Approval</label>
+                                                </div>
+                                                <div class="form-text">
+                                                    If unchecked, the change will skip the "Pending Approval" stage.
+                                                    {% if change %}(Cannot be modified after creation){% endif %}
+                                                </div>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label class="form-label">Change Type <span
+                                                        class="text-danger">*</span></label>
+                                                <select class="form-select" name="change_type" required
+                                                    id="changeTypeSelect">
+                                                    <option value="Standard" {% if change and
+                                                        change.change_type=='Standard' %}selected{% endif %}>Standard
+                                                        (Pre-approved)</option>
+                                                    <option value="Normal" {% if not change or
+                                                        change.change_type=='Normal' %}selected{% endif %}>Normal
+                                                        (Review required)</option>
+                                                    <option value="Emergency" {% if change and
+                                                        change.change_type=='Emergency' %}selected{% endif %}>Emergency
+                                                        (Immediate)</option>
+                                                </select>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label class="form-label">Priority</label>
+                                                <select class="form-select" name="priority">
+                                                    <option value="Low" {% if change and change.priority=='Low'
+                                                        %}selected{% endif %}>Low</option>
+                                                    <option value="Medium" {% if not change or change.priority=='Medium'
+                                                        %}selected{% endif %}>Medium</option>
+                                                    <option value="High" {% if change and change.priority=='High'
+                                                        %}selected{% endif %}>High</option>
+                                                    <option value="Critical" {% if change and
+                                                        change.priority=='Critical' %}selected{% endif %}>Critical
+                                                    </option>
+                                                </select>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label class="form-label">Risk Impact</label>
+                                                <select class="form-select" name="risk_impact">
+                                                    <option value="Low" {% if not change or change.risk_impact=='Low'
+                                                        %}selected{% endif %}>Low</option>
+                                                    <option value="Medium" {% if change and change.risk_impact=='Medium'
+                                                        %}selected{% endif %}>Medium</option>
+                                                    <option value="High" {% if change and change.risk_impact=='High'
+                                                        %}selected{% endif %}>High</option>
+                                                </select>
+                                            </div>
+
+                                            <hr>
+
+                                            <div class="mb-3">
+                                                <label class="form-label">Scheduled Start</label>
+                                                <input type="datetime-local" class="form-control" name="scheduled_start"
+                                                    value="{% if change and change.scheduled_start %}{{ change.scheduled_start.strftime('%Y-%m-%dT%H:%M') }}{% endif %}">
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label class="form-label">Scheduled End</label>
+                                                <input type="datetime-local" class="form-control" name="scheduled_end"
+                                                    value="{% if change and change.scheduled_end %}{{ change.scheduled_end.strftime('%Y-%m-%dT%H:%M') }}{% endif %}">
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label class="form-label">Estimated Duration (mins)</label>
+                                                <input type="number" class="form-control" name="estimated_duration"
+                                                    placeholder="60"
+                                                    value="{{ change.estimated_duration if change else '' }}">
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label class="form-label">Assignee</label>
+                                                <select class="form-select tom-select" name="assignee_id">
+                                                    <option value="">-- Unassigned --</option>
+                                                    {% for u in users %}
+                                                    <option value="{{ u.id }}" {% if change and change.assignee_id==u.id
+                                                        %}selected{% endif %}>{{ u.name }} ({{ u.role }})</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- TAB 2: PLANNING -->
+                <div class="tab-pane fade" id="planning" role="tabpanel">
+                    <div class="card shadow mb-4">
+                        <div class="card-header py-3 bg-light border-bottom">
+                            <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-tools"></i> Technical Plan
+                            </h6>
+                            <small class="text-muted">For Normal/Emergency changes, all fields below are
+                                mandatory.</small>
+                        </div>
+                        <div class="card-body">
+
+                            <div class="mb-4">
+                                <label class="form-label fw-bold text-success"><i class="fas fa-play-circle"></i>
+                                    Implementation Plan</label>
+                                <div class="form-text mb-2">Detailed step-by-step instructions to apply the change.
+                                </div>
+                                <textarea id="mde-implementation"
+                                    name="implementation_plan">{{ change.implementation_plan if change and change.implementation_plan else '' }}</textarea>
+                            </div>
+
+                            <hr>
+
+                            <div class="mb-4">
+                                <label class="form-label fw-bold text-danger"><i class="fas fa-undo"></i> Rollback
+                                    Plan</label>
+                                <div class="form-text mb-2">Steps to revert the system to its original state if the
+                                    change fails.</div>
+                                <textarea id="mde-rollback"
+                                    name="rollback_plan">{{ change.rollback_plan if change and change.rollback_plan else '' }}</textarea>
+                            </div>
+
+                            <hr>
+
+                            <div class="mb-4">
+                                <label class="form-label fw-bold text-info"><i class="fas fa-vial"></i> Test
+                                    Plan</label>
+                                <div class="form-text mb-2">How will you verify that the change was successful?</div>
+                                <textarea id="mde-test"
+                                    name="test_plan">{{ change.test_plan if change and change.test_plan else '' }}</textarea>
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="d-flex justify-content-end mb-5">
+                <a href="{% if change %}{{ url_for('changes.detail_change', id=change.id) }}{% else %}{{ url_for('changes.list_changes') }}{% endif %}"
+                    class="btn btn-secondary me-2">Cancel</a>
+                <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> {% if change %}Save Changes{%
+                    else %}Create Change Request{% endif %}</button>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts_extra %}
+<script src="{{ url_for('static', filename='vendor/easymde/easymde.min.js') }}"></script>
+<script>
+    // Initialize EasyMDE for the 3 planning fields
+    new EasyMDE({ element: document.getElementById('mde-implementation'), minHeight: "200px" });
+    new EasyMDE({ element: document.getElementById('mde-rollback'), minHeight: "150px" });
+    new EasyMDE({ element: document.getElementById('mde-test'), minHeight: "150px" });
+
+    // Dynamic Select Filtering logic
+    document.addEventListener('DOMContentLoaded', function () {
+        const typeSelect = document.getElementById('targetTypeSelect');
+        const wrappers = document.querySelectorAll('.target-wrapper');
+
+        // Configuration Elements
+        const configSelect = document.getElementById('configurationSelect');
+        const versionSelect = document.getElementById('configurationVersionSelect');
+        const createVerBtn = document.getElementById('btnCreateVersion');
+        const initialVersionId = document.getElementById('initialVersionId').value;
+
+        function showWrapper(type) {
+            wrappers.forEach(el => el.style.display = 'none');
+            // Disable all inputs in hidden wrappers to avoid submission
+            wrappers.forEach(el => {
+                const inputs = el.querySelectorAll('select, input');
+                inputs.forEach(i => i.disabled = true);
+            });
+
+            if (type) {
+                const targetId = 'target-' + type + '-wrapper';
+                const wrapper = document.getElementById(targetId);
+                if (wrapper) {
+                    wrapper.style.display = 'block';
+                    const inputs = wrapper.querySelectorAll('select, input');
+                    inputs.forEach(i => i.disabled = false);
+
+                    // Special case: Version select depends on config select
+                    if (type === 'configuration' && !configSelect.value) {
+                        versionSelect.disabled = true;
+                        createVerBtn.disabled = true;
+                    }
+                }
+            }
+        }
+
+        typeSelect.addEventListener('change', function () {
+            showWrapper(this.value);
+        });
+
+        // Initialize state
+        showWrapper(typeSelect.value);
+
+        // --- Configuration Logic ---
+        async function loadVersions(configId, selectedVersionId = null) {
+            versionSelect.innerHTML = '<option value="">Loading...</option>';
+            versionSelect.disabled = true;
+            createVerBtn.disabled = true;
+
+            try {
+                const response = await fetch(`/configuration/${configId}/versions`);
+                const versions = await response.json();
+
+                let html = '<option value="">-- Select Version --</option>';
+                versions.forEach(v => {
+                    const isSelected = selectedVersionId && String(v.id) === String(selectedVersionId);
+                    html += `<option value="${v.id}" ${isSelected ? 'selected' : ''}>v${v.version_number} - ${v.commit_message} (${v.created_at})</option>`;
+                });
+                versionSelect.innerHTML = html;
+                versionSelect.disabled = false;
+                createVerBtn.disabled = false;
+            } catch (error) {
+                console.error('Error loading versions:', error);
+                versionSelect.innerHTML = '<option value="">Error loading</option>';
+            }
+        }
+
+        configSelect.addEventListener('change', function () {
+            if (this.value) {
+                loadVersions(this.value);
+            } else {
+                versionSelect.innerHTML = '<option value="">-- Select Version --</option>';
+                versionSelect.disabled = true;
+                createVerBtn.disabled = true;
+            }
+        });
+
+        // Initial Load for Edit Mode
+        if (configSelect.value) {
+            loadVersions(configSelect.value, initialVersionId);
+        }
+
+        // Create New Version Handler
+        createVerBtn.addEventListener('click', async function () {
+            if (!configSelect.value) return;
+
+            const originalText = this.innerHTML;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            this.disabled = true;
+
+            try {
+                const response = await fetch(`/configuration/${configSelect.value}/versions/create_from_change`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+                    }
+                });
+                const newVersion = await response.json();
+
+                // Append new option and select it
+                const option = new Option(`v${newVersion.version_number} - ${newVersion.commit_message}`, newVersion.id, true, true);
+                versionSelect.add(option, 1); // Add after 'Select Version'
+                versionSelect.disabled = false;
+
+                OpsDeck.showAlert({
+                    title: 'Success',
+                    body: 'New version created and selected!',
+                    variant: 'success'
+                });
+            } catch (error) {
+                console.error('Error creating version:', error);
+                OpsDeck.showAlert({
+                    title: 'Error',
+                    body: 'Failed to create new version.',
+                    variant: 'danger'
+                });
+            } finally {
+                this.innerHTML = originalText;
+                this.disabled = false;
+            }
+        });
+
+        // Auto-toggle "Requires Approval" based on Change Type (Only for new changes)
+        {% if not change %}
+        const changeTypeSelect = document.getElementById('changeTypeSelect');
+        const approvalCheck = document.getElementById('requiresApproval');
+
+        if (changeTypeSelect && approvalCheck) {
+            changeTypeSelect.addEventListener('change', function () {
+                if (this.value === 'Standard') {
+                    approvalCheck.checked = false;
+                } else {
+                    approvalCheck.checked = true; // Default back to required for Normal/Emergency
+                }
+            });
+        }
+        {% endif %}
+
+        // Target ID Fix for Legacy Form Submit (if backend expects 'target_id')
+        // We aren't using single target_id anymore, but individual fields. 
+        // Backend changes.py correctly reads service_id, asset_id, etc.
+    });
+</script>
+{% endblock %}

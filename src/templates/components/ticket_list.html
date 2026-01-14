@@ -1,0 +1,73 @@
+{% macro ticket_list(tickets) %}
+<div class="table-responsive">
+    <table class="table table-hover align-middle">
+        <thead>
+            <tr>
+                <th style="width: 15%">Type</th>
+                <th style="width: 40%">Title</th>
+                <th style="width: 15%">Assignee</th>
+                <th style="width: 15%">Status</th>
+                <th style="width: 15%">Date</th>
+                <th style="width: 15%">Tags</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ticket in tickets %}
+            <tr>
+                <td>
+                    <span class="badge 
+                        {% if ticket.type == 'Change' %}bg-primary
+                        {% elif ticket.type == 'Maintenance' %}bg-info text-dark
+                        {% elif ticket.type == 'Disposal' %}bg-danger
+                        {% else %}bg-secondary{% endif %}">
+                        {{ ticket.type }}
+                    </span>
+                    {% if ticket.category %}
+                    <div class="small text-muted mt-1">{{ ticket.category }}</div>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="{{ ticket.url }}" class="fw-bold text-decoration-none">{{ ticket.title }}</a>
+                </td>
+                <td>
+                    {% if ticket.assignee %}
+                    <div class="d-flex align-items-center">
+                        <div class="avatar-xs me-2">
+                            <span class="avatar-title rounded-circle bg-light text-dark text-uppercase">
+                                {{ ticket.assignee[:2] }}
+                            </span>
+                        </div>
+                        <span class="small">{{ ticket.assignee }}</span>
+                    </div>
+                    {% else %}
+                    <span class="text-muted small">-</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <span class="badge bg-light text-dark border">{{ ticket.status }}</span>
+                </td>
+                <td>
+                    <i class="far fa-calendar-alt text-muted me-1"></i>
+                    {{ ticket.date.strftime('%Y-%m-%d') }}
+                </td>
+                <td>
+                    {% for tag in ticket.tags %}
+                    <span class="badge bg-secondary rounded-pill">{{ tag }}</span>
+                    {% endfor %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" class="text-center text-muted py-5">
+                    <div class="mb-3">
+                        <i class="fas fa-ticket-alt fa-3x text-gray-300"></i>
+                    </div>
+                    <h6>No tickets found</h6>
+                    <p class="small mb-0">Changes, maintenance logs, and other tickets will appear here.</p>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endmacro %}

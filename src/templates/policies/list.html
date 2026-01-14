@@ -14,12 +14,31 @@
         <div class="list-group">
             {% for policy in policies %}
             <a href="{{ url_for('policies.detail', id=policy.id) }}" class="list-group-item list-group-item-action">
-                <div class="d-flex w-100 justify-content-between">
-                    <h5 class="mb-1">{{ policy.title }}</h5>
-                    <small>{{ policy.versions|length }} versions</small>
+                <div class="d-flex w-100 justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                        <h5 class="mb-1">{{ policy.title }}</h5>
+                        <p class="mb-1">{{ policy.description }}</p>
+                        <small class="text-muted">Category: {{ policy.category }}</small>
+                    </div>
+                    <div class="text-end ms-3">
+                        <small class="d-block">{{ policy.versions|length }} versions</small>
+                        {% if policy.next_review_date %}
+                        <small class="d-block mt-1
+                            {% if policy.next_review_date < today %}
+                                text-danger fw-bold
+                            {% elif (policy.next_review_date - today).days <= 30 %}
+                                text-warning fw-bold
+                            {% endif %}
+                        ">
+                            Review: {{ policy.next_review_date.strftime('%Y-%m-%d') }}
+                        </small>
+                        {% if policy.next_review_date < today %} <span class="badge bg-danger">Expired</span>
+                            {% elif (policy.next_review_date - today).days <= 30 %} <span
+                                class="badge bg-warning text-dark">Review Soon</span>
+                                {% endif %}
+                                {% endif %}
+                    </div>
                 </div>
-                <p class="mb-1">{{ policy.description }}</p>
-                <small class="text-muted">Category: {{ policy.category }}</small>
             </a>
             {% else %}
             <div class="text-center p-4">No policies found.</div>

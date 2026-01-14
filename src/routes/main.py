@@ -275,22 +275,8 @@ def password_change_required(f):
             
             # Check if user is using the default admin credentials
             if user and user.email == default_admin_email and user.check_password(default_admin_password):
-                if request.endpoint not in ['main.change_password', 'main.logout', 'static']: # Check if request is not for allowed endpoints
-
-                    link = url_for('main.change_password')
-                    message_text = f'For security, you must change the default admin password. <a href="{link}" class="alert-link">Click here to change it now.</a>'
-                    message = Markup(message_text)
-                    
-                    # Check if there's already a "warning" message in the queue
-                    flashed_messages = session.get('_flashed_messages', [])
-                    message_already_flashed = any(
-                        msg[0] == 'warning' and msg[1] == message_text
-                        for msg in flashed_messages
-                    )
-
-                    if not message_already_flashed:
-                        flash(message, 'warning') # Add only if message is missing
-                        
+                if request.endpoint not in ['main.change_password', 'main.logout', 'static']:
+                    # Redirect without flash message - the UI will show the forced change alert
                     return redirect(url_for('main.change_password'))
         return f(*args, **kwargs)
     return decorated_function
@@ -303,9 +289,20 @@ def organizational_health():
     ninety_days = today + timedelta(days=90)
     
     # ----- HEALTH SCORE CALCULATION -----
-    # Based on inverse of critical/high risks
-    critical_risks = Risk.query.filter(Risk.residual_likelihood >= 4, Risk.residual_impact >= 4).count()
-    high_risks = Risk.query.filter(Risk.residual_likelihood >= 3, Risk.residual_impact >= 3).count()
+    # Based on inverse of critical/high risks (Excluding Closed and Accepted)
+    critical_risks = Risk.query.filter(
+        Risk.status != 'Closed',
+        Risk.treatment_strategy != 'Accept',
+        Risk.residual_likelihood >= 4, 
+        Risk.residual_impact >= 4
+    ).count()
+    
+    high_risks = Risk.query.filter(
+        Risk.status != 'Closed',
+        Risk.treatment_strategy != 'Accept',
+        Risk.residual_likelihood >= 3, 
+        Risk.residual_impact >= 3
+    ).count()
     health_score = max(0, 100 - (critical_risks * 15) - (high_risks * 5))
     
     # ----- GLOBAL STATUS -----
@@ -587,12 +584,12 @@ def ops_finance_dashboard():
     
     # Query only non-archived items with warranty info
     expiring_assets = Asset.query.filter(
-        not Asset.is_archived,
+        Asset.is_archived == False,
         Asset.purchase_date.isnot(None), 
         Asset.warranty_length.isnot(None)
     ).all()
     expiring_peripherals = Peripheral.query.filter(
-        not Peripheral.is_archived,
+        Peripheral.is_archived == False,
         Peripheral.purchase_date.isnot(None), 
         Peripheral.warranty_length.isnot(None)
     ).all()
@@ -607,7 +604,7 @@ def ops_finance_dashboard():
     ninety_days_from_now = today + timedelta(days=90)
     expiring_payment_methods = []
     all_payment_methods = PaymentMethod.query.filter(
-        not PaymentMethod.is_archived,
+        PaymentMethod.is_archived == False,
         PaymentMethod.expiry_date.isnot(None)
     ).order_by(PaymentMethod.expiry_date).all()
 
@@ -744,12 +741,20 @@ def search():
 @main_bp.route('/change-password', methods=['GET', 'POST'])
 @login_required
 def change_password():
+    user = User.query.get(session['user_id'])
+    
+    # Detect if this is a forced password change
+    default_admin_email = current_app.config.get('DEFAULT_ADMIN_EMAIL', 'admin@example.com')
+    default_admin_password = current_app.config.get('DEFAULT_ADMIN_INITIAL_PASSWORD', 'admin123')
+    forced_change = False
+    
+    if user and user.email == default_admin_email and user.check_password(default_admin_password):
+        forced_change = True
+    
     if request.method == 'POST':
         current_password = request.form.get('current_password')
         new_password = request.form.get('new_password')
         confirm_password = request.form.get('confirm_password')
-
-        user = User.query.get(session['user_id'])
 
         if not user.check_password(current_password):
             flash('Your current password was incorrect.', 'danger')
@@ -770,4 +775,4 @@ def change_password():
             flash('Your password has been updated successfully!', 'success')
             return redirect(url_for('main.organizational_health'))
 
-    return render_template('change_password.html')
+    return render_template('change_password.html', forced_change=forced_change)

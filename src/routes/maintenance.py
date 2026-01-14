@@ -3,7 +3,7 @@ import uuid
 from werkzeug.utils import secure_filename
 from flask import current_app, Blueprint, render_template, request, redirect, url_for, flash
 from datetime import datetime
-from ..models import db, MaintenanceLog, Asset, Peripheral, User, Attachment # Added Attachment
+from ..models import db, MaintenanceLog, Asset, Peripheral, User, Attachment, Tag # Added Attachment, Tag
 from .main import login_required
 from .admin import admin_required
 
@@ -37,6 +37,12 @@ def new_log():
             asset_id=request.form.get('asset_id') or None,
             peripheral_id=request.form.get('peripheral_id') or None
         )
+        
+        # Handle Tags
+        tag_ids = request.form.get('tags', '').split(',')
+        if tag_ids and tag_ids[0]: # Check if not empty string
+             log.tags = Tag.query.filter(Tag.id.in_(tag_ids)).all()
+
         db.session.add(log)
         db.session.commit()
 
@@ -93,7 +99,15 @@ def edit_log(id):
         log.notes = request.form.get('notes')
         log.assigned_to_id = request.form.get('assigned_to_id') or None
         log.asset_id = request.form.get('asset_id') or None
+        log.asset_id = request.form.get('asset_id') or None
         log.peripheral_id = request.form.get('peripheral_id') or None
+        
+        # Handle Tags
+        tag_ids = request.form.get('tags', '').split(',')
+        if tag_ids and tag_ids[0]:
+             log.tags = Tag.query.filter(Tag.id.in_(tag_ids)).all()
+        else:
+             log.tags = []
         
         # Handle File Upload
         if 'file' in request.files:

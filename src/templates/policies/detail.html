@@ -16,162 +16,188 @@
     </div>
 </div>
 
-<div class="card mb-4">
-    <div class="card-header">Policy Details</div>
-    <div class="card-body">
-        <p><strong>Category:</strong> {{ policy.category or 'N/A' }}</p>
-        <p><strong>Description:</strong> {{ policy.description or 'N/A' }}</p>
-        {% if policy.link %}
-        <p><strong>Reference Link:</strong> <a href="{{ policy.link }}" target="_blank">{{ policy.link }}</a></p>
+{# Alert for expired or soon-to-expire policy review #}
+{% if policy.next_review_date %}
+{% if policy.next_review_date < today %} <div class="alert alert-danger d-flex align-items-center" role="alert">
+    <i class="fas fa-exclamation-triangle fa-2x me-3"></i>
+    <div>
+        <h5 class="alert-heading mb-1">Policy Review Overdue</h5>
+        <p class="mb-0">This policy was due for review on <strong>{{ policy.next_review_date.strftime('%Y-%m-%d')
+                }}</strong>. Please schedule a review as soon as possible.</p>
+    </div>
+    </div>
+    {% elif (policy.next_review_date - today).days <= 30 %} <div class="alert alert-warning d-flex align-items-center"
+        role="alert">
+        <i class="fas fa-clock fa-2x me-3"></i>
+        <div>
+            <h5 class="alert-heading mb-1">Policy Review Due Soon</h5>
+            <p class="mb-0">This policy is scheduled for review on <strong>{{
+                    policy.next_review_date.strftime('%Y-%m-%d') }}</strong> ({{ (policy.next_review_date - today).days
+                }} days remaining).</p>
+        </div>
+        </div>
         {% endif %}
-    </div>
-</div>
+        {% endif %}
 
-<div class="card mb-4">
-    <div class="card-header">
-        <i class="fas fa-history"></i> Version History
-    </div>
-    <div class="card-body">
-        <table class="table table-striped">
-            <thead>
-                <tr>
-                    <th>Version</th>
-                    <th>Status</th>
-                    <th>Effective Date</th>
-                    <th>End Date</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for version in policy.versions|sort(attribute='effective_date', reverse=True) %}
-                <tr>
-                    <td>{{ version.version_number }}</td>
-                    <td>
-                        {% if version.status == 'Active' %}<span class="badge bg-success">Active</span>
-                        {% elif version.status == 'Archived' %}<span class="badge bg-secondary">Archived</span>
-                        {% else %}<span class="badge bg-warning">Draft</span>{% endif %}
-                    </td>
-                    <td>{{ version.effective_date.strftime('%Y-%m-%d') }}</td>
-                    <td>{{ version.end_date.strftime('%Y-%m-%d') if version.end_date else 'N/A' }}</td>
-                    <td>
-                        <a href="{{ url_for('policies.view_version', id=version.id) }}"
-                            class="btn btn-sm btn-outline-primary">View</a>
-                        {% if current_user_role == 'admin' %}
-                        <a href="{{ url_for('policies.edit_version', id=version.id) }}"
-                            class="btn btn-sm btn-outline-secondary">Edit</a>
-                        {% if version.status == 'Draft' %}
-                        <form action="{{ url_for('policies.activate_version', id=version.id) }}" method="POST"
-                            class="d-inline"
-                            data-confirm='Are you sure? This will archive any other active version.'>
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="btn btn-sm btn-outline-success">Activate</button>
-                        </form>
-                        {% endif %}
-                        {% endif %}
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="5" class="text-center">No versions found.</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
 
-<div class="card mt-4">
-    <div class="card-header"><i class="fas fa-paperclip"></i> General Attachments</div>
-    <ul class="list-group list-group-flush">
-        {% for att in policy.attachments %}
-        <li class="list-group-item d-flex justify-content-between align-items-center">
-            <a href="{{ url_for('attachments.download_file', attachment_id=att.id) }}">{{ att.filename }}</a>
-            {% if current_user_role == 'admin' %}
-            <form action="{{ url_for('attachments.delete_attachment', attachment_id=att.id) }}" method="POST"
-                data-confirm='Are you sure?'>
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
-            </form>
-            {% endif %}
-        </li>
-        {% else %}
-        <li class="list-group-item text-muted">No files attached to this policy.</li>
-        {% endfor %}
-    </ul>
-    {% if current_user_role == 'admin' %}
-    <div class="card-body">
-        <form action="{{ url_for('attachments.upload_file') }}" method="POST" enctype="multipart/form-data">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="policy_id" value="{{ policy.id }}">
-            <div class="input-group">
-                <input type="file" class="form-control" name="file" required>
-                <button class="btn btn-outline-primary" type="submit">Upload</button>
-            </div>
-        </form>
-    </div>
-    {% endif %}
-
-</div>
-<div class="card mt-4">
-    <div class="card-header"><i class="fas fa-users"></i> Policy Assignment</div>
-    <div class="card-body">
-        <div class="row mb-3">
-            <div class="col-md-6">
-                <label class="form-label">Assigned to Specific Users</label>
-                {% if policy.versions %}
-                {% set latest_version = policy.versions|sort(attribute='effective_date', reverse=True)|first %}
-                {% if latest_version.users_to_acknowledge %}
-                <ul class="list-group">
-                    {% for user in latest_version.users_to_acknowledge %}
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        {{ user.name }}
-                        {% if current_user_role == 'admin' %}
-                        <form
-                            action="{{ url_for('policies.remove_user_from_policy', policy_id=policy.id, user_id=user.id) }}"
-                            method="POST" class="d-inline">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="btn btn-sm btn-outline-danger"><i
-                                    class="fas fa-times"></i></button>
-                        </form>
-                        {% endif %}
-                    </li>
-                    {% endfor %}
-                </ul>
-                {% else %}
-                <p class="text-muted">No specific users assigned.</p>
-                {% endif %}
-                {% endif %}
-            </div>
-            <div class="col-md-6">
-                <label class="form-label">Assigned to Groups</label>
-                {% if policy.versions %}
-                {% set latest_version = policy.versions|sort(attribute='effective_date', reverse=True)|first %}
-                {% if latest_version.groups_to_acknowledge %}
-                <ul class="list-group">
-                    {% for group in latest_version.groups_to_acknowledge %}
-                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                        {{ group.name }}
-                        {% if current_user_role == 'admin' %}
-                        <form
-                            action="{{ url_for('policies.remove_group_from_policy', policy_id=policy.id, group_id=group.id) }}"
-                            method="POST" class="d-inline">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="btn btn-sm btn-outline-danger"><i
-                                    class="fas fa-times"></i></button>
-                        </form>
-                        {% endif %}
-                    </li>
-                    {% endfor %}
-                </ul>
-                {% else %}
-                <p class="text-muted">No groups assigned.</p>
-                {% endif %}
+        <div class="card mb-4">
+            <div class="card-header">Policy Details</div>
+            <div class="card-body">
+                <p><strong>Category:</strong> {{ policy.category or 'N/A' }}</p>
+                <p><strong>Description:</strong> {{ policy.description or 'N/A' }}</p>
+                {% if policy.link %}
+                <p><strong>Reference Link:</strong> <a href="{{ policy.link }}" target="_blank">{{ policy.link }}</a>
+                </p>
                 {% endif %}
             </div>
         </div>
-    </div>
-</div>
 
-{{ compliance_links(policy, 'Policy') }}
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="fas fa-history"></i> Version History
+            </div>
+            <div class="card-body">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Version</th>
+                            <th>Status</th>
+                            <th>Effective Date</th>
+                            <th>End Date</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for version in policy.versions|sort(attribute='effective_date', reverse=True) %}
+                        <tr>
+                            <td>{{ version.version_number }}</td>
+                            <td>
+                                {% if version.status == 'Active' %}<span class="badge bg-success">Active</span>
+                                {% elif version.status == 'Archived' %}<span class="badge bg-secondary">Archived</span>
+                                {% else %}<span class="badge bg-warning">Draft</span>{% endif %}
+                            </td>
+                            <td>{{ version.effective_date.strftime('%Y-%m-%d') }}</td>
+                            <td>{{ version.end_date.strftime('%Y-%m-%d') if version.end_date else 'N/A' }}</td>
+                            <td>
+                                <a href="{{ url_for('policies.view_version', id=version.id) }}"
+                                    class="btn btn-sm btn-outline-primary">View</a>
+                                {% if current_user_role == 'admin' %}
+                                <a href="{{ url_for('policies.edit_version', id=version.id) }}"
+                                    class="btn btn-sm btn-outline-secondary">Edit</a>
+                                {% if version.status == 'Draft' %}
+                                <form action="{{ url_for('policies.activate_version', id=version.id) }}" method="POST"
+                                    class="d-inline"
+                                    data-confirm='Are you sure? This will archive any other active version.'>
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-success">Activate</button>
+                                </form>
+                                {% endif %}
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center">No versions found.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
 
-{% endblock %}
+        <div class="card mt-4">
+            <div class="card-header"><i class="fas fa-paperclip"></i> General Attachments</div>
+            <ul class="list-group list-group-flush">
+                {% for att in policy.attachments %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <a href="{{ url_for('attachments.download_file', attachment_id=att.id) }}">{{ att.filename }}</a>
+                    {% if current_user_role == 'admin' %}
+                    <form action="{{ url_for('attachments.delete_attachment', attachment_id=att.id) }}" method="POST"
+                        data-confirm='Are you sure?'>
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger"><i
+                                class="fas fa-trash"></i></button>
+                    </form>
+                    {% endif %}
+                </li>
+                {% else %}
+                <li class="list-group-item text-muted">No files attached to this policy.</li>
+                {% endfor %}
+            </ul>
+            {% if current_user_role == 'admin' %}
+            <div class="card-body">
+                <form action="{{ url_for('attachments.upload_file') }}" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="policy_id" value="{{ policy.id }}">
+                    <div class="input-group">
+                        <input type="file" class="form-control" name="file" required>
+                        <button class="btn btn-outline-primary" type="submit">Upload</button>
+                    </div>
+                </form>
+            </div>
+            {% endif %}
+
+        </div>
+        <div class="card mt-4">
+            <div class="card-header"><i class="fas fa-users"></i> Policy Assignment</div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">Assigned to Specific Users</label>
+                        {% if policy.versions %}
+                        {% set latest_version = policy.versions|sort(attribute='effective_date', reverse=True)|first %}
+                        {% if latest_version.users_to_acknowledge %}
+                        <ul class="list-group">
+                            {% for user in latest_version.users_to_acknowledge %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                {{ user.name }}
+                                {% if current_user_role == 'admin' %}
+                                <form
+                                    action="{{ url_for('policies.remove_user_from_policy', policy_id=policy.id, user_id=user.id) }}"
+                                    method="POST" class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger"><i
+                                            class="fas fa-times"></i></button>
+                                </form>
+                                {% endif %}
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        {% else %}
+                        <p class="text-muted">No specific users assigned.</p>
+                        {% endif %}
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Assigned to Groups</label>
+                        {% if policy.versions %}
+                        {% set latest_version = policy.versions|sort(attribute='effective_date', reverse=True)|first %}
+                        {% if latest_version.groups_to_acknowledge %}
+                        <ul class="list-group">
+                            {% for group in latest_version.groups_to_acknowledge %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                {{ group.name }}
+                                {% if current_user_role == 'admin' %}
+                                <form
+                                    action="{{ url_for('policies.remove_group_from_policy', policy_id=policy.id, group_id=group.id) }}"
+                                    method="POST" class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger"><i
+                                            class="fas fa-times"></i></button>
+                                </form>
+                                {% endif %}
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        {% else %}
+                        <p class="text-muted">No groups assigned.</p>
+                        {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{ compliance_links(policy, 'Policy') }}
+
+        {% endblock %}

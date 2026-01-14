@@ -56,6 +56,17 @@
             </div>
         </div>
 
+        <div class="row mb-3">
+            <div class="col-12">
+                <strong>Tags:</strong>
+                {% for tag in execution.tags %}
+                <span class="badge bg-secondary">{{ tag.name }}</span>
+                {% else %}
+                <span class="text-muted">No tags</span>
+                {% endfor %}
+            </div>
+        </div>
+
         <div class="row">
             <div class="col-12">
                 <strong>Recorded:</strong> {{ execution.created_at.strftime('%Y-%m-%d %H:%M') }}

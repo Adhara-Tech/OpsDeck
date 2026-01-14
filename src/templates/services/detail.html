@@ -1,6 +1,7 @@
 {% extends "layout.html" %}
 {% from "components/compliance_link_macro.html" import compliance_links %}
 {% from "components/credential_list_macro.html" import credential_list %}
+{% from "components/ticket_list.html" import ticket_list %}
 
 {% block title %}{{ service.name }} - Service Detail{% endblock %}
 
@@ -141,16 +142,12 @@
         <button class="nav-link" id="infrastructure-tab" data-bs-toggle="tab" data-bs-target="#infrastructure"
             type="button" role="tab">Infrastructure Components</button>
     </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link" id="context-tab" data-bs-toggle="tab" data-bs-target="#context" type="button"
-            role="tab">
-            Service Context
-            {% if service.has_expiry_warning %}
-            <span class="badge bg-danger ms-1" title="Items expiring soon">!</span>
-            {% endif %}
-        </button>
+    </button>
     </li>
-
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="tickets-tab" data-bs-toggle="tab" data-bs-target="#tickets" type="button"
+            role="tab">Tickets</button>
+    </li>
 </ul>
 
 <div class="tab-content" id="serviceTabsContent">
@@ -694,7 +691,16 @@
     </div>
 </div>
 
-
+<div class="tab-pane fade" id="tickets" role="tabpanel">
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
+            <h6 class="m-0 font-weight-bold text-primary">Associated Tickets</h6>
+        </div>
+        <div class="card-body">
+            {{ ticket_list(service.get_tickets()) }}
+        </div>
+    </div>
+</div>
 </div>
 
 <div class="modal fade" id="addUserAccessModal" tabindex="-1">
@@ -1116,3 +1122,4 @@
     </div>
 </div>
 {% endblock %}
+```

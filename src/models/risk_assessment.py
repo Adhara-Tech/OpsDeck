@@ -1,6 +1,13 @@
 from datetime import datetime
 from ..extensions import db
 
+# Association table for Risk Assessment - Change Mitigation M2M
+risk_assessment_changes = db.Table('risk_assessment_changes',
+    db.Column('assessment_id', db.Integer, db.ForeignKey('risk_assessment.id'), primary_key=True),
+    db.Column('change_id', db.Integer, db.ForeignKey('change.id'), primary_key=True)
+)
+
+
 class RiskAssessment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False) # e.g., "Q1 2024 Assessment"
@@ -12,6 +19,11 @@ class RiskAssessment(db.Model):
     total_residual_risk = db.Column(db.Integer) 
     
     items = db.relationship('RiskAssessmentItem', backref='assessment', cascade='all, delete-orphan')
+
+    # Relationship to Changes that mitigate risks in this assessment
+    mitigating_changes = db.relationship('Change', secondary=risk_assessment_changes, 
+                                       backref=db.backref('risk_assessments', lazy='dynamic'))
+
 
     @property
     def current_total_risk(self):
@@ -99,7 +111,7 @@ class RiskAssessmentEvidence(db.Model):
         if not self.linkable_type:
             return None
             
-        from . import Policy, Asset, Documentation, Link, BCDRPlan, Software, Supplier, Course
+        from . import Policy, Asset, Documentation, Link, BCDRPlan, Software, Supplier, Course, Change
         from .services import BusinessService
         
         model_map = {
@@ -111,7 +123,8 @@ class RiskAssessmentEvidence(db.Model):
             'Software': Software,
             'Supplier': Supplier,
             'Course': Course,
-            'BusinessService': BusinessService
+            'BusinessService': BusinessService,
+            'Change': Change
         }
         
         model = model_map.get(self.linkable_type)

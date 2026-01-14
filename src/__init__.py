@@ -5,7 +5,7 @@ import sys
 import logging
 from logging.handlers import RotatingFileHandler
 import atexit
-from flask import Flask, session, render_template, request
+from flask import Flask, session, render_template, request, redirect, url_for
 from apscheduler.schedulers.background import BackgroundScheduler
 import ecs_logging
 from flask_limiter import Limiter
@@ -177,7 +177,11 @@ def create_app(test_config=None):
     from .api import api_bp
     api.register_blueprint(api_bp)
 
-    # --- Custom 429 Error Handler with logging ---
+    # --- Custom Error Handlers ---
+    @app.errorhandler(404)
+    def page_not_found(e):
+        return render_template('404.html'), 404
+    
     @app.errorhandler(429)
     def ratelimit_handler(e):
         from .utils.logger import log_audit
@@ -188,6 +192,17 @@ def create_app(test_config=None):
             error_message=e.description
         )
         return render_template('429.html', error=e.description), 429
+    
+    @app.errorhandler(500)
+    def internal_server_error(e):
+        from .utils.logger import log_audit
+        log_audit(
+            event_type='system.internal_error',
+            action='error',
+            outcome='failure',
+            error_message=str(e)
+        )
+        return render_template('500.html'), 500
     
     # --- REGISTER THE CUSTOM MARKDOWN FILTER ---
     @app.template_filter('markdown')
@@ -270,6 +285,10 @@ def create_app(test_config=None):
     app.register_blueprint(leads_bp)
     app.register_blueprint(documentation_bp, url_prefix='/documentation')
     app.register_blueprint(frameworks_bp)
+    
+    from .routes.changes import changes_bp
+    app.register_blueprint(changes_bp, url_prefix='/changes')
+
     from .routes.audits import audits_bp
     app.register_blueprint(audits_bp)
     from .routes.services import services_bp
@@ -319,19 +338,81 @@ def create_app(test_config=None):
     # --- Make user and role available in all templates ---
     @app.context_processor
     def inject_user_context():
+        from datetime import date
         user_id = session.get('user_id')
         if user_id:
             user = User.query.get(user_id)
             if user:
-                return dict(current_user=user, current_user_role=user.role)
-        return dict(current_user=None, current_user_role=None)
+                return dict(current_user=user, current_user_role=user.role, today=date.today())
+        return dict(current_user=None, current_user_role=None, today=date.today())
+
+
+    # --- GLOBAL AUTHENTICATION GUARD (Security by Default) ---
+    @app.before_request
+    def require_login():
+        """
+        Global authentication wall: All routes require login by default.
+        Only whitelisted endpoints are accessible without authentication.
+        """
+        # Lista de endpoints que NO requieren autenticación (Whitelist)
+        public_endpoints = [
+            'main.login',
+            'main.google_callback',
+            'main.mfa_verify',  # Necesario para el flujo de 2FA
+            'static',
+            'favicon',
+            # API endpoints use token authentication, not session
+            'api-v1.AuthLogin',
+            'api-v1.AuthRefresh',
+        ]
+
+        # Permitir acceso si:
+        # 1. El usuario ya está autenticado (tiene user_id en sesión)
+        if 'user_id' in session:
+            return None
+
+        # 2. La petición es un recurso estático o endpoint None (404)
+        if request.endpoint is None:
+            return None
+            
+        # 3. La petición es a un endpoint público
+        if request.endpoint in public_endpoints:
+            return None
+            
+        # 4. Permitir endpoints de API (usan autenticación por token)
+        # Check by path since flask-smorest uses different endpoint naming
+        if request.path and request.path.startswith('/api/v1'):
+            return None
+
+        # Si llegamos aquí, bloquear y redirigir a login
+        # Guardar la URL solicitada para redirigir después del login
+        return redirect(url_for('main.login', next=request.url))
 
     # --- Force admin to change the default password ---
-    from .routes.main import password_change_required
     @app.before_request
-    def before_request_hook():
-        # This now correctly calls the updated password_change_required decorator
-        password_change_required(lambda: None)()
+    def enforce_password_change():
+        """
+        Force users with default admin credentials to change their password.
+        This runs after authentication but before any route handler.
+        """
+        user_id = session.get('user_id')
+        if user_id:
+            # Skip check for allowed endpoints
+            if request.endpoint in ['main.change_password', 'main.logout', 'static', 'favicon']:
+                return None
+                
+            user = User.query.get(user_id)
+            if user:
+                # Get configured admin credentials from app config
+                default_admin_email = app.config.get('DEFAULT_ADMIN_EMAIL', 'admin@example.com')
+                default_admin_password = app.config.get('DEFAULT_ADMIN_INITIAL_PASSWORD', 'admin123')
+                
+                # Check if user is using the default admin credentials
+                if user.email == default_admin_email and user.check_password(default_admin_password):
+                    # Force redirect to password change page
+                    return redirect(url_for('main.change_password'))
+        
+        return None
 
     # --- Scheduler and Notifications ---
     # Only start the scheduler if not in testing mode

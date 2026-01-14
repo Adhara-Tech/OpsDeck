@@ -1,36 +1,81 @@
 {% extends "layout.html" %}
 {% set title = "Edit BCDR Test" if test_log else "Log BCDR Test" %}
-{% block title %}{{ title }} - {{ super() }}{% endblock %}
+{% block title %}{{ title }} - {{ super() }} </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        new TomSelect("#tags", {
+            valueField: 'id',
+            labelField: 'name',
+            searchField: 'name',
+            plugins: ['remove_button'],
+            load: function (query, callback) {
+                var url = '/compliance/json/tags';
+                fetch(url)
+                    .then(response => response.json())
+                    .then(json => {
+                        callback(json);
+                    }).catch(() => {
+                        callback();
+                    });
+            },
+            preload: true
+        });
+    });
+</script>
+{% endblock %}
 {% block content %}
 <h2><i class="fas {{ 'fa-edit' if test_log else 'fa-vial' }}"></i> {{ title }} for: {{ plan.name }}</h2>
 <hr>
 <div class="card">
     <div class="card-body">
         <form method="POST" enctype="multipart/form-data">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="row mb-3">
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label for="test_date" class="form-label">Test Date *</label>
-                    <input type="date" class="form-control" id="test_date" name="test_date" value="{{ (test_log.test_date if test_log else today_date)|string|replace(' 00:00:00', '') }}" required>
+                    <input type="date" class="form-control" id="test_date" name="test_date"
+                        value="{{ (test_log.test_date if test_log else today_date)|string|replace(' 00:00:00', '') }}"
+                        required>
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label for="status" class="form-label">Status *</label>
                     <select class="form-select" id="status" name="status">
                         {% set statuses = ['In Progress', 'Passed', 'Failed'] %}
                         {% for status in statuses %}
-                        <option value="{{ status }}" {% if test_log and test_log.status == status %}selected{% endif %}>{{ status }}</option>
+                        <option value="{{ status }}" {% if test_log and test_log.status==status %}selected{% endif %}>{{
+                            status }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="assignee_id" class="form-label">Assignee (Executor)</label>
+                    <select class="form-select" id="assignee_id" name="assignee_id">
+                        <option value="">Select an executor...</option>
+                        {% for user in users %}
+                        <option value="{{ user.id }}" {% if test_log and test_log.assignee_id==user.id %}selected{%
+                            endif %}>{{ user.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
             </div>
             <div class="mb-3">
+                <label for="tags" class="form-label">Tags</label>
+                <input type="text" id="tags" name="tags"
+                    value="{{ test_log.tags|map(attribute='id')|join(',') if test_log else '' }}"
+                    placeholder="Select tags...">
+            </div>
+            <div class="mb-3">
                 <label for="notes" class="form-label">Notes</label>
-                <textarea class="form-control" id="notes" name="notes" rows="5">{{ test_log.notes if test_log else '' }}</textarea>
+                <textarea class="form-control" id="notes" name="notes"
+                    rows="5">{{ test_log.notes if test_log else '' }}</textarea>
             </div>
             <div class="mb-3">
                 <label for="proof_file" class="form-label">Upload Proof (Optional)</label>
                 <input class="form-control" type="file" id="proof_file" name="file">
-                <div class="form-text">Uploading a new file will replace any existing attachment for this test log.</div>
+                <div class="form-text">Uploading a new file will replace any existing attachment for this test log.
+                </div>
             </div>
             <hr>
             <a href="{{ url_for('compliance.bcdr_detail', id=plan.id) }}" class="btn btn-secondary">Cancel</a>

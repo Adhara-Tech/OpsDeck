@@ -21,22 +21,27 @@
                 </thead>
                 <tbody>
                     {% for item in items %}
-                    <tr>
+                    {% set css_class = '' %}
+                    {% if item.warranty_end_date %}
+                    {% set days_left = (item.warranty_end_date - today).days %}
+                    {% if days_left < 0 %} {% set css_class='table-danger' %} {% elif days_left <=30 %} {% set
+                        css_class='table-warning' %} {% endif %} {% endif %} <tr class="{{ css_class }}">
                         {% if item.__class__.__name__ == 'Asset' %}
-                            <td><a href="{{ url_for('assets.asset_detail', id=item.id) }}">{{ item.name }}</a></td>
-                            <td><span class="badge bg-success">Asset</span></td>
+                        <td><a href="{{ url_for('assets.asset_detail', id=item.id) }}">{{ item.name }}</a></td>
+                        <td><span class="badge bg-success">Asset</span></td>
                         {% else %}
-                            <td><a href="{{ url_for('peripherals.peripheral_detail', id=item.id) }}">{{ item.name }}</a></td>
-                            <td><span class="badge bg-info">Peripheral</span></td>
+                        <td><a href="{{ url_for('peripherals.peripheral_detail', id=item.id) }}">{{ item.name }}</a>
+                        </td>
+                        <td><span class="badge bg-info">Peripheral</span></td>
                         {% endif %}
                         <td>{{ item.purchase_date.strftime('%Y-%m-%d') if item.purchase_date else '-' }}</td>
                         <td>{{ item.warranty_end_date.strftime('%Y-%m-%d') if item.warranty_end_date else '-' }}</td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="4" class="text-center">No items with warranty information found.</td>
-                    </tr>
-                    {% endfor %}
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="text-center">No items with warranty information found.</td>
+                        </tr>
+                        {% endfor %}
                 </tbody>
             </table>
         </div>

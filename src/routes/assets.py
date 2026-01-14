@@ -1,7 +1,7 @@
 from flask import (
     Blueprint, render_template, request, redirect, url_for, flash
 )
-from datetime import datetime
+from datetime import datetime, date
 from ..models import db, Asset, AssetHistory, User, Location, Supplier, Purchase, AssetAssignment, Peripheral
 from .main import login_required
 from .admin import admin_required
@@ -342,7 +342,7 @@ def warranties():
     
     sorted_items = sorted(items_with_warranties, key=lambda x: x.warranty_end_date, reverse=True)
     
-    return render_template('assets/warranties.html', items=sorted_items)
+    return render_template('assets/warranties.html', items=sorted_items, today=date.today())
 
 @assets_bp.route('/<int:id>/history')
 @login_required

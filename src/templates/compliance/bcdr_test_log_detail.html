@@ -5,8 +5,10 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="fas fa-vial"></i> BCDR Test Log Details</h2>
     <div>
-        <a href="{{ url_for('compliance.bcdr_detail', id=test_log.plan.id) }}" class="btn btn-outline-secondary">Back to Plan</a>
-        <a href="{{ url_for('compliance.edit_bcdr_test', test_id=test_log.id) }}" class="btn btn-primary"><i class="fas fa-edit"></i> Edit Log</a>
+        <a href="{{ url_for('compliance.bcdr_detail', id=test_log.plan.id) }}" class="btn btn-outline-secondary">Back to
+            Plan</a>
+        <a href="{{ url_for('compliance.edit_bcdr_test', test_id=test_log.id) }}" class="btn btn-primary"><i
+                class="fas fa-edit"></i> Edit Log</a>
     </div>
 </div>
 
@@ -23,8 +25,17 @@
     <div class="card-body">
         <div class="row">
             <div class="col-md-6">
-                <p><strong>Plan:</strong> <a href="{{ url_for('compliance.bcdr_detail', id=test_log.plan.id) }}">{{ test_log.plan.name }}</a></p>
+                <p><strong>Plan:</strong> <a href="{{ url_for('compliance.bcdr_detail', id=test_log.plan.id) }}">{{
+                        test_log.plan.name }}</a></p>
                 <p><strong>Test Date:</strong> {{ test_log.test_date.strftime('%Y-%m-%d') }}</p>
+                <p><strong>Assignee:</strong> {{ test_log.assignee.name if test_log.assignee else 'Unassigned' }}</p>
+                <p><strong>Tags:</strong>
+                    {% for tag in test_log.tags %}
+                    <span class="badge bg-secondary">{{ tag.name }}</span>
+                    {% else %}
+                    <span class="text-muted">No tags</span>
+                    {% endfor %}
+                </p>
             </div>
         </div>
         <hr>
@@ -39,8 +50,9 @@
         {% for att in test_log.attachments %}
         <li class="list-group-item d-flex justify-content-between align-items-center">
             <a href="{{ url_for('attachments.download_file', attachment_id=att.id) }}">{{ att.filename }}</a>
-            <form action="{{ url_for('attachments.delete_attachment', attachment_id=att.id) }}" method="POST" data-confirm='Are you sure?'>
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <form action="{{ url_for('attachments.delete_attachment', attachment_id=att.id) }}" method="POST"
+                data-confirm='Are you sure?'>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
             </form>
         </li>

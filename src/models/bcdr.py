@@ -2,6 +2,8 @@ from datetime import datetime, date
 from sqlalchemy.orm import foreign
 from sqlalchemy import and_
 from ..extensions import db
+from .core import Tag
+from .auth import User
 
 # --- Association Tables for BCDR ---
 bcdr_plan_subscriptions = db.Table('bcdr_plan_subscriptions',
@@ -12,6 +14,12 @@ bcdr_plan_subscriptions = db.Table('bcdr_plan_subscriptions',
 bcdr_plan_assets = db.Table('bcdr_plan_assets',
     db.Column('plan_id', db.Integer, db.ForeignKey('bcdr_plan.id'), primary_key=True),
     db.Column('asset_id', db.Integer, db.ForeignKey('asset.id'), primary_key=True)
+)
+
+# Tags for BCDR Test Logs
+bcdr_test_tags = db.Table('bcdr_test_tags',
+    db.Column('test_log_id', db.Integer, db.ForeignKey('bcdr_test_log.id'), primary_key=True),
+    db.Column('tag_id', db.Integer, db.ForeignKey('tag.id'), primary_key=True)
 )
 
 class BCDRPlan(db.Model):
@@ -43,6 +51,13 @@ class BCDRTestLog(db.Model):
     status = db.Column(db.String(50), nullable=False) # In Progress, Passed, Failed
     notes = db.Column(db.Text)
     
+    # Assignee (Executor)
+    assignee_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    assignee = db.relationship('User', foreign_keys=[assignee_id])
+
+    # Tags
+    tags = db.relationship('Tag', secondary=bcdr_test_tags, backref=db.backref('bcdr_test_logs', lazy='dynamic'))
+
     # Relationships
     attachments = db.relationship('Attachment',
                             primaryjoin="and_(BCDRTestLog.id==foreign(Attachment.linkable_id), "

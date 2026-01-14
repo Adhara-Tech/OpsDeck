@@ -1,5 +1,6 @@
 import pytest
-from src.models import User, Supplier, Contact, Asset, Peripheral, Location
+from src.models import User, Supplier, Contact, Asset, Peripheral, Location, Software, Subscription, Budget, Risk, RiskCategory
+# Note: Software, Subscription, Budget are imported from 'Asset' alias in previous step or src.models root for tests
 from src.extensions import db
 
 
@@ -99,6 +100,46 @@ def test_import_suppliers_basic(app, csv_dir):
         assert acme.email == 'contact@acme.com'
         assert acme.phone == '555-0199'
         assert acme.compliance_status == 'Approved'
+
+
+def test_import_suppliers_with_website(app, csv_dir):
+    """Test importing suppliers with website column."""
+    csv_file = csv_dir / "suppliers_website.csv"
+    csv_file.write_text(
+        "name,email,website,compliance_status\n"
+        "Web Corp,web@corp.com,https://webcorp.com,Approved\n"
+    )
+    
+    runner = app.test_cli_runner()
+    result = runner.invoke(args=['data-import', 'suppliers', str(csv_file)])
+    
+    assert result.exit_code == 0
+    assert "Suppliers created: 1" in result.output
+    
+    with app.app_context():
+        supplier = Supplier.query.filter_by(name='Web Corp').first()
+        assert supplier is not None
+        assert supplier.website == 'https://webcorp.com'
+
+
+def test_import_suppliers_with_semicolon(app, csv_dir):
+    """Test importing suppliers with semicolon delimiter."""
+    csv_file = csv_dir / "suppliers_semicolon.csv"
+    csv_file.write_text(
+        "name;email;phone;compliance_status\n"
+        "Semi Corp;semi@corp.com;555-5555;Approved\n"
+    )
+    
+    runner = app.test_cli_runner()
+    result = runner.invoke(args=['data-import', 'suppliers', str(csv_file)])
+    
+    assert result.exit_code == 0
+    assert "Suppliers created: 1" in result.output
+    
+    with app.app_context():
+        supplier = Supplier.query.filter_by(name='Semi Corp').first()
+        assert supplier is not None
+        assert supplier.email == 'semi@corp.com'
 
 
 def test_import_suppliers_skip_duplicates(app, csv_dir):
@@ -252,6 +293,38 @@ def test_import_assets_invalid_date(app, csv_dir):
         assert asset.purchase_date is None
 
 
+def test_import_assets_skip_duplicates(app, csv_dir):
+    """Test that duplicate assets (by serial number) are skipped."""
+    # Create asset first
+    with app.app_context():
+        asset = Asset(name='Existing Asset', serial_number='SN123', status='In Use', cost=100.0)
+        db.session.add(asset)
+        db.session.commit()
+    
+    csv_file = csv_dir / "assets.csv"
+    csv_file.write_text(
+        "name,serial_number,cost\n"
+        "Existing Asset,SN123,500.00\n"
+        "New Asset,SN456,200.00\n"
+    )
+    
+    runner = app.test_cli_runner()
+    result = runner.invoke(args=['data-import', 'assets', str(csv_file)])
+
+    assert result.exit_code == 0
+    assert "Assets imported: 1" in result.output
+    assert "Skipped: 1" in result.output
+    assert "Skipped existing asset" in result.output
+
+    with app.app_context():
+        # Cost should NOT update
+        asset = Asset.query.filter_by(serial_number='SN123').first()
+        assert asset.cost == 100.0
+        # New asset should exist
+        new_asset = Asset.query.filter_by(serial_number='SN456').first()
+        assert new_asset is not None
+
+
 def test_import_peripherals_basic(app, csv_dir):
     """Test basic peripheral import."""
     csv_file = csv_dir / "peripherals.csv"
@@ -326,3 +399,149 @@ def test_import_users_password_generation(app, csv_dir):
     assert passwords[0] != passwords[1]
     # Verify passwords are at least 12 characters
     assert all(len(p) >= 12 for p in passwords)
+
+
+def test_import_software_basic(app, csv_dir):
+    """Test software import with supplier assignment."""
+    # Create supplier and user first
+    with app.app_context():
+        supplier = Supplier(name='Adobe', email='support@adobe.com')
+        db.session.add(supplier)
+        user = User(name='IT Manager', email='it@example.com', role='admin')
+        user.set_password('password')
+        db.session.add(user)
+        db.session.commit()
+    
+    csv_file = csv_dir / "software.csv"
+    csv_file.write_text(
+        "name,category,description,supplier_name,owner_email\n"
+        "Adobe Creative Cloud,Design,Creative Suite,Adobe,it@example.com\n"
+        "Slack,Communication,Chat app,Unknown Supplier,unknown@example.com\n"
+    )
+    
+    runner = app.test_cli_runner()
+    result = runner.invoke(args=['data-import', 'software', str(csv_file)])
+    
+    assert result.exit_code == 0
+    assert "Software imported: 2" in result.output
+    
+    with app.app_context():
+        # First software: Should have supplier and owner
+        adobe = Software.query.filter_by(name='Adobe Creative Cloud').first()
+        assert adobe is not None
+        assert adobe.supplier.name == 'Adobe'
+        assert adobe.owner.email == 'it@example.com'
+        
+        # Second software: Supplier/Owner not found -> Should be None (optional linking)
+        slack = Software.query.filter_by(name='Slack').first()
+        assert slack is not None
+        assert slack.supplier_id is None
+        assert slack.owner_id is None
+
+
+def test_import_subscriptions_basic(app, csv_dir):
+    """Test subscription import with validation."""
+    with app.app_context():
+        # Setup dependencies
+        supplier = Supplier(name='Microsoft', email='ms@example.com')
+        db.session.add(supplier)
+        
+        software = Software(name='Office 365', category='Productivity')
+        db.session.add(software)
+        
+        budget = Budget(name='IT Budget 2024', amount=10000.0)
+        db.session.add(budget)
+        
+        user = User(name='Jane Doe', email='jane@example.com', role='user')
+        user.set_password('pw')
+        db.session.add(user)
+        
+        db.session.commit()
+    
+    csv_file = csv_dir / "subscriptions.csv"
+    csv_file.write_text(
+        "name,type,cost,supplier_name,renewal_date,period_type,software_name,budget_name,assigned_user_email,auto_renew\n"
+        "M365 Business,SaaS,150.00,Microsoft,2025-01-01,monthly,Office 365,IT Budget 2024,jane@example.com,yes\n"
+        "Invalid Sub,SaaS,100.00,Missing Supplier,2025-01-01,yearly,,,,no\n"
+    )
+    
+    runner = app.test_cli_runner()
+    result = runner.invoke(args=['data-import', 'subscriptions', str(csv_file)])
+    
+    assert result.exit_code == 0
+    assert "Subscriptions imported: 1" in result.output
+    assert "Skipped (missing supplier): 1" in result.output
+    
+    with app.app_context():
+        sub = Subscription.query.filter_by(name='M365 Business').first()
+        assert sub is not None
+        assert sub.cost == 150.00
+        assert sub.supplier.name == 'Microsoft'
+        assert sub.software.name == 'Office 365'
+        assert sub.budget.name == 'IT Budget 2024'
+        assert sub.user.email == 'jane@example.com'
+        assert sub.budget.name == 'IT Budget 2024'
+        assert sub.user.email == 'jane@example.com'
+        assert sub.auto_renew is True
+
+
+def test_import_risks_basic(app, csv_dir):
+    """Test basic risk import with categories."""
+    csv_file = csv_dir / "risks.csv"
+    csv_file.write_text(
+        "name,likelihood,impact,description,category\n"
+        "Data Breach,4,5,Unauthorized access to sensitive data,\"Confidentiality, Legal\"\n"
+        "Server Outage,3,4,Data center power loss,Availability\n"
+    )
+    
+    runner = app.test_cli_runner()
+    result = runner.invoke(args=['data-import', 'risks', str(csv_file)])
+    
+    assert result.exit_code == 0
+    assert "Risks imported: 2" in result.output
+    
+    with app.app_context():
+        # First risk
+        breach = Risk.query.filter_by(risk_description='Data Breach').first()
+        assert breach is not None
+        assert breach.inherent_likelihood == 4
+        assert breach.inherent_impact == 5
+        # Residuals should default to inherent
+        assert breach.residual_likelihood == 4
+        assert breach.residual_impact == 5
+        assert breach.extended_description == 'Unauthorized access to sensitive data'
+        
+        # Check categories
+        cats = [c.category for c in breach.categories]
+        assert 'Confidentiality' in cats
+        assert 'Legal' in cats
+        
+        # Second risk
+        outage = Risk.query.filter_by(risk_description='Server Outage').first()
+        assert outage is not None
+        assert outage.categories.first().category == 'Availability'
+
+
+def test_import_risks_validation(app, csv_dir):
+    """Test validation (missing name/impact/likelihood)."""
+    # Get initial count
+    with app.app_context():
+        initial_count = Risk.query.count()
+
+    csv_file = csv_dir / "risks.csv"
+    csv_file.write_text(
+        "name,likelihood,impact\n"
+        ",5,5\n"
+        "Valid Risk,5,5\n"
+    )
+    
+    runner = app.test_cli_runner()
+    result = runner.invoke(args=['data-import', 'risks', str(csv_file)])
+    
+    assert result.exit_code == 0
+    # Should skip the blank name row (or fail it), but count valid one
+    
+    with app.app_context():
+        # Expect exactly 1 new risk
+        assert Risk.query.count() == initial_count + 1
+        assert Risk.query.filter_by(risk_description='Valid Risk').first() is not None
