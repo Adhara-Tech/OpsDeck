@@ -22,8 +22,7 @@ def log_audit(event_type, action, target_object=None, outcome='success', **kwarg
         "event.kind": "event",
         "event.category": event_type.split('.')[0] if '.' in event_type else "web",
         "event.action": action,
-        "event.outcome": outcome,
-        "@timestamp": datetime.utcnow().isoformat()
+        "event.outcome": outcome
     }
     
     # Add target info if present
