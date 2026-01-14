@@ -380,7 +380,8 @@ def create_app(test_config=None):
             return None
             
         # 4. Permitir endpoints de API (usan autenticación por token)
-        if request.endpoint and request.endpoint.startswith('api-v1.'):
+        # Check by path since flask-smorest uses different endpoint naming
+        if request.path and request.path.startswith('/api/v1'):
             return None
 
         # Si llegamos aquí, bloquear y redirigir a login

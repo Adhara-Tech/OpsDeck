@@ -1,5 +1,5 @@
 # src/api.py
-from flask import request, current_app
+from flask import request, current_app, jsonify
 from flask.views import MethodView
 from flask_smorest import Blueprint, abort
 from .models import User, Asset, Peripheral, License, Subscription
@@ -40,7 +40,7 @@ def check_token():
                 "url.path": request.path
             }
         )
-        abort(401, message="Token is missing")
+        return jsonify({"error": "Token is missing"}), 401
     
     current_api_user = User.query.filter_by(api_token=token).first()
     if not current_api_user:
@@ -54,7 +54,7 @@ def check_token():
                 "url.path": request.path
             }
         )
-        abort(401, message="Token is invalid")
+        return jsonify({"error": "Token is invalid"}), 401
 
     # Log Success (Optional: might be verbose, maybe log only critical actions or sample)
     # For now, logging all authenticated API requests as requested.
