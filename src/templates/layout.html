@@ -196,16 +196,19 @@
                             class="nav-link {% if request.endpoint and request.endpoint.startswith('disposal.') %}active{% endif %}"
                             href="{{ url_for('disposal.list_disposals') }}"><i class="fa-fw fas fa-archive"></i>
                             Disposals</a></li>
-                    <li class="nav-item"><a class="nav-link {% if 'erasure' in request.endpoint %}active{% endif %}"
+                    <li class="nav-item"><a
+                            class="nav-link {% if request.endpoint and 'erasure' in request.endpoint %}active{% endif %}"
                             href="{{ url_for('compliance.list_erasures') }}"><i class="fa-fw fas fa-eraser"></i> Erasure
                             Log</a></li>
-                    <li class="nav-item"><a class="nav-link {% if 'incident' in request.endpoint %}active{% endif %}"
+                    <li class="nav-item"><a
+                            class="nav-link {% if request.endpoint and 'incident' in request.endpoint %}active{% endif %}"
                             href="{{ url_for('compliance.list_incidents') }}"><i
                                 class="fa-fw fas fa-exclamation-circle"></i> Incidents</a></li>
                     <li class="nav-item"><a class="nav-link {% if request.blueprint == 'activities' %}active{% endif %}"
                             href="{{ url_for('activities.list_activities') }}"><i class="fa-fw fas fa-tasks"></i>
                             Security Activities</a></li>
-                    <li class="nav-item"><a class="nav-link {% if 'bcdr' in request.endpoint %}active{% endif %}"
+                    <li class="nav-item"><a
+                            class="nav-link {% if request.endpoint and 'bcdr' in request.endpoint %}active{% endif %}"
                             href="{{ url_for('compliance.list_bcdr_plans') }}"><i class="fa-fw fas fa-shield-alt"></i>
                             BCDR</a></li>
                 </div>
@@ -251,7 +254,7 @@
                             Asset Inventory</a>
                     </li>
                     <li class="nav-item"><a
-                            class="nav-link {% if 'list_assessments' in request.endpoint %}active{% endif %}"
+                            class="nav-link {% if request.endpoint and 'list_assessments' in request.endpoint %}active{% endif %}"
                             href="{{ url_for('compliance.list_assessments') }}"><i
                                 class="fa-fw fas fa-clipboard-list"></i>
                             Assessments</a></li>
@@ -365,14 +368,14 @@
                     </li>
 
                     <li class="nav-item">
-                        <a class="nav-link {{ 'active' if 'pack' in request.endpoint }}"
+                        <a class="nav-link {{ 'active' if request.endpoint and 'pack' in request.endpoint }}"
                             href="{{ url_for('onboarding.list_packs') }}">
                             <i class="fas fa-fw fa-box-open"></i>
                             <span>Role Profiles</span>
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {{ 'active' if 'onboarding.list_templates' in request.endpoint and request.blueprint == 'onboarding' }}"
+                        <a class="nav-link {{ 'active' if request.endpoint and 'onboarding.list_templates' in request.endpoint and request.blueprint == 'onboarding' }}"
                             href="{{ url_for('onboarding.list_templates') }}">
                             <i class="fas fa-fw fa-clipboard-check"></i>
                             <span>Global Checklists</span>
@@ -380,7 +383,7 @@
                     </li>
 
                     <li class="nav-item">
-                        <a class="nav-link {{ 'active' if 'history' in request.endpoint }}"
+                        <a class="nav-link {{ 'active' if request.endpoint and 'history' in request.endpoint }}"
                             href="{{ url_for('onboarding.history') }}">
                             <i class="fas fa-fw fa-history"></i>
                             <span>History</span>
@@ -388,7 +391,7 @@
                     </li>
 
                     <li class="nav-item">
-                        <a class="nav-link {{ 'active' if 'org_chart' in request.endpoint or 'org_snapshot' in request.endpoint }}"
+                        <a class="nav-link {{ 'active' if request.endpoint and ('org_chart' in request.endpoint or 'org_snapshot' in request.endpoint) }}"
                             href="{{ url_for('users.org_chart') }}">
                             <i class="fas fa-fw fa-sitemap"></i>
                             <span>Org Chart</span>
@@ -408,7 +411,7 @@
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {{ 'active' if 'admin_communications.list_templates' in request.endpoint }}"
+                        <a class="nav-link {{ 'active' if request.endpoint and 'admin_communications.list_templates' in request.endpoint }}"
                             href="{{ url_for('admin_communications.list_templates') }}">
                             <i class="fas fa-fw fa-envelope-open-text"></i>
                             <span>Email Templates</span>
