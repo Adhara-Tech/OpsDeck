@@ -14,7 +14,9 @@ const assets = [
     { src: 'tom-select/dist', dest: 'tom-select' },
     { src: 'mermaid/dist/mermaid.min.js', dest: 'mermaid/mermaid.min.js' },
     // SunEditor WYSIWYG (MIT license)
-    { src: 'suneditor/dist', dest: 'suneditor' }
+    { src: 'suneditor/dist', dest: 'suneditor' },
+    // Swagger UI
+    { src: 'swagger-ui-dist', dest: 'swagger-ui' }
 ];
 
 

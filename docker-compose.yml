@@ -8,6 +8,9 @@ services:
     environment:
       - DATABASE_URL=postgresql://opsdeck:opsdeck@db:5432/opsdeck
       - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      - FLASK_DEBUG=1
+      - OAUTHLIB_INSECURE_TRANSPORT=1
+      - SEED_DEMO_DATA=True
     env_file:
       - .env
     depends_on:
