@@ -21,7 +21,7 @@ RUN npm run build-assets
 # ============================================
 # Stage 2: Python Application
 # ============================================
-FROM python:3.11-slim
+FROM python:3.13-slim
 
 # Install system dependencies for WeasyPrint (PDF generation)
 RUN apt-get update && apt-get install -y \

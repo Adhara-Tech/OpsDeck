@@ -7,26 +7,36 @@ DB_FILE="/app/data/renewals.db"
 sleep 1
 
 # Check if the database file does NOT exist
-if [ ! -f "$DB_FILE" ]; then
-    echo "Database not found. Initializing..."
-    # Initialize the migrations folder (if it's not already there)
-    flask db init
-    # Create the migration script from the models
-    flask db migrate -m "Initial migration"
-    # Apply the migration to create all tables
-    flask db upgrade
-    # Create the default admin user
-    flask init-db
-    echo "Database initialized."
-    # Add initial frameworks and controls
-    flask seed-db-prod
+
+# Initialize the migrations folder (idempotent, skips if exists)
+flask db init 2>/dev/null || true
+
+# Create/Stamp migration (handling cases where migrations might already exist in image)
+flask db migrate -m "Initial migration" 2>/dev/null || true
+
+# Apply the migration to create all tables
+flask db upgrade
+
+# Create the default admin user
+flask init-db
+
+# Add initial frameworks and controls (Production Data)
+flask seed-db-prod
+
+
+# Add demo data (Users, Assets, Risks, etc.) - Only if SEED_DEMO_DATA is True
+if [ "$SEED_DEMO_DATA" = "True" ]; then
+    echo "Seeding demo data..."
+    flask seed-db-demodata
 else
-    echo "Database found. Applying any pending migrations..."
-    # If the database already exists, just apply any new migrations
-    flask db upgrade
-    echo "Migrations applied."
+    echo "Skipping demo data seeding (SEED_DEMO_DATA not set to True)"
 fi
+
+
+echo "Database initialized."
+
 
 # Start the application using gunicorn
 echo "Starting application..."
-exec gunicorn --bind 0.0.0.0:5000 run:app
+exec flask run --host=0.0.0.0 --port=5000 --debug
+#exec gunicorn --bind 0.0.0.0:5000 run:app
