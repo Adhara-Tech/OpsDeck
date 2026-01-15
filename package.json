@@ -17,6 +17,7 @@
         "simple-datatables": "^9.0.0",
         "sortablejs": "^1.15.0",
         "suneditor": "^2.47.8",
+        "swagger-ui-dist": "5.31.0",
         "tom-select": "^2.3.0"
     }
 }
