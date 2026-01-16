@@ -146,6 +146,11 @@ def seed_data(app=None):
         
         # 4. Create Assets and Peripherals (with cost)
         print("Creating assets and peripherals...")
+        # Ensure all related objects are in the session to avoid autoflush warnings
+        db.session.add_all(users)
+        db.session.add_all(locations)
+        db.session.add_all(suppliers)
+        
         assets = [
             Asset(name='DEV-LT-001', brand='Dell', model='XPS 15', serial_number=fake.uuid4(), status='In Use', purchase=purchase2, user=users[0], location=locations[0], supplier=suppliers[2], cost=2500, currency='EUR', warranty_length=36, purchase_date=purchase2.purchase_date),
             Asset(name='DEV-LT-002', brand='Dell', model='XPS 15', serial_number=fake.uuid4(), status='In Use', purchase=purchase2, user=users[2], location=locations[0], supplier=suppliers[2], cost=2500, currency='EUR', warranty_length=36, purchase_date=purchase2.purchase_date),
