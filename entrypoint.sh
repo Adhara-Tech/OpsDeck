@@ -3,6 +3,9 @@
 # This is the path inside the container where the database will live
 DB_FILE="/app/data/renewals.db"
 
+# Ensure the data directory exists (required for SQLite)
+mkdir -p /app/data/attachments
+
 # Wait for the database file to be created if it's being mounted
 sleep 1
 
