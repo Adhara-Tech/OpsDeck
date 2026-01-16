@@ -41,8 +41,12 @@
 
         .main-content {
             margin-left: 250px;
-            padding: 2rem;
+            padding: 0;
             min-height: 100vh;
+        }
+
+        .main-content-body {
+            padding: 2rem;
         }
 
         .sidebar-heading {
@@ -66,13 +70,72 @@
             flex-grow: 1;
         }
 
+        /* Update Search Results Styling for Top Bar */
         #global-search-results {
             position: absolute;
-            width: calc(100% - 1rem);
-            left: 0.5rem;
+            width: 100%;
+            left: 0;
             top: 100%;
-            z-index: 1050;
-            display: none;
+            z-index: 2000;
+            background: white;
+            border-radius: 0.25rem;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        #global-search-results .list-group-item {
+            border-left: 0;
+            border-right: 0;
+        }
+
+        #global-search-results .list-group-item:first-child {
+            border-top: 0;
+            border-top-left-radius: 0.25rem;
+            border-top-right-radius: 0.25rem;
+        }
+
+        #global-search-results .list-group-item:last-child {
+            border-bottom: 0;
+            border-bottom-left-radius: 0.25rem;
+            border-bottom-right-radius: 0.25rem;
+        }
+
+        /* User Menu Polish */
+        .navbar .dropdown-menu {
+            margin-top: 0.5rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+        }
+
+        #userDropdown {
+            cursor: pointer;
+        }
+
+        /* Sticky navbar adjustments */
+        .sticky-top {
+            z-index: 1020;
+        }
+
+        .navbar-dark .input-group-text {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .navbar-dark .form-control {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-color: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .navbar-dark .form-control::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .navbar-dark .form-control:focus {
+            background-color: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.3);
+            color: white;
         }
     </style>
 </head>
@@ -82,10 +145,6 @@
     <nav class="sidebar">
         <div class="container-fluid"><a class="navbar-brand text-white mb-3 d-block text-center"
                 href="{{ url_for('main.organizational_health') }}"><i class="fas fa-sync-alt"></i> OpsDeck</a></div>
-        <div class="p-2 position-relative"><input type="search" id="global-search-input" class="form-control"
-                placeholder="Search..." autocomplete="off">
-            <div id="global-search-results" class="list-group"></div>
-        </div>
 
         <div class="sidebar-body" id="sidebar-accordion">
             <ul class="nav flex-column">
@@ -292,10 +351,7 @@
                             href="{{ url_for('certificates.list_certificates') }}"><i
                                 class="fa-fw fas fa-certificate"></i>
                             Certificates</a></li>
-                    <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint and request.endpoint.startswith('training.') and request.endpoint == 'training.my_training' %}active{% endif %}"
-                            href="{{ url_for('training.my_training') }}"><i class="fa-fw fas fa-graduation-cap"></i> My
-                            Training</a></li>
+
                     {% if current_user_role == 'admin' %}
                     <li class="nav-item"><a
                             class="nav-link {% if request.endpoint and request.endpoint.startswith('training.') and request.endpoint != 'training.my_training' %}active{% endif %}"
@@ -457,46 +513,109 @@
                             class="nav-link {% if request.endpoint == 'admin_notifications.list_events' %}active{% endif %}"
                             href="{{ url_for('admin_notifications.list_events') }}"><i class="fa-fw fas fa-bell"></i>
                             Notifications</a></li>
-                    <li class="nav-item mt-auto"><a class="nav-link" href="{{ url_for('main.logout') }}"><i
-                                class="fa-fw fas fa-sign-out-alt"></i> Logout</a></li>
+
                 </div>
             </ul>
         </div>
     </nav>
 
     <main class="main-content">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-        {# Lista para trackear mensajes ya mostrados #}
-        {% set printed_messages = [] %}
+        <nav class="navbar navbar-expand-lg navbar-dark border-bottom border-secondary sticky-top px-4"
+            style="background-color: #343a40; padding-top: 0.375rem; padding-bottom: 0.375rem;">
+            <div class="container-fluid px-0 d-flex align-items-center position-relative">
 
-        {% for category, message in messages %}
-        {% if message not in printed_messages %}
-        <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm mt-3" role="alert">
+                <div class="d-flex align-items-center justify-content-center position-absolute translate-middle-x"
+                    style="max-width: 500px; width: 500px; left: calc(50vw - 250px);">
+                    <div class="position-relative w-100">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-white border-end-0">
+                                <i class="fas fa-search fa-sm text-muted"></i>
+                            </span>
+                            <input type="search" id="global-search-input"
+                                class="form-control form-control-sm bg-white border-start-0 ps-0"
+                                placeholder="Search assets, users, risks..." autocomplete="off">
+                        </div>
+                        <div id="global-search-results" class="list-group position-absolute w-100 shadow mt-1"
+                            style="z-index: 2000; top: 100%; display: none;"></div>
+                    </div>
+                </div>
 
-            {# Iconos según categoría para mejor UX #}
-            {% if category == 'success' %}
-            <i class="fas fa-check-circle me-2"></i>
-            {% elif category == 'danger' %}
-            <i class="fas fa-exclamation-circle me-2"></i>
-            {% elif category == 'warning' %}
-            <i class="fas fa-exclamation-triangle me-2"></i>
-            {% else %}
-            <i class="fas fa-info-circle me-2"></i>
+                <div class="ms-auto d-flex align-items-center">
+                    <div class="dropdown">
+                        <a class="nav-link dropdown-toggle d-flex align-items-center text-decoration-none text-white py-0"
+                            href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2"
+                                style="width: 28px; height: 28px;">
+                                <i class="fas fa-user fa-sm"></i>
+                            </div>
+                            <span class="fw-bold d-none d-sm-inline small">{{ current_user.name if current_user else
+                                'User'
+                                }}</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end border-0 shadow" aria-labelledby="userDropdown">
+                            <li>
+                                <a class="dropdown-item py-2" href="{{ url_for('training.my_training') }}">
+                                    <i class="fas fa-graduation-cap fa-fw me-2 text-primary"></i> My Courses
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item py-2" href="{{ url_for('main.change_password') }}">
+                                    <i class="fas fa-key fa-fw me-2 text-warning"></i> Change Password
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item py-2" href="{{ url_for('main.my_api_key') }}">
+                                    <i class="fas fa-code fa-fw me-2 text-info"></i> API Key
+                                </a>
+                            </li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
+                            <li>
+                                <a class="dropdown-item py-2 text-danger" href="{{ url_for('main.logout') }}">
+                                    <i class="fas fa-sign-out-alt fa-fw me-2"></i> Logout
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <div class="main-content-body">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            {# Lista para trackear mensajes ya mostrados #}
+            {% set printed_messages = [] %}
+
+            {% for category, message in messages %}
+            {% if message not in printed_messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm mt-3" role="alert">
+
+                {# Iconos según categoría para mejor UX #}
+                {% if category == 'success' %}
+                <i class="fas fa-check-circle me-2"></i>
+                {% elif category == 'danger' %}
+                <i class="fas fa-exclamation-circle me-2"></i>
+                {% elif category == 'warning' %}
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                {% else %}
+                <i class="fas fa-info-circle me-2"></i>
+                {% endif %}
+
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+
+            {# Hack de Jinja2 para añadir a la lista sin imprimir nada #}
+            {% if printed_messages.append(message) %}{% endif %}
             {% endif %}
+            {% endfor %}
+            {% endif %}
+            {% endwith %}
 
-            {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            {% block content %}{% endblock %}
         </div>
-
-        {# Hack de Jinja2 para añadir a la lista sin imprimir nada #}
-        {% if printed_messages.append(message) %}{% endif %}
-        {% endif %}
-        {% endfor %}
-        {% endif %}
-        {% endwith %}
-
-        {% block content %}{% endblock %}
     </main>
 
     <script>

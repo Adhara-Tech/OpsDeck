@@ -414,6 +414,8 @@ class MaintenanceLog(db.Model):
     event_date = db.Column(db.Date, nullable=False, default=date.today)
     ticket_link = db.Column(db.String(512))
     notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
     assigned_to_id = db.Column(db.Integer, db.ForeignKey('user.id'))

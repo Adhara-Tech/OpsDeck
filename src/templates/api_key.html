@@ -1,0 +1,41 @@
+{% extends "layout.html" %}
+
+{% block title %}My API Key - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <i class="fas fa-code"></i> Developer Settings (API)
+            </div>
+            <div class="card-body">
+                <p class="text-muted">
+                    Use this token to authenticate with the OpsDeck API. Include it as a Bearer token in the
+                    Authorization
+                    header:
+                    <br>
+                    <code>Authorization: Bearer &lt;token&gt;</code>
+                </p>
+
+                <div class="input-group mb-3">
+                    <input type="text" class="form-control" value="{{ current_user.api_token or 'No token generated' }}"
+                        readonly id="apiTokenField">
+                    <button class="btn btn-outline-secondary" type="button"
+                        onclick="navigator.clipboard.writeText(document.getElementById('apiTokenField').value)">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                </div>
+
+                <form action="{{ url_for('main.generate_my_token') }}" method="POST"
+                    data-confirm='Are you sure? This will invalidate any existing token.'>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-key"></i> Generate New Token
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

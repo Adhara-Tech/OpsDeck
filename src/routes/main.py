@@ -790,6 +790,33 @@ def change_password():
     return render_template('change_password.html', forced_change=forced_change)
 
 
+@main_bp.route('/my-api-key')
+@login_required
+def my_api_key():
+    """Render the API Key management page for the current user."""
+    return render_template('api_key.html')
+
+
+@main_bp.route('/my-api-key/generate', methods=['POST'])
+@login_required
+def generate_my_token():
+    """Generate a new API token for the current user."""
+    user = User.query.get(session['user_id'])
+    user.generate_token()
+    db.session.commit()
+    
+    log_audit(
+        event_type='security.token_generated',
+        action='create',
+        target_object=f"User:{user.id}",
+        user_email=user.email,
+        description="User generated their own API token"
+    )
+    
+    flash('New API Token generated successfully.', 'success')
+    return redirect(url_for('main.my_api_key'))
+
+
 # --- INTERNAL ROUTES (No Login Required) ---
 # These routes are designed to be called by Flask CLI commands
 
