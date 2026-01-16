@@ -256,6 +256,49 @@ def policy_report():
             
     return render_template('compliance/policy_report.html', report_data=report_data)
 
+@compliance_bp.route('/my-policies')
+@login_required
+def my_policies():
+    """Shows policies assigned to the current user."""
+    active_versions = PolicyVersion.query.filter_by(status='Active').all()
+    user_id = session.get('user_id')
+    current_user_obj = User.query.get(user_id)
+    
+    my_policy_list = []
+    
+    for version in active_versions:
+        # Check if policy applies to user
+        is_assigned = False
+        
+        # 1. Global assignment (no specific assignments)
+        if not version.users_to_acknowledge and not version.groups_to_acknowledge:
+            is_assigned = True
+            
+        # 2. Direct assignment
+        if not is_assigned and current_user_obj in version.users_to_acknowledge:
+            is_assigned = True
+            
+        # 3. Group assignment
+        if not is_assigned:
+            user_group_ids = {g.id for g in current_user_obj.groups}
+            version_group_ids = {g.id for g in version.groups_to_acknowledge}
+            if not user_group_ids.isdisjoint(version_group_ids):
+                is_assigned = True
+        
+        if is_assigned:
+            # Check acknowledgement status
+            # We look for an acknowledgement record for this version and user
+            ack = next((a for a in version.acknowledgements if a.user_id == user_id), None)
+            
+            my_policy_list.append({
+                'policy': version.policy,
+                'version': version,
+                'is_acknowledged': ack is not None,
+                'acknowledged_at': ack.acknowledged_at if ack else None
+            })
+    
+    return render_template('compliance/my_policies.html', policies=my_policy_list)
+
 # --- Asset Inventory Management ---
 
 @compliance_bp.route('/inventory')

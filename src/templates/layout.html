@@ -320,7 +320,7 @@
                     <li class="nav-item"><a
                             class="nav-link {% if request.endpoint == 'compliance.policy_report' %}active{% endif %}"
                             href="{{ url_for('compliance.policy_report') }}"><i class="fa-fw fas fa-user-check"></i>
-                            Policy Report</a></li>
+                            Policy Acknowledgements</a></li>
                     <li class="nav-item"><a
                             class="nav-link {% if request.endpoint == 'compliance.vendor_compliance' %}active{% endif %}"
                             href="{{ url_for('compliance.vendor_compliance') }}"><i class="fa-fw fas fa-tasks"></i>
@@ -561,6 +561,11 @@
                             <li>
                                 <a class="dropdown-item py-2" href="{{ url_for('main.change_password') }}">
                                     <i class="fas fa-key fa-fw me-2 text-warning"></i> Change Password
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item py-2" href="{{ url_for('compliance.my_policies') }}">
+                                    <i class="fas fa-file-contract fa-fw me-2 text-success"></i> My Policies
                                 </a>
                             </li>
                             <li>
