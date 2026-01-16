@@ -2,7 +2,7 @@ from src.routes.admin import admin_required
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session
 from datetime import datetime
 from ..extensions import db
-from ..models import User, Peripheral, License, Software
+from ..models import User, Peripheral, License, Software, Course
 from ..models import Subscription, PaymentMethod, Risk, BusinessService, Location
 # Importamos los modelos nuevos (asegúrate de haberlos registrado en __init__.py primero)
 from ..models.onboarding import (
@@ -61,11 +61,12 @@ def pack_detail(id):
     
     # Añadir item al pack
     if request.method == 'POST':
-        item_type = request.form.get('item_type') # 'Software', 'Hardware', 'Task', 'ServiceAccess'
+        item_type = request.form.get('item_type') # 'Software', 'Hardware', 'Task', 'ServiceAccess', 'Course'
         description = request.form.get('description')
         software_id = request.form.get('software_id') or None
         service_id = request.form.get('service_id') or None
         subscription_id = request.form.get('subscription_id') or None
+        course_id = request.form.get('course_id') or None
         
         # Si es software, hacemos la descripción más bonita automáticamente
         if item_type == 'Software' and software_id:
@@ -80,6 +81,10 @@ def pack_detail(id):
             sub = Subscription.query.get(subscription_id)
             if not description:
                 description = f"Assign user to subscription: {sub.name}"
+        elif item_type == 'Course' and course_id:
+            course = Course.query.get(course_id)
+            if not description:
+                description = f"Assign user to course: {course.title}"
         
         item = PackItem(
             pack_id=pack.id, 
@@ -87,7 +92,8 @@ def pack_detail(id):
             description=description, 
             software_id=software_id,
             service_id=service_id,
-            subscription_id=subscription_id
+            subscription_id=subscription_id,
+            course_id=course_id
         )
         db.session.add(item)
         db.session.commit()
@@ -97,8 +103,9 @@ def pack_detail(id):
     all_software = Software.query.order_by(Software.name).all()
     all_services = BusinessService.query.order_by(BusinessService.name).all()
     all_subscriptions = Subscription.query.filter_by(is_archived=False).order_by(Subscription.name).all()
+    all_courses = Course.query.order_by(Course.title).all()
     email_templates = EmailTemplate.query.filter_by(is_active=True).order_by(EmailTemplate.name).all()
-    return render_template('onboarding/pack_detail.html', pack=pack, all_software=all_software, all_services=all_services, all_subscriptions=all_subscriptions, email_templates=email_templates)
+    return render_template('onboarding/pack_detail.html', pack=pack, all_software=all_software, all_services=all_services, all_subscriptions=all_subscriptions, all_courses=all_courses, email_templates=email_templates)
 
 
 @onboarding_bp.route('/packs/<int:pack_id>/communications/add', methods=['POST'])
@@ -208,6 +215,8 @@ def new_onboarding():
                     linked_obj_id = p_item.software_id
                 elif p_item.item_type == 'Subscription' and p_item.subscription_id:
                     linked_obj_id = p_item.subscription_id
+                elif p_item.item_type == 'Course' and p_item.course_id:
+                    linked_obj_id = p_item.course_id
 
                 db.session.add(ProcessItem(
                     onboarding_process_id=process.id,
@@ -679,6 +688,45 @@ def add_user_to_subscription(process_id, item_id):
         db.session.commit()
     else:
         flash(f'User already has access to {subscription.name}.', 'info')
+        item.is_completed = True
+        db.session.commit()
+        
+    return redirect(url_for('onboarding.onboarding_detail', id=process.id))
+
+@onboarding_bp.route('/process/<int:process_id>/add_to_course/<int:item_id>', methods=['POST'])
+@login_required
+@admin_required
+def add_user_to_course(process_id, item_id):
+    from datetime import date, timedelta
+    from ..models import CourseAssignment
+    
+    process = OnboardingProcess.query.get_or_404(process_id)
+    item = ProcessItem.query.get_or_404(item_id)
+    
+    if item.item_type != 'Course' or not item.linked_object_id:
+        flash('Invalid item type.', 'danger')
+        return redirect(url_for('onboarding.onboarding_detail', id=process.id))
+
+    course = Course.query.get(item.linked_object_id)
+    if not course:
+        flash('Course not found.', 'danger')
+        return redirect(url_for('onboarding.onboarding_detail', id=process.id))
+        
+    if not process.user:
+        flash('No user linked to this onboarding process yet. Create the user first.', 'warning')
+        return redirect(url_for('onboarding.onboarding_detail', id=process.id))
+    
+    # Check if user is already assigned to this course
+    existing = CourseAssignment.query.filter_by(course_id=course.id, user_id=process.user.id).first()
+    if not existing:
+        due_date = date.today() + timedelta(days=course.completion_days)
+        assignment = CourseAssignment(course_id=course.id, user_id=process.user.id, due_date=due_date)
+        db.session.add(assignment)
+        flash(f'User {process.user.name} assigned to course {course.title}.', 'success')
+        item.is_completed = True
+        db.session.commit()
+    else:
+        flash(f'User already assigned to {course.title}.', 'info')
         item.is_completed = True
         db.session.commit()
         

@@ -38,6 +38,9 @@ class PackItem(db.Model):
     subscription_id = db.Column(db.Integer, db.ForeignKey('subscription.id'), nullable=True)
     subscription = db.relationship('Subscription')
 
+    course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=True)
+    course = db.relationship('Course')
+
 
 # --- PROCESOS DE EJECUCIÓN ---
 

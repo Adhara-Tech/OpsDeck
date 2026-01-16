@@ -91,6 +91,9 @@
                         {% elif item.item_type == 'Software' %}
                         <span class="badge bg-info text-dark ms-2" title="Provision Software"><i
                                 class="fas fa-cloud-download-alt"></i></span>
+                        {% elif item.item_type == 'Course' %}
+                        <span class="badge bg-warning text-dark ms-2" title="Training Course"><i
+                                class="fas fa-graduation-cap"></i></span>
                         {% endif %}
                     </div>
 
@@ -288,6 +291,23 @@
                     </form>
                     {% elif type == 'onboarding' and item.is_completed %}
                     <span class="badge bg-success"><i class="fas fa-check"></i> Added</span>
+                    {% endif %}
+
+                    {% elif item.item_type == 'Course' %}
+                    <a href="{{ url_for('training.course_detail', id=item.linked_object_id) }}"
+                        class="btn btn-sm btn-outline-secondary me-1" target="_blank">View Course</a>
+
+                    {% if type == 'onboarding' and not item.is_completed %}
+                    <form
+                        action="{{ url_for('onboarding.add_user_to_course', process_id=process.id, item_id=item.id) }}"
+                        method="POST" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-sm btn-success">
+                            <i class="fas fa-user-plus"></i> Assign to Course
+                        </button>
+                    </form>
+                    {% elif type == 'onboarding' and item.is_completed %}
+                    <span class="badge bg-success"><i class="fas fa-check"></i> Assigned</span>
                     {% endif %}
 
                     {% elif item.item_type == 'RevokeSubscriptionAccess' %}

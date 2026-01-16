@@ -110,6 +110,7 @@
                             <option value="Hardware">Hardware Provisioning</option>
                             <option value="ServiceAccess">Service Access</option>
                             <option value="Subscription">Subscription Access</option>
+                            <option value="Course">Course Assignment</option>
                         </select>
                     </div>
 
@@ -143,6 +144,16 @@
                         </select>
                     </div>
 
+                    <div class="mb-3" id="courseField" style="display:none;">
+                        <label class="form-label">Linked Course</label>
+                        <select class="form-select" name="course_id">
+                            <option value="">Select Course...</option>
+                            {% for course in all_courses %}
+                            <option value="{{ course.id }}">{{ course.title }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
                     <div class="mb-3">
                         <label class="form-label">Description</label>
                         <input type="text" class="form-control" name="description" required>
@@ -155,6 +166,7 @@
                             document.getElementById('softwareField').style.display = (type === 'Software') ? 'block' : 'none';
                             document.getElementById('serviceField').style.display = (type === 'ServiceAccess') ? 'block' : 'none';
                             document.getElementById('subscriptionField').style.display = (type === 'Subscription') ? 'block' : 'none';
+                            document.getElementById('courseField').style.display = (type === 'Course') ? 'block' : 'none';
                         }
                     </script>
                     <button type="submit" class="btn btn-primary w-100">Add to Profile</button>
