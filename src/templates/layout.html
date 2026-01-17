@@ -289,9 +289,13 @@
                             href="{{ url_for('risk.dashboard') }}"><i class="fa-fw fas fa-chart-pie"></i>
                             Risk Dashboard</a></li>
                     <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint and request.endpoint.startswith('risk.') and request.endpoint != 'risk.dashboard' %}active{% endif %}"
+                            class="nav-link {% if request.endpoint and request.endpoint.startswith('risk.') and request.endpoint != 'risk.dashboard' and 'catalog' not in request.endpoint %}active{% endif %}"
                             href="{{ url_for('risk.list_risks') }}"><i class="fa-fw fas fa-exclamation-triangle"></i>
                             Risk Register</a></li>
+                    <li class="nav-item"><a
+                            class="nav-link {% if request.endpoint and 'catalog' in request.endpoint %}active{% endif %}"
+                            href="{{ url_for('risk.catalog_list') }}"><i class="fa-fw fas fa-book"></i>
+                            Risk Catalog</a></li>
                     <li class="nav-item"><a
                             class="nav-link {% if request.blueprint == 'risk_assessment' %}active{% endif %}"
                             href="{{ url_for('risk_assessment.list_assessments') }}"><i

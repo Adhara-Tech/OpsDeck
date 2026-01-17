@@ -1,14 +1,17 @@
 {% extends 'layout.html' %}
 
-{% block title %}{{ 'Edit' if risk else 'New' }} Risk{% endblock %}
+{% block title %}{{ 'Edit' if risk and risk.id else 'New' }} Risk{% endblock %}
 
 {% block content %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2">{{ 'Edit' if risk else 'New' }} Risk</h1>
+    <h1 class="h2">{{ 'Edit' if risk and risk.id else 'New' }} Risk</h1>
 </div>
 
 <form method="POST" novalidate>
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% if risk and risk.source_catalog_risk_id %}
+    <input type="hidden" name="source_catalog_risk_id" value="{{ risk.source_catalog_risk_id }}">
+    {% endif %}
     <div class="row">
         <div class="col-md-8">
             <div class="card mb-4">
@@ -85,7 +88,7 @@
                             <div class="mb-3">
                                 <label for="category_ids" class="form-label">Categories (CIA Triad)</label>
                                 <select class="form-select" id="category_ids" name="category_ids" multiple size="4">
-                                    {% set selected_categories = risk.category_list if risk else [] %}
+                                    {% set selected_categories = risk.category_list if risk and risk.id else [] %}
                                     {% for cat in risk_categories %}
                                     <option value="{{ cat }}" {% if cat in selected_categories %}selected{% endif %}>{{
                                         cat }}</option>
@@ -211,7 +214,8 @@
                                         Activities</label>
                                     <select class="form-select" id="mitigation_activity_ids"
                                         name="mitigation_activity_ids" multiple size="4">
-                                        {% set selected_activities = risk.mitigation_activities.all() if risk else [] %}
+                                        {% set selected_activities = risk.mitigation_activities.all() if risk and
+                                        risk.id else [] %}
                                         {% for activity in activities %}
                                         <option value="{{ activity.id }}" {% if activity in selected_activities
                                             %}selected{% endif %}>
@@ -235,7 +239,7 @@
                     <h5 class="card-title">Actions</h5>
                     <div class="d-grid gap-2">
                         <button type="submit" class="btn btn-primary">Save Risk</button>
-                        <a href="{{ url_for('risk.detail', id=risk.id) if risk else url_for('risk.list_risks') }}"
+                        <a href="{{ url_for('risk.detail', id=risk.id) if risk and risk.id else url_for('risk.list_risks') }}"
                             class="btn btn-outline-secondary">Cancel</a>
                     </div>
                 </div>
@@ -245,12 +249,12 @@
 </form>
 
 <script>
-    // Detect if new risk (risk object is None/null in template)
-    const isNewRisk = {{ 'false' if risk else 'true' }};
+    // Detect if new risk (risk object is None/null in template or scalar checks)
+    const isNewRisk = {{ 'false' if risk and risk.id else 'true' }};
 
     function updateOutput(id, value) {
         document.getElementById(id).innerText = value;
-        
+
         // MIRROR EFFECT: Only on creation
         // When Inherent changes, Residual automatically follows
         if (isNewRisk) {

@@ -517,8 +517,11 @@ def create_app(test_config=None):
     def seed_prod_command():
         """Carga los datos maestros de producción (Frameworks & Threats)."""
         seed_production_frameworks()
-        from .seeder_prod import seed_threats
+        from .seeder_prod import seed_threats, seed_magerit_catalog, seed_operational_catalog, seed_it_infrastructure_catalog
         seed_threats()
+        seed_magerit_catalog()
+        seed_operational_catalog()
+        seed_it_infrastructure_catalog()
 
     @app.cli.command('test-db')
     def test_db_command():

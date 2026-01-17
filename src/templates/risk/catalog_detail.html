@@ -1,0 +1,64 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ catalog.name }} - Risks{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <div>
+        <h1 class="h2">{{ catalog.name }}</h1>
+        <p class="text-muted">{{ catalog.description }}</p>
+    </div>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{{ url_for('risk.catalog_list') }}" class="btn btn-sm btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Catalogs
+        </a>
+    </div>
+</div>
+
+<div class="table-responsive">
+    <table class="table table-striped table-hover align-middle">
+        <thead class="table-light">
+            <tr>
+                <th>Risk Name</th>
+                <th>Description</th>
+                <th>Threat Category</th>
+                <th class="text-center">Base Impact</th>
+                <th class="text-center">Base Likelihood</th>
+                <th class="text-end">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for risk in catalog.catalog_risks %}
+            <tr>
+                <td class="fw-bold">{{ risk.name }}</td>
+                <td><small>{{ risk.description or '' }}</small></td>
+                <td>
+                    {% if risk.threat_type %}
+                    <span class="badge bg-info text-dark">{{ risk.threat_type.category }}</span>
+                    {% else %}
+                    <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+                <td class="text-center">
+                    <span class="badge bg-secondary">{{ risk.suggested_impact }}</span>
+                </td>
+                <td class="text-center">
+                    <span class="badge bg-secondary">{{ risk.suggested_likelihood }}</span>
+                </td>
+                <td class="text-end">
+                    <a href="{{ url_for('risk.new_risk', import_id=risk.id) }}" class="btn btn-sm btn-success">
+                        <i class="fas fa-file-import"></i> Import
+                    </a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" class="text-center text-muted py-5">
+                    No risks found in this catalog.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

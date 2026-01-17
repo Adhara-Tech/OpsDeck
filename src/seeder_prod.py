@@ -2,7 +2,7 @@
 
 from src.extensions import db
 from src.models import Framework, FrameworkControl
-from src.models.security import ThreatType
+from src.models.security import ThreatType, RiskCatalog, CatalogRisk
 
 # Lista de amenazas comunes (Category, Name, Description)
 common_threats = [
@@ -538,3 +538,306 @@ def seed_production_frameworks():
     #     except Exception as e:
     #         db.session.rollback()
     #         print(f"Error creating template: {e}")
+def seed_magerit_catalog():
+    """
+    Seeds the MAGERIT v3 Risk Catalog (Comprehensive).
+    """
+    print("Seeding MAGERIT v3 Catalog...")
+    
+    # 1. Create Catalog
+    catalog_name = "MAGERIT v3"
+    catalog = RiskCatalog.query.filter_by(name=catalog_name).first()
+    
+    if not catalog:
+        catalog = RiskCatalog(
+            name=catalog_name,
+            version="3.0",
+            description="Metodología de Análisis y Gestión de Riesgos (Spain). Catálogo completo de Amenazas.",
+            is_custom=False
+        )
+        db.session.add(catalog)
+        db.session.flush() # Get ID
+        print(f"Created catalog: {catalog_name}")
+    else:
+        print(f"Catalog {catalog_name} already exists. Updating risks.")
+
+    # 3. Define Risks to Seed
+    # Format: (Code, Name, Description, ThreatCategory (string match), Suggested Impact/Likelihood)
+    # Dimensions: [D] Availability, [I] Integrity, [C] Confidentiality, [A] Authenticity, [T] Traceability
+    
+    # Defaults: Impact 3, Likelihood 3 unless obvious high risk
+    
+    magerit_risks = [
+        # --- DESASTRES NATURALES [N] ---
+        ("[N.1]", "Fuego", "Incendios forestales o naturales. Afecta: [D]", "Environmental", 5, 2),
+        ("[N.2]", "Daños por agua", "Inundaciones naturales, riadas. Afecta: [D]", "Environmental", 5, 2),
+        ("[N.*]", "Desastres naturales", "Rayos, terremotos, tormentas, vientos. Afecta: [D]", "Environmental", 5, 2),
+        
+        # --- ORIGEN INDUSTRIAL [I] ---
+        ("[I.1]", "Fuego (Industrial)", "Incendios accidentales o industriales. Afecta: [D]", "Environmental", 5, 3),
+        ("[I.2]", "Daños por agua (Ind.)", "Fugas, escapes, roturas de tuberías. Afecta: [D]", "Structural", 4, 3),
+        ("[I.*]", "Desastres industriales", "Explosiones, derrumbes, contaminación química. Afecta: [D]", "Environmental", 5, 2),
+        ("[I.3]", "Contaminación mecánica", "Polvo, suciedad, vibraciones. Afecta: [D]", "Environmental", 3, 3),
+        ("[I.4]", "Contaminación electromagnética", "Interferencias de radio, picos magnéticos. Afecta: [D]", "Environmental", 3, 2),
+        ("[I.5]", "Avería física o lógica", "Fallos de hardware o software (defectos, desgaste). Afecta: [D]", "Structural", 4, 3),
+        ("[I.6]", "Corte suministro eléctrico", "Apagones, fallos de alimentación. Afecta: [D]", "Structural", 5, 3),
+        ("[I.7]", "Condiciones inadecuadas", "Temperatura o humedad extremas. Afecta: [D]", "Environmental", 4, 3),
+        ("[I.8]", "Fallo comunicaciones", "Caída de líneas, pérdida de conectividad. Afecta: [D]", "Structural", 4, 3),
+        ("[I.9]", "Interrupción servicios", "Falta de agua, gas, consumibles esenciales. Afecta: [D]", "Structural", 4, 2),
+        ("[I.10]", "Degradación de soportes", "Deterioro físico de medios de almacenamiento. Afecta: [D]", "Structural", 4, 3),
+        ("[I.11]", "Emanaciones electromagnéticas", "Radiación de datos (TEMPEST). Afecta: [C]", "Technical", 3, 1),
+
+        # --- ERRORES Y FALLOS NO INTENCIONADOS [E] ---
+        ("[E.1]", "Errores de usuarios", "Equivocaciones en el uso del sistema. Afecta: [I][C][D]", "Accidental", 3, 4),
+        ("[E.2]", "Errores administrador", "Fallos en gestión, instalación u operación. Afecta: [D][I][C]", "Accidental", 4, 3),
+        ("[E.3]", "Errores monitorización", "Logs incompletos o incorrectos. Afecta: [I] (Trazabilidad)", "Accidental", 3, 3),
+        ("[E.4]", "Errores configuración", "Configuraciones incorrectas o inseguras. Afecta: [I]", "Accidental", 4, 4),
+        ("[E.7]", "Deficiencias organización", "Falta de procesos claros. Afecta: [D]", "Accidental", 3, 3),
+        ("[E.8]", "Difusión sw dañino (Accidental)", "Propagación accidental de virus/malware. Afecta: [D][I][C]", "Accidental", 4, 3),
+        ("[E.9]", "Errores encaminamiento", "Envío accidental a destinos erróneos. Afecta: [C]", "Accidental", 3, 3),
+        ("[E.10]", "Errores de secuencia", "Alteración accidental del orden de mensajes. Afecta: [I]", "Accidental", 2, 2),
+        ("[E.14]", "Escapes de información", "Información llega a quien no debe. Afecta: [C]", "Accidental", 4, 3),
+        ("[E.15]", "Alteración accidental", "Modificación fortuita de datos. Afecta: [I]", "Accidental", 3, 3),
+        ("[E.18]", "Destrucción información (Accidental)", "Borrado accidental de datos. Afecta: [D]", "Accidental", 5, 3),
+        ("[E.19]", "Fugas de información", "Revelación por indiscreción o descuido. Afecta: [C]", "Accidental", 4, 3),
+        ("[E.20]", "Vulnerabilidades SW", "Bugs o fallos de seguridad en el código. Afecta: [I][D][C]", "Technical", 5, 4),
+        ("[E.21]", "Errores mant. software", "Fallos al actualizar (parches defectuosos). Afecta: [I][D]", "Technical", 4, 3),
+        ("[E.23]", "Errores mant. hardware", "Fallos al mantener equipos físicos. Afecta: [D]", "Technical", 4, 3),
+        ("[E.24]", "Agotamiento recursos", "Saturación accidental del sistema. Afecta: [D]", "Technical", 4, 3),
+        ("[E.25]", "Pérdida de equipos", "Extravío accidental de dispositivos. Afecta: [D][C]", "Accidental", 4, 3),
+        ("[E.28]", "Indisponibilidad personal", "Bajas médicas, accidentes, emergencias. Afecta: [D]", "Accidental", 3, 3),
+
+        # --- ATAQUES DELIBERADOS [A] ---
+        ("[A.3]", "Manipulación logs", "Alteración deliberada de registros. Afecta: [I] (Trazabilidad)", "Adversarial", 4, 3),
+        ("[A.4]", "Manipulación configuración", "Cambios no autorizados en parámetros. Afecta: [I][C][D]", "Adversarial", 4, 3),
+        ("[A.5]", "Suplantación identidad", "Robo de credenciales, spoofing. Afecta: [C][A][I]", "Adversarial", 5, 4),
+        ("[A.6]", "Abuso privilegios", "Uso indebido de permisos legítimos. Afecta: [C][I][D]", "Adversarial", 4, 3),
+        ("[A.7]", "Uso no previsto", "Uso de recursos para fines personales. Afecta: [D][C][I]", "Adversarial", 3, 3),
+        ("[A.8]", "Difusión sw dañino (Deliberada)", "Infección deliberada (virus, troyanos). Afecta: [D][I][C]", "Adversarial", 5, 4),
+        ("[A.9]", "Re-encaminamiento", "Desvío malicioso de tráfico. Afecta: [C]", "Adversarial", 4, 2),
+        ("[A.10]", "Alteración secuencia", "Modificar orden para alterar significado. Afecta: [I]", "Adversarial", 3, 2),
+        ("[A.11]", "Acceso no autorizado", "Intrusión o hacking. Afecta: [C][I]", "Adversarial", 5, 3),
+        ("[A.12]", "Análisis de tráfico", "Deducción de información por patrones. Afecta: [C]", "Adversarial", 3, 2),
+        ("[A.13]", "Repudio", "Negación de haber realizado una acción. Afecta: [I] (Trazabilidad)", "Adversarial", 3, 2),
+        ("[A.14]", "Interceptación (escucha)", "Espionaje de comunicaciones (sniffing). Afecta: [C]", "Adversarial", 4, 3),
+        ("[A.15]", "Modificación deliberada", "Alteración de datos para fraude/daño. Afecta: [I]", "Adversarial", 4, 3),
+        ("[A.18]", "Destrucción información (Deliberada)", "Borrado malicioso de datos. Afecta: [D]", "Adversarial", 5, 3),
+        ("[A.19]", "Divulgación información", "Revelación de secretos (leaks). Afecta: [C]", "Adversarial", 5, 3),
+        ("[A.22]", "Manipulación programas", "Bombas lógicas, puertas traseras. Afecta: [C][I][D]", "Adversarial", 5, 3),
+        ("[A.23]", "Manipulación equipos", "Sabotaje físico del hardware. Afecta: [C][D]", "Adversarial", 4, 2),
+        ("[A.24]", "Denegación servicio", "Ataques DoS/DDoS. Afecta: [D]", "Adversarial", 5, 3),
+        ("[A.25]", "Robo", "Sustracción física de dispositivos/soportes. Afecta: [D][C]", "Adversarial", 4, 3),
+        ("[A.26]", "Ataque destructivo", "Vandalismo, terrorismo. Afecta: [D]", "Adversarial", 5, 1),
+        ("[A.27]", "Ocupación enemiga", "Control hostil de las instalaciones. Afecta: [D][C]", "Adversarial", 5, 1),
+        ("[A.28]", "Indisponibilidad personal (Hostil)", "Huelgas, sabotaje laboral. Afecta: [D]", "Adversarial", 4, 2),
+        ("[A.29]", "Extorsión", "Ransomware o chantaje. Afecta: [C][I][D]", "Adversarial", 5, 3),
+        ("[A.30]", "Ingeniería social", "Engaño a usuarios (phishing). Afecta: [C][I][D]", "Adversarial", 4, 4),
+    ]
+
+    # Get ThreatTypes (cache them)
+    threat_types = list(ThreatType.query.all())
+    
+    # Simple mapping helper
+    def find_threat_type(cat_name):
+        return next((tt for tt in threat_types if tt.category == cat_name), None)
+
+    count = 0
+    for code, name, desc, cat_name, imp, like in magerit_risks:
+        full_name = f"{code} {name}"
+        
+        # Check if exists in catalog
+        exists = CatalogRisk.query.filter_by(catalog_id=catalog.id, name=full_name).first()
+        if exists:
+            # Optional: Update existing risks if needed
+            continue
+
+        # Try to match a threat type by category
+        tt = find_threat_type(cat_name)
+        
+        catalog_risk = CatalogRisk(
+            catalog_id=catalog.id,
+            name=full_name,
+            description=desc,
+            threat_type_id=tt.id if tt else None,
+            suggested_impact=imp,
+            suggested_likelihood=like
+        )
+        db.session.add(catalog_risk)
+        count += 1
+
+    try:
+        db.session.commit()
+        print(f"MAGERIT v3 catalog seeded/updated successfully with {count} new risks.")
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error seeding MAGERIT catalog: {e}")
+
+def seed_operational_catalog():
+    """
+    Seeds the Enterprise & Business Risks Catalog.
+    """
+    print("Seeding Enterprise & Business Risks Catalog...")
+    
+    # 1. Create Catalog
+    catalog_name = "Enterprise & Business Risks"
+    catalog = RiskCatalog.query.filter_by(name=catalog_name).first()
+    
+    if not catalog:
+        catalog = RiskCatalog(
+            name=catalog_name,
+            version="1.0",
+            description="Common operational, strategic, and financial risks for businesses.",
+            is_custom=False
+        )
+        db.session.add(catalog)
+        db.session.flush() # Get ID
+        print(f"Created catalog: {catalog_name}")
+    else:
+        print(f"Catalog {catalog_name} already exists. Updating risks.")
+
+    # 3. Define Risks to Seed
+    # Risk Name,Description,Base Impact,Base Likelihood,Dimensions Affected
+    op_risks = [
+        ("Key Person Dependency", "Risk that a critical employee (with unique knowledge or skills) leaves the organization or becomes unavailable. Afecta: Operational, Strategic", "Operational", 4, 3), # High, Medium
+        ("Critical Vendor Failure", "Risk that a key supplier or service provider goes bankrupt, ceases operations, or fails to deliver agreed services. Afecta: Availability, Operational", "Operational", 4, 2), # High, Low
+        ("Regulatory Non-Compliance", "Risk of failing to comply with laws, regulations, or industry standards (e.g., GDPR, Tax laws), resulting in fines. Afecta: Legal, Financial, Reputational", "Compliance", 5, 2), # Very High, Low
+        ("Manual Process Error", "Risk of human error during manual data entry, calculation, or processing due to lack of automation or fatigue. Afecta: Integrity, Operational", "Operational", 3, 4), # Medium, High
+        ("Reputation Damage", "Risk of negative public perception due to service failure, scandal, social media crisis, or poor customer experience. Afecta: Reputational, Strategic", "Strategic", 4, 2), # High, Low
+        ("Internal Fraud", "Risk of misappropriation of assets, funds, or data by an employee or trusted insider. Afecta: Financial, Integrity", "Financial", 3, 2), # Medium, Low
+        ("Supply Chain Disruption", "Risk of delays or failures in the upstream supply chain causing inability to deliver products or services. Afecta: Availability, Financial", "Operational", 4, 3), # High, Medium
+        ("Contractual Breach", "Risk of failing to meet contractual obligations with clients (SLAs), leading to penalties or loss of business. Afecta: Legal, Financial", "Legal", 3, 3), # Medium, Medium
+        ("Shadow IT Usage", "Risk of employees using unauthorized software or devices, leading to data leaks or lack of oversight. Afecta: Confidentiality, Security", "Technical", 2, 4), # Low, High
+        ("Inadequate Change Mgmt.", "Risk that changes to systems or processes are implemented without proper testing or approval, causing downtime. Afecta: Availability, Operational", "Operational", 4, 3) # High, Medium
+    ]
+
+    # Get ThreatTypes (cache them)
+    threat_types = list(ThreatType.query.all())
+    
+    # Simple mapping helper
+    def find_threat_type(cat_name):
+        # First try exact match on category
+        tt = next((tt for tt in threat_types if tt.category == cat_name), None)
+        if tt:
+             return tt
+        # Fallback to 'Adversarial' or 'Accidental' if not found, or None
+        return next((tt for tt in threat_types if tt.category == 'Accidental'), None)
+
+    count = 0
+    for name, desc, cat_name, imp, like in op_risks:
+        # Check if exists in catalog
+        exists = CatalogRisk.query.filter_by(catalog_id=catalog.id, name=name).first()
+        if exists:
+            continue
+
+        # Try to match a threat type by category
+        # Since these are business risks, they might not map perfectly to "Threat Types" which are more technical/security focused in this app.
+        # We will try to map to 'Strategic', 'Operational', 'Financial' if we add them to ThreatType, 
+        # But assuming ThreatType is fixed (Adversarial, Accidental, Structural, Environmental), we might need to be creative or just leave it None/Generic.
+        # For this specific request, I'll map loosely to existing categories or just leave blank if no good match.
+        # Actually, let's map: 
+        # Operational -> Accidental (Human error/Process) or Structural (System failure)
+        # Strategic/Financial -> maybe not effectively mapped to security threat types.
+        # I'll use the find_threat_type logic which defaults to Accidental if category not found.
+        
+        # NOTE: The user didn't ask to create new ThreatTypes, so I'll try to map to existing ones or leave null?
+        # The schema puts threat_type_id as nullable.
+        # I'll try to find a best effort match.
+        tt = None
+        if cat_name == "Operational": tt = find_threat_type("Accidental")
+        elif cat_name == "Technical": tt = find_threat_type("Technical") # or Adversarial/Accidental
+        elif cat_name == "Compliance": tt = find_threat_type("Legal") # Might not exist
+        
+        # If no match logic above, use generic finder
+        if not tt:
+            tt = find_threat_type(cat_name)
+
+        catalog_risk = CatalogRisk(
+            catalog_id=catalog.id,
+            name=name,
+            description=desc,
+            threat_type_id=tt.id if tt else None,
+            suggested_impact=imp,
+            suggested_likelihood=like
+        )
+        db.session.add(catalog_risk)
+        count += 1
+
+    try:
+        db.session.commit()
+        print(f"Operational & Business Risks catalog seeded/updated successfully with {count} new risks.")
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error seeding Operational catalog: {e}")
+
+def seed_it_infrastructure_catalog():
+    """
+    Seeds the IT & Infrastructure Risks Catalog.
+    """
+    print("Seeding IT & Infrastructure Risks Catalog...")
+    
+    # 1. Create Catalog
+    catalog_name = "IT & Infrastructure Risks"
+    catalog = RiskCatalog.query.filter_by(name=catalog_name).first()
+    
+    if not catalog:
+        catalog = RiskCatalog(
+            name=catalog_name,
+            version="1.0",
+            description="Technical risks related to hardware, software, capacity, and infrastructure operations.",
+            is_custom=False
+        )
+        db.session.add(catalog)
+        db.session.flush() # Get ID
+        print(f"Created catalog: {catalog_name}")
+    else:
+        print(f"Catalog {catalog_name} already exists. Updating risks.")
+
+    # 3. Define Risks to Seed
+    # Risk Name,Description,Base Impact,Base Likelihood,Dimensions Affected, ThreatCategory Mapping
+    it_risks = [
+        ("Capacity Exhaustion", "Risk that IT resources (Disk space, CPU, RAM, or Bandwidth) reach 100% utilization, causing service crash or slowdown. Afecta: Availability, Performance", "Structural", 4, 4), # High, High
+        ("Failed Change Rollout", "Risk that a patch, update, or configuration change creates a bug or outage in the production environment. Afecta: Availability, Operational", "Accidental", 4, 4), # High, High
+        ("Legacy Hardware Failure", "Risk of hardware failure in 'End-of-Life' (EOL) or 'End-of-Support' (EOS) equipment where spare parts are unavailable. Afecta: Availability, Financial", "Structural", 4, 3), # High, Medium
+        ("Backup Restoration Failure", "Risk that data backups exist but cannot be successfully restored (corrupted media, missing encryption keys) when needed. Afecta: Integrity, Availability", "Structural", 5, 2), # Very High, Low
+        ("SSL/Certificate Expiry", "Risk that a critical security certificate (SSL/TLS) expires due to lack of monitoring, causing service outage/warnings. Afecta: Availability, Reputational", "Accidental", 3, 3), # Medium, Medium
+        ("Key Knowledge Silo", "Risk that critical system knowledge resides with a single admin ('Bus Factor' = 1) without documentation. Afecta: Operational, Strategic", "Accidental", 3, 3), # Medium, Medium
+        ("Vendor/ISP Outage", "Risk of downtime caused by a third-party provider (Cloud Provider, ISP, SaaS) failing to meet their SLA. Afecta: Availability, Operational", "Structural", 4, 3), # High, Medium
+        ("Environment Drift", "Risk that Development, Staging, and Production environments have different configurations, leading to 'it works on my machine' bugs. Afecta: Operational, Quality", "Accidental", 3, 4), # Medium, High
+        ("Monitoring Blind Spots", "Risk of a failure occurring in a system component that is not being monitored, delaying response time (MTTR). Afecta: Operational, Availability", "Accidental", 3, 3), # Medium, Medium
+        ("Asset Sprawl (Zombie IT)", "Risk of running active servers or VMs that are no longer needed/orphaned, consuming budget and resources unnecessarily. Afecta: Financial, Efficiency", "Accidental", 2, 4), # Low, High
+    ]
+
+    # Get ThreatTypes (cache them)
+    threat_types = list(ThreatType.query.all())
+    
+    # Simple mapping helper
+    def find_threat_type(cat_name):
+        return next((tt for tt in threat_types if tt.category == cat_name), None)
+
+    count = 0
+    for name, desc, cat_name, imp, like in it_risks:
+        # Check if exists in catalog
+        exists = CatalogRisk.query.filter_by(catalog_id=catalog.id, name=name).first()
+        if exists:
+            continue
+
+        # Try to match a threat type by category
+        tt = find_threat_type(cat_name)
+        
+        catalog_risk = CatalogRisk(
+            catalog_id=catalog.id,
+            name=name,
+            description=desc,
+            threat_type_id=tt.id if tt else None,
+            suggested_impact=imp,
+            suggested_likelihood=like
+        )
+        db.session.add(catalog_risk)
+        count += 1
+
+    try:
+        db.session.commit()
+        print(f"IT & Infrastructure Risks catalog seeded/updated successfully with {count} new risks.")
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error seeding IT infrastructure catalog: {e}")

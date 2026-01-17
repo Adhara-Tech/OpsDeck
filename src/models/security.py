@@ -301,6 +301,43 @@ class ThreatType(db.Model):
     def __repr__(self):
         return f'<ThreatType {self.name}>'
 
+class RiskCatalog(db.Model):
+    """
+    Library of standard risks (e.g., MAGERIT, ISO 27005 Catalog).
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255), nullable=False)
+    version = db.Column(db.String(50))
+    description = db.Column(db.Text)
+    is_custom = db.Column(db.Boolean, default=True)
+    
+    # Relationships
+    catalog_risks = db.relationship('CatalogRisk', backref='catalog', lazy='dynamic', cascade='all, delete-orphan')
+
+    def __repr__(self):
+        return f'<RiskCatalog {self.name}>'
+
+class CatalogRisk(db.Model):
+    """
+    A template risk item within a catalog.
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    catalog_id = db.Column(db.Integer, db.ForeignKey('risk_catalog.id'), nullable=False)
+    
+    name = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text)
+    
+    # Taxonomy
+    threat_type_id = db.Column(db.Integer, db.ForeignKey('threat_type.id'))
+    threat_type = db.relationship('ThreatType')
+    
+    # Suggested base scores (can be overridden on import)
+    suggested_impact = db.Column(db.Integer, default=5)
+    suggested_likelihood = db.Column(db.Integer, default=5)
+
+    def __repr__(self):
+        return f'<CatalogRisk {self.name}>'
+
 class Risk(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     risk_description = db.Column(db.Text, nullable=False)  # Short name/title
@@ -308,6 +345,10 @@ class Risk(db.Model):
     
     # --- NUEVO CAMPO: Amenaza ---
     threat_type_id = db.Column(db.Integer, db.ForeignKey('threat_type.id'), nullable=True)
+    
+    # Import Source Tracking
+    source_catalog_risk_id = db.Column(db.Integer, db.ForeignKey('catalog_risk.id'), nullable=True)
+    source_catalog_risk = db.relationship('CatalogRisk')
     
     # Management
     owner_id = db.Column(db.Integer, db.ForeignKey('user.id'))
