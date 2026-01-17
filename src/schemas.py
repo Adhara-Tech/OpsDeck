@@ -4,6 +4,8 @@ from .extensions import db
 from .models import User, Asset, Peripheral, License, Subscription
 from .models.services import BusinessService
 
+from marshmallow import fields
+
 # --- Base Schema ---
 class BaseSchema(SQLAlchemyAutoSchema):
     class Meta:
@@ -14,16 +16,19 @@ class BaseSchema(SQLAlchemyAutoSchema):
 # --- Resource Schemas ---
 
 class UserSchema(BaseSchema):
+    custom_properties = fields.Dict(dump_only=True)
     class Meta(BaseSchema.Meta):
         model = User
         # Exclude sensitive data automatically
         exclude = ('password_hash', 'api_token') 
 
 class AssetSchema(BaseSchema):
+    custom_properties = fields.Dict(dump_only=True)
     class Meta(BaseSchema.Meta):
         model = Asset
 
 class PeripheralSchema(BaseSchema):
+    custom_properties = fields.Dict(dump_only=True)
     class Meta(BaseSchema.Meta):
         model = Peripheral
 

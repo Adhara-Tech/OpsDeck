@@ -15,7 +15,9 @@ class Group(db.Model):
     users = db.relationship('User', secondary=user_groups, back_populates='groups')
     policy_versions_to_acknowledge = db.relationship('PolicyVersion', secondary='policy_version_groups', back_populates='groups_to_acknowledge')
 
-class User(db.Model): # Add UserMixin here if using Flask-Login
+from .core import CustomPropertiesMixin
+
+class User(db.Model, CustomPropertiesMixin): # Add UserMixin here if using Flask-Login
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(100), unique=True, nullable=False) # Make email unique and required for login

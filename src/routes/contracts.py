@@ -219,3 +219,74 @@ def _get_item_url(item_type, item_id):
     elif item_type == 'BusinessService':
         return url_for('services.service_detail', service_id=item_id)
     return '#'
+
+@contracts_bp.route('/search-items')
+@login_required
+def search_items():
+    """
+    JSON endpoint for Select2 AJAX search.
+    Expects args:
+      - type: 'Asset', 'Subscription', 'License', 'BusinessService'
+      - q: search term
+    Returns:
+      [{'id': 123, 'text': 'Name (Serial...)'}, ...]
+    """
+    item_type = request.args.get('type')
+    search_term = request.args.get('q', '').strip()
+    
+    if not item_type or not search_term:
+        return {'results': []}
+
+    results = []
+    
+    # helper to format
+    def fmt(id, text, extra=None):
+        display = text
+        if extra:
+            display += f" ({extra})"
+        return {'id': id, 'text': display}
+
+    if item_type == 'Asset':
+        # Search by name, serial, or internal_id
+        from ..models.assets import Asset
+        query = Asset.query.filter(
+            (Asset.name.ilike(f'%{search_term}%')) |
+            (Asset.serial_number.ilike(f'%{search_term}%')) |
+            (Asset.internal_id.ilike(f'%{search_term}%'))
+        ).filter_by(is_archived=False).limit(20)
+        
+        for asset in query:
+            extra = asset.serial_number or asset.internal_id or "No Serial"
+            results.append(fmt(asset.id, asset.name, extra))
+
+    elif item_type == 'Subscription':
+        from ..models.procurement import Subscription
+        query = Subscription.query.filter(
+            Subscription.name.ilike(f'%{search_term}%')
+        ).filter_by(is_archived=False).limit(20)
+        
+        for sub in query:
+            results.append(fmt(sub.id, sub.name, sub.subscription_type))
+
+    elif item_type == 'License':
+        from ..models.assets import License
+        query = License.query.filter(
+            (License.name.ilike(f'%{search_term}%')) |
+            (License.license_key.ilike(f'%{search_term}%'))
+        ).filter_by(is_archived=False).limit(20)
+        
+        for lic in query:
+            results.append(fmt(lic.id, lic.name, "License"))
+
+    elif item_type == 'BusinessService':
+        from ..models.services import BusinessService
+        # services usually don't have is_archived, checking status instead if needed, 
+        # or just filtering by name
+        query = BusinessService.query.filter(
+            BusinessService.name.ilike(f'%{search_term}%')
+        ).limit(20)
+        
+        for svc in query:
+            results.append(fmt(svc.id, svc.name, svc.status))
+
+    return {'results': results}

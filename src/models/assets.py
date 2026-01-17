@@ -4,6 +4,7 @@ from sqlalchemy.orm import foreign
 from sqlalchemy import and_
 from ..extensions import db
 from .auth import User, Group
+from .core import CustomPropertiesMixin
 
 class Location(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -33,7 +34,7 @@ class Location(db.Model):
         """Returns True if this location has physical address info."""
         return bool(self.address or self.city or self.country)
 
-class Asset(db.Model):
+class Asset(db.Model, CustomPropertiesMixin):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     model = db.Column(db.String(100))
@@ -229,7 +230,7 @@ class PeripheralAssignment(db.Model):
     notes = db.Column(db.Text)
     user = db.relationship('User', backref='peripheral_assignments')
 
-class Peripheral(db.Model):
+class Peripheral(db.Model, CustomPropertiesMixin):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     type = db.Column(db.String(50))

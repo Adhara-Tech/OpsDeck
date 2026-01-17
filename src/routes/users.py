@@ -5,6 +5,8 @@ from flask import (
     Blueprint, render_template, request, redirect, url_for, flash, current_app
 )
 from ..models import db, User, Attachment, OrgChartSnapshot
+from ..models.core import CustomFieldDefinition
+
 from .main import login_required
 from weasyprint import HTML
 from .admin import admin_required
@@ -55,13 +57,15 @@ def unarchive_user(id):
 @login_required
 def user_detail(id):
     user = User.query.get_or_404(id)
-    return render_template('users/detail.html', user=user)
+    custom_field_definitions = CustomFieldDefinition.query.filter_by(entity_type='User').all()
+    return render_template('users/detail.html', user=user, custom_field_definitions=custom_field_definitions)
 
 @users_bp.route('/new', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def new_user():
     users = User.query.filter_by(is_archived=False).all()
+    custom_field_definitions = CustomFieldDefinition.query.filter_by(entity_type='User').all()
 
     if request.method == 'POST':
         manager_id = request.form.get('manager_id')
@@ -77,10 +81,15 @@ def new_user():
         )
         db.session.add(user)
         db.session.commit()
+        
+        # Save custom properties after user has ID
+        user.save_custom_properties(request.form)
+        db.session.commit()
+        
         flash('User created successfully!')
         return redirect(url_for('users.users'))
 
-    return render_template('users/form.html', users=users)
+    return render_template('users/form.html', users=users, custom_field_definitions=custom_field_definitions)
 
 @users_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -89,6 +98,7 @@ def edit_user(id):
     user = User.query.get_or_404(id)
 
     users = User.query.filter_by(is_archived=False).all()
+    custom_field_definitions = CustomFieldDefinition.query.filter_by(entity_type='User').all()
 
     if request.method == 'POST':
         user.name = request.form['name']
@@ -105,11 +115,14 @@ def edit_user(id):
         # Handle org chart visibility toggle
         user.hide_from_org_chart = request.form.get('hide_from_org_chart') == 'on'
         
+        user.save_custom_properties(request.form)
+        
         db.session.commit()
         flash('User updated successfully!')
         return redirect(url_for('users.users'))
 
-    return render_template('users/form.html', user=user, users=users)
+    return render_template('users/form.html', user=user, users=users, custom_field_definitions=custom_field_definitions)
+
 
 @users_bp.route('/<int:id>/inventory/generate', methods=['POST'])
 @login_required

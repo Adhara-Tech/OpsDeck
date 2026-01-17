@@ -3,6 +3,7 @@ from flask import (
 )
 from datetime import datetime
 from ..models import db, Peripheral, Asset, Purchase, Supplier, User, PeripheralAssignment
+from ..models.core import CustomFieldDefinition
 from .main import login_required
 from .admin import admin_required
 
@@ -19,11 +20,14 @@ def peripherals():
 @login_required
 def peripheral_detail(id):
     peripheral = Peripheral.query.get_or_404(id)
-    return render_template('peripherals/detail.html', peripheral=peripheral)
+    custom_field_definitions = CustomFieldDefinition.query.filter_by(entity_type='Peripheral').all()
+    return render_template('peripherals/detail.html', peripheral=peripheral, custom_field_definitions=custom_field_definitions)
 
 @peripherals_bp.route('/new', methods=['GET', 'POST'])
 @login_required
 def new_peripheral():
+    custom_field_definitions = CustomFieldDefinition.query.filter_by(entity_type='Peripheral').all()
+    
     if request.method == 'POST':
         peripheral = Peripheral(
             name=request.form['name'],
