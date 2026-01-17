@@ -105,6 +105,15 @@ class Asset(db.Model):
         ).all()
 
     @property
+    def contracts(self):
+        """Returns active contracts linked to this specific item."""
+        from .contracts import Contract, ContractItem
+        return Contract.query.join(ContractItem).filter(
+            ContractItem.item_type == self.__class__.__name__, # e.g., 'Asset'
+            ContractItem.item_id == self.id
+        ).all()
+
+    @property
     def max_risk_score(self):
         """Returns the highest residual_score among linked risks, or 0 if none."""
         risks = self.linked_risks

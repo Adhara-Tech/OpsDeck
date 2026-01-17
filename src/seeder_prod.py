@@ -486,3 +486,32 @@ def seed_production_frameworks():
             print(f"Error seeding frameworks: {e}")
     else:
         print("Production frameworks already exist. No changes made.")
+
+    # Check/Create Contract Expiry Template
+    from .models import EmailTemplate
+    if not EmailTemplate.query.filter_by(event_type='contract_expiring').first():
+        print("Creating 'Contract Expiry Warning' email template...")
+        template = EmailTemplate(
+            name='Contract Expiry Warning',
+            event_type='contract_expiring',
+            subject='EXPIRY WARNING: Contract "{{ contract_name }}" ends on {{ end_date }}',
+            body_html="""
+            <h3>Contract Expiration Alert</h3>
+            <p>The contract <strong>{{ contract_name }}</strong> ({{ contract_type }}) with <strong>{{ supplier_name }}</strong> is expiring.</p>
+            <ul>
+                <li><strong>End Date:</strong> {{ end_date }}</li>
+                <li><strong>Days Remaining:</strong> {{ days_left }}</li>
+                <li><strong>Auto-Renew:</strong> {{ 'Yes' if auto_renew else 'No' }}</li>
+            </ul>
+            <p>Please review the contract terms and take action.</p>
+            <p><a href="{{ contract_url }}" class="button">Open Contract Details</a></p>
+            """,
+            description="Sent when a contract approaches its end date (based on notice period)."
+        )
+        db.session.add(template)
+        try:
+            db.session.commit()
+            print("Template created successfully.")
+        except Exception as e:
+            db.session.rollback()
+            print(f"Error creating template: {e}")

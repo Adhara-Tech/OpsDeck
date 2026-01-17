@@ -103,7 +103,14 @@ class BusinessService(db.Model):
         if score >= 5:  return '#ffc107'  # Warning (Yellow)
         return '#198754'  # Success (Green)
 
-        return '#198754'  # Success (Green)
+    @property
+    def contracts(self):
+        """Returns active contracts linked to this specific item."""
+        from .contracts import Contract, ContractItem
+        return Contract.query.join(ContractItem).filter(
+            ContractItem.item_type == self.__class__.__name__, # e.g., 'BusinessService'
+            ContractItem.item_id == self.id
+        ).all()
 
     @property
     def has_expiry_warning(self):
@@ -238,6 +245,4 @@ class ServiceComponent(db.Model):
         }
         
         model = model_map.get(self.component_type)
-        if model:
-            return model.query.get(self.component_id)
-        return None
+

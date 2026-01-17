@@ -16,7 +16,8 @@ from flask_talisman import Talisman
 from flask_smorest import Api
 
 from .extensions import db, migrate
-from .models import User
+from .extensions import db, migrate
+from .models import User, Contract, ContractItem
 from . import notifications # Added the missing import
 import markdown
 from markupsafe import Markup
@@ -324,6 +325,9 @@ def create_app(test_config=None):
     from .routes.finance import finance_bp
     app.register_blueprint(finance_bp, url_prefix='/finance')
 
+
+    from .routes.contracts import contracts_bp
+    app.register_blueprint(contracts_bp, url_prefix='/contracts')
 
     # --- Google OAuth Blueprint ---
     if app.config.get('GOOGLE_OAUTH_CLIENT_ID'):

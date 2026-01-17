@@ -43,6 +43,9 @@ def upload_file():
         if request.form.get('asset_id'):
             new_attachment.linkable_id = request.form.get('asset_id')
             new_attachment.linkable_type = 'Asset'
+        elif request.form.get('contract_id'):
+            new_attachment.linkable_id = request.form.get('contract_id')
+            new_attachment.linkable_type = 'Contract'
         elif request.form.get('subscription_id'):
             new_attachment.linkable_id = request.form.get('subscription_id')
             new_attachment.linkable_type = 'Subscription'
