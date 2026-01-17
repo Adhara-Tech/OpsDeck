@@ -1,0 +1,187 @@
+{% extends "layout.html" %}
+{% block title %}{{ 'Edit' if candidate else 'New' }} Candidate - OpsDeck{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>
+                <i class="fas fa-user"></i>
+                {{ 'Edit Candidate' if candidate else 'New Candidate' }}
+            </h2>
+            <div class="d-flex gap-2">
+                {% if candidate %}
+                {% if candidate.is_archived %}
+                <form method="POST" action="{{ url_for('hiring.unarchive_candidate', id=candidate.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-box-open"></i> Unarchive
+                    </button>
+                </form>
+                {% else %}
+                <form method="POST" action="{{ url_for('hiring.archive_candidate', id=candidate.id) }}"
+                    onsubmit="return confirm('Archive this candidate?');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-outline-secondary">
+                        <i class="fas fa-archive"></i> Archive
+                    </button>
+                </form>
+                {% endif %}
+
+                <form method="POST" action="{{ url_for('hiring.delete_candidate', id=candidate.id) }}"
+                    onsubmit="return confirm('Permanently delete this candidate? This cannot be undone.');">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash"></i> Delete
+                    </button>
+                </form>
+                {% endif %}
+                <a href="{{ url_for('hiring.board') }}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Board
+                </a>
+            </div>
+        </div>
+
+        <div class="card shadow">
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="name" class="form-label">Full Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="name" name="name"
+                                value="{{ candidate.name if candidate else '' }}" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="email" class="form-label">Email <span class="text-danger">*</span></label>
+                            <input type="email" class="form-control" id="email" name="email"
+                                value="{{ candidate.email if candidate else '' }}" required>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="phone" class="form-label">Phone</label>
+                            <input type="tel" class="form-control" id="phone" name="phone"
+                                value="{{ candidate.phone if candidate else '' }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="position" class="form-label">Position</label>
+                            <input type="text" class="form-control" id="position" name="position"
+                                value="{{ candidate.position if candidate else '' }}"
+                                placeholder="e.g., DevOps Engineer">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="expected_salary" class="form-label">Expected Salary</label>
+                            <input type="number" step="1000" class="form-control" id="expected_salary"
+                                name="expected_salary"
+                                value="{{ candidate.expected_salary if candidate and candidate.expected_salary else '' }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="currency" class="form-label">Currency</label>
+                            <select class="form-select" id="currency" name="currency">
+                                <option value="EUR" {{ 'selected' if candidate and candidate.currency=='EUR' else '' }}>
+                                    EUR</option>
+                                <option value="USD" {{ 'selected' if candidate and candidate.currency=='USD' else '' }}>
+                                    USD</option>
+                                <option value="GBP" {{ 'selected' if candidate and candidate.currency=='GBP' else '' }}>
+                                    GBP</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="stage_id" class="form-label">Current Stage <span
+                                class="text-danger">*</span></label>
+                        <select class="form-select" id="stage_id" name="stage_id" required {% if candidate and
+                            candidate.stage.is_hired_stage %}disabled{% endif %}>
+                            <option value="">Select a stage...</option>
+                            {% for stage in stages %}
+                            <option value="{{ stage.id }}" {{ 'selected' if candidate and candidate.stage_id==stage.id
+                                else '' }}>
+                                {{ stage.name }}
+                                {% if stage.is_hired_stage %}(Hired - triggers onboarding){% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        {% if candidate and candidate.stage.is_hired_stage %}
+                        <input type="hidden" name="stage_id" value="{{ candidate.stage_id }}">
+                        <div class="form-text text-warning">
+                            <i class="fas fa-lock"></i> Candidate is hired. Stage changes are locked.
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="resume" class="form-label">Resume / CV</label>
+
+                        {% if candidate and candidate.resume_link %}
+                        <div class="mb-2">
+                            {% if candidate.resume_link.startswith('http') %}
+                            <a href="{{ candidate.resume_link }}" target="_blank"
+                                class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-external-link-alt"></i> Open External Resume
+                            </a>
+                            {% else %}
+                            <a href="{{ url_for('hiring.download_resume', id=candidate.id) }}"
+                                class="btn btn-sm btn-info text-white">
+                                <i class="fas fa-download"></i> Download Current Resume
+                            </a>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+
+                        <input type="file" class="form-control" id="resume" name="resume" accept=".pdf,.doc,.docx,.txt">
+                        <small class="form-text text-muted">Upload a new file to replace the existing one (PDF,
+                            DOCX).</small>
+
+                        <!-- Legacy field hidden or removed? User asked to replace. We'll keep it as a fallback hidden field or just remove it from UI -->
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="4"
+                            placeholder="Internal notes about the candidate...">{{ candidate.notes if candidate else '' }}</textarea>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{{ url_for('hiring.board') }}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i>
+                            {{ 'Update' if candidate else 'Create' }} Candidate
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        {% if candidate %}
+        <div class="card shadow mt-3">
+            <div class="card-body">
+                <h5 class="card-title">Metadata</h5>
+                <p class="mb-1"><strong>Created:</strong> {{ candidate.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                <p class="mb-0"><strong>Last Updated:</strong> {{ candidate.updated_at.strftime('%Y-%m-%d %H:%M') }}</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts_extra %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.css">
+<script src="https://cdn.jsdelivr.net/npm/easymde/dist/easymde.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var easyMDE = new EasyMDE({
+            element: document.getElementById('notes'),
+            spellChecker: false,
+            status: false,
+            toolbar: ["bold", "italic", "heading", "|", "quote", "unordered-list", "ordered-list", "|", "link", "image", "|", "preview"]
+        });
+    });
+</script>
+{% endblock %}

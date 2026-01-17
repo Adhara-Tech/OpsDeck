@@ -35,12 +35,14 @@ def get_template_context(scheduled_comm):
                 context['user'] = {
                     'name': process.user.name,
                     'email': process.user.email,
+                    'personal_email': process.user.personal_email or '',
                     'job_title': process.user.job_title or '',
                 }
             else:
                 context['user'] = {
                     'name': process.new_hire_name,
                     'email': process.target_email or '',
+                    'personal_email': process.personal_email or '',
                     'job_title': '',
                 }
             
@@ -71,6 +73,7 @@ def get_template_context(scheduled_comm):
                 context['user'] = {
                     'name': process.user.name,
                     'email': process.user.email,
+                    'personal_email': process.user.personal_email or '',
                     'job_title': process.user.job_title or '',
                 }
             else:

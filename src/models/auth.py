@@ -19,6 +19,7 @@ class User(db.Model): # Add UserMixin here if using Flask-Login
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(100), unique=True, nullable=False) # Make email unique and required for login
+    personal_email = db.Column(db.String(120), nullable=True)
     password_hash = db.Column(db.String(255)) # Can be nullable for users who don't log in
     api_token = db.Column(db.String(64), unique=True, nullable=True, index=True)
     role = db.Column(db.String(50), default='user') # e.g., 'user', 'editor', 'admin'

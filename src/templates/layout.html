@@ -457,6 +457,14 @@
                             <span>Org Chart</span>
                         </a>
                     </li>
+
+                    <li class="nav-item">
+                        <a class="nav-link {{ 'active' if request.blueprint == 'hiring' }}"
+                            href="{{ url_for('hiring.board') }}">
+                            <i class="fas fa-fw fa-user-friends"></i>
+                            <span>Hiring / ATS</span>
+                        </a>
+                    </li>
                 </div>
 
                 <hr class="text-white">

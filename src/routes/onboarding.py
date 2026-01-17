@@ -1,5 +1,5 @@
 from src.routes.admin import admin_required
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, jsonify
 from datetime import datetime
 from ..extensions import db
 from ..models import User, Peripheral, License, Software, Course
@@ -53,6 +53,21 @@ def list_packs():
     """Vista dedicada para gestionar packs."""
     packs = OnboardingPack.query.filter_by(is_active=True).all()
     return render_template('onboarding/packs_list.html', packs=packs)
+
+@onboarding_bp.route('/api/packs')
+@login_required
+def packs_api():
+    """API to get active packs for dropdowns."""
+    packs = OnboardingPack.query.filter_by(is_active=True).all()
+    return jsonify([{'id': p.id, 'name': p.name} for p in packs])
+
+@onboarding_bp.route('/api/users')
+@login_required
+def users_api():
+    """API to get active users for dropdowns."""
+    users = User.query.filter_by(is_archived=False).order_by(User.name).all()
+    # Return simple JSON
+    return jsonify([{'id': u.id, 'name': u.name, 'email': u.email} for u in users])
 
 @onboarding_bp.route('/packs/<int:id>', methods=['GET', 'POST'])
 @login_required
@@ -165,6 +180,7 @@ def new_onboarding():
     if request.method == 'POST':
         new_hire_name = request.form['new_hire_name']
         target_email = request.form.get('target_email')
+        personal_email = request.form.get('personal_email')
         pack_id = request.form.get('pack_id')
         start_date = datetime.strptime(request.form['start_date'], '%Y-%m-%d').date()
         
@@ -175,6 +191,7 @@ def new_onboarding():
         process = OnboardingProcess(
             new_hire_name=new_hire_name,
             target_email=target_email,
+            personal_email=personal_email,
             pack_id=pack_id,
             start_date=start_date,
             assigned_manager_id=int(manager_id) if manager_id else None,
@@ -268,7 +285,27 @@ def new_onboarding():
 def onboarding_detail(id):
     process = OnboardingProcess.query.get_or_404(id)
     communications = get_process_communications('onboarding', id)
-    return render_template('onboarding/process_detail.html', process=process, type='onboarding', communications=communications)
+    users = User.query.filter_by(is_archived=False).order_by(User.name).all() # For edit modal
+    return render_template('onboarding/process_detail.html', process=process, type='onboarding', communications=communications, users=users)
+
+@onboarding_bp.route('/process/<int:id>/update_details', methods=['POST'])
+@login_required
+@admin_required
+def update_process_details(id):
+    process = OnboardingProcess.query.get_or_404(id)
+    
+    process.target_email = request.form.get('target_email')
+    process.personal_email = request.form.get('personal_email')
+    
+    manager_id = request.form.get('manager_id')
+    buddy_id = request.form.get('buddy_id')
+    
+    process.assigned_manager_id = int(manager_id) if manager_id else None
+    process.assigned_buddy_id = int(buddy_id) if buddy_id else None
+    
+    db.session.commit()
+    flash('Process details updated.', 'success')
+    return redirect(url_for('onboarding.onboarding_detail', id=process.id))
 
 # ==========================================
 # PROCESO DE OFFBOARDING (SALIDA)
@@ -611,7 +648,7 @@ def create_user_account(process_id, item_id):
         email = f"{email_local}{random.randint(10,99)}@example.com"
     
     # Create User
-    new_user = User(name=process.new_hire_name, email=email, role='user')
+    new_user = User(name=process.new_hire_name, email=email, role='user', personal_email=process.personal_email)
     new_user.set_password(password)
     db.session.add(new_user)
     db.session.flush() # Get ID

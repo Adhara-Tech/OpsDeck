@@ -52,6 +52,9 @@ class OnboardingProcess(db.Model):
     
     # Optional: Email to use when creating the user, overrides auto-generation
     target_email = db.Column(db.String(120), nullable=True)
+    
+    # Personal email for pre-start communications
+    personal_email = db.Column(db.String(120), nullable=True)
 
     start_date = db.Column(db.Date, nullable=False)
     status = db.Column(db.String(50), default='Provisioning') # Provisioning, Completed

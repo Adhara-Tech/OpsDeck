@@ -166,7 +166,12 @@ def create_app(test_config=None):
 
     migrate.init_app(app, db)
     limiter.init_app(app)
+    
+    # Configure CSRF to not protect JSON requests (for AJAX endpoints)
+    app.config['WTF_CSRF_CHECK_DEFAULT'] = False
+    app.config['WTF_CSRF_ENABLED'] = True
     csrf.init_app(app)
+    
     # Disable HTTPS enforcement in development (debug mode) or when explicitly disabled
     is_development = app.debug or insecure_transport or os.environ.get('FLASK_ENV') == 'development'
     talisman.init_app(app, content_security_policy=None, force_https=not is_development)
@@ -306,6 +311,10 @@ def create_app(test_config=None):
     from .routes.certificates import certificates_bp
     app.register_blueprint(credentials_bp)
     app.register_blueprint(certificates_bp)
+    
+    # Hiring / ATS Module
+    from .routes.hiring import hiring_bp
+    app.register_blueprint(hiring_bp, url_prefix='/hr/hiring')
     
     from .routes.configuration import configuration_bp
     app.register_blueprint(configuration_bp, url_prefix='/configuration')

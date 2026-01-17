@@ -85,6 +85,9 @@ def resolve_recipient_email(process, recipient_type):
                 return process.user.email, process.user.name
             elif process.target_email:
                 return process.target_email, process.new_hire_name
+            elif process.personal_email:
+                 # Fallback to personal email if no corporate email yet
+                return process.personal_email, process.new_hire_name
             else:
                 # Cannot determine email yet
                 return None, process.new_hire_name
@@ -94,6 +97,9 @@ def resolve_recipient_email(process, recipient_type):
         elif recipient_type == 'buddy':
             if process.assigned_buddy:
                 return process.assigned_buddy.email, process.assigned_buddy.name
+        elif recipient_type == 'personal_email':
+             if process.personal_email:
+                 return process.personal_email, process.new_hire_name
                 
     elif isinstance(process, OffboardingProcess):
         if recipient_type == 'target_user':
@@ -102,6 +108,9 @@ def resolve_recipient_email(process, recipient_type):
         elif recipient_type == 'manager':
             if process.manager:
                 return process.manager.email, process.manager.name
+        elif recipient_type == 'personal_email':
+             if process.user and process.user.personal_email:
+                 return process.user.personal_email, process.user.name
         # Offboarding doesn't typically have a buddy reference
     
     return None, None

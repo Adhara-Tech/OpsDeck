@@ -43,11 +43,12 @@ def create_user():
         email = request.form.get('email')
         password = request.form.get('password')
         role = request.form.get('role')
+        personal_email = request.form.get('personal_email')
 
         if User.query.filter_by(email=email).first():
             flash('User with that email already exists.', 'danger')
         else:
-            new_user = User(name=name, email=email, role=role)
+            new_user = User(name=name, email=email, role=role, personal_email=personal_email)
             new_user.set_password(password)
             db.session.add(new_user)
             db.session.commit()
@@ -86,6 +87,7 @@ def edit_user(id):
         
         user.name = request.form.get('name')
         user.email = new_email
+        user.personal_email = request.form.get('personal_email')
         user.role = request.form.get('role')
         
         password = request.form.get('password')

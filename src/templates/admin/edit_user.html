@@ -8,7 +8,7 @@
 <div class="card mt-4">
     <div class="card-body">
         <form method="POST">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="mb-3">
                 <label for="name" class="form-label">Full Name</label>
                 <input type="text" class="form-control" id="name" name="name" value="{{ user.name }}" required>
@@ -18,6 +18,12 @@
                 <input type="email" class="form-control" id="email" name="email" value="{{ user.email }}" required>
             </div>
             <div class="mb-3">
+                <label for="personal_email" class="form-label">Personal Email</label>
+                <input type="email" class="form-control" id="personal_email" name="personal_email"
+                    value="{{ user.personal_email or '' }}" placeholder="e.g. gmail">
+                <div class="form-text">Used for emergency communications or onboarding.</div>
+            </div>
+            <div class="mb-3">
                 <label for="password" class="form-label">New Password</label>
                 <input type="password" class="form-control" id="password" name="password" minlength="8">
                 <div class="form-text">Leave blank to keep the current password.</div>
@@ -25,9 +31,9 @@
             <div class="mb-3">
                 <label for="role" class="form-label">Role</label>
                 <select class="form-select" id="role" name="role">
-                    <option value="viewer" {% if user.role == 'viewer' %}selected{% endif %}>Viewer</option>
-                    <option value="editor" {% if user.role == 'editor' %}selected{% endif %}>Editor</option>
-                    <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Admin</option>
+                    <option value="viewer" {% if user.role=='viewer' %}selected{% endif %}>Viewer</option>
+                    <option value="editor" {% if user.role=='editor' %}selected{% endif %}>Editor</option>
+                    <option value="admin" {% if user.role=='admin' %}selected{% endif %}>Admin</option>
                 </select>
             </div>
             <a href="{{ url_for('admin.list_users') }}" class="btn btn-secondary">Cancel</a>
