@@ -491,6 +491,20 @@
                     </li>
                 </div>
 
+                {% if enterprise_enabled %}
+                <hr class="text-white">
+                <h6 class="sidebar-heading" data-bs-toggle="collapse" data-bs-target="#enterprise-menu"
+                    aria-expanded="false">Enterprise <i class="fa-fw fas fa-chevron-down float-end"></i></h6>
+                <div class="collapse" id="enterprise-menu" data-bs-parent="#sidebar-accordion">
+                    {% for item in enterprise_menu_items %}
+                    <li class="nav-item"><a
+                            class="nav-link {% if request.endpoint and request.endpoint.startswith('enterprise_connectors.') %}active{% endif %}"
+                            href="{{ item.url }}"><i class="fa-fw fas fa-{{ item.icon }}"></i>
+                            {{ item.name }}</a></li>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
                 <hr class="text-white">
                 <h6 class="sidebar-heading" data-bs-toggle="collapse" data-bs-target="#admin-menu"
                     aria-expanded="false">Administration <i class="fa-fw fas fa-chevron-down float-end"></i></h6>

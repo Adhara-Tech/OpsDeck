@@ -753,5 +753,16 @@ def create_app(test_config=None):
                 else:
                     print(f"   HTTP Status: {response.status_code}")
 
+    # --- Plugin System: Dynamic Loading ---
+    try:
+        import opsdeck_enterprise
+        opsdeck_enterprise.init_plugin(app)
+        app.logger.info(f"✓ Plugin Enterprise cargado: v{opsdeck_enterprise.__version__}")
+    except ImportError:
+        app.logger.info("Iniciando OpsDeck en modo estándar (sin plugins)")
+    except Exception as e:
+        app.logger.error(f"Error cargando plugin Enterprise: {str(e)}")
+        # No fallar la app si el plugin falla, solo registrar el error
+
     return app
 
