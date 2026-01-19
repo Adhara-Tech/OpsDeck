@@ -9,3 +9,4 @@ flask db upgrade
 flask init-db
 flask seed-db-demodata
 flask seed-db-prod
+flask seed-connectors

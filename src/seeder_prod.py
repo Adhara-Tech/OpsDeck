@@ -805,6 +805,8 @@ def seed_it_infrastructure_catalog():
         ("Environment Drift", "Risk that Development, Staging, and Production environments have different configurations, leading to 'it works on my machine' bugs. Afecta: Operational, Quality", "Accidental", 3, 4), # Medium, High
         ("Monitoring Blind Spots", "Risk of a failure occurring in a system component that is not being monitored, delaying response time (MTTR). Afecta: Operational, Availability", "Accidental", 3, 3), # Medium, Medium
         ("Asset Sprawl (Zombie IT)", "Risk of running active servers or VMs that are no longer needed/orphaned, consuming budget and resources unnecessarily. Afecta: Financial, Efficiency", "Accidental", 2, 4), # Low, High
+        ("Unauthorized AI Usage", "Risk that employees use unauthorized AI tools (ChatGPT, Claude, Copilot, etc.) to process sensitive company data, proprietary code, or intellectual property, leading to data leaks or IP exposure to third-party AI providers. Afecta: Confidentiality, Compliance, IP Protection", "Adversarial", 5, 4), # Very High, High
+        ("Shadow IT (Unauthorized Software)", "Risk of employees using unapproved software, cloud services, or SaaS applications without IT oversight, creating security vulnerabilities, compliance gaps, and data governance issues. Afecta: Confidentiality, Security, Compliance", "Accidental", 4, 4), # High, High
     ]
 
     # Get ThreatTypes (cache them)
