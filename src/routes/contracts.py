@@ -217,7 +217,7 @@ def _get_item_url(item_type, item_id):
     elif item_type == 'License':
         return url_for('licenses.list_licenses') # License detail might be a modal or list
     elif item_type == 'BusinessService':
-        return url_for('services.service_detail', service_id=item_id)
+        return url_for('services.detail', id=item_id)
     return '#'
 
 @contracts_bp.route('/search-items')

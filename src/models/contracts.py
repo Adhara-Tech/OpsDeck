@@ -83,7 +83,7 @@ class ContractItem(db.Model):
             from .procurement import Subscription
             return Subscription.query.get(self.item_id)
         elif self.item_type == 'License':
-            from .procurement import License
+            from .assets import License
             return License.query.get(self.item_id)
         elif self.item_type == 'BusinessService':
             from .services import BusinessService
