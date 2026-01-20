@@ -497,9 +497,22 @@
                     aria-expanded="false">Enterprise <i class="fa-fw fas fa-chevron-down float-end"></i></h6>
                 <div class="collapse" id="enterprise-menu" data-bs-parent="#sidebar-accordion">
                     {% for item in enterprise_menu_items %}
-                    <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint and request.endpoint.startswith('enterprise_connectors.') %}active{% endif %}"
-                            href="{{ item.url }}"><i class="fa-fw fas fa-{{ item.icon }}"></i>
+                    {% set ns = namespace(match=False) %}
+                    {% if item.endpoints %}
+                    {% for endpoint in item.endpoints %}
+                    {% if endpoint.endswith('.') %}
+                    {% if request.endpoint and request.endpoint.startswith(endpoint) %}
+                    {% set ns.match = True %}
+                    {% endif %}
+                    {% else %}
+                    {% if request.endpoint == endpoint %}
+                    {% set ns.match = True %}
+                    {% endif %}
+                    {% endif %}
+                    {% endfor %}
+                    {% endif %}
+                    <li class="nav-item"><a class="nav-link {% if ns.match %}active{% endif %}" href="{{ item.url }}"><i
+                                class="fa-fw fas fa-{{ item.icon }}"></i>
                             {{ item.name }}</a></li>
                     {% endfor %}
                 </div>

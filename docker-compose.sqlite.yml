@@ -13,5 +13,6 @@ services:
       - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
       - FLASK_DEBUG=1
       - OAUTHLIB_INSECURE_TRANSPORT=1
+      - ENTERPRISE_ENABLED=${ENTERPRISE_ENABLED:-False}
     env_file:
       - .env

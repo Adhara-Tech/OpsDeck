@@ -36,6 +36,38 @@ else
 fi
 
 
+# Install and seed Enterprise plugin - Only if ENTERPRISE_ENABLED is True
+if [ "$ENTERPRISE_ENABLED" = "True" ]; then
+    echo "Enterprise mode enabled. Installing enterprise plugin..."
+    
+    # Check if the opsdeck-enterprise folder exists
+    if [ -d "/app/opsdeck-enterprise" ]; then
+        # Install the enterprise plugin in editable mode
+        pip install -e /app/opsdeck-enterprise
+        
+        if [ $? -eq 0 ]; then
+            echo "✓ Enterprise plugin installed successfully"
+            
+            # Seed enterprise data (connectors and AI profiles)
+            echo "Seeding enterprise connectors..."
+            flask seed-connectors
+            
+            echo "Seeding enterprise AI profiles..."
+            flask seed-ai-profiles
+            
+            echo "✓ Enterprise plugin configured and seeded"
+        else
+            echo "✗ Failed to install enterprise plugin"
+        fi
+    else
+        echo "⚠ Enterprise mode enabled but opsdeck-enterprise folder not found at /app/opsdeck-enterprise"
+        echo "  Continuing without enterprise features..."
+    fi
+else
+    echo "Enterprise mode disabled (ENTERPRISE_ENABLED not set to True)"
+fi
+
+
 echo "Database initialized."
 
 
