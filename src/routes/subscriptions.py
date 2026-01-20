@@ -35,7 +35,7 @@ def subscriptions():
 
             filtered_subscriptions = []
             for subscription in all_subscriptions:
-                next_renewal = subscription.next_renewal_date
+                next_renewal = subscription.renewal_date
                 while next_renewal <= filter_month_end:
                     if next_renewal >= filter_month_start:
                         filtered_subscriptions.append(subscription)
@@ -324,8 +324,6 @@ def calendar_events():
                         'cost_eur': f"€{subscription.cost_eur:.2f}"
                     }
                 })
-            next_renewal = subscription.get_renewal_date_after(next_renewal)
-
             next_renewal = subscription.get_renewal_date_after(next_renewal)
 
     return jsonify(events)
