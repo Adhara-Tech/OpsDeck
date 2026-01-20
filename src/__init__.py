@@ -5,6 +5,7 @@ import sys
 import logging
 from logging.handlers import RotatingFileHandler
 import atexit
+import click
 from flask import Flask, session, render_template, request, redirect, url_for
 from apscheduler.schedulers.background import BackgroundScheduler
 import ecs_logging
@@ -15,7 +16,8 @@ from flask_talisman import Talisman
 from flask_smorest import Api
 
 from .extensions import db, migrate
-from .models import User
+from .extensions import db, migrate
+from .models import User, Contract, ContractItem
 from . import notifications # Added the missing import
 import markdown
 from markupsafe import Markup
@@ -164,7 +166,12 @@ def create_app(test_config=None):
 
     migrate.init_app(app, db)
     limiter.init_app(app)
+    
+    # Configure CSRF to not protect JSON requests (for AJAX endpoints)
+    app.config['WTF_CSRF_CHECK_DEFAULT'] = False
+    app.config['WTF_CSRF_ENABLED'] = True
     csrf.init_app(app)
+    
     # Disable HTTPS enforcement in development (debug mode) or when explicitly disabled
     is_development = app.debug or insecure_transport or os.environ.get('FLASK_ENV') == 'development'
     talisman.init_app(app, content_security_policy=None, force_https=not is_development)
@@ -305,6 +312,10 @@ def create_app(test_config=None):
     app.register_blueprint(credentials_bp)
     app.register_blueprint(certificates_bp)
     
+    # Hiring / ATS Module
+    from .routes.hiring import hiring_bp
+    app.register_blueprint(hiring_bp, url_prefix='/hr/hiring')
+    
     from .routes.configuration import configuration_bp
     app.register_blueprint(configuration_bp, url_prefix='/configuration')
     
@@ -323,6 +334,9 @@ def create_app(test_config=None):
     from .routes.finance import finance_bp
     app.register_blueprint(finance_bp, url_prefix='/finance')
 
+
+    from .routes.contracts import contracts_bp
+    app.register_blueprint(contracts_bp, url_prefix='/contracts')
 
     # --- Google OAuth Blueprint ---
     if app.config.get('GOOGLE_OAUTH_CLIENT_ID'):
@@ -360,6 +374,11 @@ def create_app(test_config=None):
             'main.google_callback',
             'main.mfa_verify',  # Necesario para el flujo de 2FA
             'main.health_check',  # Health check for Kubernetes probes
+            'main.internal_test_db',  # Internal route for CLI database testing
+            'main.internal_app_info',  # Internal route for CLI app info
+            'main.internal_test_email',  # Internal route for CLI email testing
+            'main.internal_health_check',  # Internal route for CLI health check
+            'main.internal_test_security',  # Internal route for CLI security audit
             'static',
             'favicon',
             # API endpoints use token authentication, not session
@@ -498,11 +517,252 @@ def create_app(test_config=None):
     def seed_prod_command():
         """Carga los datos maestros de producción (Frameworks & Threats)."""
         seed_production_frameworks()
-        from .seeder_prod import seed_threats
+        from .seeder_prod import seed_threats, seed_magerit_catalog, seed_operational_catalog, seed_it_infrastructure_catalog
         seed_threats()
+        seed_magerit_catalog()
+        seed_operational_catalog()
+        seed_it_infrastructure_catalog()
+
+    @app.cli.command('test-db')
+    def test_db_command():
+        """Tests database connectivity by querying the user table."""
+        with app.test_client() as client:
+            response = client.get('/internal/test-db', follow_redirects=True)
+            data = response.get_json()
+            
+            if response.status_code == 200 and data:
+                print("✅ Database Test: SUCCESS")
+                print(f"   Database Type: {data.get('database_type')}")
+                print(f"   Database URI: {data.get('database_uri')}")
+                print(f"   User Count: {data.get('user_count')}")
+                print(f"   Query Executed: {data.get('query_executed')}")
+            else:
+                print("❌ Database Test: FAILED")
+                if data:
+                    print(f"   Error: {data.get('error', 'Unknown error')}")
+                    print(f"   Message: {data.get('message', 'No message')}")
+                else:
+                    print(f"   HTTP Status: {response.status_code}")
+                    print(f"   Response: {response.data.decode('utf-8') if response.data else 'No response'}")
+
+    @app.cli.command('app-info')
+    def app_info_command():
+        """Displays application configuration information."""
+        with app.test_client() as client:
+            response = client.get('/internal/app-info', follow_redirects=True)
+            data = response.get_json()
+            
+            if response.status_code == 200 and data:
+                print("\n📊 Application Information:\n")
+                print(f"App Name: {data.get('app_name')}")
+                print(f"API Version: {data.get('api_version')}\n")
+                
+                print("Database Configuration:")
+                db_info = data.get('database', {})
+                print(f"  Type: {db_info.get('type')}")
+                print(f"  URI: {db_info.get('uri')}")
+                print(f"  Track Modifications: {db_info.get('track_modifications')}\n")
+                
+                print("Security Configuration:")
+                sec_info = data.get('security', {})
+                print(f"  MFA Enabled: {sec_info.get('mfa_enabled')}")
+                print(f"  Secret Key Configured: {sec_info.get('secret_key_configured')}")
+                print(f"  Testing Mode: {sec_info.get('testing_mode')}\n")
+                
+                print("Email Configuration:")
+                email_info = data.get('email', {})
+                print(f"  SMTP Server: {email_info.get('smtp_server')}")
+                print(f"  SMTP Port: {email_info.get('smtp_port')}")
+                print(f"  Email Configured: {email_info.get('email_configured')}\n")
+                
+                print("OAuth Configuration:")
+                oauth_info = data.get('oauth', {})
+                print(f"  Google OAuth Configured: {oauth_info.get('google_oauth_configured')}\n")
+                
+                print("Paths:")
+                paths_info = data.get('paths', {})
+                print(f"  Upload Folder: {paths_info.get('upload_folder')}\n")
+            else:
+                print("❌ Failed to retrieve app info")
+                if data:
+                    print(f"   Error: {data.get('error', 'Unknown error')}")
+                    print(f"   Message: {data.get('message', 'No message')}")
+                else:
+                    print(f"   HTTP Status: {response.status_code}")
+                    print(f"   Response: {response.data.decode('utf-8') if response.data else 'No response'}")
 
     # --- Importar CLI Commands (Data Import) ---
     from . import cli
     cli.register_commands(app)
 
+    @app.cli.command('test-email')
+    @click.option('--recipient', default=None, help='Email recipient (defaults to configured EMAIL_USERNAME)')
+    def test_email_command(recipient):
+        """Tests email configuration by sending a test email."""
+        with app.test_client() as client:
+            url = '/internal/test-email'
+            if recipient:
+                url += f'?recipient={recipient}'
+            
+            response = client.get(url, follow_redirects=True)
+            data = response.get_json()
+            
+            if response.status_code == 200 and data:
+                print("✅ Email Test: SUCCESS")
+                print(f"   Recipient: {data.get('recipient')}")
+                print(f"   SMTP Server: {data.get('smtp_server')}:{data.get('smtp_port')}")
+                print(f"   Message: {data.get('message')}")
+            else:
+                print("❌ Email Test: FAILED")
+                if data:
+                    print(f"   Error: {data.get('error', 'Unknown error')}")
+                    print(f"   Message: {data.get('message', 'No message')}")
+                    if 'config' in data:
+                        print("   Configuration status:")
+                        for key, value in data['config'].items():
+                            status = "✓" if value else "✗"
+                            print(f"     {status} {key}")
+                else:
+                    print(f"   HTTP Status: {response.status_code}")
+
+    @app.cli.command('health-check')
+    def health_check_command():
+        """Performs comprehensive health check of all system components."""
+        with app.test_client() as client:
+            response = client.get('/internal/health-check', follow_redirects=True)
+            data = response.get_json()
+            
+            if data:
+                overall_status = data.get('status', 'unknown')
+                
+                if overall_status == 'healthy':
+                    print("✅ System Health: HEALTHY\n")
+                else:
+                    print("❌ System Health: UNHEALTHY\n")
+                
+                print("Component Status:")
+                print("-" * 50)
+                
+                components = data.get('components', {})
+                for component, info in components.items():
+                    status = info.get('status', 'unknown')
+                    
+                    if status == 'healthy':
+                        icon = "✅"
+                    elif status == 'configured':
+                        icon = "ℹ️ "
+                    elif status == 'disabled':
+                        icon = "⚪"
+                    elif status == 'not_configured':
+                        icon = "⚠️ "
+                    else:
+                        icon = "❌"
+                    
+                    print(f"{icon} {component.upper()}: {status}")
+                    
+                    # Show additional details
+                    for key, value in info.items():
+                        if key != 'status' and not key.startswith('_'):
+                            print(f"   {key}: {value}")
+                
+                print("-" * 50)
+                print(f"\nTimestamp: {data.get('timestamp')}")
+                
+                # Exit with appropriate code
+                import sys
+                sys.exit(0 if overall_status == 'healthy' else 1)
+            else:
+                print("❌ Failed to retrieve health check data")
+                print(f"   HTTP Status: {response.status_code}")
+                import sys
+                sys.exit(1)
+
+    @app.cli.command('test-security')
+    def test_security_command():
+        """Performs security configuration audit."""
+        with app.test_client() as client:
+            response = client.get('/internal/test-security', follow_redirects=True)
+            data = response.get_json()
+            
+            if response.status_code == 200 and data:
+                print("\n🔒 Security Configuration Audit\n")
+                print("=" * 60)
+                
+                # Show summary first
+                summary = data.get('summary', {})
+                critical = summary.get('critical_issues', 0)
+                warnings = summary.get('warnings', 0)
+                recommendations = summary.get('recommendations', 0)
+                
+                print(f"\nSummary:")
+                if critical > 0:
+                    print(f"  🔴 Critical Issues: {critical}")
+                if warnings > 0:
+                    print(f"  ⚠️  Warnings: {warnings}")
+                if recommendations > 0:
+                    print(f"  💡 Recommendations: {recommendations}")
+                
+                if critical == 0 and warnings == 0:
+                    print("  ✅ No critical issues or warnings found")
+                
+                # Show detailed checks
+                print(f"\nDetailed Checks:")
+                print("-" * 60)
+                
+                checks = data.get('checks', {})
+                for check_name, check_info in checks.items():
+                    status = check_info.get('status', 'unknown')
+                    message = check_info.get('message', '')
+                    
+                    if status == 'ok':
+                        icon = "✅"
+                    elif status == 'info':
+                        icon = "ℹ️ "
+                    elif status == 'warning':
+                        icon = "⚠️ "
+                    elif status == 'critical':
+                        icon = "🔴"
+                    else:
+                        icon = "❓"
+                    
+                    print(f"{icon} {check_name.upper().replace('_', ' ')}")
+                    print(f"   {message}")
+                
+                # Show warnings
+                warnings_list = data.get('warnings', [])
+                if warnings_list:
+                    print(f"\n⚠️  Warnings:")
+                    print("-" * 60)
+                    for warning in warnings_list:
+                        print(f"  • {warning}")
+                
+                # Show recommendations
+                recommendations_list = data.get('recommendations', [])
+                if recommendations_list:
+                    print(f"\n💡 Recommendations:")
+                    print("-" * 60)
+                    for rec in recommendations_list:
+                        print(f"  • {rec}")
+                
+                print("\n" + "=" * 60)
+                print(f"Audit completed at: {data.get('timestamp')}\n")
+            else:
+                print("❌ Failed to retrieve security audit data")
+                if data:
+                    print(f"   Error: {data.get('error', 'Unknown error')}")
+                else:
+                    print(f"   HTTP Status: {response.status_code}")
+
+    # --- Plugin System: Dynamic Loading ---
+    try:
+        import opsdeck_enterprise
+        opsdeck_enterprise.init_plugin(app)
+        app.logger.info(f"✓ Plugin Enterprise cargado: v{opsdeck_enterprise.__version__}")
+    except ImportError:
+        app.logger.info("Iniciando OpsDeck en modo estándar (sin plugins)")
+    except Exception as e:
+        app.logger.error(f"Error cargando plugin Enterprise: {str(e)}")
+        # No fallar la app si el plugin falla, solo registrar el error
+
     return app
+

@@ -3,7 +3,7 @@ from flask import (
 )
 from ..models import db, Risk, User, Asset, RiskCategory, RISK_CATEGORIES, RISK_CATEGORY_COLORS, RiskAffectedItem, RiskAssessment, ThreatType
 
-from ..models.security import RiskReference
+from ..models.security import RiskReference, RiskCatalog, CatalogRisk
 from ..models.activities import SecurityActivity
 from ..models.auth import Group
 from ..models.procurement import Subscription
@@ -12,8 +12,16 @@ from ..models.core import Documentation, Link
 from .main import login_required
 from .admin import admin_required
 from datetime import datetime
+from src.utils.logger import log_audit
 
 risk_bp = Blueprint('risk', __name__)
+
+# ... (omitted code, I will rely on existing structure and just insert imports and routes)
+# Wait, I can't skip lines in replace_file_content unless I target specific blocks. 
+# I will do it in chunks.
+
+# Chunk 1: Imports
+
 
 @risk_bp.route('/dashboard')
 @login_required
@@ -277,6 +285,18 @@ def detail(id):
     risk = Risk.query.get_or_404(id)
     return render_template('risk/detail.html', risk=risk)
 
+@risk_bp.route('/catalog')
+@login_required
+def catalog_list():
+    catalogs = RiskCatalog.query.all()
+    return render_template('risk/catalog_list.html', catalogs=catalogs)
+
+@risk_bp.route('/catalog/<int:id>')
+@login_required
+def catalog_detail(id):
+    catalog = RiskCatalog.query.get_or_404(id)
+    return render_template('risk/catalog_detail.html', catalog=catalog)
+
 from ..models.security import ThreatType
 
 @risk_bp.route('/new', methods=['GET', 'POST'])
@@ -286,6 +306,7 @@ def new_risk():
     if request.method == 'POST':
         # Extract form data
         threat_type_id = request.form.get('threat_type_id')
+        source_id = request.form.get('source_catalog_risk_id')
         
         risk = Risk(
             risk_description=request.form['risk_description'],
@@ -304,7 +325,10 @@ def new_risk():
             residual_likelihood=int(request.form.get('inherent_likelihood', 5)),
             
             mitigation_plan=request.form.get('mitigation_plan'),
-            link=request.form.get('link')
+            link=request.form.get('link'),
+            
+            # Import tracking
+            source_catalog_risk_id=int(source_id) if source_id else None
         )
         
         # Handle date
@@ -338,6 +362,22 @@ def new_risk():
                 risk.mitigation_activities.append(activity)
 
         db.session.commit()
+        
+        # Audit Log
+        if source_id:
+             log_audit(
+                event_type='risk.imported',
+                action='create',
+                target_object=f"Risk:{risk.id}",
+                details=f"Imported from CatalogRisk:{source_id}"
+            )
+        else:
+             log_audit(
+                event_type='risk.created',
+                action='create',
+                target_object=f"Risk:{risk.id}"
+            )
+
         flash('Risk has been successfully logged.', 'success')
         return redirect(url_for('risk.list_risks'))
 
@@ -345,11 +385,29 @@ def new_risk():
     activities = SecurityActivity.query.order_by(SecurityActivity.name).all()
     threat_types = ThreatType.query.order_by(ThreatType.category, ThreatType.name).all()
     
+    # Handle Import Logic
+    pre_filled_risk = None
+    import_id = request.args.get('import_id')
+    if import_id:
+        catalog_risk = CatalogRisk.query.get(import_id)
+        if catalog_risk:
+            # Create transient object for pre-filling form
+            pre_filled_risk = Risk(
+                risk_description=catalog_risk.name,
+                extended_description=catalog_risk.description,
+                threat_type_id=catalog_risk.threat_type_id,
+                inherent_impact=catalog_risk.suggested_impact,
+                inherent_likelihood=catalog_risk.suggested_likelihood,
+                # Use this attribute to pass it to the form (though not a DB column on Risk, we can use it on the object) 
+                source_catalog_risk_id=catalog_risk.id 
+            )
+            # Add implicit category (if threat type has category, we might want to pre-select it? RiskCategory is separate)
+            # Logic for categories is separate (m2m). We'll leave it empty for user to select.
+            flash(f"Importing risk template: {catalog_risk.name}", 'info')
+
     return render_template('risk/form.html', users=users, activities=activities,
                            risk_categories=RISK_CATEGORIES, category_colors=RISK_CATEGORY_COLORS,
-                           threat_types=threat_types)
-
-from src.utils.logger import log_audit
+                           threat_types=threat_types, risk=pre_filled_risk)
 
 @risk_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required

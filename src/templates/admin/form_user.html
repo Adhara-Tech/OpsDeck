@@ -8,7 +8,7 @@
 <div class="card mt-4">
     <div class="card-body">
         <form method="POST">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="mb-3">
                 <label for="name" class="form-label">Full Name</label>
                 <input type="text" class="form-control" id="name" name="name" required>
@@ -16,6 +16,12 @@
             <div class="mb-3">
                 <label for="email" class="form-label">Email (for login)</label>
                 <input type="email" class="form-control" id="email" name="email" required>
+            </div>
+            <div class="mb-3">
+                <label for="personal_email" class="form-label">Personal Email</label>
+                <input type="email" class="form-control" id="personal_email" name="personal_email"
+                    placeholder="e.g. gmail">
+                <div class="form-text">Used for emergency communications or onboarding.</div>
             </div>
             <div class="mb-3">
                 <label for="password" class="form-label">Password</label>

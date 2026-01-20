@@ -16,6 +16,30 @@
         <p><strong>Email:</strong> {{ user.email or 'N/A' }}</p>
         <p><strong>Department:</strong> {{ user.department or 'N/A' }}</p>
         <p class="mb-0"><strong>Job Title:</strong> {{ user.job_title or 'N/A' }}</p>
+
+        {% if custom_field_definitions %}
+        <hr>
+        <h6 class="mb-3 text-muted">Additional Properties</h6>
+        <div class="row">
+            {% for field in custom_field_definitions %}
+            {% set value = user.custom_properties.get(field.name) %}
+            {% if value %}
+            <div class="col-md-6 mb-2">
+                <strong>{{ field.label }}:</strong>
+                {% if field.field_type == 'boolean' %}
+                <span class="badge bg-{{ 'success' if value|lower == 'true' or value|lower == 'on' else 'secondary' }}">
+                    {{ 'Yes' if value|lower == 'true' or value|lower == 'on' else 'No' }}
+                </span>
+                {% elif field.field_type == 'url' %}
+                <a href="{{ value }}" target="_blank">{{ value }}</a>
+                {% else %}
+                {{ value }}
+                {% endif %}
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
     </div>
 </div>
 

@@ -43,11 +43,12 @@ def create_user():
         email = request.form.get('email')
         password = request.form.get('password')
         role = request.form.get('role')
+        personal_email = request.form.get('personal_email')
 
         if User.query.filter_by(email=email).first():
             flash('User with that email already exists.', 'danger')
         else:
-            new_user = User(name=name, email=email, role=role)
+            new_user = User(name=name, email=email, role=role, personal_email=personal_email)
             new_user.set_password(password)
             db.session.add(new_user)
             db.session.commit()
@@ -86,6 +87,7 @@ def edit_user(id):
         
         user.name = request.form.get('name')
         user.email = new_email
+        user.personal_email = request.form.get('personal_email')
         user.role = request.form.get('role')
         
         password = request.form.get('password')
@@ -138,3 +140,85 @@ def delete_user(id):
     
     flash(f'User "{user_to_delete.name}" has been deleted.', 'success')
     return redirect(url_for('admin.list_users'))
+
+
+# --- Custom Properties Management ---
+
+from ..models.core import CustomFieldDefinition, CustomFieldValue
+
+@admin_bp.route('/custom-fields')
+@login_required
+@admin_required
+def custom_fields():
+    definitions = CustomFieldDefinition.query.order_by(CustomFieldDefinition.entity_type, CustomFieldDefinition.name).all()
+    return render_template('admin/custom_fields_list.html', definitions=definitions)
+
+@admin_bp.route('/custom-fields/new', methods=['POST'])
+@login_required
+@admin_required
+def create_custom_field():
+    entity_type = request.form.get('entity_type')
+    label = request.form.get('label')
+    name = request.form.get('name')
+    field_type = request.form.get('field_type')
+    is_required = request.form.get('is_required') == 'on'
+    
+    # Basic Validation
+    if not all([entity_type, label, name, field_type]):
+        flash('All fields are required.', 'danger')
+        return redirect(url_for('admin.custom_fields'))
+        
+    # Check Uniqueness
+    existing = CustomFieldDefinition.query.filter_by(entity_type=entity_type, name=name).first()
+    if existing:
+        flash(f'A field with slug "{name}" already exists for {entity_type}.', 'danger')
+        return redirect(url_for('admin.custom_fields'))
+        
+    new_field = CustomFieldDefinition(
+        entity_type=entity_type,
+        label=label,
+        name=name,
+        field_type=field_type,
+        is_required=is_required
+    )
+    
+    db.session.add(new_field)
+    db.session.commit()
+    
+    log_audit(
+        event_type='custom_field.created',
+        action='create',
+        target_object=f"CustomFieldDefinition:{new_field.id}",
+        target_info=f"{new_field.entity_type}.{new_field.name}"
+    )
+    
+    flash(f'{entity_type} property "{label}" created.', 'success')
+    return redirect(url_for('admin.custom_fields'))
+
+@admin_bp.route('/custom-fields/<int:id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def delete_custom_field(id):
+    field = CustomFieldDefinition.query.get_or_404(id)
+    info = f"{field.entity_type}.{field.name}"
+    
+    # Cascade delete is not set on relationship in core.py properly for values?
+    # Actually backref default cascade might not be 'all, delete-orphan'.
+    # Manual deletion is safer or we update model. 
+    # Let's check model... backref='values'.
+    # We should delete values first manually to be sure or verify cascade.
+    
+    CustomFieldValue.query.filter_by(field_definition_id=id).delete()
+    
+    db.session.delete(field)
+    db.session.commit()
+    
+    log_audit(
+        event_type='custom_field.deleted',
+        action='delete',
+        target_object=f"CustomFieldDefinition:{id}",
+        target_info=info
+    )
+    
+    flash('Custom property deleted.', 'success')
+    return redirect(url_for('admin.custom_fields'))

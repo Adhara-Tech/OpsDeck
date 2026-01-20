@@ -89,6 +89,35 @@
             </div>
         </div>
     </div>
+
+    {% if custom_field_definitions %}
+    <hr>
+    <div class="row mt-3">
+        <div class="col-12">
+            <h6 class="mb-3 text-muted">Additional Properties</h6>
+            <div class="row">
+                {% for field in custom_field_definitions %}
+                {% set value = peripheral.custom_properties.get(field.name) %}
+                {% if value %}
+                <div class="col-md-6 mb-2">
+                    <strong>{{ field.label }}:</strong>
+                    {% if field.field_type == 'boolean' %}
+                    <span
+                        class="badge bg-{{ 'success' if value|lower == 'true' or value|lower == 'on' else 'secondary' }}">
+                        {{ 'Yes' if value|lower == 'true' or value|lower == 'on' else 'No' }}
+                    </span>
+                    {% elif field.field_type == 'url' %}
+                    <a href="{{ value }}" target="_blank">{{ value }}</a>
+                    {% else %}
+                    {{ value }}
+                    {% endif %}
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 <div class="card mt-4">

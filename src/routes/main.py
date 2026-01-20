@@ -1,6 +1,7 @@
 from flask import (
     Blueprint, render_template, request, redirect, url_for, flash, session, jsonify, current_app
 )
+import os
 from sqlalchemy import or_
 from markupsafe import Markup
 from functools import wraps
@@ -787,3 +788,398 @@ def change_password():
             return redirect(url_for('main.organizational_health'))
 
     return render_template('change_password.html', forced_change=forced_change)
+
+
+@main_bp.route('/my-api-key')
+@login_required
+def my_api_key():
+    """Render the API Key management page for the current user."""
+    return render_template('api_key.html')
+
+
+@main_bp.route('/my-api-key/generate', methods=['POST'])
+@login_required
+def generate_my_token():
+    """Generate a new API token for the current user."""
+    user = User.query.get(session['user_id'])
+    user.generate_token()
+    db.session.commit()
+    
+    log_audit(
+        event_type='security.token_generated',
+        action='create',
+        target_object=f"User:{user.id}",
+        user_email=user.email,
+        description="User generated their own API token"
+    )
+    
+    flash('New API Token generated successfully.', 'success')
+    return redirect(url_for('main.my_api_key'))
+
+
+# --- INTERNAL ROUTES (No Login Required) ---
+# These routes are designed to be called by Flask CLI commands
+
+@main_bp.route('/internal/test-db')
+def internal_test_db():
+    """
+    Internal route for database connectivity testing.
+    Performs a simple query to verify database connection.
+    """
+    try:
+        # Query the User table to verify database connectivity
+        user_count = User.query.count()
+        
+        # Get database information
+        db_uri = current_app.config.get('SQLALCHEMY_DATABASE_URI', 'Not configured')
+        # Mask sensitive information in the URI
+        if '@' in db_uri:
+            # For postgres://user:pass@host/db format
+            parts = db_uri.split('@')
+            masked_uri = parts[0].split(':')[0] + ':***@' + '@'.join(parts[1:])
+        else:
+            masked_uri = db_uri
+        
+        is_postgres = current_app.config.get('IS_POSTGRES', False)
+        db_type = 'PostgreSQL' if is_postgres else 'SQLite'
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Database connection successful',
+            'database_type': db_type,
+            'database_uri': masked_uri,
+            'user_count': user_count,
+            'query_executed': 'SELECT COUNT(*) FROM user'
+        }), 200
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': 'Database connection failed',
+            'error': str(e)
+        }), 500
+
+
+@main_bp.route('/internal/app-info')
+def internal_app_info():
+    """
+    Internal route for retrieving application configuration information.
+    Returns non-sensitive configuration details.
+    """
+    try:
+        # Get database information
+        db_uri = current_app.config.get('SQLALCHEMY_DATABASE_URI', 'Not configured')
+        if '@' in db_uri:
+            parts = db_uri.split('@')
+            masked_uri = parts[0].split(':')[0] + ':***@' + '@'.join(parts[1:])
+        else:
+            masked_uri = db_uri
+        
+        is_postgres = current_app.config.get('IS_POSTGRES', False)
+        db_type = 'PostgreSQL' if is_postgres else 'SQLite'
+        
+        # Gather application configuration
+        app_info = {
+            'status': 'success',
+            'app_name': current_app.config.get('API_TITLE', 'OpsDeck'),
+            'api_version': current_app.config.get('API_VERSION', 'v1'),
+            'database': {
+                'type': db_type,
+                'uri': masked_uri,
+                'track_modifications': current_app.config.get('SQLALCHEMY_TRACK_MODIFICATIONS', False)
+            },
+            'security': {
+                'mfa_enabled': current_app.config.get('MFA_ENABLED', False),
+                'secret_key_configured': bool(current_app.config.get('SECRET_KEY')),
+                'testing_mode': current_app.config.get('TESTING', False)
+            },
+            'email': {
+                'smtp_server': current_app.config.get('SMTP_SERVER', 'Not configured'),
+                'smtp_port': current_app.config.get('SMTP_PORT', 'Not configured'),
+                'email_configured': bool(current_app.config.get('EMAIL_USERNAME'))
+            },
+            'oauth': {
+                'google_oauth_configured': bool(current_app.config.get('GOOGLE_OAUTH_CLIENT_ID'))
+            },
+            'paths': {
+                'upload_folder': current_app.config.get('UPLOAD_FOLDER', 'Not configured')
+            }
+        }
+        
+        return jsonify(app_info), 200
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': 'Failed to retrieve app info',
+            'error': str(e)
+        }), 500
+
+@main_bp.route('/internal/test-email')
+def internal_test_email():
+    """
+    Internal route for testing email configuration.
+    Sends a test email to verify SMTP settings.
+    """
+    try:
+        recipient = request.args.get('recipient', current_app.config.get('EMAIL_USERNAME'))
+        
+        if not recipient:
+            return jsonify({
+                'status': 'error',
+                'message': 'No recipient specified and EMAIL_USERNAME not configured'
+            }), 400
+        
+        # Check if email is configured
+        smtp_server = current_app.config.get('SMTP_SERVER')
+        smtp_port = current_app.config.get('SMTP_PORT')
+        email_username = current_app.config.get('EMAIL_USERNAME')
+        email_password = current_app.config.get('EMAIL_PASSWORD')
+        
+        if not all([smtp_server, smtp_port, email_username, email_password]):
+            return jsonify({
+                'status': 'error',
+                'message': 'Email not fully configured',
+                'config': {
+                    'smtp_server': bool(smtp_server),
+                    'smtp_port': bool(smtp_port),
+                    'email_username': bool(email_username),
+                    'email_password': bool(email_password)
+                }
+            }), 400
+        
+        # Send test email
+        subject = "OpsDeck - Test Email"
+        body = f"""
+        <h2>Email Configuration Test</h2>
+        <p>This is a test email from OpsDeck to verify SMTP configuration.</p>
+        <p><strong>Timestamp:</strong> {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}</p>
+        <p><strong>SMTP Server:</strong> {smtp_server}:{smtp_port}</p>
+        <p>If you received this email, your email configuration is working correctly.</p>
+        """
+        
+        notifications.send_email(
+            current_app._get_current_object(),
+            subject,
+            body,
+            [recipient]
+        )
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Test email sent successfully',
+            'recipient': recipient,
+            'smtp_server': smtp_server,
+            'smtp_port': smtp_port
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': 'Failed to send test email',
+            'error': str(e)
+        }), 500
+
+
+@main_bp.route('/internal/health-check')
+def internal_health_check():
+    """
+    Internal route for comprehensive health check.
+    Tests database, storage, scheduler, and email configuration.
+    """
+    health_status = {
+        'status': 'healthy',
+        'timestamp': datetime.utcnow().isoformat(),
+        'components': {}
+    }
+    
+    all_healthy = True
+    
+    # 1. Database Check
+    try:
+        user_count = User.query.count()
+        health_status['components']['database'] = {
+            'status': 'healthy',
+            'type': 'PostgreSQL' if current_app.config.get('IS_POSTGRES') else 'SQLite',
+            'user_count': user_count
+        }
+    except Exception as e:
+        all_healthy = False
+        health_status['components']['database'] = {
+            'status': 'unhealthy',
+            'error': str(e)
+        }
+    
+    # 2. File Storage Check
+    try:
+        upload_folder = current_app.config.get('UPLOAD_FOLDER')
+        if upload_folder and os.path.exists(upload_folder):
+            # Test write permissions
+            test_file = os.path.join(upload_folder, '.health_check_test')
+            with open(test_file, 'w') as f:
+                f.write('test')
+            os.remove(test_file)
+            
+            health_status['components']['storage'] = {
+                'status': 'healthy',
+                'upload_folder': upload_folder,
+                'writable': True
+            }
+        else:
+            all_healthy = False
+            health_status['components']['storage'] = {
+                'status': 'unhealthy',
+                'error': 'Upload folder does not exist',
+                'upload_folder': upload_folder
+            }
+    except Exception as e:
+        all_healthy = False
+        health_status['components']['storage'] = {
+            'status': 'unhealthy',
+            'error': str(e)
+        }
+    
+    # 3. Scheduler Check (only if not in testing mode)
+    if not current_app.config.get('TESTING'):
+        health_status['components']['scheduler'] = {
+            'status': 'configured',
+            'note': 'Scheduler is enabled (not in testing mode)'
+        }
+    else:
+        health_status['components']['scheduler'] = {
+            'status': 'disabled',
+            'note': 'Scheduler disabled in testing mode'
+        }
+    
+    # 4. Email Configuration Check
+    smtp_server = current_app.config.get('SMTP_SERVER')
+    smtp_port = current_app.config.get('SMTP_PORT')
+    email_username = current_app.config.get('EMAIL_USERNAME')
+    email_password = current_app.config.get('EMAIL_PASSWORD')
+    
+    if all([smtp_server, smtp_port, email_username, email_password]):
+        health_status['components']['email'] = {
+            'status': 'configured',
+            'smtp_server': smtp_server,
+            'smtp_port': smtp_port
+        }
+    else:
+        health_status['components']['email'] = {
+            'status': 'not_configured',
+            'note': 'Email settings incomplete'
+        }
+    
+    # Set overall status
+    if not all_healthy:
+        health_status['status'] = 'unhealthy'
+        return jsonify(health_status), 503
+    
+    return jsonify(health_status), 200
+
+
+@main_bp.route('/internal/test-security')
+def internal_test_security():
+    """
+    Internal route for security configuration audit.
+    Checks security settings and provides recommendations.
+    """
+    audit_results = {
+        'status': 'success',
+        'timestamp': datetime.utcnow().isoformat(),
+        'checks': {},
+        'warnings': [],
+        'recommendations': []
+    }
+    
+    # 1. Check SECRET_KEY
+    secret_key = current_app.config.get('SECRET_KEY', '')
+    if secret_key in ['your-secret-key-change-this', 'dev', 'development', '']:
+        audit_results['checks']['secret_key'] = {
+            'status': 'warning',
+            'message': 'Using default or weak SECRET_KEY'
+        }
+        audit_results['warnings'].append('SECRET_KEY is using a default or weak value')
+        audit_results['recommendations'].append('Set a strong SECRET_KEY in environment variables')
+    elif len(secret_key) < 32:
+        audit_results['checks']['secret_key'] = {
+            'status': 'warning',
+            'message': 'SECRET_KEY is too short (< 32 characters)'
+        }
+        audit_results['warnings'].append('SECRET_KEY should be at least 32 characters')
+    else:
+        audit_results['checks']['secret_key'] = {
+            'status': 'ok',
+            'message': 'SECRET_KEY is configured properly'
+        }
+    
+    # 2. Check MFA
+    mfa_enabled = current_app.config.get('MFA_ENABLED', False)
+    audit_results['checks']['mfa'] = {
+        'status': 'info',
+        'enabled': mfa_enabled,
+        'message': 'MFA is enabled' if mfa_enabled else 'MFA is disabled'
+    }
+    if not mfa_enabled:
+        audit_results['recommendations'].append('Consider enabling MFA for enhanced security')
+    
+    # 3. Check HTTPS/Talisman
+    is_development = current_app.debug or os.environ.get('FLASK_ENV') == 'development'
+    audit_results['checks']['https'] = {
+        'status': 'info',
+        'force_https': not is_development,
+        'message': 'HTTPS enforced' if not is_development else 'HTTPS not enforced (development mode)'
+    }
+    
+    # 4. Check CSRF Protection
+    csrf_enabled = 'csrf' in current_app.extensions
+    audit_results['checks']['csrf'] = {
+        'status': 'ok' if csrf_enabled else 'warning',
+        'enabled': csrf_enabled,
+        'message': 'CSRF protection enabled' if csrf_enabled else 'CSRF protection not found'
+    }
+    if not csrf_enabled:
+        audit_results['warnings'].append('CSRF protection is not enabled')
+    
+    # 5. Check for default admin password
+    default_admin_email = current_app.config.get('DEFAULT_ADMIN_EMAIL', 'admin@example.com')
+    default_admin_password = current_app.config.get('DEFAULT_ADMIN_INITIAL_PASSWORD', 'admin123')
+    
+    try:
+        admin_user = User.query.filter_by(email=default_admin_email).first()
+        if admin_user and admin_user.check_password(default_admin_password):
+            audit_results['checks']['default_admin'] = {
+                'status': 'critical',
+                'message': 'Default admin password is still in use'
+            }
+            audit_results['warnings'].append('CRITICAL: Default admin password has not been changed')
+            audit_results['recommendations'].append('Change the default admin password immediately')
+        else:
+            audit_results['checks']['default_admin'] = {
+                'status': 'ok',
+                'message': 'Default admin password has been changed or admin user not found'
+            }
+    except Exception as e:
+        audit_results['checks']['default_admin'] = {
+            'status': 'error',
+            'message': f'Could not check admin password: {str(e)}'
+        }
+    
+    # 6. Check database type (SQLite in production is a warning)
+    is_postgres = current_app.config.get('IS_POSTGRES', False)
+    audit_results['checks']['database'] = {
+        'status': 'ok' if is_postgres else 'info',
+        'type': 'PostgreSQL' if is_postgres else 'SQLite',
+        'message': 'Using PostgreSQL' if is_postgres else 'Using SQLite'
+    }
+    if not is_postgres and not is_development:
+        audit_results['recommendations'].append('Consider using PostgreSQL for production deployments')
+    
+    # Calculate security score
+    critical_issues = len([w for w in audit_results['warnings'] if 'CRITICAL' in w])
+    warnings = len(audit_results['warnings']) - critical_issues
+    
+    audit_results['summary'] = {
+        'critical_issues': critical_issues,
+        'warnings': warnings,
+        'recommendations': len(audit_results['recommendations'])
+    }
+    
+    return jsonify(audit_results), 200

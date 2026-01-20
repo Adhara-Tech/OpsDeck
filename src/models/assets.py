@@ -4,6 +4,7 @@ from sqlalchemy.orm import foreign
 from sqlalchemy import and_
 from ..extensions import db
 from .auth import User, Group
+from .core import CustomPropertiesMixin
 
 class Location(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -33,7 +34,7 @@ class Location(db.Model):
         """Returns True if this location has physical address info."""
         return bool(self.address or self.city or self.country)
 
-class Asset(db.Model):
+class Asset(db.Model, CustomPropertiesMixin):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     model = db.Column(db.String(100))
@@ -102,6 +103,15 @@ class Asset(db.Model):
         return Risk.query.filter(
             Risk.id.in_(risk_ids),
             Risk.status != 'Closed'
+        ).all()
+
+    @property
+    def contracts(self):
+        """Returns active contracts linked to this specific item."""
+        from .contracts import Contract, ContractItem
+        return Contract.query.join(ContractItem).filter(
+            ContractItem.item_type == self.__class__.__name__, # e.g., 'Asset'
+            ContractItem.item_id == self.id
         ).all()
 
     @property
@@ -220,7 +230,7 @@ class PeripheralAssignment(db.Model):
     notes = db.Column(db.Text)
     user = db.relationship('User', backref='peripheral_assignments')
 
-class Peripheral(db.Model):
+class Peripheral(db.Model, CustomPropertiesMixin):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     type = db.Column(db.String(50))
@@ -414,6 +424,8 @@ class MaintenanceLog(db.Model):
     event_date = db.Column(db.Date, nullable=False, default=date.today)
     ticket_link = db.Column(db.String(512))
     notes = db.Column(db.Text)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
     assigned_to_id = db.Column(db.Integer, db.ForeignKey('user.id'))

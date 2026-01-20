@@ -17,3 +17,6 @@ package-lock.json
 # Generated artifacts
 src/static/vendor/
 /instance
+
+# Enterprise plugin (separate repository)
+opsdeck-enterprise/

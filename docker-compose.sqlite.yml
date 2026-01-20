@@ -9,7 +9,9 @@ services:
       - ./data:/app/data
       - ./data/attachments:/app/data/attachments
     environment:
-      - DATABASE_URL=sqlite:///data/renewals.db
+      - DATABASE_URL=sqlite:////app/data/renewals.db
       - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      - FLASK_DEBUG=1
+      - OAUTHLIB_INSECURE_TRANSPORT=1
     env_file:
       - .env

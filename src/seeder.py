@@ -10,6 +10,7 @@ from .models import (
     EmailTemplate, NotificationEvent, Change,
     SecurityActivity, ActivityExecution
 )
+from .models.hiring import HiringStage, Candidate
 from . import create_app
 
 fake = Faker()
@@ -24,6 +25,19 @@ def seed_data(app=None):
             return
 
         print("Seeding database with extensive demo data...")
+
+        # Seed Hiring Stages First
+        print("Creating hiring stages...")
+        hiring_stages = [
+            HiringStage(name='Applied', order=1),
+            HiringStage(name='Screening', order=2),
+            HiringStage(name='Interview', order=3),
+            HiringStage(name='Offer', order=4),
+            HiringStage(name='Hired', order=5, is_hired_stage=True),
+            HiringStage(name='Rejected', order=6)
+        ]
+        db.session.add_all(hiring_stages)
+        db.session.commit()
 
         # 1. Create Core Entities
         print("Creating core entities...")
@@ -146,6 +160,11 @@ def seed_data(app=None):
         
         # 4. Create Assets and Peripherals (with cost)
         print("Creating assets and peripherals...")
+        # Ensure all related objects are in the session to avoid autoflush warnings
+        db.session.add_all(users)
+        db.session.add_all(locations)
+        db.session.add_all(suppliers)
+        
         assets = [
             Asset(name='DEV-LT-001', brand='Dell', model='XPS 15', serial_number=fake.uuid4(), status='In Use', purchase=purchase2, user=users[0], location=locations[0], supplier=suppliers[2], cost=2500, currency='EUR', warranty_length=36, purchase_date=purchase2.purchase_date),
             Asset(name='DEV-LT-002', brand='Dell', model='XPS 15', serial_number=fake.uuid4(), status='In Use', purchase=purchase2, user=users[2], location=locations[0], supplier=suppliers[2], cost=2500, currency='EUR', warranty_length=36, purchase_date=purchase2.purchase_date),
@@ -1018,4 +1037,28 @@ def seed_data(app=None):
         db.session.add_all(activity_executions)
         db.session.commit()
 
-        print("Database seeding complete!")
+        # Create Some Demo Candidates for Hiring Pipeline
+        print("Creating demo candidates...")
+        demo_candidates = [
+            Candidate(name='Sarah Johnson', email='sarah.johnson@example.com', phone='+1-555-0101', 
+                     position='Senior DevOps Engineer', expected_salary=95000, currency='USD',
+                     stage=hiring_stages[0], resume_link='https://example.com/resumes/sarah', 
+                     notes='Excellent AWS experience, 8 years in the field'),
+            Candidate(name='Michael Chen', email='michael.chen@example.com', phone='+1-555-0102',
+                     position='Product Designer', expected_salary=75000, currency='EUR',
+                     stage=hiring_stages[1], resume_link='https://example.com/resumes/michael',
+                     notes='Strong portfolio, Figma expert'),
+            Candidate(name='Emily Rodriguez', email='emily.r@example.com', phone='+1-555-0103',
+                     position='Full Stack Developer', expected_salary=85000, currency='USD',
+                     stage=hiring_stages[2], notes='Technical interview scheduled for next week'),
+            Candidate(name='James Williams', email='james.w@example.com', phone='+1-555-0104',
+                     position='Sales Executive', expected_salary=70000, currency='EUR',
+                     stage=hiring_stages[3], notes='Strong closer, great references'),
+            Candidate(name='Lisa Anderson', email='lisa.a@example.com',
+                     position='Junior Developer', expected_salary=50000, currency='EUR',
+                     stage=hiring_stages[5], notes='Not a good cultural fit')
+        ]
+        db.session.add_all(demo_candidates)
+        db.session.commit()
+
+        print("Database seeded successfully!")

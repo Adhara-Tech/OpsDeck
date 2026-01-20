@@ -1,6 +1,7 @@
 from .core import (Tag, Attachment, NotificationSetting, Link, Documentation, 
                    CostCenter, OrganizationSettings, link_tags, documentation_tags,
-                   service_documentation, service_policies, service_activities, CURRENCY_RATES)
+                   service_documentation, service_policies, service_activities, CURRENCY_RATES,
+                   CustomFieldDefinition, CustomFieldValue, CustomPropertiesMixin)
 from .auth import *
 from .assets import *
 from .procurement import *
@@ -21,4 +22,6 @@ from .communications import EmailTemplate, PackCommunication, ScheduledCommunica
 from .notifications import NotificationEvent
 from .finance import FinanceSettings, ExchangeRate
 from .change import Change
+from .contracts import Contract, ContractItem
+from .hiring import HiringStage, Candidate
 

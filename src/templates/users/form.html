@@ -76,6 +76,43 @@
             </div>
             {% endif %}
 
+            {% if custom_field_definitions %}
+            <hr>
+            <h5 class="mb-3">Additional Properties</h5>
+            <div class="row">
+                {% for field in custom_field_definitions %}
+                <div class="col-md-6 mb-3">
+                    <label for="custom_field_{{ field.name }}" class="form-label">
+                        {{ field.label }}
+                        {% if field.is_required %}*{% endif %}
+                    </label>
+
+                    {% set value = user.custom_properties.get(field.name) if user else '' %}
+
+                    {% if field.field_type == 'boolean' %}
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="custom_field_{{ field.name }}"
+                            name="custom_field_{{ field.name }}" {% if value|lower=='on' or value|lower=='true'
+                            %}checked{% endif %}>
+                    </div>
+                    {% elif field.field_type == 'date' %}
+                    <input type="date" class="form-control" id="custom_field_{{ field.name }}"
+                        name="custom_field_{{ field.name }}" value="{{ value or '' }}" {% if field.is_required
+                        %}required{% endif %}>
+                    {% elif field.field_type == 'number' %}
+                    <input type="number" step="any" class="form-control" id="custom_field_{{ field.name }}"
+                        name="custom_field_{{ field.name }}" value="{{ value if value is not none else '' }}" {% if
+                        field.is_required %}required{% endif %}>
+                    {% else %}
+                    <input type="text" class="form-control" id="custom_field_{{ field.name }}"
+                        name="custom_field_{{ field.name }}" value="{{ value if value is not none else '' }}" {% if
+                        field.is_required %}required{% endif %}>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
             <a href="{{ url_for('users.users') }}" class="btn btn-secondary">Cancel</a>
             <button type="submit" class="btn btn-primary">Save User</button>
         </form>

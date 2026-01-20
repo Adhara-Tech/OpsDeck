@@ -1,20 +1,95 @@
-{% extends "layout.html" %}
+<!DOCTYPE html>
+<html lang="en">
 
-{% block title %}Too Many Requests - OpsDeck{% endblock %}
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>429 - Too Many Requests | OpsDeck</title>
+    <link href="{{ url_for('static', filename='vendor/bootstrap/css/bootstrap.min.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='vendor/font-awesome/css/all.min.css') }}" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
 
-{% block content %}
-<div class="container-fluid">
-    <div class="text-center" style="margin-top: 100px;">
-        <div class="error mx-auto mb-4" style="font-size: 7rem; font-weight: 700; color: #f6c23e;">429</div>
-        <p class="lead text-gray-800 mb-4">Too Many Requests</p>
-        <p class="text-gray-500 mb-5">
-            <i class="fas fa-hand-paper fa-3x text-warning mb-3"></i><br>
-            You have exceeded the request limit.<br>
+        .error-container {
+            text-align: center;
+            color: white;
+            padding: 2rem;
+        }
+
+        .error-code {
+            font-size: 8rem;
+            font-weight: 700;
+            line-height: 1;
+            margin-bottom: 1rem;
+            text-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .error-title {
+            font-size: 2rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .error-message {
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+        }
+
+        .error-icon {
+            font-size: 4rem;
+            margin-bottom: 1.5rem;
+            opacity: 0.8;
+        }
+
+        .btn-home {
+            background: white;
+            color: #f5576c;
+            padding: 0.75rem 2rem;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-block;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-home:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+            color: #f093fb;
+        }
+
+        .countdown {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="error-container">
+        <div class="error-icon">
+            <i class="fas fa-hand-paper"></i>
+        </div>
+        <div class="error-code">429</div>
+        <div class="error-title">Too Many Requests</div>
+        <div class="error-message">
+            You've exceeded the request limit.<br>
             Please wait a moment before trying again.
-        </p>
-        <a href="{{ url_for('risk.dashboard') }}" class="btn btn-primary">
-            <i class="fas fa-home"></i> Return Home
+        </div>
+        <a href="{{ url_for('risk.dashboard') }}" class="btn-home">
+            <i class="fas fa-home me-2"></i>Return Home
         </a>
     </div>
-</div>
-{% endblock %}
+</body>
+
+</html>

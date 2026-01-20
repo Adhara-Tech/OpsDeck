@@ -38,6 +38,9 @@ class PackItem(db.Model):
     subscription_id = db.Column(db.Integer, db.ForeignKey('subscription.id'), nullable=True)
     subscription = db.relationship('Subscription')
 
+    course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=True)
+    course = db.relationship('Course')
+
 
 # --- PROCESOS DE EJECUCIÓN ---
 
@@ -49,6 +52,9 @@ class OnboardingProcess(db.Model):
     
     # Optional: Email to use when creating the user, overrides auto-generation
     target_email = db.Column(db.String(120), nullable=True)
+    
+    # Personal email for pre-start communications
+    personal_email = db.Column(db.String(120), nullable=True)
 
     start_date = db.Column(db.Date, nullable=False)
     status = db.Column(db.String(50), default='Provisioning') # Provisioning, Completed

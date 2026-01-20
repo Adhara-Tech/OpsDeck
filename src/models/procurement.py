@@ -328,6 +328,17 @@ class Subscription(db.Model):
         
         return renewal_date
     
+
+    
+    @property
+    def contracts(self):
+        """Returns active contracts linked to this specific item."""
+        from .contracts import Contract, ContractItem
+        return Contract.query.join(ContractItem).filter(
+            ContractItem.item_type == self.__class__.__name__, # e.g., 'Subscription'
+            ContractItem.item_id == self.id
+        ).all()
+
     def get_renewal_date_after(self, current_renewal):
         """
         Calculates the single next renewal date after a given date,

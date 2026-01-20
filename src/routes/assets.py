@@ -3,6 +3,7 @@ from flask import (
 )
 from datetime import datetime, date
 from ..models import db, Asset, AssetHistory, User, Location, Supplier, Purchase, AssetAssignment, Peripheral
+from ..models.core import CustomFieldDefinition
 from .main import login_required
 from .admin import admin_required
 
@@ -92,6 +93,9 @@ def new_asset():
         db.session.add(asset)
         db.session.commit()
         
+        asset.save_custom_properties(request.form)
+        db.session.commit()
+        
         log_audit(
             event_type='asset.created',
             action='create',
@@ -106,7 +110,8 @@ def new_asset():
                             users=User.query.filter_by(is_archived=False).order_by(User.name).all(),
                             locations=Location.query.order_by(Location.name).all(),
                             suppliers=Supplier.query.order_by(Supplier.name).all(),
-                            purchases=Purchase.query.order_by(Purchase.description).all())
+                            purchases=Purchase.query.order_by(Purchase.description).all(),
+                            custom_field_definitions=CustomFieldDefinition.query.filter_by(entity_type='Asset').all())
 
 @assets_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -200,6 +205,8 @@ def edit_asset(id):
         asset.is_critical = request.form.get('is_critical') == 'on'
         asset.is_virtual = request.form.get('is_virtual') == 'on'
 
+        asset.save_custom_properties(request.form)
+
         db.session.commit()
         
         # Audit Log
@@ -222,14 +229,16 @@ def edit_asset(id):
                             users=User.query.filter_by(is_archived=False).order_by(User.name).all(),
                             locations=Location.query.order_by(Location.name).all(),
                             suppliers=Supplier.query.order_by(Supplier.name).all(),
-                            purchases=Purchase.query.order_by(Purchase.description).all())
+                            purchases=Purchase.query.order_by(Purchase.description).all(),
+                            custom_field_definitions=CustomFieldDefinition.query.filter_by(entity_type='Asset').all())
 
 @assets_bp.route('/<int:id>')
 @login_required
 def asset_detail(id):
     asset = Asset.query.get_or_404(id)
     locations = Location.query.filter_by(is_archived=False).order_by(Location.name).all()
-    return render_template('assets/detail.html', asset=asset, locations=locations)
+    custom_field_definitions = CustomFieldDefinition.query.filter_by(entity_type='Asset').all()
+    return render_template('assets/detail.html', asset=asset, locations=locations, custom_field_definitions=custom_field_definitions)
 
 @assets_bp.route('/<int:id>/checkout', methods=['GET', 'POST'])
 @login_required
