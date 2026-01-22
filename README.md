@@ -84,6 +84,10 @@ flask db upgrade
 # DEFAULT_ADMIN_EMAIL and DEFAULT_ADMIN_INITIAL_PASSWORD
 flask init-db
 
+flask seed-db-prod
+# Optionally
+# flask seed-db-demodata
+
 ```
 
 > **Security Note:** The `flask init-db` command is idempotent and safe to run multiple times. If the admin user already exists, it will skip creation. You can set custom admin credentials via environment variables before running this command (see [Environment Variables](documentation/environment_variables.md)).
