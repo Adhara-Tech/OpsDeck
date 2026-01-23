@@ -4,7 +4,7 @@ from ..extensions import db
 import secrets
 
 user_groups = db.Table('user_groups',
-    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
+    db.Column('user_id', db.Integer, db.ForeignKey('opsdeck_users.id'), primary_key=True),
     db.Column('group_id', db.Integer, db.ForeignKey('group.id'), primary_key=True)
 )
 
@@ -18,6 +18,7 @@ class Group(db.Model):
 from .core import CustomPropertiesMixin
 
 class User(db.Model, CustomPropertiesMixin): # Add UserMixin here if using Flask-Login
+    __tablename__ = 'opsdeck_users'
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(100), unique=True, nullable=False) # Make email unique and required for login
@@ -51,10 +52,10 @@ class User(db.Model, CustomPropertiesMixin): # Add UserMixin here if using Flask
                             overlaps="attachments")
                             
     # Hierarchy & Mentorship
-    manager_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    manager_id = db.Column(db.Integer, db.ForeignKey('opsdeck_users.id'), nullable=True)
     manager = db.relationship('User', remote_side='User.id', backref='direct_reports', foreign_keys=[manager_id])
     
-    buddy_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    buddy_id = db.Column(db.Integer, db.ForeignKey('opsdeck_users.id'), nullable=True)
     buddy = db.relationship('User', remote_side='User.id', foreign_keys=[buddy_id], backref='mentees')
 
     def set_password(self, password):
@@ -76,7 +77,7 @@ class UserKnownIP(db.Model):
     __tablename__ = 'user_known_ips'
     
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('opsdeck_users.id'), nullable=False)
     ip_address = db.Column(db.String(45), nullable=False)  # IPv6 compatible
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_seen = db.Column(db.DateTime, default=datetime.utcnow)
@@ -98,7 +99,7 @@ class OrgChartSnapshot(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False) # Ej: "Organigrama Q1 2024"
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    created_by_id = db.Column(db.Integer, db.ForeignKey('opsdeck_users.id'))
     
     # Aquí guardamos el árbol completo en formato JSON
     # SQLite < 3.9 no soporta JSON nativo, pero SQLAlchemy con JSON type suele manejar la serialización

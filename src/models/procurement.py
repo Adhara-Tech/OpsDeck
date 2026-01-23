@@ -26,12 +26,12 @@ subscription_contacts = db.Table('subscription_contacts',
 # Association table for User Access (M2M) - Subscriptions
 subscription_users = db.Table('subscription_users',
     db.Column('subscription_id', db.Integer, db.ForeignKey('subscription.id'), primary_key=True),
-    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True)
+    db.Column('user_id', db.Integer, db.ForeignKey('opsdeck_users.id'), primary_key=True)
 )
 
 purchase_users = db.Table('purchase_users',
     db.Column('purchase_id', db.Integer, db.ForeignKey('purchase.id'), primary_key=True),
-    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True)
+    db.Column('user_id', db.Integer, db.ForeignKey('opsdeck_users.id'), primary_key=True)
 )
 
 purchase_tags = db.Table('purchase_tags',
@@ -83,7 +83,7 @@ class PurchaseCostHistory(db.Model):
     action = db.Column(db.String(50), nullable=False)  # 'validated' or 'un-validated'
     cost = db.Column(db.Float)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    user_id = db.Column(db.Integer, db.ForeignKey('opsdeck_users.id'))
     user = db.relationship('User')
 
 class Purchase(db.Model):
@@ -101,7 +101,7 @@ class Purchase(db.Model):
 
     validated_cost = db.Column(db.Float, nullable=True)
     cost_validated_at = db.Column(db.DateTime, nullable=True)
-    cost_validated_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    cost_validated_by_id = db.Column(db.Integer, db.ForeignKey('opsdeck_users.id'), nullable=True)
     cost_validated_by = db.relationship('User', foreign_keys=[cost_validated_by_id])
 
     users = db.relationship('User', secondary=purchase_users, backref='purchases')
@@ -216,7 +216,7 @@ class PaymentMethod(db.Model):
     method_type = db.Column(db.String(50), nullable=False)  # e.g., "Credit Card", "Bank Transfer"
     details = db.Column(db.String(100))  # e.g., "Visa ending in 1234"
     expiry_date = db.Column(db.Date)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('opsdeck_users.id'), nullable=True)
     user = db.relationship('User', backref='payment_methods')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     is_archived = db.Column(db.Boolean, default=False, nullable=False)
@@ -247,7 +247,7 @@ class Subscription(db.Model):
     currency = db.Column(db.String(3), default='EUR')
 
     # User information
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('opsdeck_users.id'), nullable=True)
     user = db.relationship('User', backref='subscriptions')
 
     # Licenses

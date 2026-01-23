@@ -84,7 +84,7 @@ incident_assets = db.Table('incident_assets',
 
 incident_users = db.Table('incident_users',
     db.Column('incident_id', db.Integer, db.ForeignKey('security_incident.id'), primary_key=True),
-    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True)
+    db.Column('user_id', db.Integer, db.ForeignKey('opsdeck_users.id'), primary_key=True)
 )
 
 incident_subscriptions = db.Table('incident_subscriptions',
@@ -119,14 +119,14 @@ class SecurityIncident(db.Model):
     resolved_at = db.Column(db.DateTime)
     
     # Relationships
-    reported_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    owner_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    reported_by_id = db.Column(db.Integer, db.ForeignKey('opsdeck_users.id'))
+    owner_id = db.Column(db.Integer, db.ForeignKey('opsdeck_users.id'))
     
     reported_by = db.relationship('User', foreign_keys=[reported_by_id])
     owner = db.relationship('User', foreign_keys=[owner_id])
     
     # Assignee (Resolver)
-    assignee_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    assignee_id = db.Column(db.Integer, db.ForeignKey('opsdeck_users.id'))
     assignee = db.relationship('User', foreign_keys=[assignee_id])
 
     # Tags
@@ -165,7 +165,7 @@ class PostIncidentReview(db.Model):
     # Locking mechanism for finalized reports
     is_locked = db.Column(db.Boolean, default=False, nullable=False)
     locked_at = db.Column(db.DateTime, nullable=True)
-    locked_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    locked_by_id = db.Column(db.Integer, db.ForeignKey('opsdeck_users.id'), nullable=True)
     locked_by = db.relationship('User', foreign_keys=[locked_by_id])
 
     # Relationships
@@ -351,7 +351,7 @@ class Risk(db.Model):
     source_catalog_risk = db.relationship('CatalogRisk')
     
     # Management
-    owner_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    owner_id = db.Column(db.Integer, db.ForeignKey('opsdeck_users.id'))
     owner = db.relationship('User', foreign_keys=[owner_id])
     
     status = db.Column(db.String(50), default='Identified') # Identified, Assessed, In Treatment, Mitigated, Accepted, Closed
@@ -467,7 +467,7 @@ class RiskHistory(db.Model):
     __tablename__ = 'risk_history'
     id = db.Column(db.Integer, primary_key=True)
     risk_id = db.Column(db.Integer, db.ForeignKey('risk.id'), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('opsdeck_users.id'), nullable=True)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     field_changed = db.Column(db.String(100), nullable=False)
     old_value = db.Column(db.String(500))
@@ -552,7 +552,7 @@ class AssetInventory(db.Model):
     name = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    conducted_by_user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    conducted_by_user_id = db.Column(db.Integer, db.ForeignKey('opsdeck_users.id'))
     is_completed = db.Column(db.Boolean, default=False)
 
     # Relationship to all items in this inventory
@@ -569,7 +569,7 @@ class AssetInventoryItem(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     inventory_id = db.Column(db.Integer, db.ForeignKey('asset_inventory.id'), nullable=False)
     asset_id = db.Column(db.Integer, db.ForeignKey('asset.id'), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id')) # The user assigned at time of inventory
+    user_id = db.Column(db.Integer, db.ForeignKey('opsdeck_users.id')) # The user assigned at time of inventory
     status = db.Column(db.String(50), nullable=False) # e.g., 'Verified', 'Flagged'
     notes = db.Column(db.Text)
     event_time = db.Column(db.DateTime, default=datetime.utcnow)

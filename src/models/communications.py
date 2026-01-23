@@ -73,7 +73,7 @@ class PackCommunication(db.Model):
 # Many-to-Many association tables for Campaign audience
 campaign_users = db.Table('campaign_users',
     db.Column('campaign_id', db.Integer, db.ForeignKey('campaign.id'), primary_key=True),
-    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True)
+    db.Column('user_id', db.Integer, db.ForeignKey('opsdeck_users.id'), primary_key=True)
 )
 
 campaign_groups = db.Table('campaign_groups',
@@ -106,7 +106,7 @@ class Campaign(db.Model):
     scheduled_at = db.Column(db.DateTime, nullable=True)
     
     # Who created this campaign
-    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('opsdeck_users.id'), nullable=True)
     created_by = db.relationship('User', foreign_keys=[created_by_id])
     
     # Audience options
@@ -287,7 +287,7 @@ class ScheduledCommunication(db.Model):
     recipient_name = db.Column(db.String(100), nullable=True)
     
     # For campaigns: store user_id for context lookup
-    recipient_user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    recipient_user_id = db.Column(db.Integer, db.ForeignKey('opsdeck_users.id'), nullable=True)
     recipient_user = db.relationship('User', foreign_keys=[recipient_user_id])
     
     # Delivery channel: 'email' or 'slack'
