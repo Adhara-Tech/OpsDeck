@@ -12,7 +12,7 @@ service_dependencies = db.Table('service_dependencies',
 # Association table for User Access (M2M)
 service_users = db.Table('service_users',
     db.Column('service_id', db.Integer, db.ForeignKey('business_service.id'), primary_key=True),
-    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True)
+    db.Column('user_id', db.Integer, db.ForeignKey('opsdeck_users.id'), primary_key=True)
 )
 
 class BusinessService(db.Model):
@@ -24,7 +24,7 @@ class BusinessService(db.Model):
     category = db.Column(db.String(50), default='Business Service') # 'Application', 'Business Service', 'Infrastructure', 'Capability'
     
     # Ownership
-    owner_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    owner_id = db.Column(db.Integer, db.ForeignKey('opsdeck_users.id'))
     owner = db.relationship('User', foreign_keys=[owner_id])
     
     # User Access (New)

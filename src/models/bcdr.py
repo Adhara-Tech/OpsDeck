@@ -52,7 +52,7 @@ class BCDRTestLog(db.Model):
     notes = db.Column(db.Text)
     
     # Assignee (Executor)
-    assignee_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    assignee_id = db.Column(db.Integer, db.ForeignKey('opsdeck_users.id'))
     assignee = db.relationship('User', foreign_keys=[assignee_id])
 
     # Tags

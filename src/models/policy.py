@@ -5,7 +5,7 @@ from ..extensions import db
 
 policy_version_users = db.Table('policy_version_users',
     db.Column('policy_version_id', db.Integer, db.ForeignKey('policy_version.id'), primary_key=True),
-    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True)
+    db.Column('user_id', db.Integer, db.ForeignKey('opsdeck_users.id'), primary_key=True)
 )
 
 policy_version_groups = db.Table('policy_version_groups',
@@ -60,5 +60,5 @@ class PolicyVersion(db.Model):
 class PolicyAcknowledgement(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     policy_version_id = db.Column(db.Integer, db.ForeignKey('policy_version.id'), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('opsdeck_users.id'), nullable=False)
     acknowledged_at = db.Column(db.DateTime, default=datetime.utcnow)

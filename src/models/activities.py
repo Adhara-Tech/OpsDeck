@@ -7,7 +7,7 @@ from ..extensions import db
 
 activity_participants = db.Table('activity_participants',
     db.Column('activity_id', db.Integer, db.ForeignKey('security_activity.id'), primary_key=True),
-    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True)
+    db.Column('user_id', db.Integer, db.ForeignKey('opsdeck_users.id'), primary_key=True)
 )
 
 activity_tags = db.Table('activity_tags',
@@ -132,7 +132,7 @@ class ActivityExecution(db.Model):
     __tablename__ = 'activity_execution'
     id = db.Column(db.Integer, primary_key=True)
     activity_id = db.Column(db.Integer, db.ForeignKey('security_activity.id'), nullable=False)
-    executor_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    executor_id = db.Column(db.Integer, db.ForeignKey('opsdeck_users.id'), nullable=False)
     execution_date = db.Column(db.Date, nullable=False, default=date.today)
     status = db.Column(db.String(50), nullable=False)  # 'in_progress', 'success', 'failed', 'issue_detected'
     outcome_notes = db.Column(db.Text)
