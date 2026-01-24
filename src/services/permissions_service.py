@@ -1,4 +1,5 @@
 from ..models import db, User, Group, Permission, Module
+from .permissions_cache import permissions_cache
 
 def get_user_modules(user_id):
     """
@@ -9,6 +10,13 @@ def get_user_modules(user_id):
     user = User.query.get(user_id)
     if not user:
         return []
+    
+    # Try cache first
+    cached_slugs = permissions_cache.get(user_id)
+    if cached_slugs is not None:
+        if not cached_slugs:
+            return []
+        return Module.query.filter(Module.slug.in_(cached_slugs)).all()
     
     # 1. Get direct module permissions
     direct_module_ids = db.session.query(Permission.module_id).filter_by(user_id=user_id).all()
@@ -26,9 +34,15 @@ def get_user_modules(user_id):
     
     # 4. Fetch module objects
     if not all_module_ids:
+        permissions_cache.set(user_id, [])
         return []
         
-    return Module.query.filter(Module.id.in_(all_module_ids)).all()
+    modules = Module.query.filter(Module.id.in_(all_module_ids)).all()
+    
+    # Update cache
+    permissions_cache.set(user_id, [m.slug for m in modules])
+    
+    return modules
 
 def update_permission_matrix(target_type, target_id, module_ids):
     """
@@ -55,3 +69,10 @@ def update_permission_matrix(target_type, target_id, module_ids):
         db.session.add(perm)
         
     db.session.commit()
+
+    # Invalidate cache
+    if target_type == 'user':
+        permissions_cache.invalidate(target_id)
+    else:
+        # If it's a group, invalidate all to be safe (could be optimized later)
+        permissions_cache.invalidate()

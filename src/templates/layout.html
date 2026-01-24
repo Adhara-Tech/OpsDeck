@@ -148,11 +148,14 @@
 
         <div class="sidebar-body" id="sidebar-accordion">
             <ul class="nav flex-column">
+                {% if has_permission('health_dashboard') %}
                 <li class="nav-item"><a
                         class="nav-link {% if request.endpoint == 'main.organizational_health' %}active{% endif %}"
                         href="{{ url_for('main.organizational_health') }}"><i class="fas fa-heartbeat"></i> Health
                         Dashboard</a></li>
+                {% endif %}
 
+                {% if has_permission('procurement') %}
                 <hr class="text-white">
                 <h6 class="sidebar-heading" data-bs-toggle="collapse" data-bs-target="#crm-menu" aria-expanded="false">
                     PROCUREMENT <i class="fa-fw fas fa-chevron-down float-end"></i></h6>
@@ -179,7 +182,9 @@
                             href="{{ url_for('contracts.list_contracts') }}"><i class="fa-fw fas fa-file-signature"></i>
                             Contracts</a></li>
                 </div>
+                {% endif %}
 
+                {% if has_permission('core_inventory') %}
                 <hr class="text-white">
                 <h6 class="sidebar-heading" data-bs-toggle="collapse" data-bs-target="#core-inventory-menu"
                     aria-expanded="false">Core Inventory <i class="fa-fw fas fa-chevron-down float-end"></i></h6>
@@ -213,7 +218,9 @@
                             href="{{ url_for('credentials.list_credentials') }}"><i class="fa-fw fas fa-key"></i>
                             Credentials</a></li>
                 </div>
+                {% endif %}
 
+                {% if has_permission('operations') %}
                 <hr class="text-white">
                 <h6 class="sidebar-heading" data-bs-toggle="collapse" data-bs-target="#operations-menu"
                     aria-expanded="false">Operations <i class="fa-fw fas fa-chevron-down float-end"></i></h6>
@@ -223,19 +230,10 @@
                             href="{{ url_for('main.ops_finance_dashboard') }}"><i
                                 class="fa-fw fas fa-tachometer-alt"></i>
                             Ops & Finance</a></li>
-
-
-
-
-
                     <li class="nav-item"><a
                             class="nav-link {% if request.endpoint == 'subscriptions.calendar' %}active{% endif %}"
                             href="{{ url_for('subscriptions.calendar') }}"><i class="fa-fw fas fa-calendar"></i>
                             Renewals</a></li>
-
-
-
-
                     <li class="nav-item"><a
                             class="nav-link {% if request.endpoint == 'assets.warranties' %}active{% endif %}"
                             href="{{ url_for('assets.warranties') }}"><i class="fa-fw fas fa-shield-alt"></i>
@@ -245,9 +243,6 @@
                             href="{{ url_for('reports.assets_dashboard') }}"><i class="fa-fw fas fa-chart-bar"></i>
                             Asset
                             Reports</a></li>
-
-
-
                     <li class="nav-item"><a class="nav-link {% if request.blueprint == 'changes' %}active{% endif %}"
                             href="{{ url_for('changes.list_changes') }}"><i class="fa-fw fas fa-exchange-alt"></i>
                             Changes</a></li>
@@ -275,7 +270,9 @@
                             href="{{ url_for('compliance.list_bcdr_plans') }}"><i class="fa-fw fas fa-shield-alt"></i>
                             BCDR</a></li>
                 </div>
+                {% endif %}
 
+                {% if has_permission('risk_governance') %}
                 <hr class="text-white">
                 <h6 class="sidebar-heading" data-bs-toggle="collapse" data-bs-target="#risk-governance-menu"
                     aria-expanded="false">Risk & Governance <i class="fa-fw fas fa-chevron-down float-end"></i></h6>
@@ -305,7 +302,9 @@
                             href="{{ url_for('audits.list_audits') }}"><i class="fa-fw fas fa-clipboard-list"></i>
                             Audits</a></li>
                 </div>
+                {% endif %}
 
+                {% if has_permission('compliance') %}
                 <hr class="text-white">
                 <h6 class="sidebar-heading" data-bs-toggle="collapse" data-bs-target="#compliance-menu"
                     aria-expanded="false">Compliance <i class="fa-fw fas fa-chevron-down float-end"></i></h6>
@@ -333,10 +332,10 @@
                             class="nav-link {% if request.endpoint == 'compliance.vendor_compliance' %}active{% endif %}"
                             href="{{ url_for('compliance.vendor_compliance') }}"><i class="fa-fw fas fa-tasks"></i>
                             Vendor Compliance</a></li>
-
-
                 </div>
+                {% endif %}
 
+                {% if has_permission('knowledge_policy') %}
                 <hr class="text-white">
                 <h6 class="sidebar-heading" data-bs-toggle="collapse" data-bs-target="#knowledge-policy-menu"
                     aria-expanded="false">Knowledge & Policy <i class="fa-fw fas fa-chevron-down float-end"></i></h6>
@@ -367,9 +366,11 @@
                                 class="fa-fw fas fa-chalkboard-teacher"></i> Manage Courses</a></li>
                     {% endif %}
                 </div>
+                {% endif %}
 
 
 
+                {% if has_permission('finance') %}
                 <hr class="text-white">
                 <h6 class="sidebar-heading" data-bs-toggle="collapse" data-bs-target="#finance-menu"
                     aria-expanded="false">Finance <i class="fa-fw fas fa-chevron-down float-end"></i></h6>
@@ -402,7 +403,9 @@
                             href="{{ url_for('finance.exchange_rates') }}"><i class="fa-fw fas fa-exchange-alt"></i>
                             Exchange Rates</a></li>
                 </div>
+                {% endif %}
 
+                {% if has_permission('hr_people') %}
                 <hr class="text-white">
                 <h6 class="sidebar-heading" data-bs-toggle="collapse" data-bs-target="#hr-menu" aria-expanded="false">HR
                     & People <i class="fa-fw fas fa-chevron-down float-end"></i></h6>
@@ -470,7 +473,9 @@
                         </a>
                     </li>
                 </div>
+                {% endif %}
 
+                {% if has_permission('communications') %}
                 <hr class="text-white">
                 <h6 class="sidebar-heading" data-bs-toggle="collapse" data-bs-target="#comms-menu"
                     aria-expanded="false">Communications <i class="fa-fw fas fa-chevron-down float-end"></i></h6>
@@ -490,6 +495,7 @@
                         </a>
                     </li>
                 </div>
+                {% endif %}
 
                 {% if enterprise_enabled %}
                 <hr class="text-white">
@@ -518,6 +524,7 @@
                 </div>
                 {% endif %}
 
+                {% if has_permission('administration') %}
                 <hr class="text-white">
                 <h6 class="sidebar-heading" data-bs-toggle="collapse" data-bs-target="#admin-menu"
                     aria-expanded="false">Administration <i class="fa-fw fas fa-chevron-down float-end"></i></h6>
@@ -547,7 +554,9 @@
                             href="{{ url_for('treeview.tree_view') }}"><i class="fa-fw fas fa-sitemap"></i> Tree
                             View</a></li>
                 </div>
+                {% endif %}
 
+                {% if has_permission('settings') %}
                 <hr class="text-white">
                 <h6 class="sidebar-heading" data-bs-toggle="collapse" data-bs-target="#settings-menu"
                     aria-expanded="false">Settings <i class="fa-fw fas fa-chevron-down float-end"></i></h6>
@@ -562,6 +571,7 @@
                             Notifications</a></li>
 
                 </div>
+                {% endif %}
             </ul>
         </div>
     </nav>

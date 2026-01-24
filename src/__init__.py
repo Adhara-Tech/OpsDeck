@@ -360,6 +360,28 @@ def create_app(test_config=None):
                 return dict(current_user=user, current_user_role=user.role, today=date.today())
         return dict(current_user=None, current_user_role=None, today=date.today())
 
+    # --- Permissions Context Processor ---
+    @app.context_processor
+    def inject_permissions():
+        from .services.permissions_service import get_user_modules
+        user_id = session.get('user_id')
+        
+        allowed_modules = []
+        if user_id:
+            modules = get_user_modules(user_id)
+            allowed_modules = [m.slug for m in modules]
+            
+        def has_permission(module_slug):
+            if not user_id:
+                return False
+            # Admin has all permissions
+            user = User.query.get(user_id)
+            if user and user.role == 'admin':
+                return True
+            return module_slug in allowed_modules
+            
+        return dict(allowed_modules=allowed_modules, has_permission=has_permission)
+
 
     # --- GLOBAL AUTHENTICATION GUARD (Security by Default) ---
     @app.before_request
