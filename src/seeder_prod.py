@@ -1,7 +1,7 @@
 # En src/seeder_prod.py
 
 from src.extensions import db
-from src.models import Framework, FrameworkControl, EmailTemplate, NotificationEvent
+from src.models import Framework, FrameworkControl, EmailTemplate, NotificationEvent, Module
 from src.models.security import ThreatType, RiskCatalog, CatalogRisk
 
 # Lista de amenazas comunes (Category, Name, Description)
@@ -1012,3 +1012,40 @@ def seed_notification_templates():
     except Exception as e:
         db.session.rollback()
         print(f"Error seeding notifications: {e}")
+
+def seed_modules():
+    """
+    Seeds the internal OpsDeck Module registry based on sidebar sections.
+    """
+    print("Seeding application modules...")
+    modules_data = [
+        ("Health Dashboard", "health_dashboard", "Overview of organizational health metrics."),
+        ("Procurement", "procurement", "Management of suppliers, requirements, evaluations, and contracts."),
+        ("Core Inventory", "core_inventory", "Inventory of services, assets, peripherals, software, licenses, and CMDB."),
+        ("Operations", "operations", "Operational management including renewals, warranties, changes, and maintenance."),
+        ("Risk & Governance", "risk_governance", "Risk register, catalog, assessments and governance dashboard."),
+        ("Compliance", "compliance", "Compliance frameworks, inventory, assessments and monitoring."),
+        ("Knowledge & Policy", "knowledge_policy", "Documentation, links, policies, certificates and training."),
+        ("Finance", "finance", "Financial management: purchases, budgets, cost centers and exchange rates."),
+        ("HR & People", "hr_people", "Human Resources: onboarding, offboarding, org chart and hiring (ATS)."),
+        ("Communications", "communications", "Internal communications and email campaigns."),
+        ("Administration", "administration", "Administrative tasks: user management, groups and system settings."),
+        ("Settings", "settings", "Organization settings and notification preferences.")
+    ]
+    
+    count = 0
+    for name, slug, description in modules_data:
+        if not Module.query.filter_by(slug=slug).first():
+            module = Module(name=name, slug=slug, description=description)
+            db.session.add(module)
+            count += 1
+            
+    try:
+        db.session.commit()
+        if count > 0:
+            print(f"✓ {count} modules seeded successfully.")
+        else:
+            print("Modules already exist. No changes made.")
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error seeding modules: {e}")

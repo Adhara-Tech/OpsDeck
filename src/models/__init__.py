@@ -3,6 +3,7 @@ from .core import (Tag, Attachment, NotificationSetting, Link, Documentation,
                    service_documentation, service_policies, service_activities, CURRENCY_RATES,
                    CustomFieldDefinition, CustomFieldValue, CustomPropertiesMixin)
 from .auth import *
+from .permissions import Module
 from .assets import *
 from .procurement import *
 from .credentials import Credential, CredentialSecret
