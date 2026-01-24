@@ -222,3 +222,48 @@ def delete_custom_field(id):
     
     flash('Custom property deleted.', 'success')
     return redirect(url_for('admin.custom_fields'))
+# --- Permissions Matrix ---
+
+from ..models import Module, Group, Permission
+from ..services.permissions_service import update_permission_matrix
+
+@admin_bp.route('/permissions', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def permissions_matrix():
+    if request.method == 'POST':
+        target_type = request.form.get('target_type')
+        target_id = request.form.get('target_id', type=int)
+        # Extract selected module IDs from form
+        module_ids = request.form.getlist('modules', type=int)
+        
+        try:
+            update_permission_matrix(target_type, target_id, module_ids)
+            flash(f'Permissions updated for {target_type} ID:{target_id}.', 'success')
+        except Exception as e:
+            flash(f'Error updating permissions: {str(e)}', 'danger')
+            
+        return redirect(url_for('admin.permissions_matrix', tab=f"{target_type}s"))
+
+    # GET: Fetch data for the matrix
+    modules = Module.query.order_by(Module.name).all()
+    users = User.query.filter_by(is_archived=False).order_by(User.name).all()
+    groups = Group.query.order_by(Group.name).all()
+    
+    # Pre-fetch existing permission mappings for easier UI rendering
+    all_permissions = Permission.query.all()
+    matrix = {}
+    for p in all_permissions:
+        key = f"user_{p.user_id}" if p.user_id else f"group_{p.group_id}"
+        if key not in matrix:
+            matrix[key] = set()
+        matrix[key].add(p.module_id)
+
+    active_tab = request.args.get('tab', 'users')
+    
+    return render_template('admin/permissions_matrix.html', 
+                         modules=modules, 
+                         users=users, 
+                         groups=groups, 
+                         matrix=matrix,
+                         active_tab=active_tab)

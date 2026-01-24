@@ -1,0 +1,175 @@
+{% extends 'layout.html' %}
+
+{% block title %}Permissions Matrix - OpsDeck{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{{ url_for('admin.list_users') }}">Administration</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Permissions Matrix</li>
+            </ol>
+        </nav>
+        <h1 class="h2"><i class="fas fa-shield-alt text-primary me-2"></i> Permissions Matrix</h1>
+        <p class="text-muted text-lg mb-0">Manage module access for Users and Groups.</p>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-white border-bottom-0 pt-3">
+        <ul class="nav nav-tabs card-header-tabs" id="permTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link {% if active_tab == 'users' %}active{% endif %}" id="users-tab"
+                    data-bs-toggle="tab" data-bs-target="#users-pane" type="button" role="tab">
+                    <i class="fas fa-user me-1"></i> User Permissions
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link {% if active_tab == 'groups' %}active{% endif %}" id="groups-tab"
+                    data-bs-toggle="tab" data-bs-target="#groups-pane" type="button" role="tab">
+                    <i class="fas fa-users me-1"></i> Group Permissions
+                </button>
+            </li>
+        </ul>
+    </div>
+    <div class="card-body p-0">
+        <div class="tab-content" id="permTabsContent">
+
+            <!-- Users Tab -->
+            <div class="tab-pane fade {% if active_tab == 'users' %}show active{% endif %}" id="users-pane"
+                role="tabpanel">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 datatable">
+                        <thead class="table-light">
+                            <tr>
+                                <th>User</th>
+                                {% for module in modules %}
+                                <th class="text-center small text-nowrap" style="width: 80px;">{{ module.name }}</th>
+                                {% endfor %}
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for u in users %}
+                            <tr>
+                                <td>
+                                    <div class="fw-bold">{{ u.name }}</div>
+                                    <div class="small text-muted">{{ u.email }}</div>
+                                </td>
+                                <form action="{{ url_for('admin.permissions_matrix') }}" method="POST">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="target_type" value="user">
+                                    <input type="hidden" name="target_id" value="{{ u.id }}">
+                                    {% for module in modules %}
+                                    <td class="text-center">
+                                        <div class="form-check form-check-inline m-0">
+                                            <input class="form-check-input" type="checkbox" name="modules"
+                                                value="{{ module.id }}" {% if matrix.get('user_' ~ u.id) and module.id
+                                                in matrix['user_' ~ u.id] %}checked{% endif %}>
+                                        </div>
+                                    </td>
+                                    {% endfor %}
+                                    <td class="text-end px-3">
+                                        <button type="submit"
+                                            class="btn btn-sm btn-outline-primary shadow-sm btn-hover-elevate">
+                                            <i class="fas fa-save me-1"></i> Save
+                                        </button>
+                                    </td>
+                                </form>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Groups Tab -->
+            <div class="tab-pane fade {% if active_tab == 'groups' %}show active{% endif %}" id="groups-pane"
+                role="tabpanel">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 datatable">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Group</th>
+                                {% for module in modules %}
+                                <th class="text-center small text-nowrap" style="width: 80px;">{{ module.name }}</th>
+                                {% endfor %}
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for g in groups %}
+                            <tr>
+                                <td>
+                                    <div class="fw-bold">{{ g.name }}</div>
+                                    <div class="small text-muted">{{ g.description or 'No description' }}</div>
+                                </td>
+                                <form action="{{ url_for('admin.permissions_matrix') }}" method="POST">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="target_type" value="group">
+                                    <input type="hidden" name="target_id" value="{{ g.id }}">
+                                    {% for module in modules %}
+                                    <td class="text-center">
+                                        <div class="form-check form-check-inline m-0">
+                                            <input class="form-check-input" type="checkbox" name="modules"
+                                                value="{{ module.id }}" {% if matrix.get('group_' ~ g.id) and module.id
+                                                in matrix['group_' ~ g.id] %}checked{% endif %}>
+                                        </div>
+                                    </td>
+                                    {% endfor %}
+                                    <td class="text-end px-3">
+                                        <button type="submit"
+                                            class="btn btn-sm btn-outline-primary shadow-sm btn-hover-elevate">
+                                            <i class="fas fa-save me-1"></i> Save
+                                        </button>
+                                    </td>
+                                </form>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<div class="alert alert-info mt-4 shadow-sm border-0 border-start border-4 border-info">
+    <div class="d-flex align-items-center">
+        <i class="fas fa-info-circle fa-2x me-3 text-info"></i>
+        <div>
+            <h5 class="alert-heading fw-bold mb-1">How it works</h5>
+            <p class="mb-0">A user has access to a module if they are assigned the permission <strong>directly</strong>
+                OR if they belong to a <strong>Group</strong> that has the permission assigned. Access is currently
+                binary (enabled/disabled).</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block head_extra %}
+<style>
+    .btn-hover-elevate:hover {
+        transform: translateY(-2px);
+        transition: transform 0.2s ease-in-out;
+    }
+
+    .card {
+        border-radius: 1rem;
+    }
+
+    .table thead th {
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-size: 0.75rem;
+    }
+
+    .form-check-input:checked {
+        background-color: var(--bs-primary);
+        border-color: var(--bs-primary);
+    }
+</style>
+{% endblock %}
