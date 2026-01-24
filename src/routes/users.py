@@ -16,7 +16,7 @@ users_bp = Blueprint('users', __name__)
 @users_bp.route('/')
 @login_required
 def users():
-    users = User.query.filter_by(is_archived=False).all()
+    users = User.query.filter_by(is_archived=False).order_by(User.name).all()
     return render_template('users/list.html', users=users)
 
 @users_bp.route('/org-chart')
@@ -64,7 +64,7 @@ def user_detail(id):
 @login_required
 @admin_required
 def new_user():
-    users = User.query.filter_by(is_archived=False).all()
+    users = User.query.filter_by(is_archived=False).order_by(User.name).all()
     custom_field_definitions = CustomFieldDefinition.query.filter_by(entity_type='User').all()
 
     if request.method == 'POST':
@@ -97,7 +97,7 @@ def new_user():
 def edit_user(id):
     user = User.query.get_or_404(id)
 
-    users = User.query.filter_by(is_archived=False).all()
+    users = User.query.filter_by(is_archived=False).order_by(User.name).all()
     custom_field_definitions = CustomFieldDefinition.query.filter_by(entity_type='User').all()
 
     if request.method == 'POST':

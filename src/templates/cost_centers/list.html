@@ -14,7 +14,7 @@
     <div class="card">
         <div class="card-body">
             {% if cost_centers %}
-            <table class="table table-striped datatable">
+            <table class="table table-striped datatable" id="cost-centers-table">
                 <thead>
                     <tr>
                         <th>Code</th>
@@ -51,7 +51,7 @@
                             <form method="POST" action="{{ url_for('cost_centers.delete', id=cc.id) }}"
                                 style="display: inline-block;"
                                 data-confirm='Are you sure you want to delete this cost center?'>
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete">
                                     <i class="fas fa-trash"></i>
                                 </button>
@@ -70,4 +70,14 @@
         </div>
     </div>
 </div>
+{% endblock %}
+{% block scripts_extra %}
+<script src="{{ url_for('static', filename='vendor/simple-datatables/js/simple-datatables.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        if (document.getElementById('cost-centers-table')) {
+            new simpleDatatables.DataTable("#cost-centers-table");
+        }
+    });
+</script>
 {% endblock %}

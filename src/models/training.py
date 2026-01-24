@@ -28,7 +28,7 @@ class CourseAssignment(db.Model):
     due_date = db.Column(db.Date, nullable=False)
     
     course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('opsdeck_users.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
     completion = db.relationship('CourseCompletion', backref='assignment', uselist=False, cascade='all, delete-orphan')
 

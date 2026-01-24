@@ -48,7 +48,7 @@ class OnboardingProcess(db.Model):
     """Registro de una incorporación."""
     id = db.Column(db.Integer, primary_key=True)
     new_hire_name = db.Column(db.String(100), nullable=False) # Nombre temporal si aún no hay User
-    user_id = db.Column(db.Integer, db.ForeignKey('opsdeck_users.id'), nullable=True) # Se enlaza al crear el usuario
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True) # Se enlaza al crear el usuario
     
     # Optional: Email to use when creating the user, overrides auto-generation
     target_email = db.Column(db.String(120), nullable=True)
@@ -65,8 +65,8 @@ class OnboardingProcess(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Pre-assignment of roles (Manager & Buddy)
-    assigned_manager_id = db.Column(db.Integer, db.ForeignKey('opsdeck_users.id'), nullable=True)
-    assigned_buddy_id = db.Column(db.Integer, db.ForeignKey('opsdeck_users.id'), nullable=True)
+    assigned_manager_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    assigned_buddy_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
 
     assigned_manager = db.relationship('User', foreign_keys=[assigned_manager_id])
     assigned_buddy = db.relationship('User', foreign_keys=[assigned_buddy_id])
@@ -78,8 +78,8 @@ class OnboardingProcess(db.Model):
 class OffboardingProcess(db.Model):
     """Registro de una salida."""
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('opsdeck_users.id'), nullable=False)
-    manager_id = db.Column(db.Integer, db.ForeignKey('opsdeck_users.id')) # Quién ejecuta el offboarding
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    manager_id = db.Column(db.Integer, db.ForeignKey('user.id')) # Quién ejecuta el offboarding
     
     departure_date = db.Column(db.Date, nullable=False)
     status = db.Column(db.String(50), default='In Progress') # In Progress, Completed

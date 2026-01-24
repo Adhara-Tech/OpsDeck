@@ -40,9 +40,9 @@ class Change(db.Model):
     closed_at = db.Column(db.DateTime, nullable=True)   # Actual end/close
     
     # --- Actors (Segregation of Duties) ---
-    requester_id = db.Column(db.Integer, db.ForeignKey('opsdeck_users.id'), nullable=False)
-    assignee_id = db.Column(db.Integer, db.ForeignKey('opsdeck_users.id'), nullable=True)
-    approved_by_id = db.Column(db.Integer, db.ForeignKey('opsdeck_users.id'), nullable=True)
+    requester_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    assignee_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    approved_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     approved_at = db.Column(db.DateTime, nullable=True)
     
     # Relationships

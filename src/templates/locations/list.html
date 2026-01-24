@@ -58,3 +58,13 @@
     </div>
 </div>
 {% endblock %}
+{% block scripts_extra %}
+<script src="{{ url_for('static', filename='vendor/simple-datatables/js/simple-datatables.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        if (document.getElementById('locations-table')) {
+            new simpleDatatables.DataTable("#locations-table");
+        }
+    });
+</script>
+{% endblock %}

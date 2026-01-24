@@ -1,7 +1,7 @@
 # En src/seeder_prod.py
 
 from src.extensions import db
-from src.models import Framework, FrameworkControl
+from src.models import Framework, FrameworkControl, EmailTemplate, NotificationEvent
 from src.models.security import ThreatType, RiskCatalog, CatalogRisk
 
 # Lista de amenazas comunes (Category, Name, Description)
@@ -843,3 +843,172 @@ def seed_it_infrastructure_catalog():
     except Exception as e:
         db.session.rollback()
         print(f"Error seeding IT infrastructure catalog: {e}")
+
+def seed_notification_templates():
+    """
+    Seeds default email templates and notification events for the system.
+    """
+    print("Seeding notification templates and events...")
+    
+    # Create default email templates for system notifications
+    # Check if they exist first to avoid duplicates
+    
+    templates = [
+        (
+            "License Expiry Notification",
+            "⚠️ License Expiring Soon: {{ license_name }}",
+            """
+<h2>License Expiration Notice</h2>
+<p>Hello {{ recipient_name }},</p>
+<p>This is a reminder that the following license is expiring soon:</p>
+<div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0;">
+    <strong>License:</strong> {{ license_name }}<br>
+    <strong>Expiry Date:</strong> {{ expiry_date }}<br>
+    <strong>Days Remaining:</strong> {{ days_left }} days
+</div>
+<p>Please take action to renew this license before it expires to avoid service disruption.</p>
+<p>Best regards,<br>OpsDeck Notification System</p>
+            """
+        ),
+        (
+            "Subscription Renewal Notification",
+            "📅 Subscription Renewal Due: {{ subscription_name }}",
+            """
+<h2>Subscription Renewal Reminder</h2>
+<p>Hello {{ recipient_name }},</p>
+<p>This is a reminder that the following subscription is due for renewal:</p>
+<div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0;">
+    <strong>Subscription:</strong> {{ subscription_name }}<br>
+    <strong>Renewal Date:</strong> {{ renewal_date }}<br>
+    <strong>Days Remaining:</strong> {{ days_left }} days<br>
+    <strong>Cost:</strong> {{ cost }}
+</div>
+<p>Please review and confirm renewal or cancellation with the procurement team.</p>
+<p>Best regards,<br>OpsDeck Notification System</p>
+            """
+        ),
+        (
+            "Credential Expiry Notification",
+            "🔑 Security Alert: Credential Expiring Soon",
+            """
+<h2>Credential Expiration Warning</h2>
+<p>Hello {{ recipient_name }},</p>
+<p>Security automation has detected that the following credential is approaching its expiration date:</p>
+<div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin: 15px 0; border: 1px solid #ffeeba;">
+    <strong>Credential:</strong> {{ credential_name }}<br>
+    <strong>Type:</strong> {{ credential_type }}<br>
+    <strong>Expiry Date:</strong> {{ expiry_date }}<br>
+    <strong>Days Remaining:</strong> {{ days_left }} days
+</div>
+<p>Please rotate this credential immediately to prevent service interruption or security risks.</p>
+<p>Best regards,<br>OpsDeck Security Team</p>
+            """
+        ),
+        (
+            "Certificate Expiry Notification",
+            "🔒 SSL/TLS Certificate Expiry Warning: {{ certificate_name }}",
+            """
+<h2>Certificate Expiration Alert</h2>
+<p>Hello {{ recipient_name }},</p>
+<p>The following digital certificate is expiring soon:</p>
+<div style="background: #f8d7da; padding: 15px; border-radius: 5px; margin: 15px 0; border: 1px solid #f5c6cb;">
+    <strong>Common Name:</strong> {{ certificate_name }}<br>
+    <strong>Issuer:</strong> {{ issuer }}<br>
+    <strong>Expiry Date:</strong> {{ expiry_date }}<br>
+    <strong>Days Remaining:</strong> {{ days_left }} days
+</div>
+<p>Failure to renew this certificate may result in browser warnings or connection failures.</p>
+<p>Best regards,<br>OpsDeck Security Team</p>
+            """
+        ),
+        (
+            "Compliance Control Breach Alert",
+            "🚨 Compliance Breach: {{ control_id }} - {{ control_name }}",
+            """
+<h2 style="color: #dc3545;">⚠️ Compliance Control Failure Detected</h2>
+<p>Hello {{ recipient_name }},</p>
+<p>An automated compliance check has detected a <strong style="color: #dc3545;">Non-Compliant</strong> status for the following control:</p>
+
+<div style="background: #f8d7da; padding: 15px; border-radius: 5px; margin: 15px 0; border: 1px solid #f5c6cb;">
+    <strong>Framework:</strong> {{ framework_name }}<br>
+    <strong>Control ID:</strong> {{ control_id }}<br>
+    <strong>Control Name:</strong> {{ control_name }}<br>
+    <strong>Rule:</strong> {{ rule_name }}<br>
+    <strong>Target Model:</strong> {{ target_model }}<br>
+    <strong>Frequency SLA:</strong> {{ frequency_days }} days<br>
+    <strong>Last Evidence:</strong> {{ last_evidence_date or 'No evidence found' }}<br>
+    <strong>Days Overdue:</strong> {{ days_overdue }}
+</div>
+
+<p><strong>Required Action:</strong> Please execute the required activity or upload evidence to restore compliance status.</p>
+
+<p>
+    <a href="{{ dashboard_url }}" style="display: inline-block; background: #0d6efd; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
+        View Compliance Dashboard
+    </a>
+</p>
+
+<p style="color: #6c757d; font-size: 12px;">
+    This is an automated notification from OpsDeck Compliance Monitoring.
+</p>
+            """
+        )
+    ]
+
+    created_templates = {}
+
+    for t_name, t_subj, t_body in templates:
+        template = EmailTemplate.query.filter_by(name=t_name).first()
+        if not template:
+            template = EmailTemplate(
+                name=t_name,
+                subject=t_subj,
+                body_html=t_body.strip(),
+                category="system",
+                is_active=True,
+                is_system=True
+            )
+            db.session.add(template)
+            db.session.flush() # get ID
+            print(f"Created template: {t_name}")
+        else:
+            print(f"Template already exists: {t_name}")
+        
+        created_templates[t_name] = template
+
+    # Create notification events linked to templates
+    events_data = [
+        ("LICENSE_EXPIRING", "License Expiry Alert", "Sends a notification when a software license is about to expire.", "License Expiry Notification", 7),
+        ("SUBSCRIPTION_RENEWAL", "Subscription Renewal Alert", "Sends a notification when a subscription is due for renewal.", "Subscription Renewal Notification", 7),
+        ("CREDENTIAL_EXPIRING", "Credential Expiry Alert", "Sends a notification when a credential or secret is about to expire.", "Credential Expiry Notification", 14),
+        ("CERTIFICATE_EXPIRING", "Certificate Expiry Alert", "Sends a notification when a digital certificate is about to expire.", "Certificate Expiry Notification", 30),
+        ("COMPLIANCE_BREACH", "Compliance Control Failure", "Alerts when an automated compliance rule fails (turns red). Checks are performed daily.", "Compliance Control Breach Alert", 1)
+    ]
+
+    for code, name, desc, t_name, days in events_data:
+        if NotificationEvent.query.filter_by(event_code=code).first():
+            continue
+            
+        template = created_templates.get(t_name)
+        if not template:
+            print(f"Error: Template {t_name} not found for event {code}")
+            continue
+            
+        event = NotificationEvent(
+            event_code=code,
+            name=name,
+            description=desc,
+            template_id=template.id,
+            enabled=True,
+            days_offset=days,
+            channels=['email'] if code == "COMPLIANCE_BREACH" else None # Default to whatever model default is, or explicit
+        )
+        db.session.add(event)
+        print(f"Created event: {name}")
+
+    try:
+        db.session.commit()
+        print("Notification templates and events seeded successfully.")
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error seeding notifications: {e}")

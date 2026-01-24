@@ -57,7 +57,7 @@ class Asset(db.Model, CustomPropertiesMixin):
     is_virtual = db.Column(db.Boolean, default=False, nullable=False)
     
     # Relationships
-    user_id = db.Column(db.Integer, db.ForeignKey('opsdeck_users.id'))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     location_id = db.Column(db.Integer, db.ForeignKey('location.id'))
     supplier_id = db.Column(db.Integer, db.ForeignKey('supplier.id'))
     purchase_id = db.Column(db.Integer, db.ForeignKey('purchase.id'))
@@ -207,7 +207,7 @@ class AssetAssignment(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     asset_id = db.Column(db.Integer, db.ForeignKey('asset.id'), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('opsdeck_users.id'), nullable=True) # Can be unassigned
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True) # Can be unassigned
     checked_out_date = db.Column(db.DateTime, default=datetime.utcnow)
     checked_in_date = db.Column(db.DateTime, nullable=True)
     notes = db.Column(db.Text)
@@ -224,7 +224,7 @@ class AssetHistory(db.Model):
 class PeripheralAssignment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     peripheral_id = db.Column(db.Integer, db.ForeignKey('peripheral.id'), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('opsdeck_users.id'), nullable=True) # Can be unassigned
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True) # Can be unassigned
     checked_out_date = db.Column(db.DateTime, default=datetime.utcnow)
     checked_in_date = db.Column(db.DateTime, nullable=True)
     notes = db.Column(db.Text)
@@ -249,7 +249,7 @@ class Peripheral(db.Model, CustomPropertiesMixin):
     cost = db.Column(db.Float)
     currency = db.Column(db.String(3), default='EUR')
 
-    user_id = db.Column(db.Integer, db.ForeignKey('opsdeck_users.id'))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     
     # Relationships
     asset_id = db.Column(db.Integer, db.ForeignKey('asset.id'))
@@ -315,7 +315,7 @@ class License(db.Model):
     expiry_date = db.Column(db.Date, nullable=True) # Optional for perpetual licenses
 
     # Relationships
-    user_id = db.Column(db.Integer, db.ForeignKey('opsdeck_users.id')) # Assigned user (seat)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id')) # Assigned user (seat)
     purchase_id = db.Column(db.Integer, db.ForeignKey('purchase.id'), nullable=True)
     budget_id = db.Column(db.Integer, db.ForeignKey('budget.id'), nullable=True)
     subscription_id = db.Column(db.Integer, db.ForeignKey('subscription.id'), nullable=True)
@@ -428,7 +428,7 @@ class MaintenanceLog(db.Model):
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
-    assigned_to_id = db.Column(db.Integer, db.ForeignKey('opsdeck_users.id'))
+    assigned_to_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     asset_id = db.Column(db.Integer, db.ForeignKey('asset.id'))
     peripheral_id = db.Column(db.Integer, db.ForeignKey('peripheral.id'))
     
@@ -457,7 +457,7 @@ class DisposalHistory(db.Model):
     old_value = db.Column(db.Text)
     new_value = db.Column(db.Text)
     reason = db.Column(db.Text, nullable=False)
-    changed_by_id = db.Column(db.Integer, db.ForeignKey('opsdeck_users.id'))
+    changed_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     changed_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     changed_by = db.relationship('User')

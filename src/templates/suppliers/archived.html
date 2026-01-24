@@ -13,7 +13,7 @@
 <div class="card">
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table table-striped datatable">
+            <table class="table table-striped datatable" id="suppliers-table">
                 <thead>
                     <tr>
                         <th>Name</th>
@@ -29,8 +29,9 @@
                         <td>{{ supplier.email or '-' }}</td>
                         <td>{{ supplier.phone or '-' }}</td>
                         <td>
-                            <form action="{{ url_for('suppliers.unarchive_supplier', id=supplier.id) }}" method="POST" class="d-inline">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <form action="{{ url_for('suppliers.unarchive_supplier', id=supplier.id) }}" method="POST"
+                                class="d-inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="btn btn-sm btn-outline-success" title="Restore">
                                     <i class="fas fa-undo"></i> Restore
                                 </button>
@@ -47,4 +48,15 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts_extra %}
+<script src="{{ url_for('static', filename='vendor/simple-datatables/js/simple-datatables.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        if (document.getElementById('suppliers-table')) {
+            new simpleDatatables.DataTable("#suppliers-table");
+        }
+    });
+</script>
 {% endblock %}

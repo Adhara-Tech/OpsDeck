@@ -9,7 +9,7 @@ from .onboarding import OnboardingProcess, OffboardingProcess
 # Association table for audit participants
 audit_participants = db.Table('audit_participants',
     db.Column('audit_id', db.Integer, db.ForeignKey('compliance_audit.id'), primary_key=True),
-    db.Column('user_id', db.Integer, db.ForeignKey('opsdeck_users.id'), primary_key=True)
+    db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True)
 )
 
 # Association table for linking audits to onboarding/offboarding processes (Evidence)
@@ -50,7 +50,7 @@ class ComplianceAudit(db.Model):
     auditor_id = db.Column(db.Integer, db.ForeignKey('contact.id'), nullable=True)
     
     # Internal Lead (User responsible for defense)
-    internal_lead_id = db.Column(db.Integer, db.ForeignKey('opsdeck_users.id'), nullable=True)
+    internal_lead_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
 
     # Relationships
     framework = db.relationship('Framework')

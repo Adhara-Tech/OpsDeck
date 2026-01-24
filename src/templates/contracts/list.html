@@ -21,7 +21,7 @@
 </div>
 
 <div class="table-responsive">
-    <table class="table table-striped table-hover align-middle">
+    <table class="table table-striped table-hover align-middle" id="contracts-table">
         <thead>
             <tr>
                 <th>Name</th>
@@ -86,4 +86,15 @@
         </tbody>
     </table>
 </div>
+{% endblock %}
+
+{% block scripts_extra %}
+<script src="{{ url_for('static', filename='vendor/simple-datatables/js/simple-datatables.js') }}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        if (document.getElementById('contracts-table')) {
+            new simpleDatatables.DataTable("#contracts-table");
+        }
+    });
+</script>
 {% endblock %}

@@ -78,7 +78,7 @@ class ConfigurationVersion(db.Model):
     version_number = db.Column(db.Integer, nullable=False)
     data = db.Column(db.JSON, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    created_by_id = db.Column(db.Integer, db.ForeignKey('opsdeck_users.id'), nullable=True)
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     commit_message = db.Column(db.String(255))
     
     created_by = db.relationship('User')

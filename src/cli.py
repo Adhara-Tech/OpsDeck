@@ -6,7 +6,7 @@ from .utils.helpers import generate_secure_password, get_csv_reader
 from datetime import datetime
 from .extensions import db
 # Import all necessary models
-from .models import User, Asset, Peripheral, Location, Supplier, Contact, Software, Subscription, Budget, Risk, RiskCategory
+from .models import User, Asset, Peripheral, Location, Supplier, Contact, Software, Subscription, Budget, Risk, RiskCategory, AssetAssignment, PeripheralAssignment
 
 def register_commands(app):
     
@@ -152,10 +152,25 @@ def register_commands(app):
                     skipped += 1
                     continue
 
+                # User Linking Logic
+                user_id = None
+                assigned_user_name = row.get('assigned_user', '').strip()
+                if assigned_user_name:
+                    user_obj = User.query.filter_by(name=assigned_user_name).first()
+                    if user_obj:
+                        user_id = user_obj.id
+
                 # Location Logic
-                loc_name = row.get('location_name')
+                loc_name = row.get('location_name', '').strip() # Use .strip() for safety
                 location_id = None
-                if loc_name:
+                
+                # Check for "Remote" or virtual locations
+                is_remote = False
+                if loc_name.lower() in ['remote', 'work from home', 'wfh', 'virtual']:
+                    is_remote = True
+                    # Do not create a location, rely on user link
+                
+                if loc_name and not is_remote:
                     loc = Location.query.filter_by(name=loc_name).first()
                     if not loc:
                         loc = Location(name=loc_name)
@@ -179,11 +194,24 @@ def register_commands(app):
                     serial_number=row.get('serial_number'),
                     status=row.get('status', 'In Use'),
                     location_id=location_id,
+                    user_id=user_id, # Link user
                     purchase_date=p_date,
                     cost=float(row['cost']) if row.get('cost') else 0.0,
                     warranty_length=int(row['warranty_length']) if row.get('warranty_length') else 0
                 )
                 db.session.add(asset)
+                db.session.flush() # Flush to get ID for assignment
+
+                # Create Assignment if user is linked
+                if user_id:
+                    assignment = AssetAssignment(
+                        asset_id=asset.id,
+                        user_id=user_id,
+                        checked_out_date=datetime.utcnow(),
+                        notes="Imported via CSV"
+                    )
+                    db.session.add(assignment)
+                    
                 count += 1
             
             db.session.commit()
@@ -202,14 +230,53 @@ def register_commands(app):
             reader = get_csv_reader(f)
             count = 0
             for row in reader:
+                # User Linking Logic
+                user_id = None
+                assigned_user_name = row.get('assigned_user', '').strip()
+                if assigned_user_name:
+                    user_obj = User.query.filter_by(name=assigned_user_name).first()
+                    if user_obj:
+                        user_id = user_obj.id
+
+                # Location Logic (Added for peripherals)
+                loc_name = row.get('location_name', '').strip()
+                location_id = None
+                
+                is_remote = False
+                if loc_name.lower() in ['remote', 'work from home', 'wfh', 'virtual']:
+                    is_remote = True
+                
+                if loc_name and not is_remote:
+                    loc = Location.query.filter_by(name=loc_name).first()
+                    if not loc:
+                        loc = Location(name=loc_name)
+                        db.session.add(loc)
+                        db.session.commit()
+                        print(f"📍 Location created for peripheral: {loc_name}")
+                    location_id = loc.id
+
                 peripheral = Peripheral(
                     name=row['name'],
                     type=row.get('type', 'Accessory'),
                     brand=row.get('brand'),
                     serial_number=row.get('serial_number'),
-                    status=row.get('status', 'In Use')
+                    status=row.get('status', 'In Use'),
+                    user_id=user_id, # Link user
+                    location_id=location_id
                 )
                 db.session.add(peripheral)
+                db.session.flush() # Flush to get ID
+
+                # Create Assignment if user is linked
+                if user_id:
+                    assignment = PeripheralAssignment(
+                        peripheral_id=peripheral.id,
+                        user_id=user_id,
+                        checked_out_date=datetime.utcnow(),
+                        notes="Imported via CSV"
+                    )
+                    db.session.add(assignment)
+                    
                 count += 1
             
             db.session.commit()
