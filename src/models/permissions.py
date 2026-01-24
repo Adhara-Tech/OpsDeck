@@ -1,5 +1,7 @@
 from ..extensions import db
 
+import enum
+
 class Module(db.Model):
     """
     Represents a logical module/section of the OpsDeck application.
@@ -15,6 +17,10 @@ class Module(db.Model):
     def __repr__(self):
         return f'<Module {self.slug}>'
 
+class AccessLevel(enum.Enum):
+    READ_ONLY = "READ_ONLY"
+    WRITE = "WRITE"
+
 class Permission(db.Model):
     """
     Links a Module to a User or a Group to grant access.
@@ -26,6 +32,7 @@ class Permission(db.Model):
     module_id = db.Column(db.Integer, db.ForeignKey('module.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     group_id = db.Column(db.Integer, db.ForeignKey('group.id'), nullable=True)
+    access_level = db.Column(db.Enum(AccessLevel), nullable=False, default=AccessLevel.WRITE)
     
     # Relationships
     module = db.relationship('Module', backref=db.backref('permissions', lazy='dynamic', cascade='all, delete-orphan'))

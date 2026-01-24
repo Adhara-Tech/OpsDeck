@@ -1,6 +1,6 @@
 {% extends 'layout.html' %}
 
-{% block title %}Permissions Matrix - OpsDeck{% endblock %}
+{% block title %}Permissions - OpsDeck{% endblock %}
 
 {% block content %}
 <div class="row mb-4">
@@ -8,10 +8,10 @@
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="{{ url_for('admin.list_users') }}">Administration</a></li>
-                <li class="breadcrumb-item active" aria-current="page">Permissions Matrix</li>
+                <li class="breadcrumb-item active" aria-current="page">Permissions</li>
             </ol>
         </nav>
-        <h1 class="h2"><i class="fas fa-shield-alt text-primary me-2"></i> Permissions Matrix</h1>
+        <h1 class="h2"><i class="fas fa-shield-alt text-primary me-2"></i> Permissions</h1>
         <p class="text-muted text-lg mb-0">Manage module access for Users and Groups.</p>
     </div>
 </div>
@@ -56,27 +56,34 @@
                                 <td>
                                     <div class="fw-bold">{{ u.name }}</div>
                                     <div class="small text-muted">{{ u.email }}</div>
+                                    <form id="form-user-{{ u.id }}" action="{{ url_for('admin.permissions_matrix') }}"
+                                        method="POST">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input type="hidden" name="target_type" value="user">
+                                        <input type="hidden" name="target_id" value="{{ u.id }}">
+                                    </form>
                                 </td>
-                                <form action="{{ url_for('admin.permissions_matrix') }}" method="POST">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <input type="hidden" name="target_type" value="user">
-                                    <input type="hidden" name="target_id" value="{{ u.id }}">
-                                    {% for module in modules %}
-                                    <td class="text-center">
-                                        <div class="form-check form-check-inline m-0">
-                                            <input class="form-check-input" type="checkbox" name="modules"
-                                                value="{{ module.id }}" {% if matrix.get('user_' ~ u.id) and module.id
-                                                in matrix['user_' ~ u.id] %}checked{% endif %}>
-                                        </div>
-                                    </td>
-                                    {% endfor %}
-                                    <td class="text-end px-3">
-                                        <button type="submit"
-                                            class="btn btn-sm btn-outline-primary shadow-sm btn-hover-elevate">
-                                            <i class="fas fa-save me-1"></i> Save
-                                        </button>
-                                    </td>
-                                </form>
+                                {% for module in modules %}
+                                <td class="text-center">
+                                    <select name="perm_user_{{ u.id }}_{{ module.id }}"
+                                        class="form-select form-select-sm border-0 bg-light text-center"
+                                        style="width: 110px;" form="form-user-{{ u.id }}">
+                                        <option value="NONE" {% if not matrix.get('user_' ~ u.id) or not matrix['user_'
+                                            ~ u.id].get(module.id) %}selected{% endif %}>No Access
+                                        </option>
+                                        <option value="READ_ONLY" {% if matrix.get('user_' ~ u.id) and matrix['user_' ~
+                                            u.id].get(module.id)=='READ_ONLY' %}selected{% endif %}>Read Only</option>
+                                        <option value="WRITE" {% if matrix.get('user_' ~ u.id) and matrix['user_' ~
+                                            u.id].get(module.id)=='WRITE' %}selected{% endif %}>Full Access</option>
+                                    </select>
+                                </td>
+                                {% endfor %}
+                                <td class="text-end px-3">
+                                    <button type="submit" form="form-user-{{ u.id }}"
+                                        class="btn btn-sm btn-outline-primary shadow-sm btn-hover-elevate">
+                                        <i class="fas fa-save me-1"></i> Save
+                                    </button>
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -104,27 +111,35 @@
                                 <td>
                                     <div class="fw-bold">{{ g.name }}</div>
                                     <div class="small text-muted">{{ g.description or 'No description' }}</div>
+                                    <form id="form-group-{{ g.id }}" action="{{ url_for('admin.permissions_matrix') }}"
+                                        method="POST">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input type="hidden" name="target_type" value="group">
+                                        <input type="hidden" name="target_id" value="{{ g.id }}">
+                                    </form>
                                 </td>
-                                <form action="{{ url_for('admin.permissions_matrix') }}" method="POST">
-                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                    <input type="hidden" name="target_type" value="group">
-                                    <input type="hidden" name="target_id" value="{{ g.id }}">
-                                    {% for module in modules %}
-                                    <td class="text-center">
-                                        <div class="form-check form-check-inline m-0">
-                                            <input class="form-check-input" type="checkbox" name="modules"
-                                                value="{{ module.id }}" {% if matrix.get('group_' ~ g.id) and module.id
-                                                in matrix['group_' ~ g.id] %}checked{% endif %}>
-                                        </div>
-                                    </td>
-                                    {% endfor %}
-                                    <td class="text-end px-3">
-                                        <button type="submit"
-                                            class="btn btn-sm btn-outline-primary shadow-sm btn-hover-elevate">
-                                            <i class="fas fa-save me-1"></i> Save
-                                        </button>
-                                    </td>
-                                </form>
+                                {% for module in modules %}
+                                <td class="text-center">
+                                    <select name="perm_group_{{ g.id }}_{{ module.id }}"
+                                        class="form-select form-select-sm border-0 bg-light text-center"
+                                        style="width: 110px;" form="form-group-{{ g.id }}">
+                                        <option value="NONE" {% if not matrix.get('group_' ~ g.id) or not
+                                            matrix['group_' ~ g.id].get(module.id) %}selected{% endif %}>No Access
+                                        </option>
+                                        <option value="READ_ONLY" {% if matrix.get('group_' ~ g.id) and matrix['group_'
+                                            ~ g.id].get(module.id)=='READ_ONLY' %}selected{% endif %}>Read Only</option>
+                                        <option value="WRITE" {% if matrix.get('group_' ~ g.id) and matrix['group_' ~
+                                            g.id].get(module.id)=='WRITE' %}selected{% endif %}>Full Access
+                                        </option>
+                                    </select>
+                                </td>
+                                {% endfor %}
+                                <td class="text-end px-3">
+                                    <button type="submit" form="form-group-{{ g.id }}"
+                                        class="btn btn-sm btn-outline-primary shadow-sm btn-hover-elevate">
+                                        <i class="fas fa-save me-1"></i> Save
+                                    </button>
+                                </td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -142,8 +157,9 @@
         <div>
             <h5 class="alert-heading fw-bold mb-1">How it works</h5>
             <p class="mb-0">A user has access to a module if they are assigned the permission <strong>directly</strong>
-                OR if they belong to a <strong>Group</strong> that has the permission assigned. Access is currently
-                binary (enabled/disabled).</p>
+                OR if they belong to a <strong>Group</strong> that has the permission assigned. Access can be
+                <strong>Read Only</strong> (viewing) or <strong>Full Access</strong> (managing/editing).
+            </p>
         </div>
     </div>
 </div>
@@ -167,9 +183,14 @@
         font-size: 0.75rem;
     }
 
-    .form-check-input:checked {
-        background-color: var(--bs-primary);
-        border-color: var(--bs-primary);
+    .form-select-sm {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.5rem;
+    }
+
+    .form-select:focus {
+        box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.1);
     }
 </style>
 {% endblock %}

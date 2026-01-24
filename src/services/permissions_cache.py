@@ -1,7 +1,7 @@
 class PermissionsCache:
     """
     A simple in-memory singleton cache for user permissions.
-    Stores user_id -> List[module_slugs].
+    Stores user_id -> {module_slug: access_level_name}.
     """
     _instance = None
     _cache = {}
@@ -12,12 +12,12 @@ class PermissionsCache:
         return cls._instance
 
     def get(self, user_id):
-        """Returns the list of module slugs for a user if cached, else None."""
+        """Returns the mapping of module slugs to access levels for a user if cached, else None."""
         return self._cache.get(user_id)
 
-    def set(self, user_id, module_slugs):
-        """Caches the list of module slugs for a user."""
-        self._cache[user_id] = module_slugs
+    def set(self, user_id, permissions):
+        """Caches the mapping of module slugs to access levels for a user."""
+        self._cache[user_id] = permissions
 
     def invalidate(self, user_id=None):
         """

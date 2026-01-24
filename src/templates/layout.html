@@ -539,6 +539,10 @@
                             Groups</a>
                     </li>
                     <li class="nav-item"><a
+                            class="nav-link {% if request.endpoint == 'admin.permissions_matrix' %}active{% endif %}"
+                            href="{{ url_for('admin.permissions_matrix') }}"><i class="fa-fw fas fa-shield-alt"></i>
+                            Permissions</a></li>
+                    <li class="nav-item"><a
                             class="nav-link {% if request.endpoint and request.endpoint.startswith('locations.') %}active{% endif %}"
                             href="{{ url_for('locations.locations') }}"><i class="fa-fw fas fa-map-marker-alt"></i>
                             Locations</a></li>

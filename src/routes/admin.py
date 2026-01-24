@@ -234,11 +234,36 @@ def permissions_matrix():
     if request.method == 'POST':
         target_type = request.form.get('target_type')
         target_id = request.form.get('target_id', type=int)
-        # Extract selected module IDs from form
-        module_ids = request.form.getlist('modules', type=int)
+        
+        # New logic: Look for perm_{target_type}_{target_id}_{module_id} in form
+        
+        # DEBUG: Log incoming form data
+        from flask import current_app
+        current_app.logger.info(f"Permissions Update: Target={target_type}, ID={target_id}")
+        current_app.logger.info(f"Form Data Keys: {[k for k in request.form.keys() if k.startswith('perm_')]}")
+
+        module_permissions = []
+        for key, value in request.form.items():
+            # Match only perm_{target_type}_{target_id}_{module_id}
+            prefix = f"perm_{target_type}_{target_id}_"
+            if key.startswith(prefix):
+                try:
+                    m_id_str = key[len(prefix):] # Safer than replace in case prefix appears twice
+                    m_id = int(m_id_str)
+                    
+                    current_app.logger.info(f"Found permission: Module {m_id} -> {value}")
+                    
+                    if value != 'NONE':
+                        module_permissions.append({
+                            'module_id': m_id,
+                            'access_level': value
+                        })
+                except (ValueError, IndexError) as e:
+                    current_app.logger.error(f"Error parsing permission key {key}: {e}")
+                    continue
         
         try:
-            update_permission_matrix(target_type, target_id, module_ids)
+            update_permission_matrix(target_type, target_id, module_permissions)
             flash(f'Permissions updated for {target_type} ID:{target_id}.', 'success')
         except Exception as e:
             flash(f'Error updating permissions: {str(e)}', 'danger')
@@ -250,14 +275,14 @@ def permissions_matrix():
     users = User.query.filter_by(is_archived=False).order_by(User.name).all()
     groups = Group.query.order_by(Group.name).all()
     
-    # Pre-fetch existing permission mappings for easier UI rendering
+    # Pre-fetch existing permission mapping: {user_123: {module_45: 'WRITE'}}
     all_permissions = Permission.query.all()
     matrix = {}
     for p in all_permissions:
         key = f"user_{p.user_id}" if p.user_id else f"group_{p.group_id}"
         if key not in matrix:
-            matrix[key] = set()
-        matrix[key].add(p.module_id)
+            matrix[key] = {}
+        matrix[key][p.module_id] = p.access_level.value # "WRITE" or "READ_ONLY"
 
     active_tab = request.args.get('tab', 'users')
     
