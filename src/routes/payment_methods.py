@@ -4,7 +4,7 @@ from flask import (
 from datetime import datetime
 from ..models import db, PaymentMethod, User
 from .main import login_required
-from .admin import admin_required
+from ..services.permissions_service import requires_permission, has_write_permission
 
 payment_methods_bp = Blueprint('payment_methods', __name__)
 
@@ -22,8 +22,11 @@ def archived_payment_methods():
 
 @payment_methods_bp.route('/<int:id>/archive', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('finance')
 def archive_payment_method(id):
+    if not has_write_permission('finance'):
+        flash('Write access required to archive payment methods.', 'danger')
+        return redirect(url_for('payment_methods.payment_methods'))
     method = PaymentMethod.query.get_or_404(id)
     method.is_archived = True
     db.session.commit()
@@ -32,8 +35,11 @@ def archive_payment_method(id):
 
 @payment_methods_bp.route('/<int:id>/unarchive', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('finance')
 def unarchive_payment_method(id):
+    if not has_write_permission('finance'):
+        flash('Write access required to restore payment methods.', 'danger')
+        return redirect(url_for('payment_methods.archived_payment_methods'))
     method = PaymentMethod.query.get_or_404(id)
     method.is_archived = False
     db.session.commit()
@@ -100,8 +106,11 @@ def edit_payment_method(id):
 
 @payment_methods_bp.route('/<int:id>/delete', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('finance')
 def delete_payment_method(id):
+    if not has_write_permission('finance'):
+        flash('You do not have permission to delete payment methods.', 'danger')
+        return redirect(url_for('payment_methods.payment_methods'))
     method = PaymentMethod.query.get_or_404(id)
     db.session.delete(method)
     db.session.commit()

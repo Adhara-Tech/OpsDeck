@@ -3,18 +3,20 @@ from flask import (
 )
 from ..models import db, Location
 from .main import login_required
-from .admin import admin_required
+from ..services.permissions_service import requires_permission, has_write_permission
 
 locations_bp = Blueprint('locations', __name__)
 
 @locations_bp.route('/')
 @login_required
-def locations():
+@requires_permission('core_inventory')
+def list_locations():
     locations = Location.query.filter_by(is_archived=False).all()
     return render_template('locations/list.html', locations=locations)
 
 @locations_bp.route('/archived')
 @login_required
+@requires_permission('core_inventory')
 def archived_locations():
     locations = Location.query.filter_by(is_archived=True).all()
     return render_template('locations/archived.html', locations=locations)
@@ -22,19 +24,25 @@ def archived_locations():
 
 @locations_bp.route('/<int:id>/archive', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('core_inventory')
 def archive_location(id):
+    if not has_write_permission('core_inventory'):
+        flash('Write access required to archive locations.', 'danger')
+        return redirect(url_for('locations.list_locations'))
     location = Location.query.get_or_404(id)
     location.is_archived = True
     db.session.commit()
     flash(f'Location "{location.name}" has been archived.')
-    return redirect(url_for('locations.locations'))
+    return redirect(url_for('locations.list_locations'))
 
 
 @locations_bp.route('/<int:id>/unarchive', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('core_inventory')
 def unarchive_location(id):
+    if not has_write_permission('core_inventory'):
+        flash('Write access required to unarchive locations.', 'danger')
+        return redirect(url_for('locations.archived_locations'))
     location = Location.query.get_or_404(id)
     location.is_archived = False
     db.session.commit()
@@ -44,8 +52,12 @@ def unarchive_location(id):
 
 @locations_bp.route('/new', methods=['GET', 'POST'])
 @login_required
+@requires_permission('core_inventory')
 def new_location():
     if request.method == 'POST':
+        if not has_write_permission('core_inventory'):
+            flash('Write access required to create locations.', 'danger')
+            return redirect(url_for('locations.list_locations'))
         location = Location(
             name=request.form['name'],
             address=request.form.get('address', '').strip() or None,

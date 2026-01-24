@@ -7,11 +7,13 @@
     <div class="col-sm-8">
         <h1 class="mb-0"><i class="fa-solid fa-layer-group me-2"></i>{{ framework.name }}</h1>
     </div>
+    {% if can_write('compliance') %}
     <div class="col-sm-4 text-end">
         <a href="{{ url_for('frameworks.edit', id=framework.id) }}" class="btn btn-primary">
             <i class="fa-solid fa-pencil"></i> Edit
         </a>
     </div>
+    {% endif %}
 </div>
 <hr>
 

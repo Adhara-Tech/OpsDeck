@@ -18,7 +18,7 @@
             class="btn btn-sm btn-outline-dark me-2">
             <i class="fas fa-file-pdf"></i> Export PDF
         </a>
-        {% if assessment.status != 'Locked' %}
+        {% if assessment.status != 'Locked' and can_write('risk_governance') %}
         <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#lockModal">
             <i class="fas fa-lock"></i> Lock Assessment
         </button>
@@ -123,11 +123,10 @@
                                         <i class="fas fa-link"></i>
                                         {% endif %}
                                         {{ ev.display_name|truncate(15) }}
-                                        {% if assessment.status != 'Locked' %}
+                                        {% if assessment.status != 'Locked' and can_write('risk_governance') %}
                                         <form
                                             action="{{ url_for('risk_assessment.delete_evidence', id=assessment.id, evidence_id=ev.id) }}"
-                                            method="POST" class="d-inline"
-                                            data-confirm='Remove this evidence?'>
+                                            method="POST" class="d-inline" data-confirm='Remove this evidence?'>
                                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <button type="submit" class="btn btn-link btn-sm p-0 ms-1 text-danger"
                                                 style="font-size: 0.7rem;">
@@ -143,7 +142,7 @@
                                 {% endif %}
                             </td>
                             <td class="text-end">
-                                {% if assessment.status != 'Locked' %}
+                                {% if assessment.status != 'Locked' and can_write('risk_governance') %}
                                 <button class="btn btn-sm btn-outline-success me-1" data-bs-toggle="modal"
                                     data-bs-target="#addEvidenceModal{{ item.id }}" title="Add Evidence">
                                     <i class="fas fa-plus"></i>

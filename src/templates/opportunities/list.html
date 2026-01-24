@@ -9,9 +9,11 @@
         <button class="btn btn-success" onclick="exportTableToCSV('opportunities-table', 'opportunities.csv')">
             <i class="fas fa-file-csv"></i> Export to CSV
         </button>
+        {% if can_write('procurement') %}
         <a href="{{ url_for('opportunities.new_opportunity') }}" class="btn btn-primary">
             <i class="fas fa-plus"></i> New Evaluation
         </a>
+        {% endif %}
     </div>
 </div>
 
@@ -34,8 +36,10 @@
                         <td><a href="{{ url_for('opportunities.detail', id=op.id) }}">{{ op.name }}</a></td>
                         <td><span class="badge bg-info">{{ op.status }}</span></td>
                         <td>{{ op.supplier.name if op.supplier else 'N/A' }}</td>
-                        <td>{{ op.currency }} {{ "%.2f"|format(op.potential_value) if op.potential_value else 'N/A' }}</td>
-                        <td>{{ op.estimated_close_date.strftime('%Y-%m-%d') if op.estimated_close_date else 'N/A' }}</td>
+                        <td>{{ op.currency }} {{ "%.2f"|format(op.potential_value) if op.potential_value else 'N/A' }}
+                        </td>
+                        <td>{{ op.estimated_close_date.strftime('%Y-%m-%d') if op.estimated_close_date else 'N/A' }}
+                        </td>
                     </tr>
                     {% else %}
                     <tr>

@@ -7,9 +7,11 @@
         <button class="btn btn-success" onclick="exportTableToCSV('maintenances-table', 'maintenances.csv')">
             <i class="fas fa-file-csv"></i> Export to CSV
         </button>
+        {% if can_write('operations') %}
         <a href="{{ url_for('maintenance.new_log') }}" class="btn btn-primary">
             <i class="fas fa-plus"></i> New Log Entry
         </a>
+        {% endif %}
     </div>
 </div>
 
@@ -52,8 +54,12 @@
                     </td>
                     <td>{{ log.assigned_to.name if log.assigned_to else 'N/A' }}</td>
                     <td>
+                        {% if can_write('operations') %}
                         <a href="{{ url_for('maintenance.edit_log', id=log.id) }}"
                             class="btn btn-sm btn-outline-primary">Edit</a>
+                        {% else %}
+                        <span class="text-muted small">Read Only</span>
+                        {% endif %}
                     </td>
                 </tr>
                 {% else %}

@@ -37,7 +37,8 @@
                         <div class="tab-pane fade show active" id="definition" role="tabpanel">
                             <div class="mb-3">
                                 <label for="threat_type_id" class="form-label">Threat Source (Amenaza)</label>
-                                <select class="form-select" id="threat_type_id" name="threat_type_id">
+                                <select class="form-select" id="threat_type_id" name="threat_type_id" {% if not
+                                    can_write('risk_governance') %}disabled{% endif %}>
                                     <option value="">Select a Threat Type...</option>
                                     {# Asumimos que threat_types está ordenado por categoría #}
                                     {% set current_cat = namespace(value=None) %}
@@ -61,7 +62,8 @@
                             <div class="mb-3">
                                 <label for="risk_description" class="form-label">Risk Name / Title</label>
                                 <input type="text" class="form-control" id="risk_description" name="risk_description"
-                                    value="{{ risk.risk_description if risk else '' }}" required>
+                                    value="{{ risk.risk_description if risk else '' }}" required {% if not
+                                    can_write('risk_governance') %}disabled{% endif %}>
                                 <div class="form-text">A short, concise name for this risk.</div>
                             </div>
 
@@ -69,14 +71,16 @@
                                 <label for="extended_description" class="form-label">Extended Description
                                     (Optional)</label>
                                 <textarea class="form-control" id="extended_description" name="extended_description"
-                                    rows="3">{{ risk.extended_description if risk else '' }}</textarea>
+                                    rows="3" {% if not can_write('risk_governance') %}disabled{% endif
+                                    %}>{{ risk.extended_description if risk else '' }}</textarea>
                                 <div class="form-text">Provide a detailed explanation of the risk scenario, impact, and
                                     context.</div>
                             </div>
 
                             <div class="mb-3">
                                 <label for="owner_id" class="form-label">Risk Owner</label>
-                                <select class="form-select" id="owner_id" name="owner_id">
+                                <select class="form-select" id="owner_id" name="owner_id" {% if not
+                                    can_write('risk_governance') %}disabled{% endif %}>
                                     <option value="">Select Owner...</option>
                                     {% for user in users %}
                                     <option value="{{ user.id }}" {% if risk and risk.owner_id==user.id %}selected{%
@@ -87,7 +91,8 @@
 
                             <div class="mb-3">
                                 <label for="category_ids" class="form-label">Categories (CIA Triad)</label>
-                                <select class="form-select" id="category_ids" name="category_ids" multiple size="4">
+                                <select class="form-select" id="category_ids" name="category_ids" multiple size="4" {%
+                                    if not can_write('risk_governance') %}disabled{% endif %}>
                                     {% set selected_categories = risk.category_list if risk and risk.id else [] %}
                                     {% for cat in risk_categories %}
                                     <option value="{{ cat }}" {% if cat in selected_categories %}selected{% endif %}>{{
@@ -115,7 +120,8 @@
                                     <input type="range" class="form-range inherent-slider" min="1" max="5" step="1"
                                         id="inherent_likelihood" name="inherent_likelihood"
                                         value="{{ risk.inherent_likelihood if risk else 5 }}"
-                                        oninput="updateOutput('inh_like_val', this.value); showInherentWarning();">
+                                        oninput="updateOutput('inh_like_val', this.value); showInherentWarning();" {% if
+                                        not can_write('risk_governance') %}disabled{% endif %}>
                                     <div class="text-center fw-bold" id="inh_like_val">{{ risk.inherent_likelihood if
                                         risk else 5 }}</div>
                                 </div>
@@ -124,7 +130,8 @@
                                     <input type="range" class="form-range inherent-slider" min="1" max="5" step="1"
                                         id="inherent_impact" name="inherent_impact"
                                         value="{{ risk.inherent_impact if risk else 5 }}"
-                                        oninput="updateOutput('inh_imp_val', this.value); showInherentWarning();">
+                                        oninput="updateOutput('inh_imp_val', this.value); showInherentWarning();" {% if
+                                        not can_write('risk_governance') %}disabled{% endif %}>
                                     <div class="text-center fw-bold" id="inh_imp_val">{{ risk.inherent_impact if risk
                                         else 5 }}</div>
                                 </div>
@@ -163,7 +170,8 @@
                             <div class="row g-3">
                                 <div class="col-md-6">
                                     <label for="status" class="form-label">Status</label>
-                                    <select class="form-select" id="status" name="status">
+                                    <select class="form-select" id="status" name="status" {% if not
+                                        can_write('risk_governance') %}disabled{% endif %}>
                                         <option value="Draft" {% if risk and risk.status=='Draft' %}selected{% endif %}>
                                             Draft</option>
                                         <option value="Identified" {% if risk and risk.status=='Identified' %}selected{%
@@ -182,7 +190,8 @@
                                 </div>
                                 <div class="col-md-6">
                                     <label for="treatment_strategy" class="form-label">Strategy</label>
-                                    <select class="form-select" id="treatment_strategy" name="treatment_strategy">
+                                    <select class="form-select" id="treatment_strategy" name="treatment_strategy" {% if
+                                        not can_write('risk_governance') %}disabled{% endif %}>
                                         <option value="Mitigate" {% if risk and risk.treatment_strategy=='Mitigate'
                                             %}selected{% endif %}>Mitigate</option>
                                         <option value="Accept" {% if risk and risk.treatment_strategy=='Accept'
@@ -197,23 +206,27 @@
                                     <label for="next_review_date" class="form-label">Next Review Date</label>
                                     <input type="date" class="form-control" id="next_review_date"
                                         name="next_review_date"
-                                        value="{{ risk.next_review_date.strftime('%Y-%m-%d') if risk and risk.next_review_date else '' }}">
+                                        value="{{ risk.next_review_date.strftime('%Y-%m-%d') if risk and risk.next_review_date else '' }}"
+                                        {% if not can_write('risk_governance') %}disabled{% endif %}>
                                 </div>
                                 <div class="col-12">
                                     <label for="mitigation_plan" class="form-label">Mitigation Plan</label>
-                                    <textarea class="form-control" id="mitigation_plan" name="mitigation_plan"
-                                        rows="4">{{ risk.mitigation_plan if risk else '' }}</textarea>
+                                    <textarea class="form-control" id="mitigation_plan" name="mitigation_plan" rows="4"
+                                        {% if not can_write('risk_governance') %}disabled{% endif
+                                        %}>{{ risk.mitigation_plan if risk else '' }}</textarea>
                                 </div>
                                 <div class="col-12">
                                     <label for="link" class="form-label">External Link (Jira/Ticket)</label>
                                     <input type="url" class="form-control" id="link" name="link"
-                                        value="{{ risk.link if risk else '' }}">
+                                        value="{{ risk.link if risk else '' }}" {% if not can_write('risk_governance')
+                                        %}disabled{% endif %}>
                                 </div>
                                 <div class="col-12 mt-3">
                                     <label for="mitigation_activity_ids" class="form-label">Mitigation
                                         Activities</label>
                                     <select class="form-select" id="mitigation_activity_ids"
-                                        name="mitigation_activity_ids" multiple size="4">
+                                        name="mitigation_activity_ids" multiple size="4" {% if not
+                                        can_write('risk_governance') %}disabled{% endif %}>
                                         {% set selected_activities = risk.mitigation_activities.all() if risk and
                                         risk.id else [] %}
                                         {% for activity in activities %}
@@ -238,7 +251,9 @@
                 <div class="card-body">
                     <h5 class="card-title">Actions</h5>
                     <div class="d-grid gap-2">
+                        {% if can_write('risk_governance') %}
                         <button type="submit" class="btn btn-primary">Save Risk</button>
+                        {% endif %}
                         <a href="{{ url_for('risk.detail', id=risk.id) if risk and risk.id else url_for('risk.list_risks') }}"
                             class="btn btn-outline-secondary">Cancel</a>
                     </div>

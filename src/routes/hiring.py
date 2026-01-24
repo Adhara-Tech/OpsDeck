@@ -7,7 +7,7 @@ from ..extensions import db
 from ..models.hiring import HiringStage, Candidate
 from ..models.onboarding import OnboardingProcess
 from .main import login_required
-from .admin import admin_required
+from ..services.permissions_service import requires_permission, has_write_permission
 
 hiring_bp = Blueprint('hiring', __name__)
 
@@ -17,6 +17,7 @@ hiring_bp = Blueprint('hiring', __name__)
 
 @hiring_bp.route('/')
 @login_required
+@requires_permission('hr_people')
 def board():
     """Main Kanban board view for hiring pipeline."""
     stages = HiringStage.query.order_by(HiringStage.order).all()
@@ -37,6 +38,7 @@ def board():
 
 @hiring_bp.route('/list')
 @login_required
+@requires_permission('hr_people')
 def list_candidates():
     """List view of all candidates with search and pagination."""
     page = request.args.get('page', 1, type=int)
@@ -79,10 +81,13 @@ def list_candidates():
 
 @hiring_bp.route('/candidate/new', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@requires_permission('hr_people')
 def new_candidate():
     """Create a new candidate."""
     if request.method == 'POST':
+        if not has_write_permission('hr_people'):
+            flash('Write access required to create candidates.', 'danger')
+            return redirect(url_for('hiring.board'))
         name = request.form.get('name')
         email = request.form.get('email')
         phone = request.form.get('phone')
@@ -141,11 +146,15 @@ def new_candidate():
 
 @hiring_bp.route('/candidate/<int:id>', methods=['GET', 'POST'])
 @login_required
+@requires_permission('hr_people')
 def edit_candidate(id):
     """View/Edit a candidate."""
     candidate = Candidate.query.get_or_404(id)
     
     if request.method == 'POST':
+        if not has_write_permission('hr_people'):
+            flash('Write access required to update candidates.', 'danger')
+            return redirect(url_for('hiring.edit_candidate', id=id))
         candidate.name = request.form.get('name')
         candidate.email = request.form.get('email')
         candidate.phone = request.form.get('phone')
@@ -193,8 +202,11 @@ def edit_candidate(id):
 
 @hiring_bp.route('/candidate/<int:id>/delete', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('hr_people')
 def delete_candidate(id):
+    if not has_write_permission('hr_people'):
+        flash('Write access required to delete candidates.', 'danger')
+        return redirect(url_for('hiring.board'))
     """Delete a candidate."""
     candidate = Candidate.query.get_or_404(id)
     name = candidate.name
@@ -205,7 +217,11 @@ def delete_candidate(id):
 
 @hiring_bp.route('/candidate/<int:id>/archive', methods=['POST'])
 @login_required
+@requires_permission('hr_people')
 def archive_candidate(id):
+    if not has_write_permission('hr_people'):
+        flash('Write access required to archive candidates.', 'danger')
+        return redirect(request.referrer or url_for('hiring.board'))
     """Archive a candidate."""
     candidate = Candidate.query.get_or_404(id)
     candidate.is_archived = True
@@ -215,7 +231,11 @@ def archive_candidate(id):
 
 @hiring_bp.route('/candidate/<int:id>/unarchive', methods=['POST'])
 @login_required
+@requires_permission('hr_people')
 def unarchive_candidate(id):
+    if not has_write_permission('hr_people'):
+        flash('Write access required to unarchive candidates.', 'danger')
+        return redirect(request.referrer or url_for('hiring.list_candidates'))
     """Unarchive a candidate."""
     candidate = Candidate.query.get_or_404(id)
     candidate.is_archived = False
@@ -225,6 +245,7 @@ def unarchive_candidate(id):
 
 @hiring_bp.route('/candidate/<int:id>/resume')
 @login_required
+@requires_permission('hr_people')
 def download_resume(id):
     """Download the candidate's resume."""
     candidate = Candidate.query.get_or_404(id)
@@ -255,7 +276,10 @@ def download_resume(id):
 
 @hiring_bp.route('/move', methods=['POST'])
 @login_required
+@requires_permission('hr_people')
 def move_candidate():
+    if not has_write_permission('hr_people'):
+        return jsonify({'status': 'error', 'message': 'Write access required to move candidates.'}), 403
     """API endpoint for moving candidates between stages (drag & drop).
     Note: CSRF is disabled for JSON requests in Flask-WTF by default."""
     data = request.json
@@ -387,7 +411,7 @@ def move_candidate():
 
 @hiring_bp.route('/stages')
 @login_required
-@admin_required
+@requires_permission('hr_people')
 def manage_stages():
     """Admin view to manage hiring stages."""
     stages = HiringStage.query.order_by(HiringStage.order).all()
@@ -395,8 +419,11 @@ def manage_stages():
 
 @hiring_bp.route('/stages/new', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('hr_people')
 def new_stage():
+    if not has_write_permission('hr_people'):
+        flash('Write access required to create stages.', 'danger')
+        return redirect(url_for('hiring.manage_stages'))
     """Create a new hiring stage."""
     
     if not name:
@@ -419,8 +446,11 @@ def new_stage():
 
 @hiring_bp.route('/stages/<int:id>/delete', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('hr_people')
 def delete_stage(id):
+    if not has_write_permission('hr_people'):
+        flash('Write access required to delete stages.', 'danger')
+        return redirect(url_for('hiring.manage_stages'))
     """Delete a hiring stage."""
     stage = HiringStage.query.get_or_404(id)
     
@@ -444,8 +474,10 @@ def delete_stage(id):
 
 @hiring_bp.route('/stages/reorder', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('hr_people')
 def update_stage_order():
+    if not has_write_permission('hr_people'):
+        return jsonify({'status': 'error', 'message': 'Write access required to reorder stages.'}), 403
     """API to update the order of stages."""
     data = request.json
     ordered_ids = data.get('ordered_ids', [])
@@ -463,8 +495,11 @@ def update_stage_order():
 
 @hiring_bp.route('/stages/<int:id>/update', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('hr_people')
 def update_stage(id):
+    if not has_write_permission('hr_people'):
+        flash('Write access required to update stages.', 'danger')
+        return redirect(url_for('hiring.manage_stages'))
     """Update a hiring stage (rename)."""
     stage = HiringStage.query.get_or_404(id)
     

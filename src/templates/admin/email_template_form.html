@@ -74,7 +74,9 @@
                     {% endif %}
 
                     <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-primary">
+                        {% if can_write('hr_people') %}
+                        <button type="submit" class="btn btn-primary" {{ 'disabled' if template and template.is_system
+                            else '' }}>
                             <i class="fas fa-save me-1"></i> {{ 'Update' if template else 'Create' }} Template
                         </button>
                         {% if template %}
@@ -83,9 +85,10 @@
                             <i class="fas fa-paper-plane me-1"></i> Send Test Email
                         </button>
                         {% endif %}
+                        {% endif %}
                         <a href="{{ url_for('admin_communications.list_templates') }}"
                             class="btn btn-outline-secondary">
-                            Cancel
+                            {{ 'Back' if not can_write('hr_people') else 'Cancel' }}
                         </a>
                     </div>
                 </form>

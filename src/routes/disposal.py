@@ -2,12 +2,13 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from datetime import datetime
 from ..models import db, Asset, Peripheral, DisposalRecord, DisposalHistory
 from .main import login_required
-from .admin import admin_required
+from ..services.permissions_service import requires_permission, has_write_permission
 
 disposal_bp = Blueprint('disposal', __name__, url_prefix='/disposal')
 
 @disposal_bp.route('/')
 @login_required
+@requires_permission('operations')
 def list_disposals():
     """A list view that shows only computer disposals for audit purposes."""
     disposal_records = DisposalRecord.query.order_by(DisposalRecord.disposal_date.desc()).all()
@@ -15,6 +16,7 @@ def list_disposals():
 
 @disposal_bp.route('/<int:id>')
 @login_required
+@requires_permission('operations')
 def disposal_detail(id):
     """Shows the details of a single disposal record."""
     record = DisposalRecord.query.get_or_404(id)
@@ -22,8 +24,12 @@ def disposal_detail(id):
 
 @disposal_bp.route('/record', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@requires_permission('operations')
 def record_disposal():
+    if request.method == 'POST':
+        if not has_write_permission('operations'):
+            flash('Write access required to record disposals.', 'danger')
+            return redirect(url_for('disposal.list_disposals'))
     asset_id = request.args.get('asset_id')
     peripheral_id = request.args.get('peripheral_id')
     item = None
@@ -70,12 +76,15 @@ def record_disposal():
 
 @disposal_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@requires_permission('operations')
 def edit_disposal(id):
     record = DisposalRecord.query.get_or_404(id)
     item = record.asset or record.peripheral
 
     if request.method == 'POST':
+        if not has_write_permission('operations'):
+            flash('Write access required to update disposal records.', 'danger')
+            return redirect(url_for('disposal.disposal_detail', id=id))
         user_id = session.get('user_id')
         reason = request.form.get('reason')
 

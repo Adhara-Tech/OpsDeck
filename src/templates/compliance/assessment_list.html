@@ -8,9 +8,11 @@
             <i class="fas fa-file-csv"></i> Export to CSV
         </button>
         {# Note: New assessments are typically created from the Supplier detail page #}
+        {% if can_write('compliance') %}
         <a href="{{ url_for('suppliers.suppliers') }}" class="btn btn-primary">
             <i class="fas fa-plus"></i> New Assessment via Supplier
         </a>
+        {% endif %}
     </div>
 </div>
 

@@ -6,9 +6,8 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from ..models import db
 from ..models.finance import FinanceSettings, ExchangeRate
 from ..services.finance_service import update_exchange_rates
-from ..services.permissions_service import requires_permission
+from ..services.permissions_service import requires_permission, has_write_permission
 from .main import login_required
-from .admin import admin_required
 
 finance_bp = Blueprint('finance', __name__)
 
@@ -22,20 +21,9 @@ def exchange_rates():
     
     if request.method == 'POST':
         # Backend enforcement for WRITE access
-        from ..services.permissions_service import get_user_modules
-        from .admin import User
-        from flask import session
-        
-        # We can't easily use multiple decorators on the same route for different methods
-        # unless we split the route, but let's do a manual check for POST here 
-        # or split the route. Given the current structure, manual check is easier.
-        user = User.query.get(session.get('user_id'))
-        if user.role != 'admin':
-            from ..services.permissions_cache import permissions_cache
-            perms = permissions_cache.get(user.id)
-            if perms.get('finance') != 'WRITE':
-                flash('You do not have permission to perform this action.', 'danger')
-                return redirect(url_for('finance.exchange_rates'))
+        if not has_write_permission('finance'):
+            flash('You do not have permission to perform this action.', 'danger')
+            return redirect(url_for('finance.exchange_rates'))
 
         action = request.form.get('action')
         

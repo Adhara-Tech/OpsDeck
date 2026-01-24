@@ -12,9 +12,11 @@
         <a href="{{ url_for('contacts.archived_contacts') }}" class="btn btn-outline-secondary">
             <i class="fas fa-archive"></i> View Archived
         </a>
+        {% if can_write('business_ops') %}
         <a href="{{ url_for('contacts.new_contact') }}" class="btn btn-primary">
             <i class="fas fa-plus"></i> Add Contact
         </a>
+        {% endif %}
     </div>
 </div>
 
@@ -44,6 +46,7 @@
                         <td><a href="{{ url_for('suppliers.supplier_detail', id=contact.supplier.id) }}">{{
                                 contact.supplier.name }}</a></td>
                         <td>
+                            {% if can_write('business_ops') %}
                             <a href="{{ url_for('contacts.edit_contact', id=contact.id) }}"
                                 class="btn btn-sm btn-outline-primary me-1" title="Edit">
                                 <i class="fas fa-edit"></i>
@@ -62,6 +65,7 @@
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </form>
+                            {% endif %}
                         </td>
                     </tr>
                     {% else %}

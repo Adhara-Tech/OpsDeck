@@ -3,25 +3,27 @@ from flask import (
 )
 from ..models import db, Contact, Supplier
 from .main import login_required
-from .admin import admin_required
+from ..services.permissions_service import requires_permission
 
 contacts_bp = Blueprint('contacts', __name__)
 
 @contacts_bp.route('/')
 @login_required
+@requires_permission('business_ops', access_level='READ_ONLY')
 def contacts():
     contacts = Contact.query.filter_by(is_archived=False).join(Supplier).all()
     return render_template('contacts/list.html', contacts=contacts)
 
 @contacts_bp.route('/archived')
 @login_required
+@requires_permission('business_ops', access_level='READ_ONLY')
 def archived_contacts():
     contacts = Contact.query.filter_by(is_archived=True).join(Supplier).all()
     return render_template('contacts/archived.html', contacts=contacts)
 
 @contacts_bp.route('/<int:id>/archive', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('business_ops', access_level='WRITE')
 def archive_contact(id):
     contact = Contact.query.get_or_404(id)
     contact.is_archived = True
@@ -31,7 +33,7 @@ def archive_contact(id):
 
 @contacts_bp.route('/<int:id>/unarchive', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('business_ops', access_level='WRITE')
 def unarchive_contact(id):
     contact = Contact.query.get_or_404(id)
     contact.is_archived = False
@@ -41,14 +43,26 @@ def unarchive_contact(id):
 
 @contacts_bp.route('/<int:id>')
 @login_required
+@requires_permission('business_ops', access_level='READ_ONLY')
 def contact_detail(id):
     contact = Contact.query.get_or_404(id)
     return render_template('contacts/detail.html', contact=contact)
 
 @contacts_bp.route('/new', methods=['GET', 'POST'])
 @login_required
+@requires_permission('business_ops', access_level='READ_ONLY')
 def new_contact():
     if request.method == 'POST':
+        # Manual check for WRITE access
+        from ..services.permissions_cache import permissions_cache
+        from flask import session
+        user_id = session.get('user_id')
+        user_role = session.get('user_role')
+        if (user_role or session.get('role')) != 'admin':
+            perms = permissions_cache.get(user_id)
+            if perms.get('business_ops') != 'WRITE':
+                flash('Write access required for this action.', 'danger')
+                return redirect(url_for('contacts.contacts'))
         contact = Contact(
             name=request.form['name'],
             email=request.form.get('email'),
@@ -66,10 +80,21 @@ def new_contact():
 
 @contacts_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
+@requires_permission('business_ops', access_level='READ_ONLY')
 def edit_contact(id):
     contact = Contact.query.get_or_404(id)
 
     if request.method == 'POST':
+        # Manual check for WRITE access
+        from ..services.permissions_cache import permissions_cache
+        from flask import session
+        user_id = session.get('user_id')
+        user_role = session.get('user_role')
+        if (user_role or session.get('role')) != 'admin':
+            perms = permissions_cache.get(user_id)
+            if perms.get('business_ops') != 'WRITE':
+                flash('Write access required for this action.', 'danger')
+                return redirect(url_for('contacts.contact_detail', id=id))
         contact.name = request.form['name']
         contact.email = request.form.get('email')
         contact.phone = request.form.get('phone')
@@ -84,7 +109,7 @@ def edit_contact(id):
 
 @contacts_bp.route('/<int:id>/delete', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('business_ops', access_level='WRITE')
 def delete_contact(id):
     contact = Contact.query.get_or_404(id)
     db.session.delete(contact)

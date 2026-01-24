@@ -21,38 +21,45 @@
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Expiration Date <span class="text-danger">*</span></label>
-                    <input type="date" class="form-control" name="expires_at" required>
+                    <input type="date" class="form-control" name="expires_at" required {% if not
+                        can_write('access_control') %}disabled{% endif %}>
                 </div>
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Version Notes</label>
-                    <input type="text" class="form-control" name="version_notes" placeholder="e.g. 2025 Renewal">
+                    <input type="text" class="form-control" name="version_notes" placeholder="e.g. 2025 Renewal" {% if
+                        not can_write('access_control') %}disabled{% endif %}>
                 </div>
             </div>
 
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Issuer</label>
-                    <input type="text" class="form-control" name="issuer" placeholder="e.g. DigiCert">
+                    <input type="text" class="form-control" name="issuer" placeholder="e.g. DigiCert" {% if not
+                        can_write('access_control') %}disabled{% endif %}>
                 </div>
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Common Name (CN)</label>
-                    <input type="text" class="form-control" name="common_name" placeholder="e.g. *.example.com">
+                    <input type="text" class="form-control" name="common_name" placeholder="e.g. *.example.com" {% if
+                        not can_write('access_control') %}disabled{% endif %}>
                 </div>
             </div>
 
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Serial Number</label>
-                    <input type="text" class="form-control" name="serial_number">
+                    <input type="text" class="form-control" name="serial_number" {% if not can_write('access_control')
+                        %}disabled{% endif %}>
                 </div>
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Private Key Location</label>
                     <input type="text" class="form-control" name="private_key_location"
-                        placeholder="e.g. 1Password Vault">
+                        placeholder="e.g. 1Password Vault" {% if not can_write('access_control') %}disabled{% endif %}>
                 </div>
             </div>
 
+            {% if can_write('access_control') %}
             <button type="submit" class="btn btn-primary">Save New Version</button>
+            {% endif %}
         </form>
     </div>
 </div>

@@ -6,12 +6,14 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="fas fa-shield-alt"></i> {{ plan.name }}</h2>
     <div>
+        {% if can_write('compliance') %}
         <a href="{{ url_for('compliance.log_bcdr_test', plan_id=plan.id) }}" class="btn btn-primary me-2">
             <i class="fas fa-vial"></i> Log New Test
         </a>
         <a href="{{ url_for('compliance.edit_bcdr_plan', id=plan.id) }}" class="btn btn-outline-secondary">
             <i class="fas fa-edit"></i> Edit Plan
         </a>
+        {% endif %}
     </div>
 </div>
 
@@ -85,10 +87,12 @@
                                 class="btn btn-sm btn-outline-primary">
                                 <i class="fas fa-eye"></i> Details
                             </a>
+                            {% if can_write('compliance') %}
                             <a href="{{ url_for('compliance.edit_bcdr_test', test_id=log.id) }}"
                                 class="btn btn-sm btn-outline-secondary">
                                 <i class="fas fa-edit"></i> Edit
                             </a>
+                            {% endif %}
                         </div>
                         <!-- -------------------------- -->
                     </td>

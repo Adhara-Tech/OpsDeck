@@ -6,13 +6,12 @@ from flask import (
 from werkzeug.utils import secure_filename
 from .main import login_required
 from ..models import db, Attachment
-from .admin import admin_required
+from ..services.permissions_service import has_write_permission, requires_permission
 
 attachments_bp = Blueprint('attachments', __name__)
 
 @attachments_bp.route('/upload', methods=['POST'])
 @login_required
-@admin_required
 def upload_file():
     if 'file' not in request.files:
         flash('No file part', 'danger')
@@ -31,69 +30,80 @@ def upload_file():
         file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], unique_filename))
 
         
-        # Create the attachment without the old, invalid FKs
+        # Determine the permission key based on the target object
+        perm_key = None
+        if request.form.get('asset_id'):
+            perm_key = 'core_inventory'
+            linkable_id = request.form.get('asset_id')
+            linkable_type = 'Asset'
+        elif request.form.get('contract_id'):
+            perm_key = 'procurement'
+            linkable_id = request.form.get('contract_id')
+            linkable_type = 'Contract'
+        elif request.form.get('subscription_id'):
+            perm_key = 'core_inventory' # Subscriptions are in Core Inventory in sidebar
+            linkable_id = request.form.get('subscription_id')
+            linkable_type = 'Subscription'
+        elif request.form.get('supplier_id'):
+            perm_key = 'procurement'
+            linkable_id = request.form.get('supplier_id')
+            linkable_type = 'Supplier'
+        elif request.form.get('purchase_id'):
+            perm_key = 'finance'
+            linkable_id = request.form.get('purchase_id')
+            linkable_type = 'Purchase'
+        elif request.form.get('peripheral_id'):
+            perm_key = 'core_inventory'
+            linkable_id = request.form.get('peripheral_id')
+            linkable_type = 'Peripheral'
+        elif request.form.get('policy_id'):
+            perm_key = 'knowledge_policy'
+            linkable_id = request.form.get('policy_id')
+            linkable_type = 'Policy'
+        elif request.form.get('policy_version_id'):
+            perm_key = 'knowledge_policy'
+            linkable_id = request.form.get('policy_version_id')
+            linkable_type = 'PolicyVersion'
+        elif request.form.get('security_assessment_id'):
+            perm_key = 'compliance'
+            linkable_id = request.form.get('security_assessment_id')
+            linkable_type = 'SecurityAssessment'
+        elif request.form.get('risk_id'):
+            perm_key = 'risk_governance'
+            linkable_id = request.form.get('risk_id')
+            linkable_type = 'Risk'
+        elif request.form.get('bcdr_test_log_id'):
+            perm_key = 'operations'
+            linkable_id = request.form.get('bcdr_test_log_id')
+            linkable_type = 'BCDRTestLog'        
+        elif request.form.get('maintenance_log_id'):
+            perm_key = 'operations'
+            linkable_id = request.form.get('maintenance_log_id')
+            linkable_type = 'MaintenanceLog'
+        elif request.form.get('disposal_record_id'):
+            perm_key = 'operations'
+            linkable_id = request.form.get('disposal_record_id')
+            linkable_type = 'DisposalRecord'
+        elif request.form.get('course_completion_id'):
+            perm_key = 'knowledge_policy'
+            linkable_id = request.form.get('course_completion_id')
+            linkable_type = 'CourseCompletion'
+        elif request.form.get('security_incident_id'):
+            perm_key = 'operations'
+            linkable_id = request.form.get('security_incident_id')
+            linkable_type = 'SecurityIncident'
+        
+        if not perm_key or not has_write_permission(perm_key):
+            flash('Write access required to upload files for this object.', 'danger')
+            return redirect(request.referrer)
+
+        # Create the attachment
         new_attachment = Attachment(
             filename=original_filename,
-            secure_filename=unique_filename
+            secure_filename=unique_filename,
+            linkable_id=linkable_id,
+            linkable_type=linkable_type
         )
-
-        # Find the parent object from the submitted form data and set the
-        # new polymorphic columns. This handles all 14 classes.
-        
-        if request.form.get('asset_id'):
-            new_attachment.linkable_id = request.form.get('asset_id')
-            new_attachment.linkable_type = 'Asset'
-        elif request.form.get('contract_id'):
-            new_attachment.linkable_id = request.form.get('contract_id')
-            new_attachment.linkable_type = 'Contract'
-        elif request.form.get('subscription_id'):
-            new_attachment.linkable_id = request.form.get('subscription_id')
-            new_attachment.linkable_type = 'Subscription'
-        elif request.form.get('supplier_id'):
-            new_attachment.linkable_id = request.form.get('supplier_id')
-            new_attachment.linkable_type = 'Supplier'
-        elif request.form.get('purchase_id'):
-            new_attachment.linkable_id = request.form.get('purchase_id')
-            new_attachment.linkable_type = 'Purchase'
-        elif request.form.get('peripheral_id'):
-            new_attachment.linkable_id = request.form.get('peripheral_id')
-            new_attachment.linkable_type = 'Peripheral'
-        elif request.form.get('policy_id'):
-            new_attachment.linkable_id = request.form.get('policy_id')
-            new_attachment.linkable_type = 'Policy'
-        elif request.form.get('policy_version_id'):
-            new_attachment.linkable_id = request.form.get('policy_version_id')
-            new_attachment.linkable_type = 'PolicyVersion'
-        elif request.form.get('security_assessment_id'):
-            new_attachment.linkable_id = request.form.get('security_assessment_id')
-            new_attachment.linkable_type = 'SecurityAssessment'
-        elif request.form.get('risk_id'):
-            new_attachment.linkable_id = request.form.get('risk_id')
-            new_attachment.linkable_type = 'Risk'
-        elif request.form.get('bcdr_test_log_id'):
-            new_attachment.linkable_id = request.form.get('bcdr_test_log_id')
-            new_attachment.linkable_type = 'BCDRTestLog'        
-        elif request.form.get('maintenance_log_id'):
-            new_attachment.linkable_id = request.form.get('maintenance_log_id')
-            new_attachment.linkable_type = 'MaintenanceLog'
-        elif request.form.get('disposal_record_id'):
-            new_attachment.linkable_id = request.form.get('disposal_record_id')
-            new_attachment.linkable_type = 'DisposalRecord'
-        elif request.form.get('course_completion_id'):
-            new_attachment.linkable_id = request.form.get('course_completion_id')
-            new_attachment.linkable_type = 'CourseCompletion'
-        elif request.form.get('security_incident_id'):
-            new_attachment.linkable_id = request.form.get('security_incident_id')
-            new_attachment.linkable_type = 'SecurityIncident'
-        
-        else:
-            flash('Error: Could not determine what to link this attachment to.', 'danger')
-            # Don't save the file or DB record if we don't know the parent
-            try:
-                os.remove(os.path.join(current_app.config['UPLOAD_FOLDER'], unique_filename))
-            except OSError:
-                pass # File might not exist, but we must not proceed
-            return redirect(request.referrer)
 
         db.session.add(new_attachment)
         db.session.commit()
@@ -120,12 +130,36 @@ def download_file(attachment_id):
 
 @attachments_bp.route('/delete/<int:attachment_id>', methods=['POST'])
 @login_required
-@admin_required
 def delete_attachment(attachment_id):
     """
     Deletes an attachment from the filesystem and the database.
     """
     attachment = Attachment.query.get_or_404(attachment_id)
+    
+    # Check permissions based on the linked object
+    type_to_perm = {
+        'Asset': 'core_inventory',
+        'Contract': 'procurement',
+        'Subscription': 'core_inventory',
+        'Supplier': 'procurement',
+        'Purchase': 'finance',
+        'Peripheral': 'core_inventory',
+        'Policy': 'knowledge_policy',
+        'PolicyVersion': 'knowledge_policy',
+        'SecurityAssessment': 'compliance',
+        'Risk': 'risk_governance',
+        'BCDRTestLog': 'operations',
+        'MaintenanceLog': 'operations',
+        'DisposalRecord': 'operations',
+        'CourseCompletion': 'knowledge_policy',
+        'SecurityIncident': 'operations',
+        'Change': 'operations'
+    }
+    
+    perm_key = type_to_perm.get(attachment.linkable_type)
+    if not perm_key or not has_write_permission(perm_key):
+        flash('Write access required to delete this attachment.', 'danger')
+        return redirect(request.referrer)
     
     # Store filename before deleting the DB record
     secure_filename_to_delete = attachment.secure_filename

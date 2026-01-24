@@ -19,18 +19,21 @@
                     <div class="mb-3">
                         <label for="name" class="form-label">Service Name <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" id="name" name="name"
-                            value="{{ service.name if service else '' }}" required>
+                            value="{{ service.name if service else '' }}" required {% if not can_write('core_inventory')
+                            %}disabled{% endif %}>
                     </div>
 
                     <div class="mb-3">
                         <label for="description" class="form-label">Description</label>
-                        <textarea class="form-control" id="description" name="description"
-                            rows="3">{{ service.description if service else '' }}</textarea>
+                        <textarea class="form-control" id="description" name="description" rows="3" {% if not
+                            can_write('core_inventory') %}disabled{% endif
+                            %}>{{ service.description if service else '' }}</textarea>
                     </div>
 
                     <div class="mb-3">
                         <label for="category" class="form-label">Category</label>
-                        <select class="form-select" id="category" name="category">
+                        <select class="form-select" id="category" name="category" {% if not can_write('core_inventory')
+                            %}disabled{% endif %}>
                             <option value="Application" {% if service and service.category=='Application' %}selected{%
                                 endif %}>Application (SaaS/Tool)</option>
                             <option value="Business Service" {% if service and service.category=='Business Service'
@@ -46,7 +49,8 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="owner_id" class="form-label">Service Owner</label>
-                            <select class="form-select tom-select" id="owner_id" name="owner_id">
+                            <select class="form-select tom-select" id="owner_id" name="owner_id" {% if not
+                                can_write('core_inventory') %}disabled{% endif %}>
                                 <option value="">Select Owner...</option>
                                 {% for user in users %}
                                 <option value="{{ user.id }}" {% if service and service.owner_id==user.id %}selected{%
@@ -58,7 +62,8 @@
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="cost_center_id" class="form-label">Cost Center</label>
-                            <select class="form-select tom-select" id="cost_center_id" name="cost_center_id">
+                            <select class="form-select tom-select" id="cost_center_id" name="cost_center_id" {% if not
+                                can_write('core_inventory') %}disabled{% endif %}>
                                 <option value="">Select Cost Center...</option>
                                 {% for cc in cost_centers %}
                                 <option value="{{ cc.id }}" {% if service and service.cost_center_id==cc.id %}selected{%
@@ -73,7 +78,8 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="criticality" class="form-label">Criticality</label>
-                            <select class="form-select" id="criticality" name="criticality">
+                            <select class="form-select" id="criticality" name="criticality" {% if not
+                                can_write('core_inventory') %}disabled{% endif %}>
                                 <option value="Tier 1 - Critical" {% if service and
                                     service.criticality=='Tier 1 - Critical' %}selected{% endif %}>Tier 1 - Critical
                                 </option>
@@ -86,7 +92,8 @@
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="status" class="form-label">Status</label>
-                            <select class="form-select" id="status" name="status">
+                            <select class="form-select" id="status" name="status" {% if not can_write('core_inventory')
+                                %}disabled{% endif %}>
                                 <option value="Pipeline" {% if service and service.status=='Pipeline' %}selected{% endif
                                     %}>Pipeline (In Dev)</option>
                                 <option value="Operational" {% if service and service.status=='Operational' %}selected{%
@@ -101,26 +108,30 @@
                         <div class="col-md-6 mb-3">
                             <label for="sla_response_hours" class="form-label">SLA Response Target (Hours)</label>
                             <input type="number" class="form-control" id="sla_response_hours" name="sla_response_hours"
-                                value="{{ service.sla_response_hours if service else '' }}">
+                                value="{{ service.sla_response_hours if service else '' }}" {% if not
+                                can_write('core_inventory') %}disabled{% endif %}>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="sla_resolution_hours" class="form-label">SLA Resolution Target (Hours)</label>
                             <input type="number" class="form-control" id="sla_resolution_hours"
                                 name="sla_resolution_hours"
-                                value="{{ service.sla_resolution_hours if service else '' }}">
+                                value="{{ service.sla_resolution_hours if service else '' }}" {% if not
+                                can_write('core_inventory') %}disabled{% endif %}>
                         </div>
                     </div>
 
                     <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        {% if can_write('core_inventory') %}
                         <button type="submit" class="btn btn-primary">
                             <i class="fas fa-save"></i> Save Service
                         </button>
+                        {% endif %}
                     </div>
                 </form>
             </div>
         </div>
 
-        {% if service %}
+        {% if service and can_write('core_inventory') %}
         <div class="card shadow mt-4 border-danger">
             <div class="card-header bg-danger text-white">Danger Zone</div>
             <div class="card-body">

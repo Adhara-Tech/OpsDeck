@@ -1,7 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, current_app
 from flask_login import current_user
-from .main import login_required
-from .admin import admin_required
+from ..services.permissions_service import requires_permission, has_write_permission
 from ..models.services import BusinessService, ServiceComponent
 from ..models.auth import User
 from ..models.core import CostCenter, Documentation, Link, Attachment
@@ -16,20 +15,27 @@ from ..utils.dependency_graph import get_full_dependency_tree
 import os
 import uuid
 
+from ..services.permissions_service import requires_permission
+
 services_bp = Blueprint('services', __name__, 
                         template_folder='../templates/services', # Relative to src/routes
                         url_prefix='/services')
 
 @services_bp.route('/')
 @login_required
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def list_services():
     services = BusinessService.query.all()
     return render_template('services/list.html', services=services)
 
 @services_bp.route('/new', methods=['GET', 'POST'])
 @login_required
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def create_service():
     if request.method == 'POST':
+        if not has_write_permission('core_inventory'):
+            flash('Write access required for this action.', 'danger')
+            return redirect(url_for('services.list_services'))
         name = request.form.get('name')
         description = request.form.get('description')
         owner_id = request.form.get('owner_id')
@@ -66,6 +72,7 @@ def create_service():
 
 @services_bp.route('/<int:id>')
 @login_required
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def detail(id):
     service = BusinessService.query.get_or_404(id)
     all_services = BusinessService.query.filter(BusinessService.id != id).all()
@@ -136,10 +143,14 @@ from src.utils.logger import log_audit
 
 @services_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def edit_service(id):
     service = BusinessService.query.get_or_404(id)
     
     if request.method == 'POST':
+        if not has_write_permission('core_inventory'):
+            flash('Write access required for this action.', 'danger')
+            return redirect(url_for('services.detail', id=id))
         service.name = request.form.get('name')
         service.description = request.form.get('description')
         service.owner_id = request.form.get('owner_id') if request.form.get('owner_id') else None
@@ -179,7 +190,7 @@ def edit_service(id):
 
 @services_bp.route('/<int:id>/delete', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('core_inventory', access_level='WRITE')
 def delete_service(id):
     service = BusinessService.query.get_or_404(id)
     try:
@@ -203,7 +214,7 @@ def delete_service(id):
 
 @services_bp.route('/<int:id>/dependency/add', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('core_inventory', access_level='WRITE')
 def add_dependency(id):
     service = BusinessService.query.get_or_404(id)
     target_service_id = request.form.get('target_service_id')
@@ -247,7 +258,7 @@ def add_dependency(id):
 
 @services_bp.route('/<int:id>/dependency/remove/<int:target_id>', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('core_inventory', access_level='WRITE')
 def remove_dependency(id, target_id):
     service = BusinessService.query.get_or_404(id)
     target_service = BusinessService.query.get_or_404(target_id)
@@ -274,7 +285,7 @@ def remove_dependency(id, target_id):
 
 @services_bp.route('/<int:id>/component/add', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('core_inventory', access_level='WRITE')
 def add_component(id):
     service = BusinessService.query.get_or_404(id)
     comp_type = request.form.get('component_type')
@@ -305,7 +316,7 @@ def add_component(id):
 
 @services_bp.route('/component/<int:comp_id>/delete', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('core_inventory', access_level='WRITE')
 def delete_component(comp_id):
     comp = ServiceComponent.query.get_or_404(comp_id)
     service_id = comp.service_id
@@ -363,7 +374,7 @@ def search_components(component_type):
 
 @services_bp.route('/<int:id>/link-document', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('core_inventory', access_level='WRITE')
 def link_document(id):
     service = BusinessService.query.get_or_404(id)
     doc_id = request.form.get('document_id')
@@ -378,7 +389,7 @@ def link_document(id):
 
 @services_bp.route('/<int:id>/unlink-document/<int:doc_id>', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('core_inventory', access_level='WRITE')
 def unlink_document(id, doc_id):
     service = BusinessService.query.get_or_404(id)
     doc = Documentation.query.get(doc_id)
@@ -391,7 +402,7 @@ def unlink_document(id, doc_id):
 
 @services_bp.route('/<int:id>/link-policy', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('core_inventory', access_level='WRITE')
 def link_policy(id):
     service = BusinessService.query.get_or_404(id)
     policy_id = request.form.get('policy_id')
@@ -406,7 +417,7 @@ def link_policy(id):
 
 @services_bp.route('/<int:id>/unlink-policy/<int:policy_id>', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('core_inventory', access_level='WRITE')
 def unlink_policy(id, policy_id):
     service = BusinessService.query.get_or_404(id)
     policy = Policy.query.get(policy_id)
@@ -419,7 +430,7 @@ def unlink_policy(id, policy_id):
 
 @services_bp.route('/<int:id>/link-activity', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('core_inventory', access_level='WRITE')
 def link_activity(id):
     service = BusinessService.query.get_or_404(id)
     activity_id = request.form.get('activity_id')
@@ -434,7 +445,7 @@ def link_activity(id):
 
 @services_bp.route('/<int:id>/unlink-activity/<int:activity_id>', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('core_inventory', access_level='WRITE')
 def unlink_activity(id, activity_id):
     service = BusinessService.query.get_or_404(id)
     activity = SecurityActivity.query.get(activity_id)
@@ -447,7 +458,7 @@ def unlink_activity(id, activity_id):
 
 @services_bp.route('/<int:id>/add-link', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('core_inventory', access_level='WRITE')
 def add_link(id):
     BusinessService.query.get_or_404(id)
     name = request.form.get('name')
@@ -468,7 +479,7 @@ def add_link(id):
 
 @services_bp.route('/<int:id>/remove-link/<int:link_id>', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('core_inventory', access_level='WRITE')
 def remove_link(id, link_id):
     link = Link.query.get_or_404(link_id)
     if link.owner_type == 'BusinessService' and link.owner_id == id:
@@ -480,7 +491,7 @@ def remove_link(id, link_id):
 
 @services_bp.route('/<int:id>/upload-attachment', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('core_inventory', access_level='WRITE')
 def upload_attachment(id):
     BusinessService.query.get_or_404(id)
     
@@ -520,7 +531,7 @@ def upload_attachment(id):
 
 @services_bp.route('/<int:id>/remove-attachment/<int:att_id>', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('core_inventory', access_level='WRITE')
 def remove_attachment(id, att_id):
     attachment = Attachment.query.get_or_404(att_id)
     if attachment.linkable_type == 'BusinessService' and attachment.linkable_id == id:
@@ -543,7 +554,7 @@ def remove_attachment(id, att_id):
 
 @services_bp.route('/<int:id>/users/add', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('core_inventory', access_level='WRITE')
 def add_user_access(id):
     service = BusinessService.query.get_or_404(id)
     user_id = request.form.get('user_id')
@@ -559,7 +570,7 @@ def add_user_access(id):
 
 @services_bp.route('/<int:id>/users/remove/<int:user_id>', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('core_inventory', access_level='WRITE')
 def remove_user_access(id, user_id):
     service = BusinessService.query.get_or_404(id)
     user = User.query.get_or_404(user_id)
@@ -604,6 +615,7 @@ def check_user_access(id, user_id):
 
 @services_bp.route('/<int:id>/link_certificate', methods=['POST'])
 @login_required
+@requires_permission('core_inventory', access_level='WRITE')
 def link_certificate(id):
     service = BusinessService.query.get_or_404(id)
     cert_id = request.form.get('certificate_id')
@@ -633,6 +645,7 @@ def link_certificate(id):
 
 @services_bp.route('/<int:id>/unlink_certificate/<int:cert_id>', methods=['POST'])
 @login_required
+@requires_permission('core_inventory', access_level='WRITE')
 def unlink_certificate(id, cert_id):
     service = BusinessService.query.get_or_404(id)
     cert = Certificate.query.get_or_404(cert_id)
@@ -656,6 +669,7 @@ def unlink_certificate(id, cert_id):
 
 @services_bp.route('/<int:id>/link_credential', methods=['POST'])
 @login_required
+@requires_permission('core_inventory', access_level='WRITE')
 def link_credential(id):
     service = BusinessService.query.get_or_404(id)
     cred_id = request.form.get('credential_id')
@@ -685,6 +699,7 @@ def link_credential(id):
 
 @services_bp.route('/<int:id>/unlink_credential/<int:cred_id>', methods=['POST'])
 @login_required
+@requires_permission('core_inventory', access_level='WRITE')
 def unlink_credential(id, cred_id):
     service = BusinessService.query.get_or_404(id)
     cred = Credential.query.get_or_404(cred_id)

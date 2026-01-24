@@ -1,13 +1,10 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session
-from datetime import datetime
-from ..models import db, Certificate, CertificateVersion, BusinessService, User
-from .main import login_required
-from src.utils.logger import log_audit
+from ..services.permissions_service import requires_permission
 
 certificates_bp = Blueprint('certificates', __name__, url_prefix='/certificates')
 
 @certificates_bp.route('/')
 @login_required
+@requires_permission('access_control', access_level='READ_ONLY')
 def list_certificates():
     certificates = Certificate.query.order_by(Certificate.name).all()
     # Eager load versions? Or just let lazy loading handle it for MVP list
@@ -16,8 +13,19 @@ def list_certificates():
 
 @certificates_bp.route('/new', methods=['GET', 'POST'])
 @login_required
+@requires_permission('access_control', access_level='READ_ONLY')
 def create_certificate():
     if request.method == 'POST':
+        # Manual check for WRITE access
+        from ..services.permissions_cache import permissions_cache
+        from flask import session
+        user_id = session.get('user_id')
+        user_role = session.get('user_role')
+        if (user_role or session.get('role')) != 'admin':
+            perms = permissions_cache.get(user_id)
+            if perms.get('access_control') != 'WRITE':
+                flash('Write access required for this action.', 'danger')
+                return redirect(url_for('certificates.list_certificates'))
         # 1. Create Certificate
         name = request.form.get('name')
         cert_type = request.form.get('type')
@@ -76,16 +84,28 @@ def create_certificate():
 
 @certificates_bp.route('/<int:id>')
 @login_required
+@requires_permission('access_control', access_level='READ_ONLY')
 def certificate_detail(id):
     cert = Certificate.query.get_or_404(id)
     return render_template('certificates/detail.html', certificate=cert)
 
 @certificates_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
+@requires_permission('access_control', access_level='READ_ONLY')
 def edit_certificate(id):
     cert = Certificate.query.get_or_404(id)
     
     if request.method == 'POST':
+        # Manual check for WRITE access
+        from ..services.permissions_cache import permissions_cache
+        from flask import session
+        user_id = session.get('user_id')
+        user_role = session.get('user_role')
+        if (user_role or session.get('role')) != 'admin':
+            perms = permissions_cache.get(user_id)
+            if perms.get('access_control') != 'WRITE':
+                flash('Write access required for this action.', 'danger')
+                return redirect(url_for('certificates.certificate_detail', id=id))
         cert.name = request.form.get('name')
         cert.type = request.form.get('type')
         cert.description = request.form.get('description')
@@ -113,10 +133,21 @@ def edit_certificate(id):
 
 @certificates_bp.route('/<int:id>/versions/new', methods=['GET', 'POST'])
 @login_required
+@requires_permission('access_control', access_level='READ_ONLY')
 def new_version(id):
     cert = Certificate.query.get_or_404(id)
     
     if request.method == 'POST':
+        # Manual check for WRITE access
+        from ..services.permissions_cache import permissions_cache
+        from flask import session
+        user_id = session.get('user_id')
+        user_role = session.get('user_role')
+        if (user_role or session.get('role')) != 'admin':
+            perms = permissions_cache.get(user_id)
+            if perms.get('access_control') != 'WRITE':
+                flash('Write access required for this action.', 'danger')
+                return redirect(url_for('certificates.certificate_detail', id=id))
         expires_at_str = request.form.get('expires_at')
         if not expires_at_str:
             flash('Expiration date is required.', 'danger')

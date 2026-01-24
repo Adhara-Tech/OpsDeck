@@ -1,19 +1,25 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from ..models import db, Lead, Opportunity, Supplier
 from .main import login_required
+from ..services.permissions_service import requires_permission, has_write_permission
 
 leads_bp = Blueprint('leads', __name__, url_prefix='/leads')
 
 @leads_bp.route('/')
 @login_required
+@requires_permission('procurement')
 def list_leads():
     leads = Lead.query.order_by(Lead.created_at.desc()).all()
     return render_template('leads/list.html', leads=leads)
 
 @leads_bp.route('/new', methods=['GET', 'POST'])
 @login_required
+@requires_permission('procurement')
 def new_lead():
     if request.method == 'POST':
+        if not has_write_permission('procurement'):
+            flash('Write access required to create leads.', 'danger')
+            return redirect(url_for('leads.list_leads'))
         lead = Lead(
             company_name=request.form['company_name'],
             contact_name=request.form.get('contact_name'),
@@ -30,9 +36,13 @@ def new_lead():
 
 @leads_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
+@requires_permission('procurement')
 def edit_lead(id):
     lead = Lead.query.get_or_404(id)
     if request.method == 'POST':
+        if not has_write_permission('procurement'):
+            flash('Write access required to update leads.', 'danger')
+            return redirect(url_for('leads.list_leads'))
         lead.company_name = request.form['company_name']
         lead.contact_name = request.form.get('contact_name')
         lead.email = request.form.get('email')
@@ -46,6 +56,7 @@ def edit_lead(id):
 
 @leads_bp.route('/<int:id>/convert', methods=['GET', 'POST'])
 @login_required
+@requires_permission('procurement')
 def convert_lead(id):
     lead = Lead.query.get_or_404(id)
     if lead.status == 'Converted':
@@ -53,6 +64,9 @@ def convert_lead(id):
         return redirect(url_for('leads.list_leads'))
 
     if request.method == 'POST':
+        if not has_write_permission('procurement'):
+            flash('Write access required to convert leads.', 'danger')
+            return redirect(url_for('leads.list_leads'))
         conversion_type = request.form.get('conversion_type')
         lead.status = 'Converted'
         

@@ -9,8 +9,7 @@ from ..extensions import db
 from ..models import User, Group
 from ..models.communications import Campaign, ScheduledCommunication
 from ..models.core import Tag
-from ..routes.admin import admin_required
-from ..routes.main import login_required
+from ..services.permissions_service import requires_permission, has_write_permission
 from ..utils.communications_context import validate_template_syntax
 
 campaigns_bp = Blueprint('campaigns', __name__)
@@ -22,7 +21,7 @@ campaigns_bp = Blueprint('campaigns', __name__)
 
 @campaigns_bp.route('/')
 @login_required
-@admin_required
+@requires_permission('hr_people')
 def list_campaigns():
     """List all campaigns with their status."""
     view = request.args.get('view', 'active')
@@ -42,10 +41,13 @@ def list_campaigns():
 
 @campaigns_bp.route('/new', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@requires_permission('hr_people')
 def new_campaign():
     """Create a new campaign (wizard form)."""
     if request.method == 'POST':
+        if not has_write_permission('hr_people'):
+            flash('Write access required to create campaigns.', 'danger')
+            return redirect(url_for('campaigns.list_campaigns'))
         title = request.form.get('title')
         subject = request.form.get('subject')
         body_html = request.form.get('body_html')
@@ -121,7 +123,7 @@ def new_campaign():
 
 @campaigns_bp.route('/<int:id>')
 @login_required
-@admin_required
+@requires_permission('hr_people')
 def detail(id):
     """Campaign detail/report view."""
     campaign = Campaign.query.get_or_404(id)
@@ -156,7 +158,7 @@ def detail(id):
 
 @campaigns_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@requires_permission('hr_people')
 def edit_campaign(id):
     """Edit a draft campaign."""
     campaign = Campaign.query.get_or_404(id)
@@ -166,6 +168,9 @@ def edit_campaign(id):
         return redirect(url_for('campaigns.detail', id=id))
     
     if request.method == 'POST':
+        if not has_write_permission('hr_people'):
+            flash('Write access required to update campaigns.', 'danger')
+            return redirect(url_for('campaigns.detail', id=id))
         title = request.form.get('title')
         subject = request.form.get('subject')
         body_html = request.form.get('body_html')
@@ -236,8 +241,11 @@ def edit_campaign(id):
 
 @campaigns_bp.route('/<int:id>/archive', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('hr_people')
 def archive_campaign(id):
+    if not has_write_permission('hr_people'):
+        flash('Write access required to archive campaigns.', 'danger')
+        return redirect(url_for('campaigns.detail', id=id))
     """
     Archive a campaign (replaces delete).
     Only allowed from 'draft' or 'finished' states.
@@ -257,8 +265,11 @@ def archive_campaign(id):
 
 @campaigns_bp.route('/<int:id>/clone', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('hr_people')
 def clone_campaign(id):
+    if not has_write_permission('hr_people'):
+        flash('Write access required to clone campaigns.', 'danger')
+        return redirect(url_for('campaigns.detail', id=id))
     """
     Clone a campaign - copies title (with -copy suffix), subject, and body.
     Does NOT copy recipients or scheduling.
@@ -289,8 +300,11 @@ def clone_campaign(id):
 
 @campaigns_bp.route('/<int:id>/schedule', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('hr_people')
 def schedule_campaign(id):
+    if not has_write_permission('hr_people'):
+        flash('Write access required to schedule campaigns.', 'danger')
+        return redirect(url_for('campaigns.detail', id=id))
     """
     Schedule/launch a campaign.
     This spawns individual ScheduledCommunication records for each recipient.
@@ -343,8 +357,11 @@ def schedule_campaign(id):
 
 @campaigns_bp.route('/<int:id>/cancel', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('hr_people')
 def cancel_campaign(id):
+    if not has_write_permission('hr_people'):
+        flash('Write access required to cancel campaigns.', 'danger')
+        return redirect(url_for('campaigns.detail', id=id))
     """
     🚨 PANIC BUTTON: Cancel all pending communications for this campaign.
     Only allowed from 'scheduled' or 'ongoing' states.
@@ -379,8 +396,11 @@ def cancel_campaign(id):
 
 @campaigns_bp.route('/<int:id>/send_now', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('hr_people')
 def send_campaign_now(id):
+    if not has_write_permission('hr_people'):
+        flash('Write access required to send campaigns.', 'danger')
+        return redirect(url_for('campaigns.detail', id=id))
     """
     Force immediate processing of a scheduled campaign.
     Triggers the sending of all pending communications right now.
@@ -439,8 +459,11 @@ def send_campaign_now(id):
 
 @campaigns_bp.route('/<int:id>/retry_failed', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('hr_people')
 def retry_failed(id):
+    if not has_write_permission('hr_people'):
+        flash('Write access required to retry campaigns.', 'danger')
+        return redirect(url_for('campaigns.detail', id=id))
     """
     Reset all failed communications for this campaign to pending,
     allowing them to be retried by the communications queue processor.
@@ -474,8 +497,11 @@ def retry_failed(id):
 
 @campaigns_bp.route('/<int:id>/finish', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('hr_people')
 def finish_campaign(id):
+    if not has_write_permission('hr_people'):
+        flash('Write access required to finish campaigns.', 'danger')
+        return redirect(url_for('campaigns.detail', id=id))
     """
     Manually finish an ongoing campaign.
     Marks campaign as 'finished' and stops any further retry attempts.
@@ -496,7 +522,7 @@ def finish_campaign(id):
 
 @campaigns_bp.route('/<int:id>/stats')
 @login_required
-@admin_required
+@requires_permission('hr_people')
 def get_stats(id):
     """
     API endpoint returning campaign stats and communications as JSON.

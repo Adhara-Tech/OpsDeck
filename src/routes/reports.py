@@ -7,11 +7,13 @@ from dateutil.relativedelta import relativedelta
 from ..models import db, Subscription, Asset, Supplier, User, Group, Peripheral, Location, License, Purchase
 from ..services.finance_service import get_conversion_rate
 from .main import login_required
+from ..services.permissions_service import requires_permission
 
 reports_bp = Blueprint('reports', __name__)
 
 @reports_bp.route('/subscription-reports')
 @login_required
+@requires_permission('core_inventory')
 def subscription_reports():
     today = date.today()
     selected_year = request.args.get('year', default=today.year, type=int)
@@ -121,6 +123,7 @@ def subscription_reports():
 
 @reports_bp.route('/asset-reports')
 @login_required
+@requires_permission('core_inventory')
 def asset_reports():
     assets_by_brand = db.session.query(Asset.brand, func.count(Asset.id)).filter(not Asset.is_archived).group_by(Asset.brand).all()
     brand_labels = [item[0] or 'N/A' for item in assets_by_brand]
@@ -170,6 +173,7 @@ def asset_reports():
 
 @reports_bp.route('/assets-dashboard')
 @login_required
+@requires_permission('core_inventory')
 def assets_dashboard():
     """Executive Asset Operations Dashboard with KPIs, health metrics, and lifecycle tracking."""
     from sqlalchemy.orm import joinedload
@@ -344,6 +348,7 @@ def assets_dashboard():
 
 @reports_bp.route('/assets-dashboard/pdf')
 @login_required
+@requires_permission('core_inventory')
 def assets_dashboard_pdf():
     """Export Assets Dashboard as PDF."""
     from weasyprint import HTML
@@ -468,6 +473,7 @@ def assets_dashboard_pdf():
 
 @reports_bp.route('/spend-analysis', methods=['GET'])
 @login_required
+@requires_permission('finance')
 def spend_analysis():
     # --- Get filter options from the database ---
     suppliers = Supplier.query.filter_by(is_archived=False).order_by(Supplier.name).all()
@@ -575,6 +581,7 @@ def spend_analysis():
 
 @reports_bp.route('/depreciation', methods=['GET'])
 @login_required
+@requires_permission('core_inventory')
 def depreciation_report():
     # --- Get filter options from the database ---
     suppliers = Supplier.query.filter_by(is_archived=False).order_by(Supplier.name).all()

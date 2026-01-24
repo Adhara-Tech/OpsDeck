@@ -3,14 +3,14 @@ from flask import (
 )
 from ..models import db, OrganizationSettings
 from .main import login_required
-from .admin import admin_required
+from ..services.permissions_service import requires_permission, has_write_permission
 
 organization_bp = Blueprint('organization', __name__)
 
 
-@organization_bp.route('/', methods=['GET', 'POST'])
+@organization_bp.route('/settings', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@requires_permission('administration')
 def settings():
     """View/update organization settings (singleton pattern)."""
     # Get or create the singleton settings record

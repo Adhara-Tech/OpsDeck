@@ -6,12 +6,13 @@ from flask import (
 from werkzeug.utils import secure_filename
 from ..models import db, Documentation, Tag, User, Group, Software, Attachment
 from .main import login_required
-from .admin import admin_required
+from ..services.permissions_service import requires_permission, has_write_permission
 
 documentation_bp = Blueprint('documentation', __name__)
 
 @documentation_bp.route('/')
 @login_required
+@requires_permission('knowledge_policy')
 def list_docs():
     """Muestra la lista de documentación, con filtros."""
     
@@ -47,6 +48,7 @@ def list_docs():
 
 @documentation_bp.route('/<int:id>')
 @login_required
+@requires_permission('knowledge_policy')
 def detail(id):
     """Muestra los detalles de una entrada de documentación."""
     doc = Documentation.query.get_or_404(id)
@@ -54,10 +56,13 @@ def detail(id):
 
 @documentation_bp.route('/new', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@requires_permission('knowledge_policy')
 def new_doc():
     """Crea una nueva entrada de documentación."""
     if request.method == 'POST':
+        if not has_write_permission('knowledge_policy'):
+            flash('Write access required to create documentation.', 'danger')
+            return redirect(url_for('documentation.list_docs'))
         # Procesar propietario polimórfico
         owner_full = request.form.get('owner')
         owner_type = None
@@ -120,12 +125,15 @@ def new_doc():
 
 @documentation_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@requires_permission('knowledge_policy')
 def edit_doc(id):
     """Edita una entrada de documentación existente."""
     doc = Documentation.query.get_or_404(id)
 
     if request.method == 'POST':
+        if not has_write_permission('knowledge_policy'):
+            flash('Write access required to update documentation.', 'danger')
+            return redirect(url_for('documentation.detail', id=id))
         # Procesar propietario polimórfico
         owner_full = request.form.get('owner')
         if owner_full:
@@ -184,8 +192,11 @@ def edit_doc(id):
 
 @documentation_bp.route('/<int:id>/delete', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('knowledge_policy')
 def delete_doc(id):
+    if not has_write_permission('knowledge_policy'):
+        flash('Write access required to delete documentation.', 'danger')
+        return redirect(url_for('documentation.detail', id=id))
     """Elimina una entrada de documentación."""
     doc = Documentation.query.get_or_404(id)
     
@@ -203,6 +214,7 @@ def delete_doc(id):
 
 @documentation_bp.route('/api/search')
 @login_required
+@requires_permission('knowledge_policy')
 def search_api():
     """Search documentation by title or filename for TomSelect."""
     from flask import jsonify

@@ -4,7 +4,7 @@ from flask import (
 from datetime import datetime
 from ..models import db, Purchase, Supplier, User, PaymentMethod, Tag, Budget, PurchaseCostHistory
 from .main import login_required
-from .admin import admin_required
+from ..services.permissions_service import requires_permission, has_write_permission
 
 purchases_bp = Blueprint('purchases', __name__, url_prefix='/purchases')
 
@@ -102,10 +102,13 @@ def edit_purchase(id):
                             tags=Tag.query.order_by(Tag.name).all(),
                             budgets=Budget.query.order_by(Budget.name).all())
 
-@purchases_bp.route('/<int:id>/validate_cost', methods=['POST'])
+@purchases_bp.route('/<int:id>/approve', methods=['POST'])
 @login_required
-@admin_required
-def validate_cost(id):
+@requires_permission('finance')
+def approve_purchase(id):
+    if not has_write_permission('finance'):
+        flash('Write access required to approve purchases.', 'danger')
+        return redirect(url_for('purchases.purchase_detail', id=id))
     purchase = Purchase.query.get_or_404(id)
     user_id = session.get('user_id')
     purchase.validated_cost = purchase.calculated_cost
@@ -121,8 +124,11 @@ def validate_cost(id):
 
 @purchases_bp.route('/<int:id>/unvalidate_cost', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('finance')
 def unvalidate_cost(id):
+    if not has_write_permission('finance'):
+        flash('Write access required to unvalidate costs.', 'danger')
+        return redirect(url_for('purchases.purchase_detail', id=id))
     purchase = Purchase.query.get_or_404(id)
     user_id = session.get('user_id')
     history_log = PurchaseCostHistory(

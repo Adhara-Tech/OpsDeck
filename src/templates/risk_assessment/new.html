@@ -13,7 +13,8 @@
                     <div class="mb-3">
                         <label for="name" class="form-label">Assessment Name</label>
                         <input type="text" class="form-control" id="name" name="name"
-                            placeholder="e.g., Q1 2024 Strategic Assessment" required>
+                            placeholder="e.g., Q1 2024 Strategic Assessment" required {% if not
+                            can_write('risk_governance') %}disabled{% endif %}>
                         <div class="form-text">A descriptive name to identify this snapshot in time.</div>
                     </div>
 
@@ -21,7 +22,7 @@
                         <label class="form-label">Snapshot Strategy</label>
                         <div class="form-check">
                             <input class="form-check-input" type="radio" name="include_risks" id="import_yes"
-                                value="yes" checked>
+                                value="yes" checked {% if not can_write('risk_governance') %}disabled{% endif %}>
                             <label class="form-check-label" for="import_yes">
                                 <strong>Snaphot All Open Risks (Recommended)</strong><br>
                                 <small class="text-muted">Import all currently open risks and freeze their
@@ -29,7 +30,8 @@
                             </label>
                         </div>
                         <div class="form-check mt-2">
-                            <input class="form-check-input" type="radio" name="include_risks" id="import_no" value="no">
+                            <input class="form-check-input" type="radio" name="include_risks" id="import_no" value="no"
+                                {% if not can_write('risk_governance') %}disabled{% endif %}>
                             <label class="form-check-label" for="import_no">
                                 <strong>Start Empty</strong><br>
                                 <small class="text-muted">Create a blank assessment and add items manually
@@ -39,7 +41,9 @@
                     </div>
 
                     <div class="d-grid gap-2">
+                        {% if can_write('risk_governance') %}
                         <button type="submit" class="btn btn-primary">Create Assessment</button>
+                        {% endif %}
                         <a href="{{ url_for('risk_assessment.list_assessments') }}"
                             class="btn btn-outline-secondary">Cancel</a>
                     </div>

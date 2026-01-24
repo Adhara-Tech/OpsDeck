@@ -5,12 +5,13 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from datetime import datetime, date
 from ..models import db, SecurityActivity, ActivityExecution, User, Group, Tag, Attachment, ActivityRelatedObject
 from .main import login_required
-from .admin import admin_required
+from ..services.permissions_service import requires_permission, has_write_permission
 
 activities_bp = Blueprint('activities', __name__)
 
 @activities_bp.route('/')
 @login_required
+@requires_permission('operations')
 def list_activities():
     """Displays a list of all security activities."""
     activities = SecurityActivity.query.order_by(SecurityActivity.name).all()
@@ -23,10 +24,13 @@ def list_activities():
 
 @activities_bp.route('/new', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@requires_permission('operations')
 def new_activity():
     """Creates a new security activity."""
     if request.method == 'POST':
+        if not has_write_permission('operations'):
+            flash('Write access required to create activities.', 'danger')
+            return redirect(url_for('activities.list_activities'))
         activity = SecurityActivity(
             name=request.form['name'],
             description=request.form.get('description'),
@@ -67,6 +71,7 @@ def new_activity():
 
 @activities_bp.route('/<int:id>')
 @login_required
+@requires_permission('operations')
 def activity_detail(id):
     """Displays details of a specific security activity."""
     activity = SecurityActivity.query.get_or_404(id)
@@ -76,12 +81,15 @@ def activity_detail(id):
 
 @activities_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@requires_permission('operations')
 def edit_activity(id):
     """Edits an existing security activity."""
     activity = SecurityActivity.query.get_or_404(id)
     
     if request.method == 'POST':
+        if not has_write_permission('operations'):
+            flash('Write access required to update activities.', 'danger')
+            return redirect(url_for('activities.activity_detail', id=id))
         activity.name = request.form['name']
         activity.description = request.form.get('description')
         activity.frequency = request.form.get('frequency')
@@ -117,8 +125,11 @@ def edit_activity(id):
 
 @activities_bp.route('/<int:id>/delete', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('operations')
 def delete_activity(id):
+    if not has_write_permission('operations'):
+        flash('Write access required to delete activities.', 'danger')
+        return redirect(url_for('activities.activity_detail', id=id))
     """Deletes a security activity."""
     activity = SecurityActivity.query.get_or_404(id)
     activity_name = activity.name
@@ -131,12 +142,15 @@ def delete_activity(id):
 
 @activities_bp.route('/<int:id>/execute', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@requires_permission('operations')
 def execute_activity(id):
     """Records a new execution for a security activity."""
     activity = SecurityActivity.query.get_or_404(id)
     
     if request.method == 'POST':
+        if not has_write_permission('operations'):
+            flash('Write access required to record executions.', 'danger')
+            return redirect(url_for('activities.activity_detail', id=id))
         execution = ActivityExecution(
             activity_id=activity.id,
             executor_id=request.form.get('executor_id') or session.get('user_id'),
@@ -190,6 +204,7 @@ def execute_activity(id):
 
 @activities_bp.route('/execution/<int:id>')
 @login_required
+@requires_permission('operations')
 def execution_detail(id):
     """Displays details of a specific execution."""
     execution = ActivityExecution.query.get_or_404(id)
@@ -197,13 +212,16 @@ def execution_detail(id):
 
 @activities_bp.route('/execution/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@requires_permission('operations')
 def edit_execution(id):
     """Edits an existing execution."""
     execution = ActivityExecution.query.get_or_404(id)
     activity = execution.activity
     
     if request.method == 'POST':
+        if not has_write_permission('operations'):
+            flash('Write access required to update executions.', 'danger')
+            return redirect(url_for('activities.execution_detail', id=id))
         execution.executor_id = request.form.get('executor_id')
         execution.execution_date = datetime.strptime(request.form['execution_date'], '%Y-%m-%d').date()
         execution.status = request.form['status']
@@ -251,6 +269,7 @@ def edit_execution(id):
 
 @activities_bp.route('/get-objects-by-type')
 @login_required
+@requires_permission('operations')
 def get_objects_by_type():
     """AJAX endpoint to get objects of a specific type."""
     object_type = request.args.get('type')
@@ -300,8 +319,11 @@ def get_objects_by_type():
 
 @activities_bp.route('/<int:id>/link-object', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('operations')
 def link_object(id):
+    if not has_write_permission('operations'):
+        flash('Write access required to link objects.', 'danger')
+        return redirect(url_for('activities.activity_detail', id=id))
     """Links an object to a security activity."""
     SecurityActivity.query.get_or_404(id)
     
@@ -338,8 +360,11 @@ def link_object(id):
 
 @activities_bp.route('/<int:id>/unlink-object/<int:link_id>', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('operations')
 def unlink_object(id, link_id):
+    if not has_write_permission('operations'):
+        flash('Write access required to unlink objects.', 'danger')
+        return redirect(url_for('activities.activity_detail', id=id))
     """Removes a link between an activity and an object."""
     SecurityActivity.query.get_or_404(id)
     link = ActivityRelatedObject.query.get_or_404(link_id)

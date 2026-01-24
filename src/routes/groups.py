@@ -3,21 +3,32 @@ from flask import (
 )
 from ..models import db, Group, User
 from .main import login_required
-from .admin import admin_required
+from ..services.permissions_service import requires_permission
 
 groups_bp = Blueprint('groups', __name__)
 
 @groups_bp.route('/')
 @login_required
+@requires_permission('administration', access_level='READ_ONLY')
 def list_groups():
     groups = Group.query.order_by(Group.name).all()
     return render_template('groups/list.html', groups=groups)
 
 @groups_bp.route('/new', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@requires_permission('administration', access_level='READ_ONLY')
 def new_group():
     if request.method == 'POST':
+        # Manual check for WRITE access
+        from ..services.permissions_cache import permissions_cache
+        from flask import session
+        user_id = session.get('user_id')
+        user_role = session.get('user_role')
+        if user_role != 'admin':
+            perms = permissions_cache.get(user_id)
+            if perms.get('administration') != 'WRITE':
+                flash('Write access required for this action.', 'danger')
+                return redirect(url_for('groups.list_groups'))
         group = Group(
             name=request.form['name'],
             description=request.form.get('description')
@@ -31,10 +42,20 @@ def new_group():
 
 @groups_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@requires_permission('administration', access_level='READ_ONLY')
 def edit_group(id):
     group = Group.query.get_or_404(id)
     if request.method == 'POST':
+        # Manual check for WRITE access
+        from ..services.permissions_cache import permissions_cache
+        from flask import session
+        user_id = session.get('user_id')
+        user_role = session.get('user_role')
+        if user_role != 'admin':
+            perms = permissions_cache.get(user_id)
+            if perms.get('administration') != 'WRITE':
+                flash('Write access required for this action.', 'danger')
+                return redirect(url_for('groups.list_groups'))
         group.name = request.form['name']
         group.description = request.form.get('description')
         

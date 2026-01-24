@@ -70,10 +70,12 @@
         <div class="card shadow">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="fas fa-folder-open"></i> Evidence & Linked Items</h5>
+                {% if can_write('compliance') %}
                 <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
                     data-bs-target="#linkManualItemModal">
                     <i class="fas fa-plus me-1"></i> Link Manual Item
                 </button>
+                {% endif %}
             </div>
             <div class="card-body p-0">
                 {% if manual_links or automated_evidence %}
@@ -178,10 +180,12 @@
                                     <span class="text-muted">—</span>
                                     {% endif %}
                                     {# Unlink button for manual links #}
+                                    {% if can_write('compliance') %}
                                     <button type="button" class="btn btn-sm btn-outline-danger ms-1" title="Unlink"
                                         data-link-id="{{ link.id }}" onclick="unlinkItem(this)">
                                         <i class="fas fa-unlink"></i>
                                     </button>
+                                    {% endif %}
                                 </td>
                             </tr>
                             {% endfor %}
@@ -332,6 +336,7 @@
                                     <span class="badge bg-secondary me-2">{{ mapped.framework.name }}</span>
                                     <strong>{{ mapped.control_id }}</strong> - {{ mapped.name }}
                                 </div>
+                                {% if can_write('compliance') %}
                                 <form
                                     action="{{ url_for('frameworks.unmap_control', id=control.id, target_id=mapped.id) }}"
                                     method="POST" class="d-inline" data-confirm='Remove this mapping?'>
@@ -340,6 +345,7 @@
                                         <i class="fas fa-unlink"></i>
                                     </button>
                                 </form>
+                                {% endif %}
                             </li>
                             {% endfor %}
                         </ul>
@@ -358,6 +364,7 @@
                         <h5 class="mb-0"><i class="fas fa-plus-circle"></i> Add Mapping</h5>
                     </div>
                     <div class="card-body">
+                        {% if can_write('compliance') %}
                         <form action="{{ url_for('frameworks.map_control', id=control.id) }}" method="POST">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
@@ -385,6 +392,11 @@
                                 <i class="fas fa-link"></i> Create Mapping
                             </button>
                         </form>
+                        {% else %}
+                        <div class="alert alert-light mb-0">
+                            <i class="fas fa-lock me-1"></i> Write access required to manage mappings.
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
 
@@ -412,9 +424,11 @@
         <div class="card shadow">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="fas fa-robot"></i> Automation Rules</h5>
+                {% if can_write('compliance') %}
                 <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addRuleModal">
                     <i class="fas fa-plus"></i> Add Automation Rule
                 </button>
+                {% endif %}
             </div>
             <div class="card-body p-0">
                 {% set rules = control.rules.all() %}
@@ -453,6 +467,7 @@
                                     {% endif %}
                                 </td>
                                 <td class="text-end">
+                                    {% if can_write('compliance') %}
                                     <form action="{{ url_for('compliance.toggle_rule', rule_id=rule.id) }}"
                                         method="POST" class="d-inline">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -470,6 +485,9 @@
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </form>
+                                    {% else %}
+                                    <span class="text-muted small">Read Only</span>
+                                    {% endif %}
                                 </td>
                             </tr>
                             {% endfor %}
