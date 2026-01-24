@@ -2,33 +2,136 @@
 
 {% block title %}Permissions - OpsDeck{% endblock %}
 
+{% block head_extra %}
+<style>
+    /* Sticky Header and First Column */
+    .table-container {
+        position: relative;
+        max-height: calc(100vh - 350px);
+        overflow: auto;
+        border-radius: 0.5rem;
+    }
+
+    .table-sticky thead th {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: #f8f9fa;
+        box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    .table-sticky th:first-child,
+    .table-sticky td:first-child {
+        position: sticky;
+        left: 0;
+        z-index: 5;
+        background: white;
+        border-right: 2px solid #dee2e6;
+    }
+
+    .table-sticky thead th:first-child {
+        z-index: 15;
+    }
+
+    /* Permission Toggle Styles */
+    .perm-cell {
+        cursor: pointer;
+        transition: all 0.2s ease;
+        user-select: none;
+        height: 45px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 0.375rem;
+        margin: 2px;
+        font-weight: 600;
+        font-size: 0.75rem;
+    }
+
+    .perm-none {
+        background-color: #f8f9fa;
+        color: #adb5bd;
+        border: 1px dashed #dee2e6;
+    }
+
+    .perm-read_only {
+        background-color: #e7f1ff;
+        color: #0d6efd;
+        border: 1px solid #0d6efd;
+    }
+
+    .perm-write {
+        background-color: #e6fffa;
+        color: #059669;
+        border: 1px solid #059669;
+    }
+
+    .perm-cell:hover {
+        filter: brightness(0.95);
+        transform: scale(1.05);
+    }
+
+    .bulk-actions-row {
+        white-space: nowrap;
+    }
+
+    .btn-hover-elevate:hover {
+        transform: translateY(-2px);
+        transition: transform 0.2s ease-in-out;
+    }
+
+    .card {
+        border-radius: 1rem;
+    }
+
+    .table thead th {
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-size: 0.75rem;
+    }
+
+    /* Highlight row on hover */
+    .table-hover tbody tr:hover td {
+        background-color: rgba(var(--bs-primary-rgb), 0.03);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="row mb-4">
-    <div class="col-12">
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="{{ url_for('admin.list_users') }}">Administration</a></li>
-                <li class="breadcrumb-item active" aria-current="page">Permissions</li>
-            </ol>
-        </nav>
-        <h1 class="h2"><i class="fas fa-shield-alt text-primary me-2"></i> Permissions</h1>
-        <p class="text-muted text-lg mb-0">Manage module access for Users and Groups.</p>
+    <div class="col-12 d-flex justify-content-between align-items-center">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a href="{{ url_for('admin.list_users') }}">Administration</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">Permissions</li>
+                </ol>
+            </nav>
+            <h1 class="h2"><i class="fas fa-shield-alt text-primary me-2"></i> Permissions Matrix</h1>
+            <p class="text-muted mb-0">Manage granular module access. Click cells to cycle permissions.</p>
+        </div>
+        <div class="text-end">
+            <span class="badge perm-none px-3 py-2 me-2">No Access</span>
+            <span class="badge perm-read_only px-3 py-2 me-2">Read Only</span>
+            <span class="badge perm-write px-3 py-2">Full Access</span>
+        </div>
     </div>
 </div>
 
 <div class="card shadow-sm border-0">
     <div class="card-header bg-white border-bottom-0 pt-3">
-        <ul class="nav nav-tabs card-header-tabs" id="permTabs" role="tablist">
+        <ul class="nav nav-pills card-header-pills" id="permTabs" role="tablist">
             <li class="nav-item" role="presentation">
-                <button class="nav-link {% if active_tab == 'users' %}active{% endif %}" id="users-tab"
-                    data-bs-toggle="tab" data-bs-target="#users-pane" type="button" role="tab">
-                    <i class="fas fa-user me-1"></i> User Permissions
+                <button class="nav-link rounded-pill px-4 {% if active_tab == 'users' %}active{% endif %}"
+                    id="users-tab" data-bs-toggle="tab" data-bs-target="#users-pane" type="button" role="tab">
+                    <i class="fas fa-user me-2"></i> Users
                 </button>
             </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link {% if active_tab == 'groups' %}active{% endif %}" id="groups-tab"
-                    data-bs-toggle="tab" data-bs-target="#groups-pane" type="button" role="tab">
-                    <i class="fas fa-users me-1"></i> Group Permissions
+            <li class="nav-item ms-2" role="presentation">
+                <button class="nav-link rounded-pill px-4 {% if active_tab == 'groups' %}active{% endif %}"
+                    id="groups-tab" data-bs-toggle="tab" data-bs-target="#groups-pane" type="button" role="tab">
+                    <i class="fas fa-users me-2"></i> Groups
                 </button>
             </li>
         </ul>
@@ -39,23 +142,30 @@
             <!-- Users Tab -->
             <div class="tab-pane fade {% if active_tab == 'users' %}show active{% endif %}" id="users-pane"
                 role="tabpanel">
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0 datatable">
+                <div class="table-container">
+                    <table class="table table-hover align-middle mb-0 table-sticky">
                         <thead class="table-light">
                             <tr>
-                                <th>User</th>
+                                <th style="min-width: 250px;">User</th>
                                 {% for module in modules %}
-                                <th class="text-center small text-nowrap" style="width: 80px;">{{ module.name }}</th>
+                                <th class="text-center small text-nowrap" style="width: 120px;">{{ module.name }}</th>
                                 {% endfor %}
-                                <th class="text-end">Actions</th>
+                                <th class="text-end" style="min-width: 150px;">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for u in users %}
                             <tr>
                                 <td>
-                                    <div class="fw-bold">{{ u.name }}</div>
-                                    <div class="small text-muted">{{ u.email }}</div>
+                                    <div class="d-flex align-items-center">
+                                        <div class="bg-light rounded-circle p-2 me-3">
+                                            <i class="fas fa-user text-muted"></i>
+                                        </div>
+                                        <div>
+                                            <div class="fw-bold">{{ u.name }}</div>
+                                            <div class="small text-muted">{{ u.email }}</div>
+                                        </div>
+                                    </div>
                                     <form id="form-user-{{ u.id }}" action="{{ url_for('admin.permissions_matrix') }}"
                                         method="POST">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -64,23 +174,35 @@
                                     </form>
                                 </td>
                                 {% for module in modules %}
-                                <td class="text-center">
-                                    <select name="perm_user_{{ u.id }}_{{ module.id }}"
-                                        class="form-select form-select-sm border-0 bg-light text-center"
-                                        style="width: 110px;" form="form-user-{{ u.id }}">
-                                        <option value="NONE" {% if not matrix.get('user_' ~ u.id) or not matrix['user_'
-                                            ~ u.id].get(module.id) %}selected{% endif %}>No Access
-                                        </option>
-                                        <option value="READ_ONLY" {% if matrix.get('user_' ~ u.id) and matrix['user_' ~
-                                            u.id].get(module.id)=='READ_ONLY' %}selected{% endif %}>Read Only</option>
-                                        <option value="WRITE" {% if matrix.get('user_' ~ u.id) and matrix['user_' ~
-                                            u.id].get(module.id)=='WRITE' %}selected{% endif %}>Full Access</option>
-                                    </select>
+                                <td class="p-1">
+                                    {% set current_val = matrix.get('user_' ~ u.id, {}).get(module.id, 'NONE') %}
+                                    <div class="perm-cell perm-{{ current_val|lower }}"
+                                        data-target-id="perm_user_{{ u.id }}_{{ module.id }}"
+                                        onclick="cyclePermission(this)">
+                                        {% if current_val == 'WRITE' %}
+                                        <i class="fas fa-check-double me-1"></i> FULL
+                                        {% elif current_val == 'READ_ONLY' %}
+                                        <i class="fas fa-eye me-1"></i> READ
+                                        {% else %}
+                                        <i class="fas fa-times me-1"></i> NONE
+                                        {% endif %}
+                                    </div>
+                                    <input type="hidden" name="perm_user_{{ u.id }}_{{ module.id }}"
+                                        id="perm_user_{{ u.id }}_{{ module.id }}" value="{{ current_val }}"
+                                        form="form-user-{{ u.id }}">
                                 </td>
                                 {% endfor %}
                                 <td class="text-end px-3">
+                                    <div class="btn-group btn-group-sm mb-1 d-block mb-2">
+                                        <button type="button" class="btn btn-outline-secondary btn-xs"
+                                            onclick="bulkSetRow('user', {{ u.id }}, 'NONE')">None</button>
+                                        <button type="button" class="btn btn-outline-info btn-xs"
+                                            onclick="bulkSetRow('user', {{ u.id }}, 'READ_ONLY')">All Read</button>
+                                        <button type="button" class="btn btn-outline-success btn-xs"
+                                            onclick="bulkSetRow('user', {{ u.id }}, 'WRITE')">All Full</button>
+                                    </div>
                                     <button type="submit" form="form-user-{{ u.id }}"
-                                        class="btn btn-sm btn-outline-primary shadow-sm btn-hover-elevate">
+                                        class="btn btn-sm btn-primary shadow-sm btn-hover-elevate w-100">
                                         <i class="fas fa-save me-1"></i> Save
                                     </button>
                                 </td>
@@ -94,23 +216,30 @@
             <!-- Groups Tab -->
             <div class="tab-pane fade {% if active_tab == 'groups' %}show active{% endif %}" id="groups-pane"
                 role="tabpanel">
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0 datatable">
+                <div class="table-container">
+                    <table class="table table-hover align-middle mb-0 table-sticky">
                         <thead class="table-light">
                             <tr>
-                                <th>Group</th>
+                                <th style="min-width: 250px;">Group</th>
                                 {% for module in modules %}
-                                <th class="text-center small text-nowrap" style="width: 80px;">{{ module.name }}</th>
+                                <th class="text-center small text-nowrap" style="width: 120px;">{{ module.name }}</th>
                                 {% endfor %}
-                                <th class="text-end">Actions</th>
+                                <th class="text-end" style="min-width: 150px;">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for g in groups %}
                             <tr>
                                 <td>
-                                    <div class="fw-bold">{{ g.name }}</div>
-                                    <div class="small text-muted">{{ g.description or 'No description' }}</div>
+                                    <div class="d-flex align-items-center">
+                                        <div class="bg-light rounded-circle p-2 me-3">
+                                            <i class="fas fa-users text-muted"></i>
+                                        </div>
+                                        <div>
+                                            <div class="fw-bold">{{ g.name }}</div>
+                                            <div class="small text-muted">{{ g.description or 'No description' }}</div>
+                                        </div>
+                                    </div>
                                     <form id="form-group-{{ g.id }}" action="{{ url_for('admin.permissions_matrix') }}"
                                         method="POST">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -119,24 +248,35 @@
                                     </form>
                                 </td>
                                 {% for module in modules %}
-                                <td class="text-center">
-                                    <select name="perm_group_{{ g.id }}_{{ module.id }}"
-                                        class="form-select form-select-sm border-0 bg-light text-center"
-                                        style="width: 110px;" form="form-group-{{ g.id }}">
-                                        <option value="NONE" {% if not matrix.get('group_' ~ g.id) or not
-                                            matrix['group_' ~ g.id].get(module.id) %}selected{% endif %}>No Access
-                                        </option>
-                                        <option value="READ_ONLY" {% if matrix.get('group_' ~ g.id) and matrix['group_'
-                                            ~ g.id].get(module.id)=='READ_ONLY' %}selected{% endif %}>Read Only</option>
-                                        <option value="WRITE" {% if matrix.get('group_' ~ g.id) and matrix['group_' ~
-                                            g.id].get(module.id)=='WRITE' %}selected{% endif %}>Full Access
-                                        </option>
-                                    </select>
+                                <td class="p-1">
+                                    {% set current_val = matrix.get('group_' ~ g.id, {}).get(module.id, 'NONE') %}
+                                    <div class="perm-cell perm-{{ current_val|lower }}"
+                                        data-target-id="perm_group_{{ g.id }}_{{ module.id }}"
+                                        onclick="cyclePermission(this)">
+                                        {% if current_val == 'WRITE' %}
+                                        <i class="fas fa-check-double me-1"></i> FULL
+                                        {% elif current_val == 'READ_ONLY' %}
+                                        <i class="fas fa-eye me-1"></i> READ
+                                        {% else %}
+                                        <i class="fas fa-times me-1"></i> NONE
+                                        {% endif %}
+                                    </div>
+                                    <input type="hidden" name="perm_group_{{ g.id }}_{{ module.id }}"
+                                        id="perm_group_{{ g.id }}_{{ module.id }}" value="{{ current_val }}"
+                                        form="form-group-{{ g.id }}">
                                 </td>
                                 {% endfor %}
                                 <td class="text-end px-3">
+                                    <div class="btn-group btn-group-sm mb-1 d-block mb-2">
+                                        <button type="button" class="btn btn-outline-secondary btn-xs"
+                                            onclick="bulkSetRow('group', {{ g.id }}, 'NONE')">None</button>
+                                        <button type="button" class="btn btn-outline-info btn-xs"
+                                            onclick="bulkSetRow('group', {{ g.id }}, 'READ_ONLY')">All Read</button>
+                                        <button type="button" class="btn btn-outline-success btn-xs"
+                                            onclick="bulkSetRow('group', {{ g.id }}, 'WRITE')">All Full</button>
+                                    </div>
                                     <button type="submit" form="form-group-{{ g.id }}"
-                                        class="btn btn-sm btn-outline-primary shadow-sm btn-hover-elevate">
+                                        class="btn btn-sm btn-primary shadow-sm btn-hover-elevate w-100">
                                         <i class="fas fa-save me-1"></i> Save
                                     </button>
                                 </td>
@@ -155,42 +295,84 @@
     <div class="d-flex align-items-center">
         <i class="fas fa-info-circle fa-2x me-3 text-info"></i>
         <div>
-            <h5 class="alert-heading fw-bold mb-1">How it works</h5>
-            <p class="mb-0">A user has access to a module if they are assigned the permission <strong>directly</strong>
-                OR if they belong to a <strong>Group</strong> that has the permission assigned. Access can be
-                <strong>Read Only</strong> (viewing) or <strong>Full Access</strong> (managing/editing).
-            </p>
+            <h5 class="alert-heading fw-bold mb-1">Quick Tips</h5>
+            <ul class="mb-0 small">
+                <li><strong>Click</strong> any cell to cycle through access levels.</li>
+                <li><strong>Bulk Actions</strong> let you set all modules for a user in one click.</li>
+                <li>Don't forget to click <strong>Save</strong> for the row you modified!</li>
+            </ul>
         </div>
     </div>
 </div>
 {% endblock %}
 
-{% block head_extra %}
+{% block scripts_extra %}
+<script>
+    document.querySelectorAll('.btn-bulk').forEach(btn => {
+        btn.addEventListener('click', function () {
+            bulkSetRow(this.dataset.type, this.dataset.id, this.dataset.value);
+        });
+    });
+
+    function cyclePermission(el) {
+        const inputId = el.getAttribute('data-target-id');
+        const input = document.getElementById(inputId);
+        const current = input.value;
+
+        let nextValue = 'NONE';
+        let html = '';
+        let className = 'perm-cell ';
+
+        if (current === 'NONE') {
+            nextValue = 'READ_ONLY';
+            html = '<i class="fas fa-eye me-1"></i> READ';
+            className += 'perm-read_only';
+        } else if (current === 'READ_ONLY') {
+            nextValue = 'WRITE';
+            html = '<i class="fas fa-check-double me-1"></i> FULL';
+            className += 'perm-write';
+        } else {
+            nextValue = 'NONE';
+            html = '<i class="fas fa-times me-1"></i> NONE';
+            className += 'perm-none';
+        }
+
+        input.value = nextValue;
+        el.className = className;
+        el.innerHTML = html;
+    }
+
+    function bulkSetRow(type, id, value) {
+        const prefix = `perm_${type}_${id}_`;
+        const inputs = document.querySelectorAll(`input[id^="${prefix}"]`);
+
+        let html = '';
+        let className = 'perm-cell ';
+        if (value === 'NONE') {
+            html = '<i class="fas fa-times me-1"></i> NONE';
+            className += 'perm-none';
+        } else if (value === 'READ_ONLY') {
+            html = '<i class="fas fa-eye me-1"></i> READ';
+            className += 'perm-read_only';
+        } else {
+            html = '<i class="fas fa-check-double me-1"></i> FULL';
+            className += 'perm-write';
+        }
+
+        inputs.forEach(input => {
+            input.value = value;
+            const cell = document.querySelector(`[data-target-id="${input.id}"]`);
+            if (cell) {
+                cell.className = className;
+                cell.innerHTML = html;
+            }
+        });
+    }
+</script>
 <style>
-    .btn-hover-elevate:hover {
-        transform: translateY(-2px);
-        transition: transform 0.2s ease-in-out;
-    }
-
-    .card {
-        border-radius: 1rem;
-    }
-
-    .table thead th {
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        font-size: 0.75rem;
-    }
-
-    .form-select-sm {
-        font-size: 0.75rem;
-        padding: 0.25rem 0.5rem;
-        border-radius: 0.5rem;
-    }
-
-    .form-select:focus {
-        box-shadow: 0 0 0 0.25rem rgba(var(--bs-primary-rgb), 0.1);
+    .btn-xs {
+        padding: 0.1rem 0.3rem;
+        font-size: 0.65rem;
     }
 </style>
 {% endblock %}

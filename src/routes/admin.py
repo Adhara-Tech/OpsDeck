@@ -236,30 +236,21 @@ def permissions_matrix():
         target_id = request.form.get('target_id', type=int)
         
         # New logic: Look for perm_{target_type}_{target_id}_{module_id} in form
-        
-        # DEBUG: Log incoming form data
-        from flask import current_app
-        current_app.logger.info(f"Permissions Update: Target={target_type}, ID={target_id}")
-        current_app.logger.info(f"Form Data Keys: {[k for k in request.form.keys() if k.startswith('perm_')]}")
-
         module_permissions = []
         for key, value in request.form.items():
-            # Match only perm_{target_type}_{target_id}_{module_id}
+            # Match only perm_{target_type}_{target_id}_
             prefix = f"perm_{target_type}_{target_id}_"
             if key.startswith(prefix):
                 try:
-                    m_id_str = key[len(prefix):] # Safer than replace in case prefix appears twice
+                    m_id_str = key[len(prefix):]
                     m_id = int(m_id_str)
-                    
-                    current_app.logger.info(f"Found permission: Module {m_id} -> {value}")
                     
                     if value != 'NONE':
                         module_permissions.append({
                             'module_id': m_id,
                             'access_level': value
                         })
-                except (ValueError, IndexError) as e:
-                    current_app.logger.error(f"Error parsing permission key {key}: {e}")
+                except (ValueError, IndexError):
                     continue
         
         try:
