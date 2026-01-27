@@ -12,9 +12,11 @@
         <a href="{{ url_for('peripherals.archived_peripherals') }}" class="btn btn-outline-secondary">
             <i class="fas fa-archive"></i> View Archived
         </a>
+        {% if can_write('core_inventory') %}
         <a href="{{ url_for('peripherals.new_peripheral') }}" class="btn btn-primary">
             <i class="fas fa-plus"></i> Add Peripheral
         </a>
+        {% endif %}
     </div>
 </div>
 
@@ -48,6 +50,7 @@
                         </td>
                         <td>{{ peripheral.asset.name if peripheral.asset else '-' }}</td>
                         <td>
+                            {% if can_write('core_inventory') %}
                             {% if peripheral.user %}
                             <form action="{{ url_for('peripherals.checkin_peripheral', id=peripheral.id) }}"
                                 method="POST" class="d-inline"
@@ -78,6 +81,7 @@
                                     <i class="fas fa-archive"></i>
                                 </button>
                             </form>
+                            {% endif %}
                         </td>
                     </tr>
                     {% else %}

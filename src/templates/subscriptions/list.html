@@ -12,9 +12,11 @@
         <a href="{{ url_for('subscriptions.archived_subscriptions') }}" class="btn btn-outline-secondary">
             <i class="fas fa-archive"></i> View Archived
         </a>
+        {% if can_write('access_control') %}
         <a href="{{ url_for('subscriptions.new_subscription') }}" class="btn btn-primary">
             <i class="fas fa-plus"></i> Add Subscription
         </a>
+        {% endif %}
     </div>
 </div>
 
@@ -28,7 +30,8 @@
                     <select name="subscription_type" class="form-select" onchange="this.form.submit()">
                         <option value="all">All Types</option>
                         {% for type in subscription_types %}
-                        <option value="{{ type }}" {% if selected_filter == type %}selected{% endif %}>{{ type.title() }}</option>
+                        <option value="{{ type }}" {% if selected_filter==type %}selected{% endif %}>{{ type.title() }}
+                        </option>
                         {% endfor %}
                     </select>
                 </div>
@@ -40,7 +43,8 @@
                     <select name="tag_id" class="form-select" onchange="this.form.submit()">
                         <option value="">All Tags</option>
                         {% for tag in tags %}
-                        <option value="{{ tag.id }}" {% if selected_tag_id == tag.id %}selected{% endif %}>{{ tag.name }}</option>
+                        <option value="{{ tag.id }}" {% if selected_tag_id==tag.id %}selected{% endif %}>{{ tag.name }}
+                        </option>
                         {% endfor %}
                     </select>
                 </div>
@@ -71,9 +75,11 @@
                 <tbody>
                     {% for subscription in subscriptions %}
                     <tr>
-                        <td><a href="{{ url_for('subscriptions.subscription_detail', id=subscription.id) }}">{{ subscription.name }}</a></td>
+                        <td><a href="{{ url_for('subscriptions.subscription_detail', id=subscription.id) }}">{{
+                                subscription.name }}</a></td>
                         <td><span class="badge bg-secondary">{{ subscription.subscription_type }}</span></td>
-                        <td><a href="{{ url_for('suppliers.supplier_detail', id=subscription.supplier.id) }}">{{ subscription.supplier.name }}</a></td>
+                        <td><a href="{{ url_for('suppliers.supplier_detail', id=subscription.supplier.id) }}">{{
+                                subscription.supplier.name }}</a></td>
                         <td>{{ subscription.renewal_period_value }} {{ subscription.renewal_period_type.title() }}</td>
                         <td>{{ subscription.next_renewal_date.strftime('%Y-%m-%d') }}</td>
                         <td>
@@ -84,19 +90,25 @@
                         <td class="currency-display">€{{ "%.2f"|format(subscription.cost_eur) }}</td>
                         <td>
                             {% for tag in subscription.tags %}
-                                <a href="{{ url_for('subscriptions.subscriptions', tag_id=tag.id) }}" class="badge bg-primary text-decoration-none">{{ tag.name }}</a>
+                            <a href="{{ url_for('subscriptions.subscriptions', tag_id=tag.id) }}"
+                                class="badge bg-primary text-decoration-none">{{ tag.name }}</a>
                             {% endfor %}
                         </td>
                         <td>
-                            <a href="{{ url_for('subscriptions.edit_subscription', id=subscription.id) }}" class="btn btn-sm btn-outline-primary me-1" title="Edit">
+                            {% if can_write('access_control') %}
+                            <a href="{{ url_for('subscriptions.edit_subscription', id=subscription.id) }}"
+                                class="btn btn-sm btn-outline-primary me-1" title="Edit">
                                 <i class="fas fa-edit"></i>
                             </a>
-                            <form action="{{ url_for('subscriptions.archive_subscription', id=subscription.id) }}" method="POST" class="d-inline" data-confirm='Are you sure you want to archive this subscription?'>
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <form action="{{ url_for('subscriptions.archive_subscription', id=subscription.id) }}"
+                                method="POST" class="d-inline"
+                                data-confirm='Are you sure you want to archive this subscription?'>
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="btn btn-sm btn-outline-warning" title="Archive">
                                     <i class="fas fa-archive"></i>
                                 </button>
                             </form>
+                            {% endif %}
                         </td>
                     </tr>
                     {% else %}

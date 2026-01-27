@@ -4,9 +4,11 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="fas fa-book"></i> Documentation</h2>
+    {% if can_write('knowledge_policy') %}
     <a href="{{ url_for('documentation.new_doc') }}" class="btn btn-primary">
         <i class="fas fa-plus"></i> New Documentation
     </a>
+    {% endif %}
 </div>
 
 <!-- Formulario de Filtros -->
@@ -16,16 +18,17 @@
             <div class="row g-3">
                 <div class="col-md-5">
                     <label for="search_name" class="form-label">Filter by Name</label>
-                    <input type="text" class="form-control" id="search_name" name="search_name" value="{{ search_name or '' }}" placeholder="e.g., SOC2 Report...">
+                    <input type="text" class="form-control" id="search_name" name="search_name"
+                        value="{{ search_name or '' }}" placeholder="e.g., SOC2 Report...">
                 </div>
                 <div class="col-md-5">
                     <label for="tags" class="form-label">Filter by Tags</label>
                     <select id="tags" name="tags" class="form-select" multiple>
                         {% for tag in all_tags %}
-                            <!-- Marcar tags que ya estaban seleccionados -->
-                            <option value="{{ tag.name }}" {% if tag.name in search_tags %}selected{% endif %}>
-                                {{ tag.name }}
-                            </option>
+                        <!-- Marcar tags que ya estaban seleccionados -->
+                        <option value="{{ tag.name }}" {% if tag.name in search_tags %}selected{% endif %}>
+                            {{ tag.name }}
+                        </option>
                         {% endfor %}
                     </select>
                 </div>
@@ -62,29 +65,30 @@
                     </td>
                     <td>
                         {% if doc.owner %}
-                            <i class="fas {{ 'fa-user' if doc.owner_type == 'User' else 'fa-users' }}"></i>
-                            {{ doc.owner.name }}
+                        <i class="fas {{ 'fa-user' if doc.owner_type == 'User' else 'fa-users' }}"></i>
+                        {{ doc.owner.name }}
                         {% else %}
-                            <span class="text-muted">N/A</span>
+                        <span class="text-muted">N/A</span>
                         {% endif %}
                     </td>
                     <td>
                         {% if doc.software %}
-                            <a href="{{ url_for('software.software_detail', id=doc.software.id) }}">{{ doc.software.name }}</a>
+                        <a href="{{ url_for('software.software_detail', id=doc.software.id) }}">{{ doc.software.name
+                            }}</a>
                         {% else %}
-                            <span class="text-muted">N/A</span>
+                        <span class="text-muted">N/A</span>
                         {% endif %}
                     </td>
                     <td>
                         {% for tag in doc.tags %}
-                            <span class="badge bg-secondary">{{ tag.name }}</span>
+                        <span class="badge bg-secondary">{{ tag.name }}</span>
                         {% endfor %}
                     </td>
                     <td>
                         {% if doc.external_link %}
-                            <a href="{{ doc.external_link }}" target="_blank" class="btn btn-sm btn-outline-primary">
-                                <i class="fas fa-external-link-alt"></i> Link
-                            </a>
+                        <a href="{{ doc.external_link }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-external-link-alt"></i> Link
+                        </a>
                         {% endif %}
                     </td>
                 </tr>

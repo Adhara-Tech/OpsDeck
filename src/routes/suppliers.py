@@ -3,26 +3,27 @@ from flask import (
 )
 from ..models import db, Supplier
 from .main import login_required
-from datetime import datetime
-from .admin import admin_required
+from ..services.permissions_service import requires_permission
 
 suppliers_bp = Blueprint('suppliers', __name__)
 
 @suppliers_bp.route('/')
 @login_required
+@requires_permission('procurement', access_level='READ_ONLY')
 def suppliers():
     suppliers = Supplier.query.filter_by(is_archived=False).all()
     return render_template('suppliers/list.html', suppliers=suppliers)
 
 @suppliers_bp.route('/archived')
 @login_required
+@requires_permission('procurement', access_level='READ_ONLY')
 def archived_suppliers():
     suppliers = Supplier.query.filter_by(is_archived=True).all()
     return render_template('suppliers/archived.html', suppliers=suppliers)
 
 @suppliers_bp.route('/<int:id>/archive', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('procurement', access_level='WRITE')
 def archive_supplier(id):
     supplier = Supplier.query.get_or_404(id)
     supplier.is_archived = True
@@ -33,7 +34,7 @@ def archive_supplier(id):
 
 @suppliers_bp.route('/<int:id>/unarchive', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('procurement', access_level='WRITE')
 def unarchive_supplier(id):
     supplier = Supplier.query.get_or_404(id)
     supplier.is_archived = False
@@ -43,9 +44,19 @@ def unarchive_supplier(id):
 
 @suppliers_bp.route('/new', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@requires_permission('procurement', access_level='READ_ONLY')
 def new_supplier():
     if request.method == 'POST':
+        # Manual check for WRITE access
+        from ..services.permissions_cache import permissions_cache
+        from flask import session
+        user_id = session.get('user_id')
+        user_role = session.get('user_role')
+        if (user_role or session.get('role')) != 'admin':
+            perms = permissions_cache.get(user_id)
+            if perms.get('business_ops') != 'WRITE':
+                flash('Write access required for this action.', 'danger')
+                return redirect(url_for('suppliers.suppliers'))
         supplier = Supplier(
             name=request.form['name'],
             email=request.form.get('email'),
@@ -65,16 +76,28 @@ def new_supplier():
 
 @suppliers_bp.route('/<int:id>')
 @login_required
+@requires_permission('procurement', access_level='READ_ONLY')
 def supplier_detail(id):
     supplier = Supplier.query.get_or_404(id)
     return render_template('suppliers/detail.html', supplier=supplier)
 
 @suppliers_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
+@requires_permission('procurement', access_level='READ_ONLY')
 def edit_supplier(id):
     supplier = Supplier.query.get_or_404(id)
     
     if request.method == 'POST':
+        # Manual check for WRITE access
+        from ..services.permissions_cache import permissions_cache
+        from flask import session
+        user_id = session.get('user_id')
+        user_role = session.get('user_role')
+        if (user_role or session.get('role')) != 'admin':
+            perms = permissions_cache.get(user_id)
+            if perms.get('business_ops') != 'WRITE':
+                flash('Write access required for this action.', 'danger')
+                return redirect(url_for('suppliers.supplier_detail', id=id))
         supplier.name = request.form['name']
         supplier.email = request.form.get('email')
         supplier.phone = request.form.get('phone')
@@ -93,7 +116,7 @@ def edit_supplier(id):
 
 @suppliers_bp.route('/<int:id>/delete', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('procurement', access_level='WRITE')
 def delete_supplier(id):
     supplier = Supplier.query.get_or_404(id)
     db.session.delete(supplier)

@@ -40,7 +40,7 @@
                         </div>
                     </div>
 
-                    {% if pct == 100 and process.status != 'Completed' %}
+                    {% if pct == 100 and process.status != 'Completed' and can_write('hr_people') %}
                     <form action="{{ url_for('onboarding.complete_process', type=type, id=process.id) }}" method="POST"
                         class="mt-2">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
@@ -68,7 +68,8 @@
 
                     <form action="{{ url_for('onboarding.toggle_item', id=item.id) }}" method="POST" class="me-3">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                        <button type="submit" class="btn btn-link p-0 text-decoration-none">
+                        <button type="submit" class="btn btn-link p-0 text-decoration-none" {{ 'disabled' if not
+                            can_write('hr_people') else '' }}>
                             {% if item.is_completed %}
                             <i class="fas fa-check-square text-{{ theme_color }} fa-lg"></i>
                             {% else %}
@@ -99,7 +100,7 @@
 
                     {% if item.item_type == 'CreateUser' %}
                     <div class="ms-auto">
-                        {% if not item.is_completed %}
+                        {% if not item.is_completed and can_write('hr_people') %}
                         <form
                             action="{{ url_for('onboarding.create_user_account', process_id=process.id, item_id=item.id) }}"
                             method="POST" class="d-inline">
@@ -123,7 +124,7 @@
                         class="btn btn-sm btn-outline-secondary me-1" target="_blank">
                         <i class="fas fa-external-link-alt"></i> View
                     </a>
-                    {% if type == 'offboarding' and not item.is_completed %}
+                    {% if type == 'offboarding' and not item.is_completed and can_write('hr_people') %}
                     <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal"
                         data-bs-target="#checkinAssetModal{{ item.id }}">
                         <i class="fas fa-undo"></i> Check In
@@ -169,7 +170,7 @@
                         class="btn btn-sm btn-outline-secondary me-1" target="_blank">
                         <i class="fas fa-external-link-alt"></i> View
                     </a>
-                    {% if type == 'offboarding' and not item.is_completed %}
+                    {% if type == 'offboarding' and not item.is_completed and can_write('hr_people') %}
                     <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal"
                         data-bs-target="#checkinPeripheralModal{{ item.id }}">
                         <i class="fas fa-undo"></i> Check In
@@ -219,7 +220,7 @@
                     {% elif item.item_type == 'Risk' %}
                     <a href="{{ url_for('risk.detail', id=item.linked_object_id) }}"
                         class="btn btn-sm btn-outline-secondary me-1" target="_blank">View</a>
-                    {% if type == 'offboarding' and not item.is_completed %}
+                    {% if type == 'offboarding' and not item.is_completed and can_write('hr_people') %}
                     <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal"
                         data-bs-target="#transferRiskModal{{ item.id }}">
                         <i class="fas fa-exchange-alt"></i> Transfer
@@ -263,7 +264,7 @@
                     <a href="{{ url_for('services.detail', id=item.linked_object_id) }}"
                         class="btn btn-sm btn-outline-secondary me-1" target="_blank">View Service</a>
 
-                    {% if type == 'onboarding' and not item.is_completed %}
+                    {% if type == 'onboarding' and not item.is_completed and can_write('hr_people') %}
                     <form
                         action="{{ url_for('onboarding.add_user_to_service', process_id=process.id, item_id=item.id) }}"
                         method="POST" class="d-inline">
@@ -280,7 +281,7 @@
                     <a href="{{ url_for('subscriptions.subscription_detail', id=item.linked_object_id) }}"
                         class="btn btn-sm btn-outline-secondary me-1" target="_blank">View Subscription</a>
 
-                    {% if type == 'onboarding' and not item.is_completed %}
+                    {% if type == 'onboarding' and not item.is_completed and can_write('hr_people') %}
                     <form
                         action="{{ url_for('onboarding.add_user_to_subscription', process_id=process.id, item_id=item.id) }}"
                         method="POST" class="d-inline">
@@ -297,7 +298,7 @@
                     <a href="{{ url_for('training.course_detail', id=item.linked_object_id) }}"
                         class="btn btn-sm btn-outline-secondary me-1" target="_blank">View Course</a>
 
-                    {% if type == 'onboarding' and not item.is_completed %}
+                    {% if type == 'onboarding' and not item.is_completed and can_write('hr_people') %}
                     <form
                         action="{{ url_for('onboarding.add_user_to_course', process_id=process.id, item_id=item.id) }}"
                         method="POST" class="d-inline">
@@ -314,7 +315,7 @@
                     <a href="{{ url_for('subscriptions.subscription_detail', id=item.linked_object_id) }}"
                         class="btn btn-sm btn-outline-secondary me-1" target="_blank">View Subscription</a>
 
-                    {% if type == 'offboarding' and not item.is_completed %}
+                    {% if type == 'offboarding' and not item.is_completed and can_write('hr_people') %}
                     <form
                         action="{{ url_for('onboarding.revoke_subscription_access', process_id=process.id, item_id=item.id) }}"
                         method="POST" class="d-inline">
@@ -331,7 +332,7 @@
                     {% elif item.item_type == 'Service' %}
                     <a href="{{ url_for('services.detail', id=item.linked_object_id) }}"
                         class="btn btn-sm btn-outline-secondary me-1" target="_blank">View</a>
-                    {% if type == 'offboarding' and not item.is_completed %}
+                    {% if type == 'offboarding' and not item.is_completed and can_write('hr_people') %}
                     <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal"
                         data-bs-target="#transferServiceModal{{ item.id }}">
                         <i class="fas fa-exchange-alt"></i> Transfer
@@ -374,7 +375,7 @@
                     {% elif item.item_type == 'Credential' %}
                     <a href="{{ url_for('credentials.detail_credential', id=item.linked_object_id) }}"
                         class="btn btn-sm btn-outline-secondary me-1" target="_blank">View</a>
-                    {% if type == 'offboarding' and not item.is_completed %}
+                    {% if type == 'offboarding' and not item.is_completed and can_write('hr_people') %}
                     <button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal"
                         data-bs-target="#transferCredentialModal{{ item.id }}">
                         <i class="fas fa-exchange-alt"></i> Reassign
@@ -418,7 +419,7 @@
                     <a href="{{ url_for('services.detail', id=item.linked_object_id) }}"
                         class="btn btn-sm btn-outline-secondary me-1" target="_blank">View Service</a>
 
-                    {% if type == 'offboarding' and not item.is_completed %}
+                    {% if type == 'offboarding' and not item.is_completed and can_write('hr_people') %}
                     <form
                         action="{{ url_for('onboarding.revoke_service_access', process_id=process.id, item_id=item.id) }}"
                         method="POST" class="d-inline">
@@ -506,10 +507,12 @@
                 {% endif %}
                 {% if type == 'onboarding' %}
                 <div class="d-flex justify-content-end mb-3">
+                    {% if can_write('hr_people') %}
                     <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
                         data-bs-target="#editDetailsModal">
                         <i class="fas fa-edit"></i> Edit
                     </button>
+                    {% endif %}
                 </div>
                 <p class="mb-1"><small class="text-muted">Personal Email</small><br>
                     <a href="mailto:{{ process.personal_email }}">{{ process.personal_email or 'Not set' }}</a>

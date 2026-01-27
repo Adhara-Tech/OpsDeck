@@ -8,9 +8,11 @@
         <button class="btn btn-success" onclick="exportTableToCSV('courses-table', 'courses.csv')">
             <i class="fas fa-file-csv"></i> Export to CSV
         </button>
+        {% if can_write('knowledge_policy') %}
         <a href="{{ url_for('training.new_course') }}" class="btn btn-primary">
             <i class="fas fa-plus"></i> New Course
         </a>
+        {% endif %}
     </div>
 </div>
 
@@ -32,20 +34,23 @@
                         <td>
                             {% set total = course.assignments|length %}
                             {% if total > 0 %}
-                                {% set completed = course.assignments|selectattr('completion')|list|length %}
-                                {% set percentage = (completed / total * 100)|round|int %}
-                                <div class="d-flex align-items-center">
-                                    <div class="progress flex-grow-1" style="height: 20px;">
-                                        <div class="progress-bar" role="progressbar" style="width: {{ percentage }}%;" aria-valuenow="{{ percentage }}" aria-valuemin="0" aria-valuemax="100">{{ percentage }}%</div>
-                                    </div>
-                                    <span class="ms-3 fw-bold">{{ completed }}/{{ total }}</span>
+                            {% set completed = course.assignments|selectattr('completion')|list|length %}
+                            {% set percentage = (completed / total * 100)|round|int %}
+                            <div class="d-flex align-items-center">
+                                <div class="progress flex-grow-1" style="height: 20px;">
+                                    <div class="progress-bar" role="progressbar" style="width: {{ percentage }}%;"
+                                        aria-valuenow="{{ percentage }}" aria-valuemin="0" aria-valuemax="100">{{
+                                        percentage }}%</div>
                                 </div>
+                                <span class="ms-3 fw-bold">{{ completed }}/{{ total }}</span>
+                            </div>
                             {% else %}
-                                <span class="text-muted">Not Assigned</span>
+                            <span class="text-muted">Not Assigned</span>
                             {% endif %}
                         </td>
                         <td>
-                            <a href="{{ url_for('training.course_detail', id=course.id) }}" class="btn btn-sm btn-outline-primary">Details</a>
+                            <a href="{{ url_for('training.course_detail', id=course.id) }}"
+                                class="btn btn-sm btn-outline-primary">Details</a>
                         </td>
                     </tr>
                     {% else %}

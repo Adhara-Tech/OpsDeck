@@ -18,11 +18,12 @@
                     <label class="form-label">Name</label>
                     <input type="text" class="form-control" name="name"
                         value="{{ certificate.name if certificate else '' }}" required
-                        placeholder="e.g. Wildcard *.example.com">
+                        placeholder="e.g. Wildcard *.example.com" {% if not can_write('access_control') %}disabled{%
+                        endif %}>
                 </div>
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Type</label>
-                    <select class="form-select" name="type">
+                    <select class="form-select" name="type" {% if not can_write('access_control') %}disabled{% endif %}>
                         {% for t in ['SSL/TLS', 'SAML', 'Code Signing', 'Root CA', 'Client Auth'] %}
                         <option value="{{ t }}" {% if certificate and certificate.type==t %}selected{% endif %}>{{ t }}
                         </option>
@@ -33,14 +34,15 @@
 
             <div class="mb-3">
                 <label class="form-label">Description</label>
-                <textarea class="form-control" name="description"
-                    rows="3">{{ certificate.description if certificate else '' }}</textarea>
+                <textarea class="form-control" name="description" rows="3" {% if not can_write('access_control')
+                    %}disabled{% endif %}>{{ certificate.description if certificate else '' }}</textarea>
             </div>
 
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Owner</label>
-                    <select class="form-select tom-select" name="owner_id">
+                    <select class="form-select tom-select" name="owner_id" {% if not can_write('access_control')
+                        %}disabled{% endif %}>
                         <option value="">Select User...</option>
                         {% for user in users %}
                         <option value="{{ user.id }}" {% if certificate and certificate.owner_id==user.id %}selected{%
@@ -51,7 +53,8 @@
 
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Associated Services</label>
-                    <select class="form-select tom-select" name="service_ids" multiple>
+                    <select class="form-select tom-select" name="service_ids" multiple {% if not
+                        can_write('access_control') %}disabled{% endif %}>
                         {% for srv in services %}
                         <option value="{{ srv.id }}" {% if certificate and srv in certificate.services %}selected{%
                             endif %}>
@@ -69,15 +72,18 @@
             <div class="row">
                 <div class="col-md-4 mb-3">
                     <label class="form-label">Expiration Date <span class="text-danger">*</span></label>
-                    <input type="date" class="form-control" name="expires_at" required>
+                    <input type="date" class="form-control" name="expires_at" required {% if not
+                        can_write('access_control') %}disabled{% endif %}>
                 </div>
                 <div class="col-md-4 mb-3">
                     <label class="form-label">Issuer</label>
-                    <input type="text" class="form-control" name="issuer" placeholder="e.g. DigiCert">
+                    <input type="text" class="form-control" name="issuer" placeholder="e.g. DigiCert" {% if not
+                        can_write('access_control') %}disabled{% endif %}>
                 </div>
                 <div class="col-md-4 mb-3">
                     <label class="form-label">Common Name (CN)</label>
-                    <input type="text" class="form-control" name="common_name" placeholder="e.g. *.example.com">
+                    <input type="text" class="form-control" name="common_name" placeholder="e.g. *.example.com" {% if
+                        not can_write('access_control') %}disabled{% endif %}>
                 </div>
             </div>
 
@@ -85,12 +91,15 @@
                 <label class="form-label">Private Key Location <span class="text-muted small">(Do not paste the key
                         here)</span></label>
                 <input type="text" class="form-control" name="private_key_location"
-                    placeholder="e.g. 1Password Vault / Safe 2">
+                    placeholder="e.g. 1Password Vault / Safe 2" {% if not can_write('access_control') %}disabled{% endif
+                    %}>
             </div>
             {% endif %}
 
             <div class="mt-4">
+                {% if can_write('access_control') %}
                 <button type="submit" class="btn btn-primary">{{ 'Update' if is_edit else 'Create' }}</button>
+                {% endif %}
             </div>
         </form>
     </div>

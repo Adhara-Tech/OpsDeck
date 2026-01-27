@@ -8,10 +8,9 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import current_user
 from ..extensions import db
 from ..models.communications import EmailTemplate, PackCommunication
-from ..routes.admin import admin_required
-from ..routes.main import login_required
-from ..utils.communications_context import validate_template_syntax, render_email_template
+from ..services.permissions_service import requires_permission, has_write_permission
 from .. import notifications
+from .main import login_required
 
 admin_communications_bp = Blueprint('admin_communications', __name__)
 
@@ -22,7 +21,7 @@ admin_communications_bp = Blueprint('admin_communications', __name__)
 
 @admin_communications_bp.route('/templates')
 @login_required
-@admin_required
+@requires_permission('hr_people')
 def list_templates():
     """List all email templates."""
     templates = EmailTemplate.query.order_by(EmailTemplate.name).all()
@@ -31,10 +30,13 @@ def list_templates():
 
 @admin_communications_bp.route('/templates/new', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@requires_permission('hr_people')
 def new_template():
     """Create a new email template."""
     if request.method == 'POST':
+        if not has_write_permission('hr_people'):
+            flash('Write access required to create templates.', 'danger')
+            return redirect(url_for('admin_communications.list_templates'))
         name = request.form.get('name')
         subject = request.form.get('subject')
         body_html = request.form.get('body_html')
@@ -72,12 +74,15 @@ def new_template():
 
 @admin_communications_bp.route('/templates/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@requires_permission('hr_people')
 def edit_template(id):
     """Edit an existing email template."""
     template = EmailTemplate.query.get_or_404(id)
     
     if request.method == 'POST':
+        if not has_write_permission('hr_people'):
+            flash('Write access required to update templates.', 'danger')
+            return redirect(url_for('admin_communications.edit_template', id=id))
         name = request.form.get('name')
         subject = request.form.get('subject')
         body_html = request.form.get('body_html')
@@ -121,8 +126,11 @@ def edit_template(id):
 
 @admin_communications_bp.route('/templates/<int:id>/delete', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('hr_people')
 def delete_template(id):
+    if not has_write_permission('hr_people'):
+        flash('Write access required to delete templates.', 'danger')
+        return redirect(url_for('admin_communications.list_templates'))
     """Delete an email template."""
     template = EmailTemplate.query.get_or_404(id)
     
@@ -152,8 +160,11 @@ def delete_template(id):
 
 @admin_communications_bp.route('/templates/<int:id>/toggle', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('hr_people')
 def toggle_template(id):
+    if not has_write_permission('hr_people'):
+        flash('Write access required to toggle templates.', 'danger')
+        return redirect(url_for('admin_communications.list_templates'))
     """Toggle template active status."""
     template = EmailTemplate.query.get_or_404(id)
     
@@ -173,8 +184,10 @@ def toggle_template(id):
 
 @admin_communications_bp.route('/templates/<int:id>/test-send', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('hr_people')
 def test_send_template(id):
+    if not has_write_permission('hr_people'):
+        return jsonify({'success': False, 'message': 'Write access required to send test emails.'}), 403
     """Send a test email to the current admin user with dummy data."""
     template = EmailTemplate.query.get_or_404(id)
     

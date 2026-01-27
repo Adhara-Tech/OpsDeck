@@ -44,19 +44,23 @@
                                                 class="text-danger">*</span></label>
                                         <input type="text" class="form-control" name="title" required
                                             placeholder="e.g., Upgrade Database Server to v14"
-                                            value="{{ change.title if change else '' }}">
+                                            value="{{ change.title if change else '' }}" {% if not
+                                            can_write('operations') %}disabled{% endif %}>
                                     </div>
 
                                     <div class="mb-3">
                                         <label class="form-label">Description / Business Case</label>
                                         <textarea class="form-control" name="description" rows="3"
-                                            placeholder="Why are we doing this change? What is the expected outcome?">{{ change.description if change else '' }}</textarea>
+                                            placeholder="Why are we doing this change? What is the expected outcome?" {%
+                                            if not can_write('operations') %}disabled{% endif
+                                            %}>{{ change.description if change else '' }}</textarea>
                                     </div>
 
                                     <div class="row">
                                         <div class="col-md-6 mb-3">
                                             <label class="form-label">Target Type</label>
-                                            <select class="form-select" name="target_type" id="targetTypeSelect">
+                                            <select class="form-select" name="target_type" id="targetTypeSelect" {% if
+                                                not can_write('operations') %}disabled{% endif %}>
                                                 <option value="" {% if not change %}selected{% endif %}>-- Select Type
                                                     --</option>
                                                 <option value="service" {% if change and change.service_id %}selected{%
@@ -76,7 +80,8 @@
                                             <div id="target-service-wrapper" class="target-wrapper"
                                                 style="display:none;">
                                                 <select class="form-select tom-select" name="service_id"
-                                                    id="serviceSelect">
+                                                    id="serviceSelect" {% if not can_write('operations') %}disabled{%
+                                                    endif %}>
                                                     <option value="">-- Select Service --</option>
                                                     {% for service in services %}
                                                     <option value="{{ service.id }}" {% if change and
@@ -88,7 +93,8 @@
 
                                             <!-- ASSET DROPDOWN -->
                                             <div id="target-asset-wrapper" class="target-wrapper" style="display:none;">
-                                                <select class="form-select tom-select" name="asset_id" id="assetSelect">
+                                                <select class="form-select tom-select" name="asset_id" id="assetSelect"
+                                                    {% if not can_write('operations') %}disabled{% endif %}>
                                                     <option value="">-- Select Asset --</option>
                                                     {% for asset in assets %}
                                                     <option value="{{ asset.id }}" {% if change and
@@ -102,7 +108,8 @@
                                             <div id="target-software-wrapper" class="target-wrapper"
                                                 style="display:none;">
                                                 <select class="form-select tom-select" name="software_id"
-                                                    id="softwareSelect">
+                                                    id="softwareSelect" {% if not can_write('operations') %}disabled{%
+                                                    endif %}>
                                                     <option value="">-- Select Software --</option>
                                                     {% for sw in software %}
                                                     <option value="{{ sw.id }}" {% if change and
@@ -117,7 +124,8 @@
                                                 style="display:none;">
                                                 <div class="mb-2">
                                                     <select class="form-select tom-select" name="configuration_id"
-                                                        id="configurationSelect">
+                                                        id="configurationSelect" {% if not can_write('operations')
+                                                        %}disabled{% endif %}>
                                                         <option value="">-- Select Configuration --</option>
                                                         {% for config in configurations %}
                                                         <option value="{{ config.id }}" {% if change and
@@ -149,7 +157,8 @@
 
                                     <div class="mb-3">
                                         <label class="form-label">Tags</label>
-                                        <select class="form-select tom-select" name="tag_ids" multiple>
+                                        <select class="form-select tom-select" name="tag_ids" multiple {% if not
+                                            can_write('operations') %}disabled{% endif %}>
                                             {% for tag in tags %}
                                             <option value="{{ tag.id }}" {% if change and tag in change.tags
                                                 %}selected{% endif %}>{{ tag.name }}</option>
@@ -165,8 +174,8 @@
                                                 <div class="form-check form-switch">
                                                     <input class="form-check-input" type="checkbox"
                                                         id="requiresApproval" name="requires_approval" {% if not change
-                                                        or change.requires_approval %}checked{% endif %} {% if change
-                                                        %}disabled{% endif %}>
+                                                        or change.requires_approval %}checked{% endif %} {% if change or
+                                                        not can_write('operations') %}disabled{% endif %}>
                                                     <label class="form-check-label" for="requiresApproval">Requires
                                                         Approval</label>
                                                 </div>
@@ -180,7 +189,8 @@
                                                 <label class="form-label">Change Type <span
                                                         class="text-danger">*</span></label>
                                                 <select class="form-select" name="change_type" required
-                                                    id="changeTypeSelect">
+                                                    id="changeTypeSelect" {% if not can_write('operations') %}disabled{%
+                                                    endif %}>
                                                     <option value="Standard" {% if change and
                                                         change.change_type=='Standard' %}selected{% endif %}>Standard
                                                         (Pre-approved)</option>
@@ -195,7 +205,8 @@
 
                                             <div class="mb-3">
                                                 <label class="form-label">Priority</label>
-                                                <select class="form-select" name="priority">
+                                                <select class="form-select" name="priority" {% if not
+                                                    can_write('operations') %}disabled{% endif %}>
                                                     <option value="Low" {% if change and change.priority=='Low'
                                                         %}selected{% endif %}>Low</option>
                                                     <option value="Medium" {% if not change or change.priority=='Medium'
@@ -210,7 +221,8 @@
 
                                             <div class="mb-3">
                                                 <label class="form-label">Risk Impact</label>
-                                                <select class="form-select" name="risk_impact">
+                                                <select class="form-select" name="risk_impact" {% if not
+                                                    can_write('operations') %}disabled{% endif %}>
                                                     <option value="Low" {% if not change or change.risk_impact=='Low'
                                                         %}selected{% endif %}>Low</option>
                                                     <option value="Medium" {% if change and change.risk_impact=='Medium'
@@ -225,25 +237,29 @@
                                             <div class="mb-3">
                                                 <label class="form-label">Scheduled Start</label>
                                                 <input type="datetime-local" class="form-control" name="scheduled_start"
-                                                    value="{% if change and change.scheduled_start %}{{ change.scheduled_start.strftime('%Y-%m-%dT%H:%M') }}{% endif %}">
+                                                    value="{% if change and change.scheduled_start %}{{ change.scheduled_start.strftime('%Y-%m-%dT%H:%M') }}{% endif %}"
+                                                    {% if not can_write('operations') %}disabled{% endif %}>
                                             </div>
 
                                             <div class="mb-3">
                                                 <label class="form-label">Scheduled End</label>
                                                 <input type="datetime-local" class="form-control" name="scheduled_end"
-                                                    value="{% if change and change.scheduled_end %}{{ change.scheduled_end.strftime('%Y-%m-%dT%H:%M') }}{% endif %}">
+                                                    value="{% if change and change.scheduled_end %}{{ change.scheduled_end.strftime('%Y-%m-%dT%H:%M') }}{% endif %}"
+                                                    {% if not can_write('operations') %}disabled{% endif %}>
                                             </div>
 
                                             <div class="mb-3">
                                                 <label class="form-label">Estimated Duration (mins)</label>
                                                 <input type="number" class="form-control" name="estimated_duration"
                                                     placeholder="60"
-                                                    value="{{ change.estimated_duration if change else '' }}">
+                                                    value="{{ change.estimated_duration if change else '' }}" {% if not
+                                                    can_write('operations') %}disabled{% endif %}>
                                             </div>
 
                                             <div class="mb-3">
                                                 <label class="form-label">Assignee</label>
-                                                <select class="form-select tom-select" name="assignee_id">
+                                                <select class="form-select tom-select" name="assignee_id" {% if not
+                                                    can_write('operations') %}disabled{% endif %}>
                                                     <option value="">-- Unassigned --</option>
                                                     {% for u in users %}
                                                     <option value="{{ u.id }}" {% if change and change.assignee_id==u.id
@@ -275,8 +291,9 @@
                                     Implementation Plan</label>
                                 <div class="form-text mb-2">Detailed step-by-step instructions to apply the change.
                                 </div>
-                                <textarea id="mde-implementation"
-                                    name="implementation_plan">{{ change.implementation_plan if change and change.implementation_plan else '' }}</textarea>
+                                <textarea id="mde-implementation" name="implementation_plan" {% if not
+                                    can_write('operations') %}disabled{% endif
+                                    %}>{{ change.implementation_plan if change and change.implementation_plan else '' }}</textarea>
                             </div>
 
                             <hr>
@@ -286,8 +303,9 @@
                                     Plan</label>
                                 <div class="form-text mb-2">Steps to revert the system to its original state if the
                                     change fails.</div>
-                                <textarea id="mde-rollback"
-                                    name="rollback_plan">{{ change.rollback_plan if change and change.rollback_plan else '' }}</textarea>
+                                <textarea id="mde-rollback" name="rollback_plan" {% if not can_write('operations')
+                                    %}disabled{% endif
+                                    %}>{{ change.rollback_plan if change and change.rollback_plan else '' }}</textarea>
                             </div>
 
                             <hr>
@@ -296,8 +314,8 @@
                                 <label class="form-label fw-bold text-info"><i class="fas fa-vial"></i> Test
                                     Plan</label>
                                 <div class="form-text mb-2">How will you verify that the change was successful?</div>
-                                <textarea id="mde-test"
-                                    name="test_plan">{{ change.test_plan if change and change.test_plan else '' }}</textarea>
+                                <textarea id="mde-test" name="test_plan" {% if not can_write('operations') %}disabled{%
+                                    endif %}>{{ change.test_plan if change and change.test_plan else '' }}</textarea>
                             </div>
 
                         </div>
@@ -309,8 +327,10 @@
             <div class="d-flex justify-content-end mb-5">
                 <a href="{% if change %}{{ url_for('changes.detail_change', id=change.id) }}{% else %}{{ url_for('changes.list_changes') }}{% endif %}"
                     class="btn btn-secondary me-2">Cancel</a>
+                {% if can_write('operations') %}
                 <button type="submit" class="btn btn-success"><i class="fas fa-save"></i> {% if change %}Save Changes{%
                     else %}Create Change Request{% endif %}</button>
+                {% endif %}
             </div>
         </div>
     </div>

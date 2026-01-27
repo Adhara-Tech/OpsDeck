@@ -7,9 +7,11 @@
         <button class="btn btn-success" onclick="exportTableToCSV('inventory-table', 'assets-inventory.csv')">
             <i class="fas fa-file-csv"></i> Export to CSV
         </button>
+        {% if can_write('compliance') %}
         <a href="{{ url_for('compliance.new_inventory') }}" class="btn btn-primary">
             <i class="fas fa-plus"></i> New Inventory
         </a>
+        {% endif %}
     </div>
 </div>
 

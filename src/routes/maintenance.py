@@ -3,29 +3,34 @@ import uuid
 from werkzeug.utils import secure_filename
 from flask import current_app, Blueprint, render_template, request, redirect, url_for, flash
 from datetime import datetime
-from ..models import db, MaintenanceLog, Asset, Peripheral, User, Attachment, Tag # Added Attachment, Tag
+from ..models import db, MaintenanceLog, Asset, Peripheral, User, Attachment, Tag 
 from .main import login_required
-from .admin import admin_required
+from ..services.permissions_service import requires_permission, has_write_permission
 
 maintenance_bp = Blueprint('maintenance', __name__, url_prefix='/maintenance')
 
 @maintenance_bp.route('/')
 @login_required
+@requires_permission('operations')
 def list_logs():
     logs = MaintenanceLog.query.order_by(MaintenanceLog.event_date.desc()).all()
     return render_template('maintenance/list.html', logs=logs)
 
 @maintenance_bp.route('/<int:id>')
 @login_required
+@requires_permission('operations')
 def log_detail(id):
     log = MaintenanceLog.query.get_or_404(id)
     return render_template('maintenance/detail.html', log=log)
 
 @maintenance_bp.route('/new', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@requires_permission('operations')
 def new_log():
     if request.method == 'POST':
+        if not has_write_permission('operations'):
+            flash('Write access required to create maintenance logs.', 'danger')
+            return redirect(url_for('maintenance.list_logs'))
         log = MaintenanceLog(
             event_type=request.form['event_type'],
             description=request.form['description'],
@@ -87,10 +92,13 @@ def new_log():
 
 @maintenance_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@requires_permission('operations')
 def edit_log(id):
     log = MaintenanceLog.query.get_or_404(id)
     if request.method == 'POST':
+        if not has_write_permission('operations'):
+            flash('Write access required to update maintenance logs.', 'danger')
+            return redirect(url_for('maintenance.log_detail', id=id))
         log.event_type = request.form['event_type']
         log.description = request.form['description']
         log.status = request.form['status']

@@ -44,9 +44,11 @@
         <p class="text-muted mb-0">{{ service.description }}</p>
     </div>
     <div class="btn-toolbar mb-2 mb-md-0">
+        {% if can_write('core_inventory') %}
         <a href="{{ url_for('services.edit_service', id=service.id) }}" class="btn btn-sm btn-outline-secondary me-2">
             <i class="fas fa-edit"></i> Edit
         </a>
+        {% endif %}
         <a href="{{ url_for('services.list_services') }}" class="btn btn-sm btn-outline-secondary">
             <i class="fas fa-arrow-left"></i> Back
         </a>
@@ -202,15 +204,18 @@
                 <div class="card shadow mb-4">
                     <div class="card-header py-3 d-flex justify-content-between align-items-center">
                         <h6 class="m-0 font-weight-bold text-primary">Depends On (Upstream)</h6>
+                        {% if can_write('core_inventory') %}
                         <button class="btn btn-sm btn-primary" data-bs-toggle="modal"
                             data-bs-target="#addDependencyModal" onclick="setDependencyType('upstream')">
                             <i class="fas fa-plus"></i>
                         </button>
+                        {% endif %}
                     </div>
                     <ul class="list-group list-group-flush">
                         {% for parent in service.upstream_dependencies %}
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             <a href="{{ url_for('services.detail', id=parent.id) }}">{{ parent.name }}</a>
+                            {% if can_write('core_inventory') %}
                             <form
                                 action="{{ url_for('services.remove_dependency', id=service.id, target_id=parent.id) }}"
                                 method="POST" class="d-inline">
@@ -220,6 +225,7 @@
                                     <i class="fas fa-times"></i>
                                 </button>
                             </form>
+                            {% endif %}
                         </li>
                         {% else %}
                         <li class="list-group-item text-muted">No upstream dependencies.</li>
@@ -230,15 +236,18 @@
                 <div class="card shadow mb-4">
                     <div class="card-header py-3 d-flex justify-content-between align-items-center">
                         <h6 class="m-0 font-weight-bold text-primary">Supported Services (Downstream)</h6>
+                        {% if can_write('core_inventory') %}
                         <button class="btn btn-sm btn-primary" data-bs-toggle="modal"
                             data-bs-target="#addDependencyModal" onclick="setDependencyType('downstream')">
                             <i class="fas fa-plus"></i>
                         </button>
+                        {% endif %}
                     </div>
                     <ul class="list-group list-group-flush">
                         {% for child in service.downstream_dependencies %}
                         <li class="list-group-item d-flex justify-content-between align-items-center">
                             <a href="{{ url_for('services.detail', id=child.id) }}">{{ child.name }}</a>
+                            {% if can_write('core_inventory') %}
                             <form
                                 action="{{ url_for('services.remove_dependency', id=service.id, target_id=child.id) }}"
                                 method="POST" class="d-inline">
@@ -248,6 +257,7 @@
                                     <i class="fas fa-times"></i>
                                 </button>
                             </form>
+                            {% endif %}
                         </li>
                         {% else %}
                         <li class="list-group-item text-muted">No supported services.</li>
@@ -262,9 +272,11 @@
         <div class="card shadow mb-4">
             <div class="card-header py-3 d-flex justify-content-between align-items-center">
                 <h6 class="m-0 font-weight-bold text-primary">User Access ({{ effective_users|length }})</h6>
+                {% if can_write('core_inventory') %}
                 <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addUserAccessModal">
                     <i class="fas fa-user-plus"></i> Add User
                 </button>
+                {% endif %}
             </div>
             <div class="card-body">
                 <div class="table-responsive">
@@ -317,9 +329,7 @@
                                     {% endfor %}
                                 </td>
                                 <td>
-                                    {% set has_direct = accesses|selectattr('source', 'equalto', 'direct')|list|length >
-                                    0 %}
-                                    {% if has_direct %}
+                                    {% if has_direct and can_write('core_inventory') %}
                                     <form
                                         action="{{ url_for('services.remove_user_access', id=service.id, user_id=accesses[0].user.id) }}"
                                         method="POST" class="d-inline"
@@ -329,6 +339,8 @@
                                             <i class="fas fa-trash"></i> Revoke Direct
                                         </button>
                                     </form>
+                                    {% elif has_direct %}
+                                    <span class="text-muted small">Access protected</span>
                                     {% else %}
                                     <span class="text-muted small">Inherited only</span>
                                     {% endif %}
@@ -352,9 +364,11 @@
         <div class="card shadow mb-4">
             <div class="card-header py-3 d-flex justify-content-between align-items-center">
                 <h6 class="m-0 font-weight-bold text-primary">Linked Infrastructure</h6>
+                {% if can_write('core_inventory') %}
                 <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addComponentModal">
                     <i class="fas fa-plus"></i> Add Component
                 </button>
+                {% endif %}
             </div>
             <div class="card-body">
                 <div class="table-responsive">
@@ -399,6 +413,7 @@
                                 </td>
                                 <td>{{ comp.notes }}</td>
                                 <td>
+                                    {% if can_write('core_inventory') %}
                                     <form action="{{ url_for('services.delete_component', comp_id=comp.id) }}"
                                         method="POST" class="d-inline" data-confirm='Remove this component?'>
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -406,6 +421,7 @@
                                             <i class="fas fa-trash"></i>
                                         </button>
                                     </form>
+                                    {% endif %}
                                 </td>
                             </tr>
                             {% else %}
@@ -426,10 +442,12 @@
                 <div class="card shadow mb-4">
                     <div class="card-header py-3 d-flex justify-content-between align-items-center">
                         <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-book"></i> Documentation</h6>
+                        {% if can_write('core_inventory') %}
                         <button class="btn btn-sm btn-primary" data-bs-toggle="modal"
                             data-bs-target="#linkDocumentModal">
                             <i class="fas fa-link"></i> Link
                         </button>
+                        {% endif %}
                     </div>
                     <ul class="list-group list-group-flush">
                         {% for doc in service.documents %}
@@ -442,6 +460,7 @@
                                 {{ doc.name }}
                                 {% endif %}
                             </div>
+                            {% if can_write('core_inventory') %}
                             <form action="{{ url_for('services.unlink_document', id=service.id, doc_id=doc.id) }}"
                                 method="POST" class="d-inline">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -450,6 +469,7 @@
                                     <i class="fas fa-times"></i>
                                 </button>
                             </form>
+                            {% endif %}
                         </li>
                         {% else %}
                         <li class="list-group-item text-muted">No documentation linked.</li>
@@ -463,9 +483,11 @@
                     <div class="card-header py-3 d-flex justify-content-between align-items-center">
                         <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-external-link-alt"></i> External
                             Links</h6>
+                        {% if can_write('core_inventory') %}
                         <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addLinkModal">
                             <i class="fas fa-plus"></i> Add
                         </button>
+                        {% endif %}
                     </div>
                     <ul class="list-group list-group-flush">
                         {% for link in service_links %}
@@ -474,6 +496,7 @@
                                 <i class="fas fa-link text-muted"></i>
                                 <a href="{{ link.url }}" target="_blank">{{ link.name }}</a>
                             </div>
+                            {% if can_write('core_inventory') %}
                             <form action="{{ url_for('services.remove_link', id=service.id, link_id=link.id) }}"
                                 method="POST" class="d-inline">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -482,6 +505,7 @@
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </form>
+                            {% endif %}
                         </li>
                         {% else %}
                         <li class="list-group-item text-muted">No external links.</li>
@@ -494,9 +518,11 @@
                 <div class="card shadow mb-4">
                     <div class="card-header py-3 d-flex justify-content-between align-items-center">
                         <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-gavel"></i> Policies</h6>
+                        {% if can_write('core_inventory') %}
                         <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#linkPolicyModal">
                             <i class="fas fa-link"></i> Link
                         </button>
+                        {% endif %}
                     </div>
                     <ul class="list-group list-group-flush">
                         {% for policy in service_policies %}
@@ -505,6 +531,7 @@
                                 <i class="fas fa-file-contract text-muted"></i>
                                 <a href="{{ url_for('policies.detail', id=policy.id) }}">{{ policy.title }}</a>
                             </div>
+                            {% if can_write('core_inventory') %}
                             <form action="{{ url_for('services.unlink_policy', id=service.id, policy_id=policy.id) }}"
                                 method="POST" class="d-inline">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -513,6 +540,7 @@
                                     <i class="fas fa-times"></i>
                                 </button>
                             </form>
+                            {% endif %}
                         </li>
                         {% else %}
                         <li class="list-group-item text-muted">No policies linked.</li>
@@ -526,10 +554,12 @@
                     <div class="card-header py-3 d-flex justify-content-between align-items-center">
                         <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-shield-alt"></i> Security
                             Activities</h6>
+                        {% if can_write('core_inventory') %}
                         <button class="btn btn-sm btn-primary" data-bs-toggle="modal"
                             data-bs-target="#linkActivityModal">
                             <i class="fas fa-link"></i> Link
                         </button>
+                        {% endif %}
                     </div>
                     <ul class="list-group list-group-flush">
                         {% for activity in service_activities %}
@@ -539,6 +569,7 @@
                                 <a href="{{ url_for('activities.activity_detail', id=activity.id) }}">{{ activity.name
                                     }}</a>
                             </div>
+                            {% if can_write('core_inventory') %}
                             <form
                                 action="{{ url_for('services.unlink_activity', id=service.id, activity_id=activity.id) }}"
                                 method="POST" class="d-inline">
@@ -548,6 +579,7 @@
                                     <i class="fas fa-times"></i>
                                 </button>
                             </form>
+                            {% endif %}
                         </li>
                         {% else %}
                         <li class="list-group-item text-muted">No security activities linked.</li>
@@ -561,10 +593,12 @@
                     <div class="card-header py-3 d-flex justify-content-between align-items-center">
                         <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-paperclip"></i> Files / Contracts
                         </h6>
+                        {% if can_write('core_inventory') %}
                         <button class="btn btn-sm btn-primary" data-bs-toggle="modal"
                             data-bs-target="#uploadAttachmentModal">
                             <i class="fas fa-upload"></i> Upload
                         </button>
+                        {% endif %}
                     </div>
                     <ul class="list-group list-group-flush">
                         {% for att in service_attachments %}
@@ -574,6 +608,7 @@
                                 <a href="{{ url_for('attachments.download_attachment', attachment_id=att.id) }}">{{
                                     att.filename }}</a>
                             </div>
+                            {% if can_write('core_inventory') %}
                             <form action="{{ url_for('services.remove_attachment', id=service.id, att_id=att.id) }}"
                                 method="POST" class="d-inline">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -582,6 +617,7 @@
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </form>
+                            {% endif %}
                         </li>
                         {% else %}
                         <li class="list-group-item text-muted">No files attached.</li>
@@ -594,10 +630,12 @@
                 <div class="card shadow mb-4">
                     <div class="card-header py-3 d-flex justify-content-between align-items-center">
                         <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-lock"></i> Certificates</h6>
+                        {% if can_write('core_inventory') %}
                         <button class="btn btn-sm btn-primary" data-bs-toggle="modal"
                             data-bs-target="#linkCertificateModal">
                             <i class="fas fa-link"></i> Link
                         </button>
+                        {% endif %}
                     </div>
                     <ul class="list-group list-group-flush">
                         {% for cert in service.certificates %}
@@ -622,6 +660,7 @@
                                 <div class="small text-muted">No active version</div>
                                 {% endif %}
                             </div>
+                            {% if can_write('core_inventory') %}
                             <form action="{{ url_for('services.unlink_certificate', id=service.id, cert_id=cert.id) }}"
                                 method="POST" class="d-inline">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -630,6 +669,7 @@
                                     <i class="fas fa-times"></i>
                                 </button>
                             </form>
+                            {% endif %}
                         </li>
                         {% else %}
                         <li class="list-group-item text-muted">No certificates linked.</li>
@@ -643,10 +683,12 @@
                 <div class="card shadow mb-4">
                     <div class="card-header py-3 d-flex justify-content-between align-items-center">
                         <h6 class="m-0 font-weight-bold text-primary"><i class="fas fa-key"></i> Credentials</h6>
+                        {% if can_write('core_inventory') %}
                         <button class="btn btn-sm btn-primary" data-bs-toggle="modal"
                             data-bs-target="#linkCredentialModal">
                             <i class="fas fa-link"></i> Link
                         </button>
+                        {% endif %}
                     </div>
                     <ul class="list-group list-group-flush">
                         {% for cred in service.credentials %}
@@ -671,6 +713,7 @@
                                     {% endif %}
                                 </div>
                             </div>
+                            {% if can_write('core_inventory') %}
                             <form action="{{ url_for('services.unlink_credential', id=service.id, cred_id=cred.id) }}"
                                 method="POST" class="d-inline"
                                 data-confirm='Are you sure you want to unlink this credential?'>
@@ -680,6 +723,7 @@
                                     <i class="fas fa-times"></i>
                                 </button>
                             </form>
+                            {% endif %}
                         </li>
                         {% else %}
                         <li class="list-group-item text-muted">No credentials linked.</li>

@@ -18,22 +18,25 @@
 <div class="card">
     <div class="card-body">
         <form method="POST">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="mb-3">
                 <label for="name" class="form-label">Name <span class="text-danger">*</span></label>
                 <input type="text" class="form-control" id="name" name="name"
-                    value="{{ activity.name if activity else '' }}" required>
+                    value="{{ activity.name if activity else '' }}" required {% if not can_write('operations')
+                    %}disabled{% endif %}>
             </div>
 
             <div class="mb-3">
                 <label for="description" class="form-label">Description</label>
-                <textarea class="form-control" id="description" name="description"
-                    rows="6">{{ activity.description if activity else '' }}</textarea>
+                <textarea class="form-control" id="description" name="description" rows="6" {% if not
+                    can_write('operations') %}disabled{% endif
+                    %}>{{ activity.description if activity else '' }}</textarea>
             </div>
 
             <div class="mb-3">
                 <label for="frequency" class="form-label">Frequency</label>
-                <select class="form-select" id="frequency" name="frequency">
+                <select class="form-select" id="frequency" name="frequency" {% if not can_write('operations')
+                    %}disabled{% endif %}>
                     <option value="">Select frequency...</option>
                     <option value="weekly" {% if activity and activity.frequency=='weekly' %}selected{% endif %}>Weekly
                     </option>
@@ -55,12 +58,14 @@
                 <div>
                     <div class="form-check form-check-inline">
                         <input class="form-check-input" type="radio" name="owner_type" id="owner_type_user" value="User"
-                            {% if not activity or activity.owner_type=='User' %}checked{% endif %}>
+                            {% if not activity or activity.owner_type=='User' %}checked{% endif %} {% if not
+                            can_write('operations') %}disabled{% endif %}>
                         <label class="form-check-label" for="owner_type_user">User</label>
                     </div>
                     <div class="form-check form-check-inline">
                         <input class="form-check-input" type="radio" name="owner_type" id="owner_type_group"
-                            value="Group" {% if activity and activity.owner_type=='Group' %}checked{% endif %}>
+                            value="Group" {% if activity and activity.owner_type=='Group' %}checked{% endif %} {% if not
+                            can_write('operations') %}disabled{% endif %}>
                         <label class="form-check-label" for="owner_type_group">Group</label>
                     </div>
                 </div>
@@ -69,7 +74,8 @@
             <div class="mb-3" id="user-owner-select"
                 style="display: {% if not activity or activity.owner_type == 'User' %}block{% else %}none{% endif %};">
                 <label for="user_owner_id" class="form-label">Owner (User)</label>
-                <select class="form-select no-tom" id="user_owner_id" name="user_owner_id">
+                <select class="form-select no-tom" id="user_owner_id" name="user_owner_id" {% if not
+                    can_write('operations') %}disabled{% endif %}>
                     <option value="">Select user...</option>
                     {% for user in users %}
                     <option value="{{ user.id }}" {% if activity and activity.owner_type=='User' and
@@ -83,7 +89,8 @@
             <div class="mb-3" id="group-owner-select"
                 style="display: {% if activity and activity.owner_type == 'Group' %}block{% else %}none{% endif %};">
                 <label for="group_owner_id" class="form-label">Owner (Group)</label>
-                <select class="form-select no-tom" id="group_owner_id" name="group_owner_id">
+                <select class="form-select no-tom" id="group_owner_id" name="group_owner_id" {% if not
+                    can_write('operations') %}disabled{% endif %}>
                     <option value="">Select group...</option>
                     {% for group in groups %}
                     <option value="{{ group.id }}" {% if activity and activity.owner_type=='Group' and
@@ -96,7 +103,8 @@
 
             <div class="mb-3">
                 <label for="participant_ids" class="form-label">Participants</label>
-                <select class="form-select" id="participant_ids" name="participant_ids" multiple>
+                <select class="form-select" id="participant_ids" name="participant_ids" multiple {% if not
+                    can_write('operations') %}disabled{% endif %}>
                     {% for user in users %}
                     <option value="{{ user.id }}" {% if activity and user in activity.participants %}selected{% endif
                         %}>
@@ -109,7 +117,8 @@
 
             <div class="mb-3">
                 <label for="tag_ids" class="form-label">Tags</label>
-                <select class="form-select" id="tag_ids" name="tag_ids" multiple>
+                <select class="form-select" id="tag_ids" name="tag_ids" multiple {% if not can_write('operations')
+                    %}disabled{% endif %}>
                     {% for tag in tags %}
                     <option value="{{ tag.id }}" {% if activity and tag in activity.tags %}selected{% endif %}>
                         {{ tag.name }}
@@ -121,9 +130,11 @@
             <div class="d-flex justify-content-end gap-2">
                 <a href="{% if activity %}{{ url_for('activities.activity_detail', id=activity.id) }}{% else %}{{ url_for('activities.list_activities') }}{% endif %}"
                     class="btn btn-secondary">Cancel</a>
+                {% if can_write('operations') %}
                 <button type="submit" class="btn btn-primary">
                     <i class="fas fa-save"></i> {% if activity %}Update{% else %}Create{% endif %} Activity
                 </button>
+                {% endif %}
             </div>
         </form>
     </div>

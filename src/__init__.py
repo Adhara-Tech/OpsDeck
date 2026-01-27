@@ -354,11 +354,62 @@ def create_app(test_config=None):
     def inject_user_context():
         from datetime import date
         user_id = session.get('user_id')
+        original_user_id = session.get('original_user_id')
+        is_impersonating = original_user_id is not None
+        
         if user_id:
             user = User.query.get(user_id)
             if user:
-                return dict(current_user=user, current_user_role=user.role, today=date.today())
-        return dict(current_user=None, current_user_role=None, today=date.today())
+                context = dict(
+                    current_user=user, 
+                    current_user_role=user.role, 
+                    today=date.today(),
+                    is_impersonating=is_impersonating
+                )
+                
+                # Add original user if impersonating
+                if is_impersonating and original_user_id:
+                    original_user = User.query.get(original_user_id)
+                    context['original_user'] = original_user
+                
+                return context
+        
+        return dict(
+            current_user=None, 
+            current_user_role=None, 
+            today=date.today(),
+            is_impersonating=False
+        )
+
+    # --- Permissions Context Processor ---
+    @app.context_processor
+    def inject_permissions():
+        from .services.permissions_service import get_user_modules
+        from .services.permissions_cache import permissions_cache
+        user_id = session.get('user_id')
+        
+        def get_perms():
+            if not user_id:
+                return {}
+            perms = permissions_cache.get(user_id)
+            if perms is None:
+                get_user_modules(user_id)
+                perms = permissions_cache.get(user_id)
+            return perms or {}
+
+        def can_read(module_slug):
+            user = User.query.get(user_id) if user_id else None
+            if user and user.role == 'admin':
+                return True
+            return module_slug in get_perms()
+
+        def can_write(module_slug):
+            user = User.query.get(user_id) if user_id else None
+            if user and user.role == 'admin':
+                return True
+            return get_perms().get(module_slug) == 'WRITE'
+            
+        return dict(has_permission=can_read, can_read=can_read, can_write=can_write)
 
 
     # --- GLOBAL AUTHENTICATION GUARD (Security by Default) ---
@@ -517,7 +568,8 @@ def create_app(test_config=None):
     def seed_prod_command():
         """Carga los datos maestros de producción (Frameworks & Threats)."""
         seed_production_frameworks()
-        from .seeder_prod import seed_threats, seed_magerit_catalog, seed_operational_catalog, seed_it_infrastructure_catalog, seed_notification_templates
+        from .seeder_prod import seed_threats, seed_magerit_catalog, seed_operational_catalog, seed_it_infrastructure_catalog, seed_notification_templates, seed_modules
+        seed_modules()
         seed_threats()
         seed_magerit_catalog()
         seed_operational_catalog()

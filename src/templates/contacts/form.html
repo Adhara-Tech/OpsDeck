@@ -11,37 +11,49 @@
 <div class="card">
     <div class="card-body">
         <form method="POST">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="mb-3">
                 <label for="name" class="form-label">Name *</label>
-                <input type="text" class="form-control" id="name" name="name" value="{{ contact.name if contact else '' }}" required>
+                <input type="text" class="form-control" id="name" name="name"
+                    value="{{ contact.name if contact else '' }}" required {% if not can_write('business_ops')
+                    %}disabled{% endif %}>
             </div>
             <div class="mb-3">
                 <label for="email" class="form-label">Email</label>
-                <input type="email" class="form-control" id="email" name="email" value="{{ contact.email if contact else '' }}">
+                <input type="email" class="form-control" id="email" name="email"
+                    value="{{ contact.email if contact else '' }}" {% if not can_write('business_ops') %}disabled{%
+                    endif %}>
             </div>
             <div class="mb-3">
                 <label for="phone" class="form-label">Phone</label>
-                <input type="tel" class="form-control" id="phone" name="phone" value="{{ contact.phone if contact else '' }}">
+                <input type="tel" class="form-control" id="phone" name="phone"
+                    value="{{ contact.phone if contact else '' }}" {% if not can_write('business_ops') %}disabled{%
+                    endif %}>
             </div>
             <div class="mb-3">
                 <label for="role" class="form-label">Role</label>
-                <input type="text" class="form-control" id="role" name="role" value="{{ contact.role if contact else '' }}">
+                <input type="text" class="form-control" id="role" name="role"
+                    value="{{ contact.role if contact else '' }}" {% if not can_write('business_ops') %}disabled{% endif
+                    %}>
             </div>
             <div class="mb-3">
                 <label for="supplier_id" class="form-label">Supplier *</label>
-                <select class="form-select" id="supplier_id" name="supplier_id" required>
+                <select class="form-select" id="supplier_id" name="supplier_id" required {% if not
+                    can_write('business_ops') %}disabled{% endif %}>
                     <option value="">Select a supplier...</option>
                     {% for supplier in suppliers %}
-                    <option value="{{ supplier.id }}" {% if contact and contact.supplier_id == supplier.id %}selected{% endif %}>
+                    <option value="{{ supplier.id }}" {% if contact and contact.supplier_id==supplier.id %}selected{%
+                        endif %}>
                         {{ supplier.name }}
                     </option>
                     {% endfor %}
                 </select>
             </div>
-            
+
             <a href="{{ url_for('contacts.contacts') }}" class="btn btn-secondary">Cancel</a>
+            {% if can_write('business_ops') %}
             <button type="submit" class="btn btn-primary">Save Contact</button>
+            {% endif %}
         </form>
     </div>
 </div>

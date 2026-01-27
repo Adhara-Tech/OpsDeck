@@ -8,12 +8,12 @@ from ..models.activities import SecurityActivity
 from ..models.communications import Campaign
 from ..models.core import Tag
 from .main import login_required
-from .admin import admin_required
+from ..services.permissions_service import requires_permission, has_write_permission
 
 compliance_bp = Blueprint('compliance', __name__)
 
 @compliance_bp.route('/json/linkable-objects')
-@login_required
+@requires_permission('compliance')
 def get_linkable_objects():
     """
     Endpoint polimórfico para selectores dinámicos.
@@ -81,7 +81,7 @@ def get_linkable_objects():
 # --- JSON APIs for Automation Rules Dynamic Selectors ---
 
 @compliance_bp.route('/json/activities')
-@login_required
+@requires_permission('compliance')
 def get_activities():
     """Returns list of Security Activities for dropdown."""
     q = request.args.get('q', '').lower()
@@ -96,7 +96,7 @@ def get_activities():
     } for a in activities])
 
 @compliance_bp.route('/json/tags')
-@login_required
+@requires_permission('compliance')
 def get_all_tags():
     """Returns list of all non-archived Tags for dropdowns."""
     try:
@@ -109,14 +109,14 @@ def get_all_tags():
         return jsonify([]), 500
 
 @compliance_bp.route('/json/maintenance-types')
-@login_required
+@requires_permission('compliance')
 def get_maintenance_types():
     """Returns distinct event_type values from MaintenanceLog."""
     types = db.session.query(MaintenanceLog.event_type).distinct().order_by(MaintenanceLog.event_type).all()
     return jsonify([t[0] for t in types if t[0]])
 
 @compliance_bp.route('/json/bcdr-plans')
-@login_required
+@requires_permission('compliance')
 def get_bcdr_plans():
     """Returns list of BCDR Plans for dropdown."""
     q = request.args.get('q', '').lower()
@@ -130,23 +130,26 @@ def get_bcdr_plans():
     } for p in plans])
 
 @compliance_bp.route('/vendors')
-@login_required
+@requires_permission('compliance')
 def vendor_compliance():
     """Displays a list of all suppliers and their compliance status."""
     suppliers = Supplier.query.order_by(Supplier.name).all()
     return render_template('compliance/vendor_list.html', suppliers=suppliers)
 
 @compliance_bp.route('/assessments')
-@login_required
+@requires_permission('compliance')
 def list_assessments():
     """Displays a list of all security assessments."""
     assessments = SecurityAssessment.query.order_by(SecurityAssessment.assessment_date.desc()).all()
     return render_template('compliance/assessment_list.html', assessments=assessments)
 
 @compliance_bp.route('/<int:supplier_id>/new_assessment', methods=['GET', 'POST'])
-@login_required
-@admin_required
+@requires_permission('compliance')
 def new_assessment(supplier_id):
+    if not has_write_permission('compliance'):
+        if request.method == 'POST':
+            flash('You do not have permission to log assessments.', 'danger')
+            return redirect(url_for('suppliers.supplier_detail', id=supplier_id))
     supplier = Supplier.query.get_or_404(supplier_id)
     if request.method == 'POST':
         assessment = SecurityAssessment(
@@ -186,16 +189,19 @@ def new_assessment(supplier_id):
     return render_template('compliance/assessment_form.html', supplier=supplier, today_date=datetime.utcnow().strftime('%Y-%m-%d'))
 
 @compliance_bp.route('/assessment/<int:id>')
-@login_required
+@requires_permission('compliance')
 def assessment_detail(id):
     assessment = SecurityAssessment.query.get_or_404(id)
     return render_template('compliance/assessment_detail.html', assessment=assessment)
 
 @compliance_bp.route('/assessment/<int:id>/edit', methods=['GET', 'POST'])
-@login_required
-@admin_required
+@requires_permission('compliance')
 def edit_assessment(id):
     assessment = SecurityAssessment.query.get_or_404(id)
+    if not has_write_permission('compliance'):
+        if request.method == 'POST':
+            flash('You do not have permission to edit assessments.', 'danger')
+            return redirect(url_for('suppliers.supplier_detail', id=assessment.supplier_id))
     supplier = assessment.supplier
 
     if request.method == 'POST':
@@ -210,7 +216,7 @@ def edit_assessment(id):
     return render_template('compliance/assessment_form.html', supplier=supplier, assessment=assessment)
 
 @compliance_bp.route('/policy-report')
-@login_required
+@requires_permission('compliance')
 def policy_report():
     """Shows which users have not acknowledged active policies."""
     active_versions = PolicyVersion.query.filter_by(status='Active').all()
@@ -302,15 +308,19 @@ def my_policies():
 # --- Asset Inventory Management ---
 
 @compliance_bp.route('/inventory')
-@login_required
+@requires_permission('compliance')
 def list_inventory():
     """Displays a list of all asset inventories."""
     inventories = AssetInventory.query.order_by(AssetInventory.created_at.desc()).all()
     return render_template('compliance/inventory_list.html', inventories=inventories)
 
 @compliance_bp.route('/inventory/new', methods=['GET', 'POST'])
-@login_required
+@requires_permission('compliance')
 def new_inventory():
+    if not has_write_permission('compliance'):
+        if request.method == 'POST':
+            flash('You do not have permission to create inventories.', 'danger')
+            return redirect(url_for('compliance.list_inventory'))
     """Creates a new asset inventory."""
     if request.method == 'POST':
         name = request.form.get('name')
@@ -330,7 +340,7 @@ def new_inventory():
     return render_template('compliance/inventory_form.html')
 
 @compliance_bp.route('/inventory/<int:id>')
-@login_required
+@requires_permission('compliance')
 def inventory_detail(id):
     """Displays details of a specific asset inventory."""
     inventory = AssetInventory.query.get_or_404(id)
@@ -344,8 +354,11 @@ def inventory_detail(id):
     return render_template('compliance/inventory_detail.html', inventory=inventory, inventory_items=inventory_items, assets_to_audit=assets_to_audit)
 
 @compliance_bp.route('/inventory/<int:id>/log', methods=['POST'])
-@login_required
+@requires_permission('compliance')
 def log_inventory_item(id):
+    if not has_write_permission('compliance'):
+        flash('You do not have permission to log items.', 'danger')
+        return redirect(url_for('compliance.inventory_detail', id=id))
     """Logs an asset check during an inventory."""
     inventory = AssetInventory.query.get_or_404(id)
     
@@ -367,9 +380,11 @@ def log_inventory_item(id):
     return redirect(url_for('compliance.inventory_detail', id=inventory.id))
 
 @compliance_bp.route('/inventory/<int:id>/complete', methods=['POST'])
-@login_required
-@admin_required
+@requires_permission('compliance')
 def complete_inventory(id):
+    if not has_write_permission('compliance'):
+        flash('You do not have permission to complete inventories.', 'danger')
+        return redirect(url_for('compliance.inventory_detail', id=id))
     """Marks an inventory as complete."""
     inventory = AssetInventory.query.get_or_404(id)
     inventory.is_completed = True
@@ -379,17 +394,19 @@ def complete_inventory(id):
     return redirect(url_for('compliance.list_inventory'))
 
 @compliance_bp.route('/bcdr')
-@login_required
-@admin_required
+@requires_permission('compliance')
 def list_bcdr_plans():
     """Displays a list of all BCDR plans."""
     plans = BCDRPlan.query.order_by(BCDRPlan.name).all()
     return render_template('compliance/bcdr_list.html', plans=plans)
 
 @compliance_bp.route('/bcdr/new', methods=['GET', 'POST'])
-@login_required
-@admin_required
+@requires_permission('compliance')
 def new_bcdr_plan():
+    if not has_write_permission('compliance'):
+        if request.method == 'POST':
+            flash('You do not have permission to create BCDR plans.', 'danger')
+            return redirect(url_for('compliance.list_bcdr_plans'))
     if request.method == 'POST':
         plan = BCDRPlan(
             name=request.form['name'],
@@ -411,9 +428,12 @@ def new_bcdr_plan():
     return render_template('compliance/bcdr_form.html', subscriptions=subscriptions, assets=assets)
 
 @compliance_bp.route('/bcdr/<int:id>/edit', methods=['GET', 'POST'])
-@login_required
-@admin_required
+@requires_permission('compliance')
 def edit_bcdr_plan(id):
+    if not has_write_permission('compliance'):
+        if request.method == 'POST':
+            flash('You do not have permission to edit BCDR plans.', 'danger')
+            return redirect(url_for('compliance.bcdr_detail', id=id))
     plan = BCDRPlan.query.get_or_404(id)
     if request.method == 'POST':
         plan.name = request.form['name']
@@ -434,24 +454,25 @@ def edit_bcdr_plan(id):
     return render_template('compliance/bcdr_form.html', plan=plan, subscriptions=subscriptions, assets=assets)
 
 @compliance_bp.route('/bcdr/<int:id>')
-@login_required
-@admin_required
+@requires_permission('compliance')
 def bcdr_detail(id):
     plan = BCDRPlan.query.get_or_404(id)
     return render_template('compliance/bcdr_detail.html', plan=plan)
 
 @compliance_bp.route('/bcdr/test/<int:test_id>')
-@login_required
-@admin_required
+@requires_permission('compliance')
 def bcdr_test_log_detail(test_id):
     """Muestra los detalles de un único BCDR test log."""
     test_log = BCDRTestLog.query.get_or_404(test_id)
     return render_template('compliance/bcdr_test_log_detail.html', test_log=test_log)
 
 @compliance_bp.route('/bcdr/<int:plan_id>/log_test', methods=['GET', 'POST'])
-@login_required
-@admin_required
+@requires_permission('compliance')
 def log_bcdr_test(plan_id):
+    if not has_write_permission('compliance'):
+        if request.method == 'POST':
+            flash('You do not have permission to log BCDR tests.', 'danger')
+            return redirect(url_for('compliance.bcdr_detail', id=plan_id))
     plan = BCDRPlan.query.get_or_404(plan_id)
     if request.method == 'POST':
         test_log = BCDRTestLog(
@@ -496,10 +517,13 @@ def log_bcdr_test(plan_id):
     return render_template('compliance/bcdr_test_log_form.html', plan=plan, today_date=datetime.utcnow().strftime('%Y-%m-%d'), users=users)
 
 @compliance_bp.route('/bcdr/test/<int:test_id>/edit', methods=['GET', 'POST'])
-@login_required
-@admin_required
+@requires_permission('compliance')
 def edit_bcdr_test(test_id):
     test_log = BCDRTestLog.query.get_or_404(test_id)
+    if not has_write_permission('compliance'):
+        if request.method == 'POST':
+            flash('You do not have permission to edit BCDR test logs.', 'danger')
+            return redirect(url_for('compliance.bcdr_test_log_detail', test_id=test_id))
     plan = test_log.plan
     if request.method == 'POST':
         test_log.test_date = datetime.strptime(request.form['test_date'], '%Y-%m-%d').date()
@@ -551,16 +575,18 @@ def edit_bcdr_test(test_id):
     return render_template('compliance/bcdr_test_log_form.html', plan=plan, test_log=test_log, users=users, today_date=test_log.test_date.strftime('%Y-%m-%d'))
 
 @compliance_bp.route('/incidents')
-@login_required
-@admin_required
+@requires_permission('compliance')
 def list_incidents():
     incidents = SecurityIncident.query.order_by(SecurityIncident.incident_date.desc()).all()
     return render_template('compliance/incident_list.html', incidents=incidents)
 
 @compliance_bp.route('/incidents/new', methods=['GET', 'POST'])
-@login_required
-@admin_required
+@requires_permission('compliance')
 def new_incident():
+    if not has_write_permission('compliance'):
+        if request.method == 'POST':
+            flash('You do not have permission to log incidents.', 'danger')
+            return redirect(url_for('compliance.list_incidents'))
     if request.method == 'POST':
         incident = SecurityIncident(
             title=request.form['title'],
@@ -598,16 +624,18 @@ def new_incident():
     return render_template('compliance/incident_form.html', users=users, assets=assets, subscriptions=subscriptions, suppliers=suppliers)
 
 @compliance_bp.route('/incidents/<int:id>')
-@login_required
-@admin_required
+@requires_permission('compliance')
 def incident_detail(id):
     incident = SecurityIncident.query.get_or_404(id)
     return render_template('compliance/incident_detail.html', incident=incident)
 
 @compliance_bp.route('/incidents/<int:id>/edit', methods=['GET', 'POST'])
-@login_required
-@admin_required
+@requires_permission('compliance')
 def edit_incident(id):
+    if not has_write_permission('compliance'):
+        if request.method == 'POST':
+            flash('You do not have permission to edit incidents.', 'danger')
+            return redirect(url_for('compliance.incident_detail', id=id))
     incident = SecurityIncident.query.get_or_404(id)
     if request.method == 'POST':
         incident.title = request.form['title']
@@ -648,9 +676,12 @@ def edit_incident(id):
     return render_template('compliance/incident_form.html', incident=incident, users=users, assets=assets, subscriptions=subscriptions, suppliers=suppliers)
 
 @compliance_bp.route('/incidents/<int:id>/review', methods=['GET', 'POST'])
-@login_required
-@admin_required
+@requires_permission('compliance')
 def incident_review(id):
+    if not has_write_permission('compliance'):
+        if request.method == 'POST':
+            flash('You do not have permission to edit incident reviews.', 'danger')
+            return redirect(url_for('compliance.incident_detail', id=id))
     incident = SecurityIncident.query.get_or_404(id)
     review = incident.review
 
@@ -682,9 +713,10 @@ def incident_review(id):
     return render_template('compliance/pir_form.html', incident=incident, review=review)
 
 @compliance_bp.route('/incidents/review/<int:review_id>/toggle-lock', methods=['POST'])
-@login_required
-@admin_required
+@requires_permission('compliance')
 def toggle_pir_lock(review_id):
+    if not has_write_permission('compliance'):
+        return jsonify({'success': False, 'message': 'You do not have permission to lock incident reviews.'}), 403
     """Toggle lock state of a Post-Incident Review."""
     review = PostIncidentReview.query.get_or_404(review_id)
     
@@ -705,9 +737,10 @@ def toggle_pir_lock(review_id):
     return redirect(url_for('compliance.incident_review', id=review.incident_id))
 
 @compliance_bp.route('/incidents/review/<int:review_id>/timeline', methods=['POST'])
-@login_required
-@admin_required
+@requires_permission('compliance')
 def add_timeline_event(review_id):
+    if not has_write_permission('compliance'):
+        return jsonify({'error': 'You do not have permission to modify timeline events.'}), 403
     review = PostIncidentReview.query.get_or_404(review_id)
     
     # Block timeline additions when locked
@@ -735,18 +768,20 @@ def add_timeline_event(review_id):
     return jsonify({'id': event.id, 'time': event.event_time.strftime('%Y-%m-%dT%H:%M'), 'description': event.description}), 201
 
 @compliance_bp.route('/incidents/review/timeline/<int:event_id>', methods=['DELETE'])
-@login_required
-@admin_required
+@requires_permission('compliance')
 def delete_timeline_event(event_id):
+    if not has_write_permission('compliance'):
+        return jsonify({'error': 'You do not have permission to delete timeline events.'}), 403
     event = IncidentTimelineEvent.query.get_or_404(event_id)
     db.session.delete(event)
     db.session.commit()
     return jsonify({'success': True})
 
 @compliance_bp.route('/incidents/review/<int:review_id>/timeline/reorder', methods=['POST'])
-@login_required
-@admin_required
+@requires_permission('compliance')
 def reorder_timeline_events(review_id):
+    if not has_write_permission('compliance'):
+        return jsonify({'error': 'You do not have permission to reorder timeline events.'}), 403
     ordered_ids = request.json.get('ordered_ids', [])
     for index, event_id in enumerate(ordered_ids):
         event = IncidentTimelineEvent.query.filter_by(id=event_id, review_id=review_id).first()
@@ -756,8 +791,7 @@ def reorder_timeline_events(review_id):
     return jsonify({'success': True})
 
 @compliance_bp.route('/incidents/<int:id>/export_pdf')
-@login_required
-@admin_required
+@requires_permission('compliance')
 def export_pir_pdf(id):
     """Export Post-Incident Review as professional PDF."""
     from weasyprint import HTML
@@ -796,9 +830,24 @@ def export_pir_pdf(id):
     
     return response
 
-@compliance_bp.route('/data-erasures')
+@compliance_bp.route('/evidence/upload', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('compliance')
+def upload_evidence():
+    if not has_write_permission('compliance'):
+        flash('Write access required to upload evidence.', 'danger')
+        return redirect(url_for('compliance.dashboard')) # Assuming a dashboard or index route for compliance
+    
+    # Placeholder for actual evidence upload logic
+    # This function was added by the instruction, so its implementation is new.
+    # The instruction only provided the decorator and permission check.
+    # For a complete implementation, you'd need to handle file uploads,
+    # link them to controls, etc.
+    flash('Evidence upload functionality not fully implemented yet.', 'info')
+    return redirect(request.referrer or url_for('compliance.dashboard'))
+
+@compliance_bp.route('/data-erasures')
+@requires_permission('compliance')
 def list_erasures():
     """Displays a filtered list of all data erasure maintenance events for audit purposes."""
     erasure_logs = MaintenanceLog.query.filter_by(event_type='Data Erasure').order_by(MaintenanceLog.event_date.desc()).all()
@@ -835,9 +884,12 @@ def get_framework_controls(framework_id):
 
 @compliance_bp.route('/link', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('compliance')
 def create_compliance_link():
     """Creates a new compliance link."""
+    if not has_write_permission('compliance'):
+        return jsonify({'error': 'Write access required to create compliance links.'}), 403
+
     data = request.json
     framework_control_id = data.get('framework_control_id')
     linkable_id = data.get('linkable_id')
@@ -883,8 +935,12 @@ def create_compliance_link():
 
 @compliance_bp.route('/link/<int:link_id>', methods=['DELETE'])
 @login_required
+@requires_permission('compliance')
 def delete_compliance_link(link_id):
     """Deletes a compliance link."""
+    if not has_write_permission('compliance'):
+        return jsonify({'error': 'Write access required to delete compliance links.'}), 403
+
     link = ComplianceLink.query.get_or_404(link_id)
     db.session.delete(link)
     db.session.commit()
@@ -893,11 +949,16 @@ def delete_compliance_link(link_id):
 
 @compliance_bp.route('/link/manual/create', methods=['POST'])
 @login_required
+@requires_permission('compliance')
 def create_manual_link():
     """
     Processes the manual link modal form.
     Expects: framework_control_id, linkable_type, linkable_id, description
     """
+    if not has_write_permission('compliance'):
+        flash('Write access required to create manual links.', 'danger')
+        return redirect(request.referrer or url_for('frameworks.list'))
+
     framework_control_id = request.form.get('framework_control_id', type=int)
     linkable_type = request.form.get('linkable_type')
     linkable_id = request.form.get('linkable_id', type=int)
@@ -938,8 +999,13 @@ def create_manual_link():
 
 @compliance_bp.route('/link/new', methods=['GET', 'POST'])
 @login_required
+@requires_permission('compliance')
 def link_control():
     """Form to link a control to an object (Risk, Asset, etc)."""
+    if not has_write_permission('compliance'):
+        flash('Write access required to link controls.', 'danger')
+        return redirect(request.referrer or url_for('risk.dashboard'))
+
     linkable_type = request.args.get('linkable_type') or request.form.get('linkable_type')
     linkable_id = request.args.get('linkable_id') or request.form.get('linkable_id')
 
@@ -1045,9 +1111,13 @@ def export_dashboard_pdf():
 
 @compliance_bp.route('/rules/create', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('compliance')
 def create_rule():
     """Creates a new ComplianceRule for automated compliance checking."""
+    if not has_write_permission('compliance'):
+        flash('Write access required to create automation rules.', 'danger')
+        return redirect(request.referrer or url_for('compliance.dashboard'))
+
     import json
     
     framework_control_id = request.form.get('framework_control_id', type=int)
@@ -1153,12 +1223,30 @@ def create_rule():
     flash(f'Automation rule "{name}" created successfully.', 'success')
     return redirect(request.referrer or url_for('frameworks.control_detail', id=framework_control_id))
 
+@compliance_bp.route('/evidence/<int:id>/delete', methods=['POST'])
+@login_required
+@requires_permission('compliance')
+def delete_evidence(id):
+    if not has_write_permission('compliance'):
+        flash('Write access required to delete evidence.', 'danger')
+        return redirect(url_for('compliance.dashboard')) # Assuming a dashboard or index route for compliance
+    
+    # Placeholder for actual evidence deletion logic
+    # This function was added by the instruction, so its implementation is new.
+    # The instruction only provided the decorator and permission check.
+    # For a complete implementation, you'd need to retrieve and delete the evidence.
+    flash(f'Evidence with ID {id} deletion functionality not fully implemented yet.', 'info')
+    return redirect(request.referrer or url_for('compliance.dashboard'))
 
 @compliance_bp.route('/rules/<int:rule_id>/delete', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('compliance')
 def delete_rule(rule_id):
     """Deletes a ComplianceRule."""
+    if not has_write_permission('compliance'):
+        flash('Write access required to delete automation rules.', 'danger')
+        return redirect(request.referrer or url_for('frameworks.control_detail', id=rule_id)) # Redirect to control detail if rule_id is invalid
+
     rule = ComplianceRule.query.get_or_404(rule_id)
     rule_name = rule.name
     control_id = rule.framework_control_id
@@ -1172,8 +1260,11 @@ def delete_rule(rule_id):
 
 @compliance_bp.route('/rules/<int:rule_id>/toggle', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('compliance')
 def toggle_rule(rule_id):
+    if not has_write_permission('compliance'):
+        flash('Write access required to toggle rules.', 'danger')
+        return redirect(request.referrer or url_for('frameworks.control_detail', id=rule_id))
     """Toggles a ComplianceRule enabled/disabled state."""
     rule = ComplianceRule.query.get_or_404(rule_id)
     

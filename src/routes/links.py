@@ -3,12 +3,13 @@ from flask import (
 )
 from ..models import db, Link, Tag, User, Group, Software
 from .main import login_required
-from .admin import admin_required
+from ..services.permissions_service import requires_permission, has_write_permission
 
 links_bp = Blueprint('links', __name__)
 
 @links_bp.route('/')
 @login_required
+@requires_permission('knowledge_policy')
 def list_links():
     """Muestra la lista de enlaces, con filtros."""
     
@@ -44,6 +45,7 @@ def list_links():
 
 @links_bp.route('/<int:id>')
 @login_required
+@requires_permission('knowledge_policy')
 def detail(id):
     """Muestra los detalles de un enlace."""
     link = Link.query.get_or_404(id)
@@ -51,10 +53,13 @@ def detail(id):
 
 @links_bp.route('/new', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@requires_permission('knowledge_policy')
 def new_link():
     """Crea un nuevo enlace."""
     if request.method == 'POST':
+        if not has_write_permission('knowledge_policy'):
+            flash('Write access required to create links.', 'danger')
+            return redirect(url_for('links.list_links'))
         # Procesar propietario polimórfico
         owner_full = request.form.get('owner')
         owner_type = None
@@ -98,12 +103,15 @@ def new_link():
 
 @links_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@requires_permission('knowledge_policy')
 def edit_link(id):
     """Edita un enlace existente."""
     link = Link.query.get_or_404(id)
 
     if request.method == 'POST':
+        if not has_write_permission('knowledge_policy'):
+            flash('Write access required to update links.', 'danger')
+            return redirect(url_for('links.detail', id=id))
         # Procesar propietario polimórfico
         owner_full = request.form.get('owner')
         if owner_full:
@@ -141,8 +149,11 @@ def edit_link(id):
 
 @links_bp.route('/<int:id>/delete', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('knowledge_policy')
 def delete_link(id):
+    if not has_write_permission('knowledge_policy'):
+        flash('Write access required to delete links.', 'danger')
+        return redirect(url_for('links.detail', id=id))
     """Elimina un enlace."""
     link = Link.query.get_or_404(id)
     

@@ -9,9 +9,11 @@
         <button class="btn btn-success" onclick="exportTableToCSV('budgets-table', 'budgets.csv')">
             <i class="fas fa-file-csv"></i> Export to CSV
         </button>
+        {% if can_write('business_ops') %}
         <a href="{{ url_for('budgets.new_budget') }}" class="btn btn-primary">
             <i class="fas fa-plus"></i> Add Budget
         </a>
+        {% endif %}
     </div>
 </div>
 
@@ -38,9 +40,12 @@
                         <td>{{ budget.period.title() }}</td>
                         <td>{{ budget.currency }}{{ "%.2f"|format(budget.remaining) }}</td>
                         <td>
-                            <a href="{{ url_for('budgets.edit_budget', id=budget.id) }}" class="btn btn-sm btn-outline-primary me-1" title="Edit">
+                            {% if can_write('business_ops') %}
+                            <a href="{{ url_for('budgets.edit_budget', id=budget.id) }}"
+                                class="btn btn-sm btn-outline-primary me-1" title="Edit">
                                 <i class="fas fa-edit"></i>
                             </a>
+                            {% endif %}
                         </td>
                     </tr>
                     {% else %}

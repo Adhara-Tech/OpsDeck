@@ -1,11 +1,13 @@
-from flask import Blueprint, render_template, request, flash, redirect, url_for
+from flask import Blueprint, render_template, request, redirect, url_for, flash
 from ..models import db, Software, Supplier, User, Group
+from ..services.permissions_service import requires_permission
 from .main import login_required
 
 software_bp = Blueprint('software', __name__, url_prefix='/software')
 
 @software_bp.route('/')
 @login_required
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def list_software():
     page = request.args.get('page', 1, type=int)
     all_software = Software.query.filter_by(is_archived=False).order_by(Software.name.asc()).paginate(page=page, per_page=15)
@@ -13,6 +15,7 @@ def list_software():
 
 @software_bp.route('/<int:id>')
 @login_required
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def detail(id):
     software = Software.query.get_or_404(id)
     
@@ -42,8 +45,19 @@ def detail(id):
 
 @software_bp.route('/new', methods=['GET', 'POST'])
 @login_required
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def add_software():
     if request.method == 'POST':
+        # Manual check for WRITE access
+        from ..services.permissions_cache import permissions_cache
+        from flask import session
+        user_id = session.get('user_id')
+        user_role = session.get('user_role')
+        if (user_role or session.get('role')) != 'admin':
+            perms = permissions_cache.get(user_id)
+            if perms.get('core_inventory') != 'WRITE':
+                flash('Write access required for this action.', 'danger')
+                return redirect(url_for('software.list_software'))
         owner_type, owner_id = (request.form['owner'].split('_') + [None])[:2]
 
         new_software = Software(
@@ -67,9 +81,20 @@ def add_software():
 
 @software_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def edit_software(id):
     software = Software.query.get_or_404(id)
     if request.method == 'POST':
+        # Manual check for WRITE access
+        from ..services.permissions_cache import permissions_cache
+        from flask import session
+        user_id = session.get('user_id')
+        user_role = session.get('user_role')
+        if (user_role or session.get('role')) != 'admin':
+            perms = permissions_cache.get(user_id)
+            if perms.get('core_inventory') != 'WRITE':
+                flash('Write access required for this action.', 'danger')
+                return redirect(url_for('software.detail', id=id))
         owner_type, owner_id = (request.form['owner'].split('_') + [None])[:2]
 
         software.name = request.form['name']

@@ -6,7 +6,7 @@
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h1 class="h2"><i class="fas fa-link"></i> Links</h1>
     <div class="btn-toolbar mb-2 mb-md-0">
-        {% if current_user_role == 'admin' %}
+        {% if can_write('knowledge_policy') %}
         <a href="{{ url_for('links.new_link') }}" class="btn btn-sm btn-primary">
             <i class="fas fa-plus"></i> New Link
         </a>
@@ -82,7 +82,7 @@
                 <td>
                     <a href="{{ url_for('links.detail', id=link.id) }}" class="btn btn-sm btn-outline-primary"><i
                             class="fas fa-eye"></i></a>
-                    {% if current_user_role == 'admin' %}
+                    {% if can_write('knowledge_policy') %}
                     <a href="{{ url_for('links.edit_link', id=link.id) }}" class="btn btn-sm btn-outline-secondary"><i
                             class="fas fa-edit"></i></a>
                     {% endif %}

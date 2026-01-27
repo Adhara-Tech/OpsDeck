@@ -6,7 +6,7 @@ from flask import (
 from .main import login_required
 from src.models import db, Framework, FrameworkControl
 from sqlalchemy.exc import IntegrityError
-from .admin import admin_required
+from ..services.permissions_service import requires_permission, has_write_permission
 
 
 frameworks_bp = Blueprint('frameworks', __name__, url_prefix='/frameworks')
@@ -14,14 +14,14 @@ frameworks_bp = Blueprint('frameworks', __name__, url_prefix='/frameworks')
 # --- Rutas Principales del Framework ---
 
 @frameworks_bp.route('/')
-@login_required
+@requires_permission('compliance')
 def list():
     """Muestra la lista de todos los frameworks."""
     frameworks = Framework.query.order_by(Framework.name).all()
     return render_template('frameworks/list.html', frameworks=frameworks)
 
 @frameworks_bp.route('/<int:id>')
-@login_required
+@requires_permission('compliance')
 def detail(id):
     """Muestra los detalles de un framework y sus controles."""
     framework = Framework.query.get_or_404(id)
@@ -33,9 +33,12 @@ def detail(id):
     )
 
 @frameworks_bp.route('/new', methods=['GET', 'POST'])
-@login_required
-@admin_required
+@requires_permission('compliance')
 def create():
+    if not has_write_permission('compliance'):
+        if request.method == 'POST':
+            flash('You do not have permission to create frameworks.', 'danger')
+            return redirect(url_for('frameworks.list'))
     """Crea un nuevo framework personalizado."""
     if request.method == 'POST':
         # Obtener datos manualmente
@@ -83,9 +86,12 @@ def create():
     return render_template('frameworks/form.html', title="Nuevo Framework")
 
 @frameworks_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
-@admin_required
-@login_required
+@requires_permission('compliance')
 def edit(id):
+    if not has_write_permission('compliance'):
+        if request.method == 'POST':
+            flash('You do not have permission to edit frameworks.', 'danger')
+            return redirect(url_for('frameworks.detail', id=id))
     """Edita un framework."""
     framework = Framework.query.get_or_404(id)
     
@@ -129,9 +135,10 @@ def edit(id):
     )
 
 @frameworks_bp.route('/<int:id>/delete', methods=['POST'])
-@login_required
-@admin_required
+@requires_permission('compliance')
 def delete(id):
+    if not has_write_permission('compliance'):
+        return jsonify({'success': False, 'message': 'You do not have permission to delete frameworks.'}), 403
     """
     Elimina un framework (solo si es 'custom').
     Llamado por fetch() desde el botón de 'Zona de Peligro'.
@@ -154,9 +161,10 @@ def delete(id):
 # --- Rutas para el Modal de Controles (AJAX) ---
 
 @frameworks_bp.route('/control/add', methods=['POST'])
-@login_required
-@admin_required
+@requires_permission('compliance')
 def add_control():
+    if not has_write_permission('compliance'):
+        return jsonify({'success': False, 'message': 'You do not have permission to modify controls.'}), 403
     """Añade un nuevo control a un framework."""
     framework_id = request.form.get('framework_id')
     control_id_text = request.form.get('control_id_text')
@@ -187,7 +195,7 @@ def add_control():
         return jsonify({'success': False, 'message': f'Error: {e}'}), 500
 
 @frameworks_bp.route('/control/<int:id>/get_data', methods=['GET'])
-@login_required
+@requires_permission('compliance')
 def get_control_data(id):
     # Esta ruta no necesita 'forms' y puede quedar igual
     control = FrameworkControl.query.get_or_404(id)
@@ -201,9 +209,10 @@ def get_control_data(id):
     })
 
 @frameworks_bp.route('/control/<int:id>/edit', methods=['POST'])
-@login_required
-@admin_required
+@requires_permission('compliance')
 def edit_control(id):
+    if not has_write_permission('compliance'):
+        return jsonify({'success': False, 'message': 'You do not have permission to modify controls.'}), 403
     """Actualiza un control."""
     control = FrameworkControl.query.get_or_404(id)
     if not control.framework.is_custom:
@@ -228,9 +237,10 @@ def edit_control(id):
         return jsonify({'success': False, 'message': f'Error: {e}'}), 500
 
 @frameworks_bp.route('/control/<int:id>/delete', methods=['POST'])
-@login_required
-@admin_required
+@requires_permission('compliance')
 def delete_control(id):
+    if not has_write_permission('compliance'):
+        return jsonify({'success': False, 'message': 'You do not have permission to modify controls.'}), 403
     """
     Elimina un control.
     Llamado por fetch() desde el botón de 'eliminar' de la fila.
@@ -253,7 +263,7 @@ def delete_control(id):
 # --- Cross-Framework Control Mapping Routes ---
 
 @frameworks_bp.route('/control/<int:id>/detail')
-@login_required
+@requires_permission('compliance')
 def control_detail(id):
     """Displays control detail with cross-mappings and linked evidence."""
     from ..models.core import Tag, Link, Documentation
@@ -304,9 +314,11 @@ def control_detail(id):
 
 
 @frameworks_bp.route('/control/<int:id>/map', methods=['POST'])
-@login_required
-@admin_required
+@requires_permission('compliance')
 def map_control(id):
+    if not has_write_permission('compliance'):
+        flash('You do not have permission to modify control mappings.', 'danger')
+        return redirect(url_for('frameworks.control_detail', id=id))
     """Links a control to another control (cross-framework mapping)."""
     control = FrameworkControl.query.get_or_404(id)
     target_control_id = request.form.get('target_control_id')
@@ -341,9 +353,11 @@ def map_control(id):
 
 
 @frameworks_bp.route('/control/<int:id>/unmap/<int:target_id>', methods=['POST'])
-@login_required
-@admin_required
+@requires_permission('compliance')
 def unmap_control(id, target_id):
+    if not has_write_permission('compliance'):
+        flash('You do not have permission to modify control mappings.', 'danger')
+        return redirect(url_for('frameworks.control_detail', id=id))
     """Removes a cross-framework mapping between two controls."""
     control = FrameworkControl.query.get_or_404(id)
     target_control = FrameworkControl.query.get_or_404(target_id)
@@ -368,7 +382,7 @@ def unmap_control(id, target_id):
 
 
 @frameworks_bp.route('/api/search-controls')
-@login_required
+@requires_permission('compliance')
 def search_controls():
     """API to search controls for cross-mapping (for TomSelect)."""
     q = request.args.get('q', '').strip().lower()

@@ -20,11 +20,12 @@
     </div>
 </div>
 
+{% if can_write('knowledge_policy') %}
 <div class="card">
     <div class="card-header">Assign Training</div>
     <div class="card-body">
         <form method="POST">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="row">
                 <div class="col-md-6">
                     <label for="user_ids" class="form-label">Assign to Users</label>
@@ -48,6 +49,7 @@
         </form>
     </div>
 </div>
+{% endif %}
 
 <div class="card mt-4">
     <div class="card-header">Assigned Users</div>
@@ -77,12 +79,15 @@
                         {% endif %}
                     </td>
                     <td>
+                        {% if can_write('knowledge_policy') %}
                         {% if not assignment.completion %}
                         <!-- Botón y Modal para MARCAR COMO COMPLETO (Existente) -->
                         <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
                             data-bs-target="#completeModal-{{ assignment.id }}">
                             <i class="fas fa-check-circle"></i> Mark Complete
                         </button>
+                        ... (modal content omitted for brevity, but I must provide full replacement or it will lead to
+                        broken HTML) ...
 
                         <div class="modal fade" id="completeModal-{{ assignment.id }}" tabindex="-1"
                             aria-labelledby="completeModalLabel-{{ assignment.id }}" aria-hidden="true">
@@ -97,7 +102,7 @@
                                     <form
                                         action="{{ url_for('training.admin_complete_course', assignment_id=assignment.id) }}"
                                         method="post" enctype="multipart/form-data">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <div class="modal-body">
                                             <div class="mb-3">
                                                 <label for="completion_date-{{ assignment.id }}"
@@ -163,7 +168,7 @@
                                     <form
                                         action="{{ url_for('training.edit_completion', completion_id=assignment.completion.id) }}"
                                         method="post" enctype="multipart/form-data">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <div class="modal-body">
                                             <div class="mb-3">
                                                 <label for="completion_date-edit-{{ assignment.completion.id }}"

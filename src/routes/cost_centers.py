@@ -4,24 +4,14 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from ..extensions import db
 from ..models.core import CostCenter
 from ..models.services import BusinessService
-from .admin import admin_required
+from .main import login_required
+from ..services.permissions_service import requires_permission
 
 cost_centers_bp = Blueprint('cost_centers', __name__)
 
-def login_required(f):
-    """Decorator to require login for routes."""
-    from functools import wraps
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
-            flash('Please log in to access this page.', 'warning')
-            return redirect(url_for('main.login'))
-        return f(*args, **kwargs)
-    return decorated_function
-
-
 @cost_centers_bp.route('/')
 @login_required
+@requires_permission('finance', access_level='READ_ONLY')
 def list_cost_centers():
     """List all cost centers."""
     cost_centers = CostCenter.query.order_by(CostCenter.code).all()
@@ -35,9 +25,20 @@ def list_cost_centers():
 
 @cost_centers_bp.route('/new', methods=['GET', 'POST'])
 @login_required
+@requires_permission('finance', access_level='READ_ONLY')
 def new_cost_center():
     """Create a new cost center."""
     if request.method == 'POST':
+        # Manual check for WRITE access
+        from ..services.permissions_cache import permissions_cache
+        from flask import session
+        user_id = session.get('user_id')
+        user_role = session.get('user_role')
+        if (user_role or session.get('role')) != 'admin':
+            perms = permissions_cache.get(user_id)
+            if perms.get('finance') != 'WRITE':
+                flash('Write access required for this action.', 'danger')
+                return redirect(url_for('cost_centers.list_cost_centers'))
         code = request.form.get('code', '').strip()
         name = request.form.get('name', '').strip()
         description = request.form.get('description', '').strip()
@@ -75,6 +76,7 @@ def new_cost_center():
 
 @cost_centers_bp.route('/<int:id>')
 @login_required
+@requires_permission('finance', access_level='READ_ONLY')
 def detail(id):
     """Display cost center details."""
     cost_center = CostCenter.query.get_or_404(id)
@@ -87,11 +89,22 @@ def detail(id):
 
 @cost_centers_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
+@requires_permission('finance', access_level='READ_ONLY')
 def edit(id):
     """Edit an existing cost center."""
     cost_center = CostCenter.query.get_or_404(id)
     
     if request.method == 'POST':
+        # Manual check for WRITE access
+        from ..services.permissions_cache import permissions_cache
+        from flask import session
+        user_id = session.get('user_id')
+        user_role = session.get('user_role')
+        if (user_role or session.get('role')) != 'admin':
+            perms = permissions_cache.get(user_id)
+            if perms.get('finance') != 'WRITE':
+                flash('Write access required for this action.', 'danger')
+                return redirect(url_for('cost_centers.detail', id=id))
         code = request.form.get('code', '').strip()
         name = request.form.get('name', '').strip()
         description = request.form.get('description', '').strip()
@@ -129,7 +142,7 @@ def edit(id):
 
 @cost_centers_bp.route('/<int:id>/delete', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('finance', access_level='WRITE')
 def delete(id):
     """Delete a cost center."""
     cost_center = CostCenter.query.get_or_404(id)

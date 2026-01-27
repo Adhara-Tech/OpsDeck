@@ -4,8 +4,8 @@ from ..models import db, User
 from ..models.credentials import Credential, CredentialSecret
 from ..models.services import BusinessService
 from ..models.assets import Software, License, Asset
+from ..services.permissions_service import requires_permission
 from .main import login_required
-from .admin import admin_required
 
 credentials_bp = Blueprint('credentials', __name__, url_prefix='/credentials')
 
@@ -14,6 +14,7 @@ CREDENTIAL_TYPES = ['API Key', 'OAuth', 'Service Account', 'SSH Key', 'Password'
 
 @credentials_bp.route('/')
 @login_required
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def list_credentials():
     """
     List all credentials with filtering support and pagination.
@@ -100,6 +101,7 @@ def list_credentials():
 
 @credentials_bp.route('/<int:id>')
 @login_required
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def detail_credential(id):
     """
     Show credential details including active secret and secret history.
@@ -117,11 +119,22 @@ def detail_credential(id):
 
 @credentials_bp.route('/new', methods=['GET', 'POST'])
 @login_required
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def new_credential():
     """
     Create a new credential with its first secret.
     """
     if request.method == 'POST':
+        # Manual check for WRITE access
+        from ..services.permissions_cache import permissions_cache
+        from flask import session
+        user_id = session.get('user_id')
+        user_role = session.get('user_role')
+        if (user_role or session.get('role')) != 'admin':
+            perms = permissions_cache.get(user_id)
+            if perms.get('core_inventory') != 'WRITE':
+                flash('Write access required for this action.', 'danger')
+                return redirect(url_for('credentials.list_credentials'))
         # Extract form data
         name = request.form.get('name')
         cred_type = request.form.get('type')
@@ -238,6 +251,7 @@ def new_credential():
 
 @credentials_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def edit_credential(id):
     """
     Edit an existing credential's metadata (not the secret).
@@ -246,6 +260,16 @@ def edit_credential(id):
     credential = Credential.query.get_or_404(id)
     
     if request.method == 'POST':
+        # Manual check for WRITE access
+        from ..services.permissions_cache import permissions_cache
+        from flask import session
+        user_id = session.get('user_id')
+        user_role = session.get('user_role')
+        if (user_role or session.get('role')) != 'admin':
+            perms = permissions_cache.get(user_id)
+            if perms.get('core_inventory') != 'WRITE':
+                flash('Write access required for this action.', 'danger')
+                return redirect(url_for('credentials.detail_credential', id=id))
         # Extract form data
         name = request.form.get('name')
         cred_type = request.form.get('type')
@@ -326,6 +350,7 @@ def edit_credential(id):
 
 @credentials_bp.route('/<int:id>/rotate', methods=['POST'])
 @login_required
+@requires_permission('core_inventory', access_level='WRITE')
 def rotate_secret(id):
     """
     Rotate the secret for a credential.
@@ -370,7 +395,7 @@ def rotate_secret(id):
 
 @credentials_bp.route('/<int:id>/delete', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('core_inventory', access_level='WRITE')
 def delete_credential(id):
     """
     Delete a credential and all its associated secrets (cascade).

@@ -12,9 +12,11 @@
         <a href="{{ url_for('users.archived_users') }}" class="btn btn-outline-secondary">
             <i class="fas fa-archive"></i> View Archived
         </a>
+        {% if can_write('administration') %}
         <a href="{{ url_for('users.new_user') }}" class="btn btn-primary">
             <i class="fas fa-plus"></i> Add User
         </a>
+        {% endif %}
     </div>
 </div>
 
@@ -39,15 +41,43 @@
                         <td>{{ user.department or '-' }}</td>
                         <td>{{ user.job_title or '-' }}</td>
                         <td>
-                            <a href="{{ url_for('users.edit_user', id=user.id) }}" class="btn btn-sm btn-outline-primary me-1" title="Edit">
+                            {% if can_write('administration') %}
+                            <a href="{{ url_for('users.edit_user', id=user.id) }}"
+                                class="btn btn-sm btn-outline-primary me-1" title="Edit">
                                 <i class="fas fa-edit"></i>
                             </a>
-                            <form action="{{ url_for('users.archive_user', id=user.id) }}" method="POST" class="d-inline" data-confirm='Are you sure you want to archive this user?'>
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <form action="{{ url_for('users.archive_user', id=user.id) }}" method="POST"
+                                class="d-inline" data-confirm='Are you sure you want to archive this user?'>
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="btn btn-sm btn-outline-warning" title="Archive">
                                     <i class="fas fa-archive"></i>
                                 </button>
                             </form>
+                            {% endif %}
+                            
+                            {% if original_user and original_user.email == config.get('DEFAULT_ADMIN_EMAIL', 'admin@example.com') %}
+                            {# Show impersonate button only for break-glass admin #}
+                            {% if user.id != current_user.id %}
+                            <form action="{{ url_for('main.impersonate', user_id=user.id) }}" method="POST"
+                                class="d-inline ms-1" data-confirm='Start impersonating {{ user.name }}?'>
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-sm btn-outline-info" title="Impersonate User">
+                                    <i class="fas fa-user-secret"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                            {% elif current_user and current_user.email == config.get('DEFAULT_ADMIN_EMAIL', 'admin@example.com') and not is_impersonating %}
+                            {# Show impersonate button when logged in as break-glass admin (not impersonating) #}
+                            {% if user.id != current_user.id %}
+                            <form action="{{ url_for('main.impersonate', user_id=user.id) }}" method="POST"
+                                class="d-inline ms-1" data-confirm='Start impersonating {{ user.name }}?'>
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-sm btn-outline-info" title="Impersonate User">
+                                    <i class="fas fa-user-secret"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                            {% endif %}
                         </td>
                     </tr>
                     {% else %}

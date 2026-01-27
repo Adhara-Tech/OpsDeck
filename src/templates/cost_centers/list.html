@@ -6,9 +6,11 @@
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1><i class="fas fa-building"></i> Cost Centers</h1>
+        {% if can_write('business_ops') %}
         <a href="{{ url_for('cost_centers.new_cost_center') }}" class="btn btn-primary">
             <i class="fas fa-plus"></i> New Cost Center
         </a>
+        {% endif %}
     </div>
 
     <div class="card">
@@ -44,6 +46,7 @@
                                 class="btn btn-sm btn-outline-primary" title="View Details">
                                 <i class="fas fa-eye"></i>
                             </a>
+                            {% if can_write('business_ops') %}
                             <a href="{{ url_for('cost_centers.edit', id=cc.id) }}"
                                 class="btn btn-sm btn-outline-secondary" title="Edit">
                                 <i class="fas fa-edit"></i>
@@ -56,6 +59,7 @@
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </form>
+                            {% endif %}
                         </td>
                     </tr>
                     {% endfor %}

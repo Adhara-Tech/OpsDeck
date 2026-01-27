@@ -6,9 +6,11 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="fas fa-building"></i> {{ supplier.name }}</h2>
+    {% if can_write('business_ops') %}
     <a href="{{ url_for('suppliers.edit_supplier', id=supplier.id) }}" class="btn btn-outline-primary">
         <i class="fas fa-edit"></i> Edit Supplier
     </a>
+    {% endif %}
 </div>
 
 <div class="card mb-4">
@@ -46,9 +48,11 @@
 <div class="card mb-4">
     <div class="card-header d-flex justify-content-between align-items-center">
         <span><i class="fas fa-user-shield"></i> Security Assessments</span>
+        {% if can_write('business_ops') %}
         <a href="{{ url_for('compliance.new_assessment', supplier_id=supplier.id) }}" class="btn btn-sm btn-primary">
             <i class="fas fa-plus"></i> Add Assessment
         </a>
+        {% endif %}
     </div>
     <ul class="list-group list-group-flush">
         {% for assessment in supplier.security_assessments|sort(attribute='assessment_date', reverse=True) %}
@@ -63,10 +67,12 @@
                     {% elif assessment.status == 'Rejected' %}<span class="badge bg-danger">{{ assessment.status
                         }}</span>
                     {% else %}<span class="badge bg-warning">{{ assessment.status }}</span>{% endif %}
+                    {% if can_write('business_ops') %}
                     <a href="{{ url_for('compliance.edit_assessment', id=assessment.id) }}"
                         class="btn btn-sm btn-outline-secondary ms-2">
                         <i class="fas fa-edit"></i>
                     </a>
+                    {% endif %}
                 </span>
             </div>
             {% if assessment.notes %}
@@ -162,19 +168,22 @@
         {% for att in supplier.attachments %}
         <li class="list-group-item d-flex justify-content-between align-items-center">
             <a href="{{ url_for('attachments.download_file', attachment_id=att.id) }}">{{ att.filename }}</a>
+            {% if can_write('business_ops') %}
             <form action="{{ url_for('attachments.delete_attachment', attachment_id=att.id) }}" method="POST"
                 data-confirm='Are you sure?'>
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
             </form>
+            {% endif %}
         </li>
         {% else %}
         <li class="list-group-item text-muted">No files attached.</li>
         {% endfor %}
     </ul>
+    {% if can_write('business_ops') %}
     <div class="card-body">
         <form action="{{ url_for('attachments.upload_file') }}" method="POST" enctype="multipart/form-data">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="supplier_id" value="{{ supplier.id }}">
             <div class="input-group">
                 <input type="file" class="form-control" name="file" required>
@@ -182,6 +191,7 @@
             </div>
         </form>
     </div>
+    {% endif %}
 </div>
 
 {{ compliance_links(supplier, 'Supplier') }}

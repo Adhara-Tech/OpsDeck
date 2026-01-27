@@ -38,13 +38,15 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="fas fa-exchange-alt"></i> Exchange Rates</h2>
+    {% if can_write('finance') %}
     <form method="POST" class="d-inline">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="action" value="sync">
-        <button type="submit" class="btn btn-success">
+        <button type="submit" class="btn btn-success shadow-sm">
             <i class="fas fa-sync-alt"></i> Sync Now
         </button>
     </form>
+    {% endif %}
 </div>
 
 <div class="row">
@@ -62,13 +64,15 @@
                     <div class="mb-3">
                         <label for="api_endpoint" class="form-label">API Endpoint</label>
                         <input type="url" class="form-control" id="api_endpoint" name="api_endpoint"
-                            value="{{ settings.api_endpoint }}" required>
+                            value="{{ settings.api_endpoint }}" required {% if not can_write('finance') %}disabled{%
+                            endif %}>
                         <div class="form-text">Default: Frankfurter API (ECB data)</div>
                     </div>
 
                     <div class="mb-3">
                         <label for="base_currency" class="form-label">Base Currency</label>
-                        <select class="form-select" id="base_currency" name="base_currency">
+                        <select class="form-select" id="base_currency" name="base_currency" {% if not
+                            can_write('finance') %}disabled{% endif %}>
                             <option value="EUR" {{ 'selected' if settings.base_currency=='EUR' }}>EUR - Euro</option>
                             <option value="USD" {{ 'selected' if settings.base_currency=='USD' }}>USD - US Dollar
                             </option>
@@ -80,12 +84,19 @@
                     <div class="mb-3">
                         <label for="api_key" class="form-label">API Key (optional)</label>
                         <input type="password" class="form-control" id="api_key" name="api_key"
-                            value="{{ settings.api_key or '' }}" placeholder="Not required for Frankfurter">
+                            value="{{ settings.api_key or '' }}" placeholder="Not required for Frankfurter" {% if not
+                            can_write('finance') %}disabled{% endif %}>
                     </div>
 
-                    <button type="submit" class="btn btn-primary w-100">
+                    {% if can_write('finance') %}
+                    <button type="submit" class="btn btn-primary w-100 shadow-sm">
                         <i class="fas fa-save"></i> Save Settings
                     </button>
+                    {% else %}
+                    <div class="alert alert-light border small mb-0">
+                        <i class="fas fa-info-circle me-1"></i> Read-only access
+                    </div>
+                    {% endif %}
                 </form>
 
                 {% if settings.last_sync_at %}

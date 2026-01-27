@@ -9,9 +9,11 @@
         <button class="btn btn-success" onclick="exportTableToCSV('activities-table', 'security_activities.csv')">
             <i class="fas fa-file-csv"></i> Export to CSV
         </button>
+        {% if can_write('operations') %}
         <a href="{{ url_for('activities.new_activity') }}" class="btn btn-primary">
             <i class="fas fa-plus"></i> New Activity
         </a>
+        {% endif %}
     </div>
 </div>
 
@@ -59,6 +61,7 @@
                             {% endif %}
                         </td>
                         <td>
+                            {% if can_write('operations') %}
                             <a href="{{ url_for('activities.edit_activity', id=activity.id) }}"
                                 class="btn btn-sm btn-outline-primary me-1" title="Edit">
                                 <i class="fas fa-edit"></i>
@@ -71,6 +74,9 @@
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </form>
+                            {% else %}
+                            <span class="text-muted small">Read Only</span>
+                            {% endif %}
                         </td>
                     </tr>
                     {% else %}

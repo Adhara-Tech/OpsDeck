@@ -11,9 +11,11 @@
         <span class="badge bg-info text-dark"><i class="fas fa-user me-1"></i>Owner: {{ subscription.user.name }}</span>
         {% endif %}
     </div>
+    {% if can_write('access_control') %}
     <a href="{{ url_for('subscriptions.edit_subscription', id=subscription.id) }}" class="btn btn-outline-primary">
         <i class="fas fa-edit"></i> Edit Subscription
     </a>
+    {% endif %}
 </div>
 
 <ul class="nav nav-tabs mb-3" id="subscriptionTabs" role="tablist">
@@ -168,9 +170,11 @@
         <div class="card shadow mb-4">
             <div class="card-header py-3 d-flex justify-content-between align-items-center">
                 <h6 class="m-0 font-weight-bold text-primary">User Access ({{ subscription.users|length }})</h6>
+                {% if can_write('access_control') %}
                 <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addUserAccessModal">
                     <i class="fas fa-user-plus"></i> Add User
                 </button>
+                {% endif %}
             </div>
             <div class="card-body">
                 <div class="table-responsive">
@@ -196,6 +200,7 @@
                                 </td>
                                 <td>{{ user.email }}</td>
                                 <td>
+                                    {% if can_write('access_control') %}
                                     <form
                                         action="{{ url_for('subscriptions.remove_user_access', id=subscription.id, user_id=user.id) }}"
                                         method="POST" class="d-inline"
@@ -205,6 +210,7 @@
                                             <i class="fas fa-trash"></i> Revoke
                                         </button>
                                     </form>
+                                    {% endif %}
                                 </td>
                             </tr>
                             {% else %}
@@ -229,18 +235,21 @@
                 {% for att in subscription.attachments %}
                 <li class="list-group-item d-flex justify-content-between align-items-center">
                     <a href="{{ url_for('attachments.download_file', attachment_id=att.id) }}">{{ att.filename }}</a>
+                    {% if can_write('access_control') %}
                     <form action="{{ url_for('attachments.delete_attachment', attachment_id=att.id) }}" method="POST"
                         data-confirm='Are you sure?'>
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="btn btn-sm btn-outline-danger"><i
                                 class="fas fa-trash"></i></button>
                     </form>
+                    {% endif %}
                 </li>
                 {% else %}
                 <li class="list-group-item text-muted">No files attached.</li>
                 {% endfor %}
             </ul>
             <div class="card-body">
+                {% if can_write('access_control') %}
                 <form action="{{ url_for('attachments.upload_file') }}" method="POST" enctype="multipart/form-data">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="subscription_id" value="{{ subscription.id }}">
@@ -249,6 +258,7 @@
                         <button class="btn btn-outline-primary" type="submit">Upload</button>
                     </div>
                 </form>
+                {% endif %}
             </div>
         </div>
     </div>

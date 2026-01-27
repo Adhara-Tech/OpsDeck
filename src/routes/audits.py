@@ -13,7 +13,7 @@ import os
 import uuid
 from datetime import datetime
 from werkzeug.utils import secure_filename
-from .admin import admin_required
+from ..services.permissions_service import requires_permission, has_write_permission
 
 audits_bp = Blueprint('audits', __name__, url_prefix='/security/audits')
 
@@ -23,14 +23,19 @@ audits_bp = Blueprint('audits', __name__, url_prefix='/security/audits')
 
 @audits_bp.route('/')
 @login_required
+@requires_permission('compliance')
 def list_audits():
     audits = ComplianceAudit.query.order_by(ComplianceAudit.created_at.desc()).all()
     return render_template('audits/list.html', audits=audits)
 
 @audits_bp.route('/new', methods=['GET', 'POST'])
 @login_required
+@requires_permission('compliance')
 def new_audit():
     if request.method == 'POST':
+        if not has_write_permission('compliance'):
+            flash('Write access required to create audits.', 'danger')
+            return redirect(url_for('audits.list_audits'))
         creation_strategy = request.form.get('creation_strategy', 'scratch')
         
         # Common fields
@@ -115,6 +120,7 @@ def new_audit():
 
 @audits_bp.route('/<int:id>', methods=['GET'])
 @login_required
+@requires_permission('compliance')
 def view_audit(id):
     audit = ComplianceAudit.query.get_or_404(id)
     users = User.query.filter_by(is_archived=False).all()
@@ -145,8 +151,11 @@ def view_audit(id):
 
 @audits_bp.route('/<int:id>/header', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('compliance')
 def update_audit_header(id):
+    if not has_write_permission('compliance'):
+        flash('Write access required to update audit header.', 'danger')
+        return redirect(url_for('audits.view_audit', id=id))
     audit = ComplianceAudit.query.get_or_404(id)
     
     # Lock check
@@ -171,8 +180,11 @@ def update_audit_header(id):
 
 @audits_bp.route('/<int:id>/update', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('compliance')
 def update_audit_items(id):
+    if not has_write_permission('compliance'):
+        flash('Write access required to update audit items.', 'danger')
+        return redirect(url_for('audits.view_audit', id=id))
     audit = ComplianceAudit.query.get_or_404(id)
     
     # Lock check
@@ -208,8 +220,11 @@ def update_audit_items(id):
 
 @audits_bp.route('/<int:id>/participants/add', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('compliance')
 def add_participant(id):
+    if not has_write_permission('compliance'):
+        flash('Write access required to add participants.', 'danger')
+        return redirect(url_for('audits.view_audit', id=id))
     audit = ComplianceAudit.query.get_or_404(id)
     
     # Lock check
@@ -230,8 +245,11 @@ def add_participant(id):
 
 @audits_bp.route('/<int:id>/participants/<int:user_id>/remove', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('compliance')
 def remove_participant(id, user_id):
+    if not has_write_permission('compliance'):
+        flash('Write access required to remove participants.', 'danger')
+        return redirect(url_for('audits.view_audit', id=id))
     audit = ComplianceAudit.query.get_or_404(id)
     
     # Lock check
@@ -254,8 +272,11 @@ def remove_participant(id, user_id):
 
 @audits_bp.route('/<int:id>/attachments/upload', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('compliance')
 def upload_audit_attachment(id):
+    if not has_write_permission('compliance'):
+        flash('Write access required to upload attachments.', 'danger')
+        return redirect(url_for('audits.view_audit', id=id))
     from flask import current_app
     
     audit = ComplianceAudit.query.get_or_404(id)
@@ -298,8 +319,11 @@ def upload_audit_attachment(id):
 
 @audits_bp.route('/<int:id>/item/<int:item_id>/upload', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('compliance')
 def upload_item_attachment(id, item_id):
+    if not has_write_permission('compliance'):
+        flash('Write access required to upload evidence.', 'danger')
+        return redirect(url_for('audits.view_audit', id=id))
     from flask import current_app
     
     audit = ComplianceAudit.query.get_or_404(id)
@@ -343,8 +367,11 @@ def upload_item_attachment(id, item_id):
 
 @audits_bp.route('/<int:id>/item/<int:item_id>/link', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('compliance')
 def add_item_link(id, item_id):
+    if not has_write_permission('compliance'):
+        flash('Write access required to link evidence.', 'danger')
+        return redirect(url_for('audits.view_audit', id=id))
     audit = ComplianceAudit.query.get_or_404(id)
     item = AuditControlItem.query.get_or_404(item_id)
     
@@ -376,8 +403,11 @@ def add_item_link(id, item_id):
 
 @audits_bp.route('/<int:id>/item/<int:item_id>/link/<int:link_id>/delete', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('compliance')
 def delete_item_link(id, item_id, link_id):
+    if not has_write_permission('compliance'):
+        flash('Write access required to delete links.', 'danger')
+        return redirect(url_for('audits.view_audit', id=id))
     audit = ComplianceAudit.query.get_or_404(id)
     
     # Lock check
@@ -393,8 +423,11 @@ def delete_item_link(id, item_id, link_id):
 
 @audits_bp.route('/<int:id>/link_evidence', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('compliance')
 def link_evidence(id):
+    if not has_write_permission('compliance'):
+        flash('Write access required to link evidence.', 'danger')
+        return redirect(url_for('audits.view_audit', id=id))
     audit = ComplianceAudit.query.get_or_404(id)
     
     # Lock check
@@ -426,8 +459,11 @@ def link_evidence(id):
 
 @audits_bp.route('/<int:id>/unlink_evidence', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('compliance')
 def unlink_evidence(id):
+    if not has_write_permission('compliance'):
+        flash('Write access required to unlink evidence.', 'danger')
+        return redirect(url_for('audits.view_audit', id=id))
     audit = ComplianceAudit.query.get_or_404(id)
     
     if audit.is_locked:
@@ -458,8 +494,10 @@ def unlink_evidence(id):
 
 @audits_bp.route('/api/control/<int:id>/status', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('compliance')
 def api_update_control_status(id):
+    if not has_write_permission('compliance'):
+        return jsonify({'success': False, 'error': 'Write access required'}), 403
     """AJAX endpoint for instant status updates on audit controls."""
     item = AuditControlItem.query.get_or_404(id)
     
@@ -488,8 +526,11 @@ def api_update_control_status(id):
 
 @audits_bp.route('/<int:id>/lock', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('compliance')
 def lock_audit(id):
+    if not has_write_permission('compliance'):
+        flash('Write access required to lock audits.', 'danger')
+        return redirect(url_for('audits.view_audit', id=id))
     """Lock the audit to prevent further modifications."""
     audit = ComplianceAudit.query.get_or_404(id)
     
@@ -504,8 +545,11 @@ def lock_audit(id):
 
 @audits_bp.route('/<int:id>/unlock', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('compliance')
 def unlock_audit(id):
+    if not has_write_permission('compliance'):
+        flash('Write access required to unlock audits.', 'danger')
+        return redirect(url_for('audits.view_audit', id=id))
     """Unlock the audit to allow modifications again."""
     audit = ComplianceAudit.query.get_or_404(id)
     
@@ -524,6 +568,7 @@ def unlock_audit(id):
 
 @audits_bp.route('/<int:id>/export')
 @login_required
+@requires_permission('compliance')
 def export_audit(id):
     audit = ComplianceAudit.query.get_or_404(id)
     
@@ -539,8 +584,11 @@ def export_audit(id):
 
 @audits_bp.route('/<int:id>/delete', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('compliance')
 def delete_audit(id):
+    if not has_write_permission('compliance'):
+        flash('Write access required to delete audits.', 'danger')
+        return redirect(url_for('audits.list_audits'))
     audit = ComplianceAudit.query.get_or_404(id)
     db.session.delete(audit)
     db.session.commit()
@@ -553,6 +601,7 @@ def delete_audit(id):
 
 @audits_bp.route('/api/search-linkable')
 @login_required
+@requires_permission('compliance')
 def search_linkable_api():
     """Search for linkable objects by type and query.
        If query is empty, returns all non-archived objects of that type.

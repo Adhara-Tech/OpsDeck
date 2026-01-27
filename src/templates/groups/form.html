@@ -6,18 +6,23 @@
 <div class="card">
     <div class="card-body">
         <form method="POST">
-<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="mb-3">
                 <label for="name" class="form-label">Group Name *</label>
-                <input type="text" class="form-control" id="name" name="name" required>
+                <input type="text" class="form-control" id="name" name="name" required {% if not
+                    can_write('administration') %}disabled{% endif %}>
             </div>
             <div class="mb-3">
                 <label for="description" class="form-label">Description</label>
-                <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                <textarea class="form-control" id="description" name="description" rows="3" {% if not
+                    can_write('administration') %}disabled{% endif
+                    %}>{{ group.description if group else '' }}</textarea>
             </div>
             <hr>
             <a href="{{ url_for('groups.list_groups') }}" class="btn btn-secondary">Cancel</a>
+            {% if can_write('administration') %}
             <button type="submit" class="btn btn-primary">Create Group</button>
+            {% endif %}
         </form>
     </div>
 </div>

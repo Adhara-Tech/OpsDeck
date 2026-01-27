@@ -4,20 +4,25 @@ from flask import (
 from datetime import datetime
 from ..models import db, Opportunity, Activity, Supplier, Contact, Risk, Budget
 from .main import login_required
-from .admin import admin_required
+from ..services.permissions_service import requires_permission, has_write_permission
 
 opportunities_bp = Blueprint('opportunities', __name__)
 
 @opportunities_bp.route('/')
 @login_required
+@requires_permission('procurement', access_level='READ_ONLY')
 def list_opportunities():
     opportunities = Opportunity.query.order_by(Opportunity.estimated_close_date.asc()).all()
     return render_template('opportunities/list.html', opportunities=opportunities)
 
 @opportunities_bp.route('/new', methods=['GET', 'POST'])
 @login_required
+@requires_permission('procurement', access_level='READ_ONLY')
 def new_opportunity():
     if request.method == 'POST':
+        if not has_write_permission('procurement'):
+            flash('Write access required to create opportunities.', 'danger')
+            return redirect(url_for('opportunities.list_opportunities'))
         opportunity = Opportunity(
             name=request.form['name'],
             status=request.form['status'],
@@ -45,6 +50,7 @@ def new_opportunity():
 
 @opportunities_bp.route('/<int:id>')
 @login_required
+@requires_permission('procurement', access_level='READ_ONLY')
 def detail(id):
     opportunity = Opportunity.query.get_or_404(id)
     return render_template('opportunities/detail.html', opportunity=opportunity)
@@ -52,9 +58,13 @@ def detail(id):
 # --- ADD THIS EDIT ROUTE ---
 @opportunities_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
+@requires_permission('procurement', access_level='READ_ONLY')
 def edit_opportunity(id):
     opportunity = Opportunity.query.get_or_404(id)
     if request.method == 'POST':
+        if not has_write_permission('procurement'):
+            flash('Write access required to update opportunities.', 'danger')
+            return redirect(url_for('opportunities.detail', id=id))
         opportunity.name = request.form['name']
         opportunity.status = request.form['status']
         opportunity.potential_value = float(request.form.get('potential_value')) if request.form.get('potential_value') else None
@@ -81,8 +91,11 @@ def edit_opportunity(id):
 
 @opportunities_bp.route('/<int:id>/add_activity', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('procurement', access_level='READ_ONLY')
 def add_activity(id):
+    if not has_write_permission('procurement'):
+        flash('Write access required to add activities.', 'danger')
+        return redirect(url_for('opportunities.detail', id=id))
     Opportunity.query.get_or_404(id)
     activity_type = request.form.get('type')
     notes = request.form.get('notes')
@@ -103,8 +116,11 @@ def add_activity(id):
 
 @opportunities_bp.route('/<int:opportunity_id>/add_task', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('procurement', access_level='READ_ONLY')
 def add_task(opportunity_id):
+    if not has_write_permission('procurement'):
+        flash('Write access required to add tasks.', 'danger')
+        return redirect(url_for('opportunities.detail', id=opportunity_id))
     description = request.form.get('task_description')
     if description:
         task = OpportunityTask(opportunity_id=opportunity_id, description=description)
@@ -117,8 +133,11 @@ def add_task(opportunity_id):
 
 @opportunities_bp.route('/task/<int:task_id>/toggle', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('procurement', access_level='READ_ONLY')
 def toggle_task(task_id):
+    if not has_write_permission('procurement'):
+        flash('Write access required to update tasks.', 'danger')
+        return redirect(url_for('opportunities.detail', id=OpportunityTask.query.get_or_404(task_id).opportunity_id))
     task = OpportunityTask.query.get_or_404(task_id)
     task.is_completed = not task.is_completed
     db.session.commit()
@@ -127,8 +146,11 @@ def toggle_task(task_id):
 
 @opportunities_bp.route('/task/<int:task_id>/delete', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('procurement', access_level='READ_ONLY')
 def delete_task(task_id):
+    if not has_write_permission('procurement'):
+        flash('Write access required to delete tasks.', 'danger')
+        return redirect(url_for('opportunities.detail', id=OpportunityTask.query.get_or_404(task_id).opportunity_id))
     task = OpportunityTask.query.get_or_404(task_id)
     opportunity_id = task.opportunity_id
     db.session.delete(task)

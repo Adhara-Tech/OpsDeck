@@ -7,20 +7,24 @@ from flask import (
 from datetime import date, datetime
 from ..models import db, Policy, PolicyVersion, User, Group, PolicyAcknowledgement, Attachment
 from .main import login_required
-from .admin import admin_required
+from ..services.permissions_service import requires_permission, has_write_permission
 policies_bp = Blueprint('policies', __name__)
 
 @policies_bp.route('/')
 @login_required
+@requires_permission('knowledge_policy')
 def list_policies():
     policies = Policy.query.order_by(Policy.title).all()
     return render_template('policies/list.html', policies=policies)
 
 @policies_bp.route('/new', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@requires_permission('knowledge_policy')
 def new_policy():
     if request.method == 'POST':
+        if not has_write_permission('knowledge_policy'):
+            flash('Write access required to create policies.', 'danger')
+            return redirect(url_for('policies.list_policies'))
         policy = Policy(
             title=request.form['title'],
             category=request.form.get('category'),
@@ -56,6 +60,7 @@ def new_policy():
 
 @policies_bp.route('/<int:id>')
 @login_required
+@requires_permission('knowledge_policy')
 def detail(id):
     policy = Policy.query.get_or_404(id)
     users = User.query.order_by(User.name).filter_by(is_archived=False).all()
@@ -64,12 +69,15 @@ def detail(id):
 
 @policies_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@requires_permission('knowledge_policy')
 def edit_policy(id):
     policy = Policy.query.get_or_404(id)
     latest_version = PolicyVersion.query.filter_by(policy_id=id).order_by(PolicyVersion.effective_date.desc()).first()
 
     if request.method == 'POST':
+        if not has_write_permission('knowledge_policy'):
+            flash('Write access required to update policies.', 'danger')
+            return redirect(url_for('policies.detail', id=id))
         policy.title = request.form['title']
         policy.category = request.form.get('category')
         policy.description = request.form.get('description')
@@ -92,10 +100,13 @@ def edit_policy(id):
 
 @policies_bp.route('/<int:id>/new_version', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@requires_permission('knowledge_policy')
 def new_version(id):
     policy = Policy.query.get_or_404(id)
     if request.method == 'POST':
+        if not has_write_permission('knowledge_policy'):
+            flash('Write access required to create versions.', 'danger')
+            return redirect(url_for('policies.detail', id=id))
         content = request.form['content']
         
         if not content or not content.strip():
@@ -139,11 +150,14 @@ def new_version(id):
 
 @policies_bp.route('/version/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@requires_permission('knowledge_policy')
 def edit_version(id):
     version = PolicyVersion.query.get_or_404(id)
     policy = version.policy
     if request.method == 'POST':
+        if not has_write_permission('knowledge_policy'):
+            flash('Write access required to update versions.', 'danger')
+            return redirect(url_for('policies.detail', id=policy.id))
         content = request.form['content']
 
         if not content or not content.strip():
@@ -187,8 +201,12 @@ def edit_version(id):
 
 @policies_bp.route('/version/<int:id>/activate', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('knowledge_policy')
 def activate_version(id):
+    if not has_write_permission('knowledge_policy'):
+        version = PolicyVersion.query.get_or_404(id)
+        flash('Write access required to activate versions.', 'danger')
+        return redirect(url_for('policies.detail', id=version.policy_id))
     version_to_activate = PolicyVersion.query.get_or_404(id)
     policy = version_to_activate.policy
 
@@ -208,6 +226,7 @@ def activate_version(id):
 
 @policies_bp.route('/version/<int:id>')
 @login_required
+@requires_permission('knowledge_policy')
 def view_version(id):
     version = PolicyVersion.query.get_or_404(id)
     user_id = session.get('user_id')
@@ -216,6 +235,7 @@ def view_version(id):
 
 @policies_bp.route('/version/<int:id>/acknowledge', methods=['POST'])
 @login_required
+@requires_permission('knowledge_policy')
 def acknowledge_version(id):
     version = PolicyVersion.query.get_or_404(id)
     user_id = session.get('user_id')
@@ -239,8 +259,11 @@ def acknowledge_version(id):
 
 @policies_bp.route('/policy/<int:policy_id>/remove_user/<int:user_id>', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('knowledge_policy')
 def remove_user_from_policy(policy_id, user_id):
+    if not has_write_permission('knowledge_policy'):
+        flash('Write access required to remove users.', 'danger')
+        return redirect(url_for('policies.detail', id=policy_id))
     Policy.query.get_or_404(policy_id)
     latest_version = PolicyVersion.query.filter_by(policy_id=policy_id).order_by(PolicyVersion.effective_date.desc()).first()
     if latest_version:
@@ -253,8 +276,11 @@ def remove_user_from_policy(policy_id, user_id):
 
 @policies_bp.route('/policy/<int:policy_id>/remove_group/<int:group_id>', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('knowledge_policy')
 def remove_group_from_policy(policy_id, group_id):
+    if not has_write_permission('knowledge_policy'):
+        flash('Write access required to remove groups.', 'danger')
+        return redirect(url_for('policies.detail', id=policy_id))
     Policy.query.get_or_404(policy_id)
     latest_version = PolicyVersion.query.filter_by(policy_id=policy_id).order_by(PolicyVersion.effective_date.desc()).first()
     if latest_version:

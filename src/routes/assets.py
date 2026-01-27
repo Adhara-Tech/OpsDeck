@@ -5,14 +5,14 @@ from datetime import datetime, date
 from ..models import db, Asset, AssetHistory, User, Location, Supplier, Purchase, AssetAssignment, Peripheral
 from ..models.core import CustomFieldDefinition
 from .main import login_required
-from .admin import admin_required
 
-from src.utils.logger import log_audit
+from ..services.permissions_service import requires_permission
 
 assets_bp = Blueprint('assets', __name__)
 
 @assets_bp.route('/')
 @login_required
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def assets():
     assets = Asset.query.filter_by(is_archived=False).all()
     users = User.query.filter_by(is_archived=False).order_by(User.name).all()
@@ -21,6 +21,7 @@ def assets():
 
 @assets_bp.route('/archived')
 @login_required
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def archived_assets():
     """Displays a list of all archived assets."""
     archived = Asset.query.filter_by(is_archived=True).order_by(Asset.name).all()
@@ -29,7 +30,7 @@ def archived_assets():
 
 @assets_bp.route('/<int:id>/archive', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('core_inventory', access_level='WRITE')
 def archive_asset(id):
     """Sets an asset's status to archived."""
     asset = Asset.query.get_or_404(id)
@@ -49,7 +50,7 @@ def archive_asset(id):
 
 @assets_bp.route('/<int:id>/unarchive', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('core_inventory', access_level='WRITE')
 def unarchive_asset(id):
     """Restores an archived asset to active."""
     asset = Asset.query.get_or_404(id)
@@ -68,9 +69,19 @@ def unarchive_asset(id):
 
 @assets_bp.route('/new', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@requires_permission('core_inventory', access_level='READ_ONLY') # READ_ONLY here, manually check POST
 def new_asset():
     if request.method == 'POST':
+        # Manual check for WRITE access
+        from ..services.permissions_cache import permissions_cache
+        from flask import session
+        user_id = session.get('user_id')
+        user_role = session.get('user_role')
+        if user_role != 'admin':
+            perms = permissions_cache.get(user_id)
+            if perms.get('core_inventory') != 'WRITE':
+                flash('Write access required for this action.', 'danger')
+                return redirect(url_for('assets.assets'))
         asset = Asset(
             name=request.form['name'],
             model=request.form.get('model'),
@@ -115,10 +126,21 @@ def new_asset():
 
 @assets_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def edit_asset(id):
     asset = Asset.query.get_or_404(id)
 
     if request.method == 'POST':
+        # Manual check for WRITE access
+        from ..services.permissions_cache import permissions_cache
+        from flask import session
+        user_id = session.get('user_id')
+        user_role = session.get('user_role')
+        if user_role != 'admin':
+            perms = permissions_cache.get(user_id)
+            if perms.get('core_inventory') != 'WRITE':
+                flash('Write access required for this action.', 'danger')
+                return redirect(url_for('assets.asset_detail', id=id))
         # --- ENFORCE EOL WORKFLOW ---
         new_status = request.form.get('status')
         if new_status in ['Disposed', 'Sold']:
@@ -234,6 +256,7 @@ def edit_asset(id):
 
 @assets_bp.route('/<int:id>')
 @login_required
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def asset_detail(id):
     asset = Asset.query.get_or_404(id)
     locations = Location.query.filter_by(is_archived=False).order_by(Location.name).all()
@@ -242,6 +265,7 @@ def asset_detail(id):
 
 @assets_bp.route('/<int:id>/checkout', methods=['GET', 'POST'])
 @login_required
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def checkout_asset(id):
     asset = Asset.query.get_or_404(id)
     if asset.user:
@@ -249,6 +273,16 @@ def checkout_asset(id):
         return redirect(url_for('assets.asset_detail', id=id))
 
     if request.method == 'POST':
+        # Manual check for WRITE access
+        from ..services.permissions_cache import permissions_cache
+        from flask import session
+        user_id = session.get('user_id')
+        user_role = session.get('user_role')
+        if user_role != 'admin':
+            perms = permissions_cache.get(user_id)
+            if perms.get('core_inventory') != 'WRITE':
+                flash('Write access required for this action.', 'danger')
+                return redirect(url_for('assets.asset_detail', id=id))
         user_id = request.form.get('user_id')
         notes = request.form.get('notes')
         location_mode = request.form.get('location_mode', 'keep')
@@ -291,7 +325,7 @@ def checkout_asset(id):
 
 @assets_bp.route('/<int:id>/checkin', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('core_inventory', access_level='WRITE')
 def checkin_asset(id):
     asset = Asset.query.get_or_404(id)
     redirect_url = request.form.get('redirect_url')
@@ -339,6 +373,7 @@ def checkin_asset(id):
 
 @assets_bp.route('/warranties')
 @login_required
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def warranties():
     assets = Asset.query.filter(Asset.warranty_length.isnot(None)).all()
     peripherals = Peripheral.query.filter(Peripheral.warranty_length.isnot(None)).all()
@@ -355,6 +390,7 @@ def warranties():
 
 @assets_bp.route('/<int:id>/history')
 @login_required
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def asset_history(id):
     """Displays the full history for a single asset as a visual timeline."""
     asset = Asset.query.get_or_404(id)

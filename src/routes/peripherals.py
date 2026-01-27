@@ -5,12 +5,13 @@ from datetime import datetime
 from ..models import db, Peripheral, Asset, Purchase, Supplier, User, PeripheralAssignment
 from ..models.core import CustomFieldDefinition
 from .main import login_required
-from .admin import admin_required
+from ..services.permissions_service import requires_permission
 
 peripherals_bp = Blueprint('peripherals', __name__)
 
 @peripherals_bp.route('/')
 @login_required
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def peripherals():
     peripherals = Peripheral.query.filter_by(is_archived=False).all()
     users = User.query.filter_by(is_archived=False).order_by(User.name).all()
@@ -18,6 +19,7 @@ def peripherals():
 
 @peripherals_bp.route('/<int:id>')
 @login_required
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def peripheral_detail(id):
     peripheral = Peripheral.query.get_or_404(id)
     custom_field_definitions = CustomFieldDefinition.query.filter_by(entity_type='Peripheral').all()
@@ -25,10 +27,21 @@ def peripheral_detail(id):
 
 @peripherals_bp.route('/new', methods=['GET', 'POST'])
 @login_required
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def new_peripheral():
     custom_field_definitions = CustomFieldDefinition.query.filter_by(entity_type='Peripheral').all()
     
     if request.method == 'POST':
+        # Manual check for WRITE access
+        from ..services.permissions_cache import permissions_cache
+        from flask import session
+        user_id = session.get('user_id')
+        user_role = session.get('user_role')
+        if user_role != 'admin':
+            perms = permissions_cache.get(user_id)
+            if perms.get('core_inventory') != 'WRITE':
+                flash('Write access required for this action.', 'danger')
+                return redirect(url_for('peripherals.peripherals'))
         peripheral = Peripheral(
             name=request.form['name'],
             type=request.form.get('type'),
@@ -57,10 +70,21 @@ def new_peripheral():
 
 @peripherals_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def edit_peripheral(id):
     peripheral = Peripheral.query.get_or_404(id)
     
     if request.method == 'POST':
+        # Manual check for WRITE access
+        from ..services.permissions_cache import permissions_cache
+        from flask import session
+        user_id = session.get('user_id')
+        user_role = session.get('user_role')
+        if user_role != 'admin':
+            perms = permissions_cache.get(user_id)
+            if perms.get('core_inventory') != 'WRITE':
+                flash('Write access required for this action.', 'danger')
+                return redirect(url_for('peripherals.peripheral_detail', id=id))
         # Enforce EoL Workflow
         new_status = request.form.get('status')
         if new_status in ['Disposed', 'Sold']:
@@ -108,6 +132,7 @@ def edit_peripheral(id):
 
 @peripherals_bp.route('/<int:id>/checkout', methods=['GET', 'POST'])
 @login_required
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def checkout_peripheral(id):
     peripheral = Peripheral.query.get_or_404(id)
     if peripheral.user:
@@ -115,6 +140,16 @@ def checkout_peripheral(id):
         return redirect(url_for('peripherals.peripheral_detail', id=id))
 
     if request.method == 'POST':
+        # Manual check for WRITE access
+        from ..services.permissions_cache import permissions_cache
+        from flask import session
+        user_id = session.get('user_id')
+        user_role = session.get('user_role')
+        if user_role != 'admin':
+            perms = permissions_cache.get(user_id)
+            if perms.get('core_inventory') != 'WRITE':
+                flash('Write access required for this action.', 'danger')
+                return redirect(url_for('peripherals.peripheral_detail', id=id))
         user_id = request.form.get('user_id')
         notes = request.form.get('notes')
         
@@ -141,7 +176,7 @@ def checkout_peripheral(id):
 
 @peripherals_bp.route('/<int:id>/checkin', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('core_inventory', access_level='WRITE')
 def checkin_peripheral(id):
     peripheral = Peripheral.query.get_or_404(id)
     redirect_url = request.form.get('redirect_url')
@@ -188,6 +223,7 @@ def checkin_peripheral(id):
 
 @peripherals_bp.route('/archived')
 @login_required
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def archived_peripherals():
     """Displays a list of all archived peripherals."""
     archived = Peripheral.query.filter_by(is_archived=True).order_by(Peripheral.name).all()
@@ -196,7 +232,7 @@ def archived_peripherals():
 
 @peripherals_bp.route('/<int:id>/archive', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('core_inventory', access_level='WRITE')
 def archive_peripheral(id):
     """Sets a peripheral's status to archived."""
     peripheral = Peripheral.query.get_or_404(id)
@@ -208,7 +244,7 @@ def archive_peripheral(id):
 
 @peripherals_bp.route('/<int:id>/unarchive', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('core_inventory', access_level='WRITE')
 def unarchive_peripheral(id):
     """Restores an archived peripheral to active."""
     peripheral = Peripheral.query.get_or_404(id)
@@ -220,6 +256,7 @@ def unarchive_peripheral(id):
 
 @peripherals_bp.route('/<int:id>/history')
 @login_required
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def peripheral_history(id):
     """Displays the full history for a peripheral as a visual timeline."""
     peripheral = Peripheral.query.get_or_404(id)

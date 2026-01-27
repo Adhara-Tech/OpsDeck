@@ -10,72 +10,19 @@ from ..models.procurement import Subscription
 from ..models.policy import Policy
 from ..models.core import Documentation, Link
 from .main import login_required
-from .admin import admin_required
 from datetime import datetime
 from src.utils.logger import log_audit
+from ..services.permissions_service import requires_permission, has_write_permission
 
 risk_bp = Blueprint('risk', __name__)
 
-# ... (omitted code, I will rely on existing structure and just insert imports and routes)
-# Wait, I can't skip lines in replace_file_content unless I target specific blocks. 
-# I will do it in chunks.
-
-# Chunk 1: Imports
-
-
-@risk_bp.route('/dashboard')
-@login_required
-def dashboard():
-    # 1. KPIs
-    all_risks = Risk.query.all()
-    total_risks = len(all_risks)
-    
-    critical_risks_count = sum(1 for r in all_risks if r.residual_score >= 20)
-    risk_exposure = sum(r.residual_score for r in all_risks)
-    
-    # 2. Risk Matrix Data
-    # Group risks by (impact, likelihood)
-    matrix = {}
-    for r in all_risks:
-        key = (r.residual_impact, r.residual_likelihood)
-        if key not in matrix:
-            matrix[key] = []
-        matrix[key].append(r)
-        
-    # 3. Historical Burn-down Data
-    assessments = RiskAssessment.query.filter(RiskAssessment.total_residual_risk.isnot(None)).order_by(RiskAssessment.created_at).all()
-    
-    burn_down_labels = [a.created_at.strftime('%b %Y') for a in assessments]
-    burn_down_data = [a.total_residual_risk for a in assessments]
-    
-    # Add Current State
-    burn_down_labels.append('Current')
-    burn_down_data.append(risk_exposure)
-    
-    # 4. Threat Type Distribution
-    threat_counts = {}
-    for r in all_risks:
-        cat = r.threat_type.category if r.threat_type else 'Uncategorized'
-        threat_counts[cat] = threat_counts.get(cat, 0) + 1
-        
-    threat_labels = list(threat_counts.keys())
-    threat_data = list(threat_counts.values())
-
-    return render_template('risk/dashboard.html', 
-                           total_risks=total_risks,
-                           critical_risks_count=critical_risks_count,
-                           risk_exposure=risk_exposure,
-                           matrix=matrix,
-                           burn_down_labels=burn_down_labels,
-                           burn_down_data=burn_down_data,
-                           threat_labels=threat_labels,
-                           threat_data=threat_data)
+# Duplicate dashboard route removed.
 from .main import login_required
 
 risk_bp = Blueprint('risk', __name__)
 
 @risk_bp.route('/')
-@login_required
+@requires_permission('risk_governance')
 def list_risks():
     query = Risk.query
 
@@ -109,7 +56,7 @@ def list_risks():
     return render_template('risk/list.html', risks=risks)
 
 @risk_bp.route('/dashboard')
-@login_required
+@requires_permission('risk_governance')
 def dashboard():
     # 1. KPIs
     all_risks = Risk.query.all()
@@ -204,7 +151,7 @@ def dashboard():
                            accepted_risks=accepted_risks)
 
 @risk_bp.route('/dashboard/pdf')
-@login_required
+@requires_permission('risk_governance')
 def dashboard_pdf():
     from weasyprint import HTML
     from flask import make_response
@@ -280,19 +227,19 @@ def dashboard_pdf():
     return response
 
 @risk_bp.route('/<int:id>')
-@login_required
+@requires_permission('risk_governance')
 def detail(id):
     risk = Risk.query.get_or_404(id)
     return render_template('risk/detail.html', risk=risk)
 
 @risk_bp.route('/catalog')
-@login_required
+@requires_permission('risk_governance')
 def catalog_list():
     catalogs = RiskCatalog.query.all()
     return render_template('risk/catalog_list.html', catalogs=catalogs)
 
 @risk_bp.route('/catalog/<int:id>')
-@login_required
+@requires_permission('risk_governance')
 def catalog_detail(id):
     catalog = RiskCatalog.query.get_or_404(id)
     return render_template('risk/catalog_detail.html', catalog=catalog)
@@ -300,9 +247,12 @@ def catalog_detail(id):
 from ..models.security import ThreatType
 
 @risk_bp.route('/new', methods=['GET', 'POST'])
-@login_required
-@admin_required
+@requires_permission('risk_governance')
 def new_risk():
+    if not has_write_permission('risk_governance'):
+        if request.method == 'POST':
+            flash('You do not have permission to log new risks.', 'danger')
+            return redirect(url_for('risk.list_risks'))
     if request.method == 'POST':
         # Extract form data
         threat_type_id = request.form.get('threat_type_id')
@@ -410,10 +360,13 @@ def new_risk():
                            threat_types=threat_types, risk=pre_filled_risk)
 
 @risk_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
-@login_required
-@admin_required
+@requires_permission('risk_governance')
 def edit_risk(id):
     risk = Risk.query.get_or_404(id)
+    if not has_write_permission('risk_governance'):
+        if request.method == 'POST':
+            flash('You do not have permission to edit risks.', 'danger')
+            return redirect(url_for('risk.detail', id=id))
     if request.method == 'POST':
         # Capture old values for audit
         old_score = risk.residual_score
@@ -483,9 +436,11 @@ def edit_risk(id):
                            threat_types=threat_types)
 
 @risk_bp.route('/<int:id>/affected_items/add', methods=['POST'])
-@login_required
-@admin_required
+@requires_permission('risk_governance')
 def add_affected_item(id):
+    if not has_write_permission('risk_governance'):
+        flash('You do not have permission to modify risk items.', 'danger')
+        return redirect(url_for('risk.detail', id=id))
     risk = Risk.query.get_or_404(id)
     linkable_type = request.form.get('linkable_type')
     linkable_id = request.form.get('linkable_id')
@@ -531,9 +486,12 @@ def add_affected_item(id):
     return redirect(url_for('risk.detail', id=id))
 
 @risk_bp.route('/affected_items/<int:item_id>/delete', methods=['POST'])
-@login_required
-@admin_required
+@requires_permission('risk_governance')
 def remove_affected_item(item_id):
+    if not has_write_permission('risk_governance'):
+        item = RiskAffectedItem.query.get_or_404(item_id)
+        flash('You do not have permission to modify risk items.', 'danger')
+        return redirect(url_for('risk.detail', id=item.risk_id))
     item = RiskAffectedItem.query.get_or_404(item_id)
     risk_id = item.risk_id
     db.session.delete(item)
@@ -542,7 +500,7 @@ def remove_affected_item(item_id):
     return redirect(url_for('risk.detail', id=risk_id))
 
 @risk_bp.route('/api/items/<item_type>')
-@login_required
+@requires_permission('risk_governance')
 def api_get_items(item_type):
     """API endpoint to fetch items by type for dynamic selector."""
     model_map = {
@@ -574,7 +532,7 @@ def api_get_items(item_type):
 
 
 @risk_bp.route('/api/references/<ref_type>')
-@login_required
+@requires_permission('risk_governance')
 def api_get_references(ref_type):
     """API endpoint to fetch reference items by type for dynamic selector."""
     model_map = {
@@ -602,9 +560,11 @@ def api_get_references(ref_type):
 
 
 @risk_bp.route('/<int:id>/references/add', methods=['POST'])
-@login_required
-@admin_required
+@requires_permission('risk_governance')
 def add_reference(id):
+    if not has_write_permission('risk_governance'):
+        flash('You do not have permission to modify risk references.', 'danger')
+        return redirect(url_for('risk.detail', id=id))
     """Add a reference (Policy, Documentation, Link) to a risk."""
     risk = Risk.query.get_or_404(id)
     linkable_type = request.form.get('linkable_type')
@@ -651,9 +611,12 @@ def add_reference(id):
 
 
 @risk_bp.route('/references/<int:ref_id>/delete', methods=['POST'])
-@login_required
-@admin_required
+@requires_permission('risk_governance')
 def remove_reference(ref_id):
+    if not has_write_permission('risk_governance'):
+        ref = RiskReference.query.get_or_404(ref_id)
+        flash('You do not have permission to modify risk references.', 'danger')
+        return redirect(url_for('risk.detail', id=ref.risk_id))
     """Remove a reference from a risk."""
     ref = RiskReference.query.get_or_404(ref_id)
     risk_id = ref.risk_id

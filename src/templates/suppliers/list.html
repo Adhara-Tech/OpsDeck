@@ -12,9 +12,11 @@
         <a href="{{ url_for('suppliers.archived_suppliers') }}" class="btn btn-outline-secondary">
             <i class="fas fa-archive"></i> View Archived
         </a>
+        {% if can_write('business_ops') %}
         <a href="{{ url_for('suppliers.new_supplier') }}" class="btn btn-primary">
             <i class="fas fa-plus"></i> Add Supplier
         </a>
+        {% endif %}
     </div>
 </div>
 
@@ -41,6 +43,7 @@
                         <td>{{ supplier.phone or '-' }}</td>
                         <td><span class="badge bg-info">{{ supplier.subscriptions|length }}</span></td>
                         <td>
+                            {% if can_write('business_ops') %}
                             <a href="{{ url_for('suppliers.edit_supplier', id=supplier.id) }}"
                                 class="btn btn-sm btn-outline-primary me-1" title="Edit">
                                 <i class="fas fa-edit"></i>
@@ -59,6 +62,7 @@
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </form>
+                            {% endif %}
                         </td>
                     </tr>
                     {% else %}

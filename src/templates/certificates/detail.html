@@ -14,9 +14,11 @@
         <p class="text-muted mb-0">{{ certificate.type }} • {{ certificate.description or 'No description' }}</p>
     </div>
     <div>
+        {% if can_write('access_control') %}
         <a href="{{ url_for('certificates.edit_certificate', id=certificate.id) }}" class="btn btn-outline-primary">
             <i class="fas fa-edit"></i> Edit
         </a>
+        {% endif %}
         <a href="{{ url_for('certificates.list_certificates') }}" class="btn btn-outline-secondary">
             Back
         </a>
@@ -29,9 +31,11 @@
         <div class="card shadow mb-4">
             <div class="card-header py-3 d-flex justify-content-between align-items-center">
                 <h6 class="m-0 font-weight-bold text-primary">Versions History</h6>
+                {% if can_write('access_control') %}
                 <a href="{{ url_for('certificates.new_version', id=certificate.id) }}" class="btn btn-sm btn-primary">
                     <i class="fas fa-plus"></i> Add Version (Renew)
                 </a>
+                {% endif %}
             </div>
             <div class="card-body">
                 <div class="table-responsive">

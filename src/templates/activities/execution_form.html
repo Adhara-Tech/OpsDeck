@@ -29,7 +29,8 @@ endblock %}
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="mb-3">
                 <label for="executor_id" class="form-label">Executor <span class="text-danger">*</span></label>
-                <select class="form-select no-tom" id="executor_id" name="executor_id" required>
+                <select class="form-select no-tom" id="executor_id" name="executor_id" required {% if not
+                    can_write('operations') %}disabled{% endif %}>
                     {% for user in users %}
                     <option value="{{ user.id }}" {% if execution and execution.executor_id==user.id %}selected {% elif
                         not execution and current_user and current_user.id==user.id %}selected {% endif %}>
@@ -42,12 +43,13 @@ endblock %}
             <div class="mb-3">
                 <label for="execution_date" class="form-label">Execution Date <span class="text-danger">*</span></label>
                 <input type="date" class="form-control" id="execution_date" name="execution_date"
-                    value="{{ today_date }}" required>
+                    value="{{ today_date }}" required {% if not can_write('operations') %}disabled{% endif %}>
             </div>
 
             <div class="mb-3">
                 <label for="status" class="form-label">Status <span class="text-danger">*</span></label>
-                <select class="form-select" id="status" name="status" required>
+                <select class="form-select" id="status" name="status" required {% if not can_write('operations')
+                    %}disabled{% endif %}>
                     <option value="in_progress" {% if execution and execution.status=='in_progress' %}selected{% endif
                         %}>In Progress</option>
                     <option value="success" {% if execution and execution.status=='success' %}selected{% endif %}>
@@ -63,19 +65,21 @@ endblock %}
                 <label for="tags" class="form-label">Tags</label>
                 <input type="text" id="tags" name="tags"
                     value="{{ execution.tags|map(attribute='id')|join(',') if execution else '' }}"
-                    placeholder="Select tags...">
+                    placeholder="Select tags..." {% if not can_write('operations') %}disabled{% endif %}>
             </div>
 
             <div class="mb-3">
                 <label for="outcome_notes" class="form-label">Outcome Notes</label>
-                <textarea class="form-control" id="outcome_notes" name="outcome_notes"
-                    rows="8">{{ execution.outcome_notes if execution else '' }}</textarea>
+                <textarea class="form-control" id="outcome_notes" name="outcome_notes" rows="8" {% if not
+                    can_write('operations') %}disabled{% endif
+                    %}>{{ execution.outcome_notes if execution else '' }}</textarea>
                 <small class="form-text text-muted">Markdown formatting supported</small>
             </div>
 
             <div class="mb-3">
                 <label for="files" class="form-label">Evidence Files</label>
-                <input type="file" class="form-control" id="files" name="files" multiple>
+                <input type="file" class="form-control" id="files" name="files" multiple {% if not
+                    can_write('operations') %}disabled{% endif %}>
                 <small class="form-text text-muted">Upload evidence files, reports, screenshots, etc.</small>
             </div>
 
@@ -99,9 +103,11 @@ endblock %}
             <div class="d-flex justify-content-end gap-2">
                 <a href="{{ url_for('activities.activity_detail', id=activity.id) }}"
                     class="btn btn-secondary">Cancel</a>
+                {% if can_write('operations') %}
                 <button type="submit" class="btn btn-success">
                     <i class="fas fa-save"></i> {% if execution %}Update{% else %}Record{% endif %} Execution
                 </button>
+                {% endif %}
             </div>
         </form>
     </div>

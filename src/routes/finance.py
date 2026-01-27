@@ -6,20 +6,25 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from ..models import db
 from ..models.finance import FinanceSettings, ExchangeRate
 from ..services.finance_service import update_exchange_rates
+from ..services.permissions_service import requires_permission, has_write_permission
 from .main import login_required
-from .admin import admin_required
 
 finance_bp = Blueprint('finance', __name__)
 
 
 @finance_bp.route('/exchange-rates', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@requires_permission('finance', access_level='READ_ONLY')
 def exchange_rates():
     """Exchange rates configuration and history visualization."""
     settings = FinanceSettings.get_settings()
     
     if request.method == 'POST':
+        # Backend enforcement for WRITE access
+        if not has_write_permission('finance'):
+            flash('You do not have permission to perform this action.', 'danger')
+            return redirect(url_for('finance.exchange_rates'))
+
         action = request.form.get('action')
         
         if action == 'sync':

@@ -1,6 +1,7 @@
 from flask import Blueprint, render_template, request, flash, redirect, url_for, session, current_app
 from ..extensions import db
 from ..models import (Change, User, BusinessService, Asset, Software, Tag, Attachment, Configuration, ConfigurationVersion)
+from ..services.permissions_service import requires_permission, has_write_permission
 from werkzeug.utils import secure_filename
 from datetime import datetime
 import os
@@ -8,6 +9,7 @@ import os
 changes_bp = Blueprint('changes', __name__)
 
 @changes_bp.route('/')
+@requires_permission('operations')
 def list_changes():
     """List all changes with filtering."""
     status = request.args.get('status')
@@ -28,9 +30,13 @@ def list_changes():
     return render_template('changes/list.html', changes=changes)
 
 @changes_bp.route('/new', methods=['GET', 'POST'])
+@requires_permission('operations')
 def new_change():
     """Create a new change request."""
     if request.method == 'POST':
+        if not has_write_permission('operations'):
+            flash('Write access required to create change requests.', 'danger')
+            return redirect(url_for('changes.list_changes'))
         user_id = session.get('user_id')
         if not user_id:
             flash('You must be logged in to create a change.', 'danger')
@@ -130,6 +136,7 @@ def new_change():
                           change=None)
 
 @changes_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
+@requires_permission('operations')
 def edit_change(id):
     """Edit an existing change request."""
     change = Change.query.get_or_404(id)
@@ -140,6 +147,9 @@ def edit_change(id):
         return redirect(url_for('changes.detail_change', id=id))
         
     if request.method == 'POST':
+        if not has_write_permission('operations'):
+            flash('Write access required to update change requests.', 'danger')
+            return redirect(url_for('changes.detail_change', id=id))
         change.title = request.form.get('title')
         change.description = request.form.get('description')
         change.change_type = request.form.get('change_type')
@@ -218,12 +228,17 @@ def edit_change(id):
                           change=change)
 
 @changes_bp.route('/<int:id>')
+@requires_permission('operations')
 def detail_change(id):
     change = Change.query.get_or_404(id)
     return render_template('changes/detail.html', change=change)
 
 @changes_bp.route('/<int:id>/approve', methods=['POST'])
+@requires_permission('operations')
 def approve_change(id):
+    if not has_write_permission('operations'):
+        flash('Write access required to approve changes.', 'danger')
+        return redirect(url_for('changes.detail_change', id=id))
     change = Change.query.get_or_404(id)
     user_id = session.get('user_id')
     user = User.query.get(user_id)
@@ -243,7 +258,11 @@ def approve_change(id):
     return redirect(url_for('changes.detail_change', id=id))
 
 @changes_bp.route('/<int:id>/start', methods=['POST'])
+@requires_permission('operations')
 def start_change(id):
+    if not has_write_permission('operations'):
+        flash('Write access required to start changes.', 'danger')
+        return redirect(url_for('changes.detail_change', id=id))
     change = Change.query.get_or_404(id)
     if change.status != 'Approved':
         flash('Change must be approved before starting.', 'warning')
@@ -257,7 +276,11 @@ def start_change(id):
     return redirect(url_for('changes.detail_change', id=id))
 
 @changes_bp.route('/<int:id>/complete', methods=['POST'])
+@requires_permission('operations')
 def complete_change(id):
+    if not has_write_permission('operations'):
+        flash('Write access required to complete changes.', 'danger')
+        return redirect(url_for('changes.detail_change', id=id))
     change = Change.query.get_or_404(id)
     
     change.status = 'Completed'
@@ -268,7 +291,11 @@ def complete_change(id):
     return redirect(url_for('changes.detail_change', id=id))
 
 @changes_bp.route('/<int:id>/cancel', methods=['POST'])
+@requires_permission('operations')
 def cancel_change(id):
+    if not has_write_permission('operations'):
+        flash('Write access required to cancel changes.', 'danger')
+        return redirect(url_for('changes.detail_change', id=id))
     change = Change.query.get_or_404(id)
     change.status = 'Cancelled'
     change.closed_at = datetime.utcnow()
@@ -278,7 +305,11 @@ def cancel_change(id):
     return redirect(url_for('changes.detail_change', id=id))
 
 @changes_bp.route('/<int:id>/add_evidence', methods=['POST'])
+@requires_permission('operations')
 def add_evidence(id):
+    if not has_write_permission('operations'):
+        flash('Write access required to add evidence.', 'danger')
+        return redirect(url_for('changes.detail_change', id=id))
     change = Change.query.get_or_404(id)
     
     if 'file' not in request.files:

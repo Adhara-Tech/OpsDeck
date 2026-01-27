@@ -4,7 +4,7 @@ from flask import (
 from datetime import date, timedelta, datetime
 from ..models import db, Course, User, Group, CourseAssignment, CourseCompletion, Attachment
 from .main import login_required
-from .admin import admin_required
+from ..services.permissions_service import requires_permission, has_write_permission
 import uuid
 import os
 from werkzeug.utils import secure_filename
@@ -29,16 +29,19 @@ def my_training():
 
 @training_bp.route('/courses')
 @login_required
-@admin_required
+@requires_permission('knowledge_policy')
 def list_courses():
     courses = Course.query.order_by(Course.title).all()
     return render_template('training/list_courses.html', courses=courses)
 
 @training_bp.route('/courses/new', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@requires_permission('knowledge_policy')
 def new_course():
     if request.method == 'POST':
+        if not has_write_permission('knowledge_policy'):
+            flash('Write access required to create courses.', 'danger')
+            return redirect(url_for('training.list_courses'))
         course = Course(
             title=request.form['title'],
             description=request.form.get('description'),
@@ -53,10 +56,13 @@ def new_course():
 
 @training_bp.route('/courses/<int:id>', methods=['GET', 'POST'])
 @login_required
-@admin_required
+@requires_permission('knowledge_policy')
 def course_detail(id):
     course = Course.query.get_or_404(id)
     if request.method == 'POST':
+        if not has_write_permission('knowledge_policy'):
+            flash('Write access required to assign courses.', 'danger')
+            return redirect(url_for('training.course_detail', id=id))
         user_ids = request.form.getlist('user_ids')
         group_ids = request.form.getlist('group_ids')
         
@@ -126,8 +132,12 @@ def complete_course(assignment_id):
 
 @training_bp.route('/assignment/<int:assignment_id>/admin_complete', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('knowledge_policy')
 def admin_complete_course(assignment_id):
+    if not has_write_permission('knowledge_policy'):
+        assignment = CourseAssignment.query.get_or_404(assignment_id)
+        flash('Write access required to mark courses as complete.', 'danger')
+        return redirect(url_for('training.course_detail', id=assignment.course_id))
     assignment = CourseAssignment.query.get_or_404(assignment_id)
     notes = request.form.get('notes')
     completion_date_str = request.form.get('completion_date')
@@ -176,8 +186,12 @@ def admin_complete_course(assignment_id):
 
 @training_bp.route('/completion/<int:completion_id>/edit', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('knowledge_policy')
 def edit_completion(completion_id):
+    if not has_write_permission('knowledge_policy'):
+        completion = CourseCompletion.query.get_or_404(completion_id)
+        flash('Write access required to edit completion records.', 'danger')
+        return redirect(url_for('training.course_detail', id=completion.assignment.course_id))
     """
     Edita una finalización de curso existente.
     """

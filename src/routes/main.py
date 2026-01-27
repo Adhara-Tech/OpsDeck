@@ -12,6 +12,7 @@ from ..models.security import SecurityIncident, Risk, Framework, FrameworkContro
 from ..models.credentials import Credential, CredentialSecret
 from ..models.certificates import Certificate, CertificateVersion
 from ..models.audits import ComplianceAudit
+from ..services.permissions_service import requires_permission
 from src import limiter
 from src import notifications
 import calendar
@@ -26,6 +27,13 @@ def login_required(f):
             return redirect(url_for('main.login'))
         return f(*args, **kwargs)
     return decorated_function
+
+def is_break_glass_admin(user):
+    """Check if the user is the break-glass admin account."""
+    if not user:
+        return False
+    default_admin_email = current_app.config.get('DEFAULT_ADMIN_EMAIL', 'admin@example.com')
+    return user.email == default_admin_email
 
 from src.utils.logger import log_audit
 
@@ -91,7 +99,7 @@ def verify_ip_and_login(user):
         )
         session['user_id'] = user.id
         flash('Logged in successfully', 'success')
-        return redirect(url_for('main.organizational_health'))
+        return redirect(url_for('main.dashboard'))
     
     # --- NEW IP DETECTED: Trigger MFA ---
     
@@ -184,7 +192,7 @@ def mfa_verify():
                 # Complete login
                 session['user_id'] = user.id
                 flash('Dispositivo verificado. Bienvenido.', 'success')
-                return redirect(url_for('main.organizational_health'))
+                return redirect(url_for('main.dashboard'))
         
         # FAILURE - Wrong code
         log_audit(
@@ -204,6 +212,83 @@ def logout():
     session.pop('user_id', None)
     flash('You have been logged out', 'success')
     return redirect(url_for('main.login'))
+
+
+@main_bp.route('/impersonate/<int:user_id>', methods=['POST'])
+@login_required
+def impersonate(user_id):
+    """Start impersonating another user (break-glass admin only)."""
+    # Get current user
+    current_user = User.query.get(session['user_id'])
+    
+    # Verify current user is the break-glass admin
+    if not is_break_glass_admin(current_user):
+        log_audit(
+            event_type='security.impersonation',
+            action='attempt',
+            outcome='failure',
+            target_object=f"User:{user_id}",
+            error_message='Unauthorized impersonation attempt - not break-glass admin'
+        )
+        flash('Unauthorized: Only the break-glass admin can impersonate users.', 'danger')
+        return redirect(url_for('users.users'))
+    
+    # Get target user
+    target_user = User.query.get_or_404(user_id)
+    
+    # Prevent impersonating yourself
+    if current_user.id == target_user.id:
+        flash('You cannot impersonate yourself.', 'warning')
+        return redirect(url_for('users.users'))
+    
+    # Store original user ID and start impersonation
+    session['original_user_id'] = current_user.id
+    session['user_id'] = target_user.id
+    
+    # Log the impersonation start
+    log_audit(
+        event_type='security.impersonation',
+        action='start',
+        outcome='success',
+        target_object=f"User:{target_user.id}",
+        user_email=current_user.email,
+        details=f"Admin {current_user.email} started impersonating {target_user.email}"
+    )
+    
+    flash(f'Now impersonating: {target_user.name} ({target_user.email})', 'info')
+    return redirect(url_for('main.dashboard'))
+
+
+@main_bp.route('/stop-impersonate', methods=['POST'])
+@login_required
+def stop_impersonate():
+    """Stop impersonating and return to original user."""
+    # Check if currently impersonating
+    original_user_id = session.get('original_user_id')
+    if not original_user_id:
+        flash('You are not currently impersonating anyone.', 'warning')
+        return redirect(url_for('main.dashboard'))
+    
+    # Get both users for logging
+    impersonated_user = User.query.get(session['user_id'])
+    original_user = User.query.get(original_user_id)
+    
+    # Restore original user session
+    session['user_id'] = original_user_id
+    session.pop('original_user_id', None)
+    
+    # Log the impersonation end
+    log_audit(
+        event_type='security.impersonation',
+        action='stop',
+        outcome='success',
+        target_object=f"User:{impersonated_user.id if impersonated_user else 'Unknown'}",
+        user_email=original_user.email if original_user else 'Unknown',
+        details=f"Admin {original_user.email if original_user else 'Unknown'} stopped impersonating"
+    )
+    
+    flash('Impersonation ended. Returned to your account.', 'success')
+    return redirect(url_for('users.users'))
 
 
 @main_bp.route('/google/callback')
@@ -262,7 +347,7 @@ def google_callback():
         )
         session['user_id'] = user.id
         flash('Logged in successfully via Google', 'success')
-        return redirect(url_for('main.organizational_health'))
+        return redirect(url_for('main.dashboard'))
     else:
         # User not found in database
         log_audit(
@@ -293,8 +378,9 @@ def password_change_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-@main_bp.route('/')
+@main_bp.route('/', endpoint='dashboard')
 @login_required
+@requires_permission('health_dashboard', access_level='READ_ONLY')
 def organizational_health():
     """Executive Organizational Health Dashboard - Landing Page."""
     today = date.today()
@@ -789,7 +875,7 @@ def change_password():
             )
             
             flash('Your password has been updated successfully!', 'success')
-            return redirect(url_for('main.organizational_health'))
+            return redirect(url_for('main.dashboard'))
 
     return render_template('change_password.html', forced_change=forced_change)
 

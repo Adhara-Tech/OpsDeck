@@ -4,26 +4,31 @@ from flask import (
 from datetime import datetime
 from ..models import db, PaymentMethod, User
 from .main import login_required
-from .admin import admin_required
+from ..services.permissions_service import requires_permission, has_write_permission
 
 payment_methods_bp = Blueprint('payment_methods', __name__)
 
 @payment_methods_bp.route('/')
 @login_required
+@requires_permission('finance', access_level='READ_ONLY')
 def payment_methods():
     methods = PaymentMethod.query.filter_by(is_archived=False).all()
     return render_template('payment_methods/list.html', payment_methods=methods)
 
 @payment_methods_bp.route('/archived')
 @login_required
+@requires_permission('finance', access_level='READ_ONLY')
 def archived_payment_methods():
     methods = PaymentMethod.query.filter_by(is_archived=True).all()
     return render_template('payment_methods/archived.html', payment_methods=methods)
 
 @payment_methods_bp.route('/<int:id>/archive', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('finance')
 def archive_payment_method(id):
+    if not has_write_permission('finance'):
+        flash('Write access required to archive payment methods.', 'danger')
+        return redirect(url_for('payment_methods.payment_methods'))
     method = PaymentMethod.query.get_or_404(id)
     method.is_archived = True
     db.session.commit()
@@ -32,8 +37,11 @@ def archive_payment_method(id):
 
 @payment_methods_bp.route('/<int:id>/unarchive', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('finance')
 def unarchive_payment_method(id):
+    if not has_write_permission('finance'):
+        flash('Write access required to restore payment methods.', 'danger')
+        return redirect(url_for('payment_methods.archived_payment_methods'))
     method = PaymentMethod.query.get_or_404(id)
     method.is_archived = False
     db.session.commit()
@@ -43,16 +51,22 @@ def unarchive_payment_method(id):
 
 @payment_methods_bp.route('/<int:id>')
 @login_required
+@requires_permission('finance', access_level='READ_ONLY')
 def payment_method_detail(id):
     method = PaymentMethod.query.get_or_404(id)
     return render_template('payment_methods/detail.html', method=method)
 
 @payment_methods_bp.route('/new', methods=['GET', 'POST'])
 @login_required
+@requires_permission('finance', access_level='READ_ONLY')
 def new_payment_method():
     users = User.query.filter_by(is_archived=False).all()
     
     if request.method == 'POST':
+        # Manual check for WRITE access
+        if not has_write_permission('finance'):
+            flash('Write access required for this action.', 'danger')
+            return redirect(url_for('payment_methods.payment_methods'))
         expiry_date = None
         if request.form.get('expiry_date'):
             expiry_date = datetime.strptime(request.form['expiry_date'], '%m/%y').date()
@@ -75,11 +89,16 @@ def new_payment_method():
 
 @payment_methods_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
+@requires_permission('finance', access_level='READ_ONLY')
 def edit_payment_method(id):
     method = PaymentMethod.query.get_or_404(id)
     users = User.query.filter_by(is_archived=False).all()
 
     if request.method == 'POST':
+        # Manual check for WRITE access
+        if not has_write_permission('finance'):
+            flash('Write access required for this action.', 'danger')
+            return redirect(url_for('payment_methods.payment_method_detail', id=id))
         expiry_date = None
         if request.form.get('expiry_date'):
             expiry_date = datetime.strptime(request.form['expiry_date'], '%m/%y').date()
@@ -100,8 +119,11 @@ def edit_payment_method(id):
 
 @payment_methods_bp.route('/<int:id>/delete', methods=['POST'])
 @login_required
-@admin_required
+@requires_permission('finance')
 def delete_payment_method(id):
+    if not has_write_permission('finance'):
+        flash('You do not have permission to delete payment methods.', 'danger')
+        return redirect(url_for('payment_methods.payment_methods'))
     method = PaymentMethod.query.get_or_404(id)
     db.session.delete(method)
     db.session.commit()

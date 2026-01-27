@@ -5,11 +5,13 @@ from ..models.contracts import Contract, ContractItem
 from ..models.procurement import Supplier
 from ..models.assets import Asset
 from .main import login_required
+from ..services.permissions_service import requires_permission, has_write_permission
 
 contracts_bp = Blueprint('contracts', __name__)
 
 @contracts_bp.route('/')
 @login_required
+@requires_permission('procurement')
 def list_contracts():
     status_filter = request.args.get('status')
     
@@ -28,8 +30,12 @@ def list_contracts():
 
 @contracts_bp.route('/new', methods=['GET', 'POST'])
 @login_required
+@requires_permission('procurement')
 def new_contract():
     if request.method == 'POST':
+        if not has_write_permission('procurement'):
+            flash('Write access required to create contracts.', 'danger')
+            return redirect(url_for('contracts.list_contracts'))
         try:
             name = request.form['name']
             contract_type = request.form['contract_type']
@@ -84,11 +90,15 @@ def new_contract():
 
 @contracts_bp.route('/<int:id>', methods=['GET', 'POST'])
 @login_required
+@requires_permission('procurement')
 def contract_detail(id):
     contract = Contract.query.get_or_404(id)
     
     if request.method == 'POST':
         # Handle Edit
+        if not has_write_permission('procurement'):
+            flash('Write access required to update contracts.', 'danger')
+            return redirect(url_for('contracts.contract_detail', id=id))
         try:
             contract.name = request.form['name']
             contract.contract_type = request.form['contract_type']
@@ -138,7 +148,11 @@ def contract_detail(id):
 
 @contracts_bp.route('/<int:id>/link', methods=['POST'])
 @login_required
+@requires_permission('procurement')
 def link_item(id):
+    if not has_write_permission('procurement'):
+        flash('Write access required to link items.', 'danger')
+        return redirect(url_for('contracts.contract_detail', id=id))
     contract = Contract.query.get_or_404(id)
     item_type = request.form.get('item_type') # 'Asset', 'Subscription', etc.
     item_id = request.form.get('item_id')
@@ -177,7 +191,12 @@ def link_item(id):
 
 @contracts_bp.route('/link/<int:link_id>/delete', methods=['POST'])
 @login_required
+@requires_permission('procurement')
 def unlink_item(link_id):
+    if not has_write_permission('procurement'):
+        link = ContractItem.query.get_or_404(link_id)
+        flash('Write access required to unlink items.', 'danger')
+        return redirect(url_for('contracts.contract_detail', id=link.contract_id))
     link = ContractItem.query.get_or_404(link_id)
     contract_id = link.contract_id
     db.session.delete(link)
@@ -187,7 +206,11 @@ def unlink_item(link_id):
 
 @contracts_bp.route('/<int:id>/delete', methods=['POST'])
 @login_required
+@requires_permission('procurement')
 def delete_contract(id):
+    if not has_write_permission('procurement'):
+        flash('Write access required to delete contracts.', 'danger')
+        return redirect(url_for('contracts.contract_detail', id=id))
     contract = Contract.query.get_or_404(id)
     db.session.delete(contract)
     db.session.commit()
@@ -222,6 +245,7 @@ def _get_item_url(item_type, item_id):
 
 @contracts_bp.route('/search-items')
 @login_required
+@requires_permission('procurement')
 def search_items():
     """
     JSON endpoint for Select2 AJAX search.
