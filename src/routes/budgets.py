@@ -3,6 +3,7 @@ from flask import (
 )
 from datetime import datetime
 from ..services.permissions_service import requires_permission
+from .main import login_required
 
 budgets_bp = Blueprint('budgets', __name__)
 

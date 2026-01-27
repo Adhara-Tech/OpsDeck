@@ -1,6 +1,8 @@
 from datetime import datetime
 from flask import Blueprint, render_template, request, flash, redirect, url_for
+from ..models import db, License, User, Purchase, Subscription, Software
 from ..services.permissions_service import requires_permission
+from .main import login_required
 
 licenses_bp = Blueprint('licenses', __name__, url_prefix='/licenses')
 

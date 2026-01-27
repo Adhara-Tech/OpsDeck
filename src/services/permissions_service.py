@@ -138,3 +138,29 @@ def requires_permission(module_slug, access_level='READ_ONLY'):
             return f(*args, **kwargs)
         return decorated_function
     return decorator
+
+def has_write_permission(module_slug):
+    """
+    Helper function to check if the current user has WRITE permission for a module.
+    Returns True if user is admin or has WRITE access to the module.
+    """
+    user_id = session.get('user_id')
+    if not user_id:
+        return False
+    
+    user = User.query.get(user_id)
+    if not user:
+        return False
+    
+    # Admin bypass
+    if user.role == 'admin':
+        return True
+    
+    # Check permissions
+    perms = permissions_cache.get(user_id)
+    if perms is None:
+        # Refresh cache
+        get_user_modules(user_id)
+        perms = permissions_cache.get(user_id)
+    
+    return perms.get(module_slug) == 'WRITE'

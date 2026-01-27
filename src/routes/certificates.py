@@ -1,4 +1,9 @@
+from datetime import datetime
+from flask import Blueprint, render_template, request, flash, redirect, url_for
+from ..models import db, Certificate, CertificateVersion, User, BusinessService
 from ..services.permissions_service import requires_permission
+from src.utils.logger import log_audit
+from .main import login_required
 
 certificates_bp = Blueprint('certificates', __name__, url_prefix='/certificates')
 

@@ -16,6 +16,7 @@ import os
 import uuid
 
 from ..services.permissions_service import requires_permission
+from .main import login_required
 
 services_bp = Blueprint('services', __name__, 
                         template_folder='../templates/services', # Relative to src/routes

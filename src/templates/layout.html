@@ -544,7 +544,8 @@
                             Permissions</a></li>
                     <li class="nav-item"><a
                             class="nav-link {% if request.endpoint and request.endpoint.startswith('locations.') %}active{% endif %}"
-                            href="{{ url_for('locations.locations') }}"><i class="fa-fw fas fa-map-marker-alt"></i>
+                            href="{{ url_for('locations.list_locations') }}"> <i
+                                class="fa-fw fas fa-map-marker-alt"></i>
                             Locations</a></li>
                     <li class="nav-item"><a
                             class="nav-link {% if request.endpoint and request.endpoint.startswith('tags.') %}active{% endif %}"
@@ -614,6 +615,18 @@
                                 }}</span>
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end border-0 shadow" aria-labelledby="userDropdown">
+                            {% if is_impersonating %}
+                            <li>
+                                <div class="dropdown-item-text bg-info text-white py-2">
+                                    <i class="fas fa-user-secret fa-fw me-2"></i>
+                                    <strong>Impersonating:</strong><br>
+                                    <small>{{ current_user.name if current_user else 'User' }}</small>
+                                </div>
+                            </li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
+                            {% endif %}
                             <li>
                                 <a class="dropdown-item py-2" href="{{ url_for('training.my_training') }}">
                                     <i class="fas fa-graduation-cap fa-fw me-2 text-primary"></i> My Courses
@@ -637,11 +650,23 @@
                             <li>
                                 <hr class="dropdown-divider">
                             </li>
+                            {% if is_impersonating %}
+                            <li>
+                                <form action="{{ url_for('main.stop_impersonate') }}" method="POST"
+                                    class="d-inline w-100">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <button type="submit" class="dropdown-item py-2 text-info">
+                                        <i class="fas fa-user-check fa-fw me-2"></i> Stop Impersonating
+                                    </button>
+                                </form>
+                            </li>
+                            {% else %}
                             <li>
                                 <a class="dropdown-item py-2 text-danger" href="{{ url_for('main.logout') }}">
                                     <i class="fas fa-sign-out-alt fa-fw me-2"></i> Logout
                                 </a>
                             </li>
+                            {% endif %}
                         </ul>
                     </div>
                 </div>

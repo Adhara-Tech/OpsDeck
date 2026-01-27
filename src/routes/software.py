@@ -1,6 +1,7 @@
-from flask import Blueprint, render_template, request, flash, redirect, url_for
+from flask import Blueprint, render_template, request, redirect, url_for, flash
 from ..models import db, Software, Supplier, User, Group
 from ..services.permissions_service import requires_permission
+from .main import login_required
 
 software_bp = Blueprint('software', __name__, url_prefix='/software')
 

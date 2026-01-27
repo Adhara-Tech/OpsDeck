@@ -5,6 +5,7 @@ from ..models.credentials import Credential, CredentialSecret
 from ..models.services import BusinessService
 from ..models.assets import Software, License, Asset
 from ..services.permissions_service import requires_permission
+from .main import login_required
 
 credentials_bp = Blueprint('credentials', __name__, url_prefix='/credentials')
 

@@ -27,6 +27,13 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def is_break_glass_admin(user):
+    """Check if the user is the break-glass admin account."""
+    if not user:
+        return False
+    default_admin_email = current_app.config.get('DEFAULT_ADMIN_EMAIL', 'admin@example.com')
+    return user.email == default_admin_email
+
 from src.utils.logger import log_audit
 
 @main_bp.route('/login', methods=['GET', 'POST'])
@@ -204,6 +211,83 @@ def logout():
     session.pop('user_id', None)
     flash('You have been logged out', 'success')
     return redirect(url_for('main.login'))
+
+
+@main_bp.route('/impersonate/<int:user_id>', methods=['POST'])
+@login_required
+def impersonate(user_id):
+    """Start impersonating another user (break-glass admin only)."""
+    # Get current user
+    current_user = User.query.get(session['user_id'])
+    
+    # Verify current user is the break-glass admin
+    if not is_break_glass_admin(current_user):
+        log_audit(
+            event_type='security.impersonation',
+            action='attempt',
+            outcome='failure',
+            target_object=f"User:{user_id}",
+            error_message='Unauthorized impersonation attempt - not break-glass admin'
+        )
+        flash('Unauthorized: Only the break-glass admin can impersonate users.', 'danger')
+        return redirect(url_for('users.users'))
+    
+    # Get target user
+    target_user = User.query.get_or_404(user_id)
+    
+    # Prevent impersonating yourself
+    if current_user.id == target_user.id:
+        flash('You cannot impersonate yourself.', 'warning')
+        return redirect(url_for('users.users'))
+    
+    # Store original user ID and start impersonation
+    session['original_user_id'] = current_user.id
+    session['user_id'] = target_user.id
+    
+    # Log the impersonation start
+    log_audit(
+        event_type='security.impersonation',
+        action='start',
+        outcome='success',
+        target_object=f"User:{target_user.id}",
+        user_email=current_user.email,
+        details=f"Admin {current_user.email} started impersonating {target_user.email}"
+    )
+    
+    flash(f'Now impersonating: {target_user.name} ({target_user.email})', 'info')
+    return redirect(url_for('main.organizational_health'))
+
+
+@main_bp.route('/stop-impersonate', methods=['POST'])
+@login_required
+def stop_impersonate():
+    """Stop impersonating and return to original user."""
+    # Check if currently impersonating
+    original_user_id = session.get('original_user_id')
+    if not original_user_id:
+        flash('You are not currently impersonating anyone.', 'warning')
+        return redirect(url_for('main.organizational_health'))
+    
+    # Get both users for logging
+    impersonated_user = User.query.get(session['user_id'])
+    original_user = User.query.get(original_user_id)
+    
+    # Restore original user session
+    session['user_id'] = original_user_id
+    session.pop('original_user_id', None)
+    
+    # Log the impersonation end
+    log_audit(
+        event_type='security.impersonation',
+        action='stop',
+        outcome='success',
+        target_object=f"User:{impersonated_user.id if impersonated_user else 'Unknown'}",
+        user_email=original_user.email if original_user else 'Unknown',
+        details=f"Admin {original_user.email if original_user else 'Unknown'} stopped impersonating"
+    )
+    
+    flash('Impersonation ended. Returned to your account.', 'success')
+    return redirect(url_for('users.users'))
 
 
 @main_bp.route('/google/callback')

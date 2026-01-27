@@ -6,6 +6,7 @@ from dateutil.relativedelta import relativedelta
 from ..models import db, Subscription, Supplier, Contact, PaymentMethod, Tag, CostHistory, Software, Budget, User
 from ..services.finance_service import get_conversion_rate
 from ..services.permissions_service import requires_permission
+from .main import login_required
 
 subscriptions_bp = Blueprint('subscriptions', __name__)
 

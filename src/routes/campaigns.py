@@ -11,6 +11,7 @@ from ..models.communications import Campaign, ScheduledCommunication
 from ..models.core import Tag
 from ..services.permissions_service import requires_permission, has_write_permission
 from ..utils.communications_context import validate_template_syntax
+from .main import login_required
 
 campaigns_bp = Blueprint('campaigns', __name__)
 

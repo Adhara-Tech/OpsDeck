@@ -9,6 +9,7 @@ from ..extensions import db
 from ..models.notifications import NotificationEvent
 from ..models.communications import EmailTemplate
 from ..services.permissions_service import requires_permission, has_write_permission
+from .main import login_required
 
 admin_notifications_bp = Blueprint('admin_notifications', __name__)
 

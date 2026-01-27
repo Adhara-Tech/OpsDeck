@@ -2,7 +2,7 @@ from flask import (
     Blueprint, render_template, request, redirect, url_for, flash
 )
 from datetime import datetime
-from ..models import db, Opportunity, Activity, Supplier, Contact, Risk, Budget, OpportunityTask
+from ..models import db, Opportunity, Activity, Supplier, Contact, Risk, Budget
 from .main import login_required
 from ..services.permissions_service import requires_permission, has_write_permission
 

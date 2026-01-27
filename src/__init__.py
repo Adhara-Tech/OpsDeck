@@ -354,11 +354,32 @@ def create_app(test_config=None):
     def inject_user_context():
         from datetime import date
         user_id = session.get('user_id')
+        original_user_id = session.get('original_user_id')
+        is_impersonating = original_user_id is not None
+        
         if user_id:
             user = User.query.get(user_id)
             if user:
-                return dict(current_user=user, current_user_role=user.role, today=date.today())
-        return dict(current_user=None, current_user_role=None, today=date.today())
+                context = dict(
+                    current_user=user, 
+                    current_user_role=user.role, 
+                    today=date.today(),
+                    is_impersonating=is_impersonating
+                )
+                
+                # Add original user if impersonating
+                if is_impersonating and original_user_id:
+                    original_user = User.query.get(original_user_id)
+                    context['original_user'] = original_user
+                
+                return context
+        
+        return dict(
+            current_user=None, 
+            current_user_role=None, 
+            today=date.today(),
+            is_impersonating=False
+        )
 
     # --- Permissions Context Processor ---
     @app.context_processor

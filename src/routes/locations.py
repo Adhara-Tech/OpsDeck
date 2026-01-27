@@ -3,7 +3,7 @@ from flask import (
 )
 from ..models import db, Location
 from .main import login_required
-from ..services.permissions_service import requires_permission, has_write_permission
+from ..services.permissions_service import requires_permission
 
 locations_bp = Blueprint('locations', __name__)
 
@@ -24,11 +24,8 @@ def archived_locations():
 
 @locations_bp.route('/<int:id>/archive', methods=['POST'])
 @login_required
-@requires_permission('core_inventory')
+@requires_permission('core_inventory', access_level='WRITE')
 def archive_location(id):
-    if not has_write_permission('core_inventory'):
-        flash('Write access required to archive locations.', 'danger')
-        return redirect(url_for('locations.list_locations'))
     location = Location.query.get_or_404(id)
     location.is_archived = True
     db.session.commit()
@@ -38,11 +35,8 @@ def archive_location(id):
 
 @locations_bp.route('/<int:id>/unarchive', methods=['POST'])
 @login_required
-@requires_permission('core_inventory')
+@requires_permission('core_inventory', access_level='WRITE')
 def unarchive_location(id):
-    if not has_write_permission('core_inventory'):
-        flash('Write access required to unarchive locations.', 'danger')
-        return redirect(url_for('locations.archived_locations'))
     location = Location.query.get_or_404(id)
     location.is_archived = False
     db.session.commit()
@@ -52,12 +46,9 @@ def unarchive_location(id):
 
 @locations_bp.route('/new', methods=['GET', 'POST'])
 @login_required
-@requires_permission('core_inventory')
+@requires_permission('core_inventory', access_level='WRITE')
 def new_location():
     if request.method == 'POST':
-        if not has_write_permission('core_inventory'):
-            flash('Write access required to create locations.', 'danger')
-            return redirect(url_for('locations.list_locations'))
         location = Location(
             name=request.form['name'],
             address=request.form.get('address', '').strip() or None,
@@ -72,7 +63,7 @@ def new_location():
         db.session.add(location)
         db.session.commit()
         flash('Location created successfully!')
-        return redirect(url_for('locations.locations'))
+        return redirect(url_for('locations.list_locations'))
 
     return render_template('locations/form.html')
 
@@ -93,7 +84,7 @@ def edit_location(id):
         location.reception_email = request.form.get('reception_email', '').strip() or None
         db.session.commit()
         flash('Location updated successfully!')
-        return redirect(url_for('locations.locations'))
+        return redirect(url_for('locations.list_locations'))
 
     return render_template('locations/form.html', location=location)
 
