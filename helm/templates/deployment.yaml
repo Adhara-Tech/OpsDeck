@@ -28,7 +28,7 @@ spec:
             
             # OPCIÓN A: Postgres Interno (Kubernetes Service)
             {{- if eq .Values.database.type "internal" }}
-            - name: SQLALCHEMY_DATABASE_URI
+            - name: DATABASE_URL
               value: postgresql://{{ .Values.postgresql.auth.username }}:{{ .Values.postgresql.auth.password }}@{{ include "opsdeck.fullname" . }}-db:5432/{{ .Values.postgresql.auth.database }}
             
             # OPCIÓN B: Postgres Externo (Aurora, RDS, etc)
@@ -41,15 +41,15 @@ spec:
                   key: {{ .Values.database.external.existingSecret.key }}
             
             # 2. Usamos esa variable para construir la URI
-            - name: SQLALCHEMY_DATABASE_URI
+            - name: DATABASE_URL
               value: postgresql://{{ .Values.database.external.username }}:$(DB_PASSWORD_RAW)@{{ .Values.database.external.host }}:{{ .Values.database.external.port }}/{{ .Values.database.external.database }}
             
             # OPCIÓN C: SQLite (Local)
             # Forzamos la ruta a /data/renewals.db para usar el volumen persistente
             {{- else if eq .Values.database.type "sqlite" }}
-            - name: SQLALCHEMY_DATABASE_URI
+            - name: DATABASE_URL
               {{- if .Values.database.sqlite.persistence.enabled }}
-              value: sqlite:////data/renewals.db
+              value: sqlite:////app/data/renewals.db
               {{- else }}
               value: sqlite:////app/data/renewals.db
               {{- end }}

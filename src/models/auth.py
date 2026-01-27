@@ -19,6 +19,7 @@ from .core import CustomPropertiesMixin
 
 class User(db.Model, CustomPropertiesMixin): # Add UserMixin here if using Flask-Login
     __tablename__ = 'user'
+    __table_args__ = {'quote': True}  # Fuerza: SELECT * FROM "user"
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(100), unique=True, nullable=False) # Make email unique and required for login
