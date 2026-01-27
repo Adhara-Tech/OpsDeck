@@ -10,7 +10,7 @@ organization_bp = Blueprint('organization', __name__)
 
 @organization_bp.route('/settings', methods=['GET', 'POST'])
 @login_required
-@requires_permission('administration')
+@requires_permission('administration', access_level='READ_ONLY')
 def settings():
     """View/update organization settings (singleton pattern)."""
     # Get or create the singleton settings record
@@ -21,6 +21,9 @@ def settings():
         db.session.commit()
 
     if request.method == 'POST':
+        if not has_write_permission('administration'):
+            flash('Write access required to update organization settings.', 'danger')
+            return redirect(url_for('organization.settings'))
         org_settings.legal_name = request.form.get('legal_name', '').strip()
         org_settings.tax_id = request.form.get('tax_id', '').strip()
         org_settings.primary_domain = request.form.get('primary_domain', '').strip()

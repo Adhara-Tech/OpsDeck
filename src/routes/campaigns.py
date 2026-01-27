@@ -22,7 +22,7 @@ campaigns_bp = Blueprint('campaigns', __name__)
 
 @campaigns_bp.route('/')
 @login_required
-@requires_permission('hr_people')
+@requires_permission('communications', access_level='READ_ONLY')
 def list_campaigns():
     """List all campaigns with their status."""
     view = request.args.get('view', 'active')
@@ -42,11 +42,11 @@ def list_campaigns():
 
 @campaigns_bp.route('/new', methods=['GET', 'POST'])
 @login_required
-@requires_permission('hr_people')
+@requires_permission('communications', access_level='WRITE')
 def new_campaign():
     """Create a new campaign (wizard form)."""
     if request.method == 'POST':
-        if not has_write_permission('hr_people'):
+        if not has_write_permission('communications'):
             flash('Write access required to create campaigns.', 'danger')
             return redirect(url_for('campaigns.list_campaigns'))
         title = request.form.get('title')
@@ -124,7 +124,7 @@ def new_campaign():
 
 @campaigns_bp.route('/<int:id>')
 @login_required
-@requires_permission('hr_people')
+@requires_permission('communications', access_level='READ_ONLY')
 def detail(id):
     """Campaign detail/report view."""
     campaign = Campaign.query.get_or_404(id)
@@ -159,7 +159,7 @@ def detail(id):
 
 @campaigns_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
-@requires_permission('hr_people')
+@requires_permission('communications', access_level='WRITE')
 def edit_campaign(id):
     """Edit a draft campaign."""
     campaign = Campaign.query.get_or_404(id)
@@ -169,7 +169,7 @@ def edit_campaign(id):
         return redirect(url_for('campaigns.detail', id=id))
     
     if request.method == 'POST':
-        if not has_write_permission('hr_people'):
+        if not has_write_permission('communications'):
             flash('Write access required to update campaigns.', 'danger')
             return redirect(url_for('campaigns.detail', id=id))
         title = request.form.get('title')
@@ -242,9 +242,9 @@ def edit_campaign(id):
 
 @campaigns_bp.route('/<int:id>/archive', methods=['POST'])
 @login_required
-@requires_permission('hr_people')
+@requires_permission('communications', access_level='WRITE')
 def archive_campaign(id):
-    if not has_write_permission('hr_people'):
+    if not has_write_permission('communications'):
         flash('Write access required to archive campaigns.', 'danger')
         return redirect(url_for('campaigns.detail', id=id))
     """
@@ -266,9 +266,9 @@ def archive_campaign(id):
 
 @campaigns_bp.route('/<int:id>/clone', methods=['POST'])
 @login_required
-@requires_permission('hr_people')
+@requires_permission('communications', access_level='WRITE')
 def clone_campaign(id):
-    if not has_write_permission('hr_people'):
+    if not has_write_permission('communications'):
         flash('Write access required to clone campaigns.', 'danger')
         return redirect(url_for('campaigns.detail', id=id))
     """
@@ -301,9 +301,9 @@ def clone_campaign(id):
 
 @campaigns_bp.route('/<int:id>/schedule', methods=['POST'])
 @login_required
-@requires_permission('hr_people')
+@requires_permission('communications', access_level='WRITE')
 def schedule_campaign(id):
-    if not has_write_permission('hr_people'):
+    if not has_write_permission('communications'):
         flash('Write access required to schedule campaigns.', 'danger')
         return redirect(url_for('campaigns.detail', id=id))
     """
@@ -358,9 +358,9 @@ def schedule_campaign(id):
 
 @campaigns_bp.route('/<int:id>/cancel', methods=['POST'])
 @login_required
-@requires_permission('hr_people')
+@requires_permission('communications', access_level='WRITE')
 def cancel_campaign(id):
-    if not has_write_permission('hr_people'):
+    if not has_write_permission('communications'):
         flash('Write access required to cancel campaigns.', 'danger')
         return redirect(url_for('campaigns.detail', id=id))
     """
@@ -397,9 +397,9 @@ def cancel_campaign(id):
 
 @campaigns_bp.route('/<int:id>/send_now', methods=['POST'])
 @login_required
-@requires_permission('hr_people')
+@requires_permission('communications', access_level='WRITE')
 def send_campaign_now(id):
-    if not has_write_permission('hr_people'):
+    if not has_write_permission('communications'):
         flash('Write access required to send campaigns.', 'danger')
         return redirect(url_for('campaigns.detail', id=id))
     """
@@ -460,9 +460,9 @@ def send_campaign_now(id):
 
 @campaigns_bp.route('/<int:id>/retry_failed', methods=['POST'])
 @login_required
-@requires_permission('hr_people')
+@requires_permission('communications', access_level='WRITE')
 def retry_failed(id):
-    if not has_write_permission('hr_people'):
+    if not has_write_permission('communications'):
         flash('Write access required to retry campaigns.', 'danger')
         return redirect(url_for('campaigns.detail', id=id))
     """
@@ -498,9 +498,9 @@ def retry_failed(id):
 
 @campaigns_bp.route('/<int:id>/finish', methods=['POST'])
 @login_required
-@requires_permission('hr_people')
+@requires_permission('communications', access_level='WRITE')
 def finish_campaign(id):
-    if not has_write_permission('hr_people'):
+    if not has_write_permission('communications'):
         flash('Write access required to finish campaigns.', 'danger')
         return redirect(url_for('campaigns.detail', id=id))
     """
@@ -523,7 +523,7 @@ def finish_campaign(id):
 
 @campaigns_bp.route('/<int:id>/stats')
 @login_required
-@requires_permission('hr_people')
+@requires_permission('communications', access_level='READ_ONLY')
 def get_stats(id):
     """
     API endpoint returning campaign stats and communications as JSON.

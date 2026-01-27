@@ -177,8 +177,8 @@
                                 <td class="p-1">
                                     {% set current_val = matrix.get('user_' ~ u.id, {}).get(module.id, 'NONE') %}
                                     <div class="perm-cell perm-{{ current_val|lower }}"
-                                        data-target-id="perm_user_{{ u.id }}_{{ module.id }}"
-                                        onclick="cyclePermission(this)">
+                                        data-target-id="perm_user_{{ u.id }}_{{ module.id }}" {% if
+                                        can_write('administration') %}onclick="cyclePermission(this)" {% endif %}>
                                         {% if current_val == 'WRITE' %}
                                         <i class="fas fa-check-double me-1"></i> FULL
                                         {% elif current_val == 'READ_ONLY' %}
@@ -193,6 +193,7 @@
                                 </td>
                                 {% endfor %}
                                 <td class="text-end px-3">
+                                    {% if can_write('administration') %}
                                     <div class="btn-group btn-group-sm mb-1 d-block mb-2">
                                         <button type="button" class="btn btn-outline-secondary btn-xs"
                                             onclick="bulkSetRow('user', {{ u.id }}, 'NONE')">None</button>
@@ -205,6 +206,7 @@
                                         class="btn btn-sm btn-primary shadow-sm btn-hover-elevate w-100">
                                         <i class="fas fa-save me-1"></i> Save
                                     </button>
+                                    {% endif %}
                                 </td>
                             </tr>
                             {% endfor %}
@@ -251,8 +253,8 @@
                                 <td class="p-1">
                                     {% set current_val = matrix.get('group_' ~ g.id, {}).get(module.id, 'NONE') %}
                                     <div class="perm-cell perm-{{ current_val|lower }}"
-                                        data-target-id="perm_group_{{ g.id }}_{{ module.id }}"
-                                        onclick="cyclePermission(this)">
+                                        data-target-id="perm_group_{{ g.id }}_{{ module.id }}" {% if
+                                        can_write('administration') %}onclick="cyclePermission(this)" {% endif %}>
                                         {% if current_val == 'WRITE' %}
                                         <i class="fas fa-check-double me-1"></i> FULL
                                         {% elif current_val == 'READ_ONLY' %}
@@ -267,6 +269,7 @@
                                 </td>
                                 {% endfor %}
                                 <td class="text-end px-3">
+                                    {% if can_write('administration') %}
                                     <div class="btn-group btn-group-sm mb-1 d-block mb-2">
                                         <button type="button" class="btn btn-outline-secondary btn-xs"
                                             onclick="bulkSetRow('group', {{ g.id }}, 'NONE')">None</button>
@@ -279,6 +282,7 @@
                                         class="btn btn-sm btn-primary shadow-sm btn-hover-elevate w-100">
                                         <i class="fas fa-save me-1"></i> Save
                                     </button>
+                                    {% endif %}
                                 </td>
                             </tr>
                             {% endfor %}

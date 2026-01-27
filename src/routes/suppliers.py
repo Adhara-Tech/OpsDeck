@@ -9,21 +9,21 @@ suppliers_bp = Blueprint('suppliers', __name__)
 
 @suppliers_bp.route('/')
 @login_required
-@requires_permission('business_ops', access_level='READ_ONLY')
+@requires_permission('procurement', access_level='READ_ONLY')
 def suppliers():
     suppliers = Supplier.query.filter_by(is_archived=False).all()
     return render_template('suppliers/list.html', suppliers=suppliers)
 
 @suppliers_bp.route('/archived')
 @login_required
-@requires_permission('business_ops', access_level='READ_ONLY')
+@requires_permission('procurement', access_level='READ_ONLY')
 def archived_suppliers():
     suppliers = Supplier.query.filter_by(is_archived=True).all()
     return render_template('suppliers/archived.html', suppliers=suppliers)
 
 @suppliers_bp.route('/<int:id>/archive', methods=['POST'])
 @login_required
-@requires_permission('business_ops', access_level='WRITE')
+@requires_permission('procurement', access_level='WRITE')
 def archive_supplier(id):
     supplier = Supplier.query.get_or_404(id)
     supplier.is_archived = True
@@ -34,7 +34,7 @@ def archive_supplier(id):
 
 @suppliers_bp.route('/<int:id>/unarchive', methods=['POST'])
 @login_required
-@requires_permission('business_ops', access_level='WRITE')
+@requires_permission('procurement', access_level='WRITE')
 def unarchive_supplier(id):
     supplier = Supplier.query.get_or_404(id)
     supplier.is_archived = False
@@ -44,7 +44,7 @@ def unarchive_supplier(id):
 
 @suppliers_bp.route('/new', methods=['GET', 'POST'])
 @login_required
-@requires_permission('business_ops', access_level='READ_ONLY')
+@requires_permission('procurement', access_level='READ_ONLY')
 def new_supplier():
     if request.method == 'POST':
         # Manual check for WRITE access
@@ -76,14 +76,14 @@ def new_supplier():
 
 @suppliers_bp.route('/<int:id>')
 @login_required
-@requires_permission('business_ops', access_level='READ_ONLY')
+@requires_permission('procurement', access_level='READ_ONLY')
 def supplier_detail(id):
     supplier = Supplier.query.get_or_404(id)
     return render_template('suppliers/detail.html', supplier=supplier)
 
 @suppliers_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
-@requires_permission('business_ops', access_level='READ_ONLY')
+@requires_permission('procurement', access_level='READ_ONLY')
 def edit_supplier(id):
     supplier = Supplier.query.get_or_404(id)
     
@@ -116,7 +116,7 @@ def edit_supplier(id):
 
 @suppliers_bp.route('/<int:id>/delete', methods=['POST'])
 @login_required
-@requires_permission('business_ops', access_level='WRITE')
+@requires_permission('procurement', access_level='WRITE')
 def delete_supplier(id):
     supplier = Supplier.query.get_or_404(id)
     db.session.delete(supplier)

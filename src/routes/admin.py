@@ -131,7 +131,7 @@ from ..models.core import CustomFieldDefinition, CustomFieldValue
 
 @admin_bp.route('/custom-fields')
 @login_required
-@requires_permission('administration')
+@requires_permission('administration', access_level='READ_ONLY')
 def custom_fields():
     definitions = CustomFieldDefinition.query.order_by(CustomFieldDefinition.entity_type, CustomFieldDefinition.name).all()
     return render_template('admin/custom_fields_list.html', definitions=definitions)
@@ -211,7 +211,7 @@ from ..services.permissions_service import update_permission_matrix
 
 @admin_bp.route('/permissions', methods=['GET', 'POST'])
 @login_required
-@requires_permission('administration')
+@requires_permission('administration', access_level='READ_ONLY')
 def permissions_matrix():
     if request.method == 'POST':
         if not has_write_permission('administration'):

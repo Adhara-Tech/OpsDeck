@@ -69,6 +69,7 @@ def new_location():
 
 @locations_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
+@requires_permission('core_inventory', access_level='WRITE')
 def edit_location(id):
     location = Location.query.get_or_404(id)
 

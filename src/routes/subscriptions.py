@@ -12,7 +12,7 @@ subscriptions_bp = Blueprint('subscriptions', __name__)
 
 @subscriptions_bp.route('/')
 @login_required
-@requires_permission('access_control', access_level='READ_ONLY')
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def subscriptions():
     subscription_type_filter = request.args.get('subscription_type')
     tag_filter = request.args.get('tag_id', type=int)
@@ -64,7 +64,7 @@ def subscriptions():
 
 @subscriptions_bp.route('/<int:id>')
 @login_required
-@requires_permission('access_control', access_level='READ_ONLY')
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def subscription_detail(id):
     subscription = Subscription.query.get_or_404(id)
     cost_history_labels = [entry.changed_date.strftime('%Y-%m-%d') for entry in subscription.cost_history]
@@ -86,7 +86,7 @@ def subscription_detail(id):
 
 @subscriptions_bp.route('/new', methods=['GET', 'POST'])
 @login_required
-@requires_permission('access_control', access_level='READ_ONLY')
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def new_subscription():
     software_items = Software.query.filter_by(is_archived=False).order_by(Software.name).all()
 
@@ -100,7 +100,7 @@ def new_subscription():
         user_role = session.get('user_role')
         if (user_role or session.get('role')) != 'admin':
             perms = permissions_cache.get(user_id)
-            if perms.get('access_control') != 'WRITE':
+            if perms.get('core_inventory') != 'WRITE':
                 flash('Write access required for this action.', 'danger')
                 return redirect(url_for('subscriptions.subscriptions'))
         renewal_date = datetime.strptime(request.form['renewal_date'], '%Y-%m-%d').date()
@@ -178,7 +178,7 @@ def new_subscription():
 
 @subscriptions_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
-@requires_permission('access_control', access_level='READ_ONLY')
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def edit_subscription(id):
     subscription = Subscription.query.get_or_404(id)
     software_items = Software.query.filter_by(is_archived=False).order_by(Software.name).all()
@@ -193,7 +193,7 @@ def edit_subscription(id):
         user_role = session.get('user_role')
         if (user_role or session.get('role')) != 'admin':
             perms = permissions_cache.get(user_id)
-            if perms.get('access_control') != 'WRITE':
+            if perms.get('core_inventory') != 'WRITE':
                 flash('Write access required for this action.', 'danger')
                 return redirect(url_for('subscriptions.subscription_detail', id=id))
         renewal_date = datetime.strptime(request.form['renewal_date'], '%Y-%m-%d').date()
@@ -278,7 +278,7 @@ def edit_subscription(id):
 
 @subscriptions_bp.route('/<int:id>/delete', methods=['POST'])
 @login_required
-@requires_permission('access_control', access_level='WRITE')
+@requires_permission('core_inventory', access_level='WRITE')
 def delete_subscription(id):
     subscription = Subscription.query.get_or_404(id)
     db.session.delete(subscription)
@@ -288,14 +288,14 @@ def delete_subscription(id):
 
 @subscriptions_bp.route('/archived')
 @login_required
-@requires_permission('access_control', access_level='READ_ONLY')
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def archived_subscriptions():
     archived = Subscription.query.filter_by(is_archived=True).order_by(Subscription.name).all()
     return render_template('subscriptions/archived.html', subscriptions=archived)
 
 @subscriptions_bp.route('/<int:id>/archive', methods=['POST'])
 @login_required
-@requires_permission('access_control', access_level='WRITE')
+@requires_permission('core_inventory', access_level='WRITE')
 def archive_subscription(id):
     subscription = Subscription.query.get_or_404(id)
     subscription.is_archived = True
@@ -305,7 +305,7 @@ def archive_subscription(id):
 
 @subscriptions_bp.route('/<int:id>/unarchive', methods=['POST'])
 @login_required
-@requires_permission('access_control', access_level='WRITE')
+@requires_permission('core_inventory', access_level='WRITE')
 def unarchive_subscription(id):
     subscription = Subscription.query.get_or_404(id)
     subscription.is_archived = False
@@ -315,13 +315,13 @@ def unarchive_subscription(id):
 
 @subscriptions_bp.route('/calendar')
 @login_required
-@requires_permission('access_control', access_level='READ_ONLY')
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def calendar():
     return render_template('calendar.html')
 
 @subscriptions_bp.route('/api/calendar-events')
 @login_required
-@requires_permission('access_control', access_level='READ_ONLY')
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def calendar_events():
     start_str = request.args.get('start')
     end_str = request.args.get('end')
@@ -357,7 +357,7 @@ def calendar_events():
 
 @subscriptions_bp.route('/<int:id>/users/add', methods=['POST'])
 @login_required
-@requires_permission('access_control', access_level='WRITE')
+@requires_permission('core_inventory', access_level='WRITE')
 def add_user_access(id):
     subscription = Subscription.query.get_or_404(id)
     user_id = request.form.get('user_id')
@@ -373,7 +373,7 @@ def add_user_access(id):
 
 @subscriptions_bp.route('/<int:id>/users/remove/<int:user_id>', methods=['POST'])
 @login_required
-@requires_permission('access_control', access_level='WRITE')
+@requires_permission('core_inventory', access_level='WRITE')
 def remove_user_access(id, user_id):
     subscription = Subscription.query.get_or_404(id)
     user = User.query.get_or_404(user_id)

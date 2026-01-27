@@ -9,21 +9,21 @@ contacts_bp = Blueprint('contacts', __name__)
 
 @contacts_bp.route('/')
 @login_required
-@requires_permission('business_ops', access_level='READ_ONLY')
+@requires_permission('procurement', access_level='READ_ONLY')
 def contacts():
     contacts = Contact.query.filter_by(is_archived=False).join(Supplier).all()
     return render_template('contacts/list.html', contacts=contacts)
 
 @contacts_bp.route('/archived')
 @login_required
-@requires_permission('business_ops', access_level='READ_ONLY')
+@requires_permission('procurement', access_level='READ_ONLY')
 def archived_contacts():
     contacts = Contact.query.filter_by(is_archived=True).join(Supplier).all()
     return render_template('contacts/archived.html', contacts=contacts)
 
 @contacts_bp.route('/<int:id>/archive', methods=['POST'])
 @login_required
-@requires_permission('business_ops', access_level='WRITE')
+@requires_permission('procurement', access_level='WRITE')
 def archive_contact(id):
     contact = Contact.query.get_or_404(id)
     contact.is_archived = True
@@ -33,7 +33,7 @@ def archive_contact(id):
 
 @contacts_bp.route('/<int:id>/unarchive', methods=['POST'])
 @login_required
-@requires_permission('business_ops', access_level='WRITE')
+@requires_permission('procurement', access_level='WRITE')
 def unarchive_contact(id):
     contact = Contact.query.get_or_404(id)
     contact.is_archived = False
@@ -43,14 +43,14 @@ def unarchive_contact(id):
 
 @contacts_bp.route('/<int:id>')
 @login_required
-@requires_permission('business_ops', access_level='READ_ONLY')
+@requires_permission('procurement', access_level='READ_ONLY')
 def contact_detail(id):
     contact = Contact.query.get_or_404(id)
     return render_template('contacts/detail.html', contact=contact)
 
 @contacts_bp.route('/new', methods=['GET', 'POST'])
 @login_required
-@requires_permission('business_ops', access_level='READ_ONLY')
+@requires_permission('procurement', access_level='READ_ONLY')
 def new_contact():
     if request.method == 'POST':
         # Manual check for WRITE access
@@ -80,7 +80,7 @@ def new_contact():
 
 @contacts_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
-@requires_permission('business_ops', access_level='READ_ONLY')
+@requires_permission('procurement', access_level='READ_ONLY')
 def edit_contact(id):
     contact = Contact.query.get_or_404(id)
 
@@ -109,7 +109,7 @@ def edit_contact(id):
 
 @contacts_bp.route('/<int:id>/delete', methods=['POST'])
 @login_required
-@requires_permission('business_ops', access_level='WRITE')
+@requires_permission('procurement', access_level='WRITE')
 def delete_contact(id):
     contact = Contact.query.get_or_404(id)
     db.session.delete(contact)

@@ -128,7 +128,7 @@ def requires_permission(module_slug, access_level='READ_ONLY'):
                 
             if module_slug not in perms:
                 flash(f"You don't have access to the {module_slug} module.", "danger")
-                return redirect(url_for('risk.dashboard'))
+                return redirect(url_for('main.dashboard'))
                 
             if access_level == 'WRITE' and perms.get(module_slug) != 'WRITE':
                 flash(f"You only have read-only access to the {module_slug} module.", "warning")

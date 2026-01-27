@@ -10,14 +10,14 @@ opportunities_bp = Blueprint('opportunities', __name__)
 
 @opportunities_bp.route('/')
 @login_required
-@requires_permission('procurement')
+@requires_permission('procurement', access_level='READ_ONLY')
 def list_opportunities():
     opportunities = Opportunity.query.order_by(Opportunity.estimated_close_date.asc()).all()
     return render_template('opportunities/list.html', opportunities=opportunities)
 
 @opportunities_bp.route('/new', methods=['GET', 'POST'])
 @login_required
-@requires_permission('procurement')
+@requires_permission('procurement', access_level='READ_ONLY')
 def new_opportunity():
     if request.method == 'POST':
         if not has_write_permission('procurement'):
@@ -50,7 +50,7 @@ def new_opportunity():
 
 @opportunities_bp.route('/<int:id>')
 @login_required
-@requires_permission('procurement')
+@requires_permission('procurement', access_level='READ_ONLY')
 def detail(id):
     opportunity = Opportunity.query.get_or_404(id)
     return render_template('opportunities/detail.html', opportunity=opportunity)
@@ -58,7 +58,7 @@ def detail(id):
 # --- ADD THIS EDIT ROUTE ---
 @opportunities_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
-@requires_permission('procurement')
+@requires_permission('procurement', access_level='READ_ONLY')
 def edit_opportunity(id):
     opportunity = Opportunity.query.get_or_404(id)
     if request.method == 'POST':
@@ -91,7 +91,7 @@ def edit_opportunity(id):
 
 @opportunities_bp.route('/<int:id>/add_activity', methods=['POST'])
 @login_required
-@requires_permission('procurement')
+@requires_permission('procurement', access_level='READ_ONLY')
 def add_activity(id):
     if not has_write_permission('procurement'):
         flash('Write access required to add activities.', 'danger')
@@ -116,7 +116,7 @@ def add_activity(id):
 
 @opportunities_bp.route('/<int:opportunity_id>/add_task', methods=['POST'])
 @login_required
-@requires_permission('procurement')
+@requires_permission('procurement', access_level='READ_ONLY')
 def add_task(opportunity_id):
     if not has_write_permission('procurement'):
         flash('Write access required to add tasks.', 'danger')
@@ -133,7 +133,7 @@ def add_task(opportunity_id):
 
 @opportunities_bp.route('/task/<int:task_id>/toggle', methods=['POST'])
 @login_required
-@requires_permission('procurement')
+@requires_permission('procurement', access_level='READ_ONLY')
 def toggle_task(task_id):
     if not has_write_permission('procurement'):
         flash('Write access required to update tasks.', 'danger')
@@ -146,7 +146,7 @@ def toggle_task(task_id):
 
 @opportunities_bp.route('/task/<int:task_id>/delete', methods=['POST'])
 @login_required
-@requires_permission('procurement')
+@requires_permission('procurement', access_level='READ_ONLY')
 def delete_task(task_id):
     if not has_write_permission('procurement'):
         flash('Write access required to delete tasks.', 'danger')

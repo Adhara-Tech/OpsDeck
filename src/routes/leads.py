@@ -7,14 +7,14 @@ leads_bp = Blueprint('leads', __name__, url_prefix='/leads')
 
 @leads_bp.route('/')
 @login_required
-@requires_permission('procurement')
+@requires_permission('procurement', access_level='READ_ONLY')
 def list_leads():
     leads = Lead.query.order_by(Lead.created_at.desc()).all()
     return render_template('leads/list.html', leads=leads)
 
 @leads_bp.route('/new', methods=['GET', 'POST'])
 @login_required
-@requires_permission('procurement')
+@requires_permission('procurement', access_level='READ_ONLY')
 def new_lead():
     if request.method == 'POST':
         if not has_write_permission('procurement'):
@@ -36,7 +36,7 @@ def new_lead():
 
 @leads_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
-@requires_permission('procurement')
+@requires_permission('procurement', access_level='READ_ONLY')
 def edit_lead(id):
     lead = Lead.query.get_or_404(id)
     if request.method == 'POST':
@@ -56,7 +56,7 @@ def edit_lead(id):
 
 @leads_bp.route('/<int:id>/convert', methods=['GET', 'POST'])
 @login_required
-@requires_permission('procurement')
+@requires_permission('procurement', access_level='READ_ONLY')
 def convert_lead(id):
     lead = Lead.query.get_or_404(id)
     if lead.status == 'Converted':

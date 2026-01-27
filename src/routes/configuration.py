@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, session
 from .main import login_required
+from ..services.permissions_service import requires_permission, has_write_permission
 from ..extensions import db
 from ..models.configuration import Configuration, ConfigurationVersion
 from ..models import User
@@ -10,6 +11,7 @@ configuration_bp = Blueprint('configuration', __name__)
 
 @configuration_bp.route('/')
 @login_required
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def index():
     configurations = Configuration.query.all()
     # Simple list view
@@ -17,6 +19,7 @@ def index():
 
 @configuration_bp.route('/<int:id>')
 @login_required
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def detail(id):
     config = Configuration.query.get_or_404(id)
     latest = config.latest_version
@@ -37,6 +40,7 @@ def detail(id):
 
 @configuration_bp.route('/new', methods=['GET', 'POST'])
 @login_required
+@requires_permission('core_inventory', access_level='WRITE')
 def new():
     if request.method == 'POST':
         name = request.form.get('name')
@@ -70,6 +74,7 @@ def new():
 
 @configuration_bp.route('/<int:id>/snapshot', methods=['POST'])
 @login_required
+@requires_permission('core_inventory', access_level='WRITE')
 def snapshot(id):
     config = Configuration.query.get_or_404(id)
     
@@ -110,6 +115,7 @@ def snapshot(id):
 
 @configuration_bp.route('/<int:id>/compare')
 @login_required
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def compare(id):
     config = Configuration.query.get_or_404(id)
     
@@ -139,6 +145,7 @@ def compare(id):
 
 @configuration_bp.route('/<int:id>/history')
 @login_required
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def history(id):
     config = Configuration.query.get_or_404(id)
     versions = config.versions.order_by(ConfigurationVersion.version_number.desc()).all()
@@ -146,6 +153,7 @@ def history(id):
 
 @configuration_bp.route('/<int:id>/versions')
 @login_required
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def get_versions(id):
     """API endpoint to get versions for a configuration."""
     config = Configuration.query.get_or_404(id)
@@ -159,6 +167,7 @@ def get_versions(id):
 
 @configuration_bp.route('/<int:id>/versions/create_from_change', methods=['POST'])
 @login_required
+@requires_permission('core_inventory', access_level='WRITE')
 def create_version_from_change(id):
     """API endpoint to create a new version (clone latest) directly from change request context."""
     config = Configuration.query.get_or_404(id)

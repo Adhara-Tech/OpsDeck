@@ -12,6 +12,7 @@ from ..models.security import SecurityIncident, Risk, Framework, FrameworkContro
 from ..models.credentials import Credential, CredentialSecret
 from ..models.certificates import Certificate, CertificateVersion
 from ..models.audits import ComplianceAudit
+from ..services.permissions_service import requires_permission
 from src import limiter
 from src import notifications
 import calendar
@@ -98,7 +99,7 @@ def verify_ip_and_login(user):
         )
         session['user_id'] = user.id
         flash('Logged in successfully', 'success')
-        return redirect(url_for('main.organizational_health'))
+        return redirect(url_for('main.dashboard'))
     
     # --- NEW IP DETECTED: Trigger MFA ---
     
@@ -191,7 +192,7 @@ def mfa_verify():
                 # Complete login
                 session['user_id'] = user.id
                 flash('Dispositivo verificado. Bienvenido.', 'success')
-                return redirect(url_for('main.organizational_health'))
+                return redirect(url_for('main.dashboard'))
         
         # FAILURE - Wrong code
         log_audit(
@@ -255,7 +256,7 @@ def impersonate(user_id):
     )
     
     flash(f'Now impersonating: {target_user.name} ({target_user.email})', 'info')
-    return redirect(url_for('main.organizational_health'))
+    return redirect(url_for('main.dashboard'))
 
 
 @main_bp.route('/stop-impersonate', methods=['POST'])
@@ -266,7 +267,7 @@ def stop_impersonate():
     original_user_id = session.get('original_user_id')
     if not original_user_id:
         flash('You are not currently impersonating anyone.', 'warning')
-        return redirect(url_for('main.organizational_health'))
+        return redirect(url_for('main.dashboard'))
     
     # Get both users for logging
     impersonated_user = User.query.get(session['user_id'])
@@ -346,7 +347,7 @@ def google_callback():
         )
         session['user_id'] = user.id
         flash('Logged in successfully via Google', 'success')
-        return redirect(url_for('main.organizational_health'))
+        return redirect(url_for('main.dashboard'))
     else:
         # User not found in database
         log_audit(
@@ -377,8 +378,9 @@ def password_change_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-@main_bp.route('/')
+@main_bp.route('/', endpoint='dashboard')
 @login_required
+@requires_permission('health_dashboard', access_level='READ_ONLY')
 def organizational_health():
     """Executive Organizational Health Dashboard - Landing Page."""
     today = date.today()
@@ -873,7 +875,7 @@ def change_password():
             )
             
             flash('Your password has been updated successfully!', 'success')
-            return redirect(url_for('main.organizational_health'))
+            return redirect(url_for('main.dashboard'))
 
     return render_template('change_password.html', forced_change=forced_change)
 

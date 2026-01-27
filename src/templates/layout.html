@@ -144,14 +144,14 @@
 
     <nav class="sidebar">
         <div class="container-fluid"><a class="navbar-brand text-white mb-3 d-block text-center"
-                href="{{ url_for('main.organizational_health') }}"><i class="fas fa-sync-alt"></i> OpsDeck</a></div>
+                href="{{ url_for('main.dashboard') }}"><i class="fas fa-sync-alt"></i> OpsDeck</a></div>
 
         <div class="sidebar-body" id="sidebar-accordion">
             <ul class="nav flex-column">
                 {% if has_permission('health_dashboard') %}
                 <li class="nav-item"><a
-                        class="nav-link {% if request.endpoint == 'main.organizational_health' %}active{% endif %}"
-                        href="{{ url_for('main.organizational_health') }}"><i class="fas fa-heartbeat"></i> Health
+                        class="nav-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}"
+                        href="{{ url_for('main.dashboard') }}"><i class="fas fa-heartbeat"></i> Health
                         Dashboard</a></li>
                 {% endif %}
 
@@ -217,6 +217,11 @@
                             class="nav-link {% if request.endpoint == 'credentials.list_credentials' %}active{% endif %}"
                             href="{{ url_for('credentials.list_credentials') }}"><i class="fa-fw fas fa-key"></i>
                             Credentials</a></li>
+                    <li class="nav-item"><a
+                            class="nav-link {% if request.endpoint and request.endpoint.startswith('certificates.') %}active{% endif %}"
+                            href="{{ url_for('certificates.list_certificates') }}"><i
+                                class="fa-fw fas fa-certificate"></i>
+                            Certificates</a></li>
                 </div>
                 {% endif %}
 
@@ -353,11 +358,6 @@
                             class="nav-link {% if request.endpoint and request.endpoint.startswith('policies.') %}active{% endif %}"
                             href="{{ url_for('policies.list_policies') }}"><i class="fa-fw fas fa-file-contract"></i>
                             Policies</a></li>
-                    <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint and request.endpoint.startswith('certificates.') %}active{% endif %}"
-                            href="{{ url_for('certificates.list_certificates') }}"><i
-                                class="fa-fw fas fa-certificate"></i>
-                            Certificates</a></li>
 
                     {% if current_user_role == 'admin' %}
                     <li class="nav-item"><a
@@ -434,6 +434,7 @@
                         </a>
                     </li>
 
+                    {% if can_write('hr_people') %}
                     <li class="nav-item">
                         <a class="nav-link {{ 'active' if request.endpoint and 'pack' in request.endpoint }}"
                             href="{{ url_for('onboarding.list_packs') }}">
@@ -441,6 +442,8 @@
                             <span>Role Profiles</span>
                         </a>
                     </li>
+                    {% endif %}
+                    {% if can_write('hr_people') %}
                     <li class="nav-item">
                         <a class="nav-link {{ 'active' if request.endpoint and 'onboarding.list_templates' in request.endpoint and request.blueprint == 'onboarding' }}"
                             href="{{ url_for('onboarding.list_templates') }}">
@@ -448,6 +451,7 @@
                             <span>Global Checklists</span>
                         </a>
                     </li>
+                    {% endif %}
 
                     <li class="nav-item">
                         <a class="nav-link {{ 'active' if request.endpoint and 'history' in request.endpoint }}"

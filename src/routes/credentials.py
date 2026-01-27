@@ -14,7 +14,7 @@ CREDENTIAL_TYPES = ['API Key', 'OAuth', 'Service Account', 'SSH Key', 'Password'
 
 @credentials_bp.route('/')
 @login_required
-@requires_permission('access_control', access_level='READ_ONLY')
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def list_credentials():
     """
     List all credentials with filtering support and pagination.
@@ -101,7 +101,7 @@ def list_credentials():
 
 @credentials_bp.route('/<int:id>')
 @login_required
-@requires_permission('access_control', access_level='READ_ONLY')
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def detail_credential(id):
     """
     Show credential details including active secret and secret history.
@@ -119,7 +119,7 @@ def detail_credential(id):
 
 @credentials_bp.route('/new', methods=['GET', 'POST'])
 @login_required
-@requires_permission('access_control', access_level='READ_ONLY')
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def new_credential():
     """
     Create a new credential with its first secret.
@@ -132,7 +132,7 @@ def new_credential():
         user_role = session.get('user_role')
         if (user_role or session.get('role')) != 'admin':
             perms = permissions_cache.get(user_id)
-            if perms.get('access_control') != 'WRITE':
+            if perms.get('core_inventory') != 'WRITE':
                 flash('Write access required for this action.', 'danger')
                 return redirect(url_for('credentials.list_credentials'))
         # Extract form data
@@ -251,7 +251,7 @@ def new_credential():
 
 @credentials_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
-@requires_permission('access_control', access_level='READ_ONLY')
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def edit_credential(id):
     """
     Edit an existing credential's metadata (not the secret).
@@ -267,7 +267,7 @@ def edit_credential(id):
         user_role = session.get('user_role')
         if (user_role or session.get('role')) != 'admin':
             perms = permissions_cache.get(user_id)
-            if perms.get('access_control') != 'WRITE':
+            if perms.get('core_inventory') != 'WRITE':
                 flash('Write access required for this action.', 'danger')
                 return redirect(url_for('credentials.detail_credential', id=id))
         # Extract form data
@@ -350,7 +350,7 @@ def edit_credential(id):
 
 @credentials_bp.route('/<int:id>/rotate', methods=['POST'])
 @login_required
-@requires_permission('access_control', access_level='WRITE')
+@requires_permission('core_inventory', access_level='WRITE')
 def rotate_secret(id):
     """
     Rotate the secret for a credential.
@@ -395,7 +395,7 @@ def rotate_secret(id):
 
 @credentials_bp.route('/<int:id>/delete', methods=['POST'])
 @login_required
-@requires_permission('access_control', access_level='WRITE')
+@requires_permission('core_inventory', access_level='WRITE')
 def delete_credential(id):
     """
     Delete a credential and all its associated secrets (cascade).

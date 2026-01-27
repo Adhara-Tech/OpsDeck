@@ -128,6 +128,7 @@
 
     <div class="col-md-3">
 
+        {% if can_write('hr_people') %}
         <div class="card mb-4">
             <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
                 <h6 class="mb-0">📦 Role Profiles</h6>
@@ -159,6 +160,7 @@
             </div>
             {% endif %}
         </div>
+        {% endif %}
 
         <div class="card shadow-sm">
             <div class="card-header bg-light">

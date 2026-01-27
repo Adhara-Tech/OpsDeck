@@ -319,7 +319,7 @@
                                                     uploaded.</li>
                                                 {% endfor %}
                                             </ul>
-                                            {% if not audit.is_locked %}
+                                            {% if not audit.is_locked and can_write('risk_governance') %}
 
                                             <form
                                                 action="{{ url_for('audits.upload_item_attachment', id=audit.id, item_id=item.id) }}"
@@ -442,7 +442,7 @@
                                                     objects.</li>
                                                 {% endfor %}
                                             </ul>
-                                            {% if not audit.is_locked %}
+                                            {% if not audit.is_locked and can_write('risk_governance') %}
                                             <button type="button" class="btn btn-sm btn-outline-secondary w-100"
                                                 data-bs-toggle="modal" data-bs-target="#linkModal{{ item.id }}">
                                                 <i class="fas fa-plus"></i> Link Object

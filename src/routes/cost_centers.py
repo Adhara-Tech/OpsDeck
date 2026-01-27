@@ -11,7 +11,7 @@ cost_centers_bp = Blueprint('cost_centers', __name__)
 
 @cost_centers_bp.route('/')
 @login_required
-@requires_permission('business_ops', access_level='READ_ONLY')
+@requires_permission('finance', access_level='READ_ONLY')
 def list_cost_centers():
     """List all cost centers."""
     cost_centers = CostCenter.query.order_by(CostCenter.code).all()
@@ -25,7 +25,7 @@ def list_cost_centers():
 
 @cost_centers_bp.route('/new', methods=['GET', 'POST'])
 @login_required
-@requires_permission('business_ops', access_level='READ_ONLY')
+@requires_permission('finance', access_level='READ_ONLY')
 def new_cost_center():
     """Create a new cost center."""
     if request.method == 'POST':
@@ -36,7 +36,7 @@ def new_cost_center():
         user_role = session.get('user_role')
         if (user_role or session.get('role')) != 'admin':
             perms = permissions_cache.get(user_id)
-            if perms.get('business_ops') != 'WRITE':
+            if perms.get('finance') != 'WRITE':
                 flash('Write access required for this action.', 'danger')
                 return redirect(url_for('cost_centers.list_cost_centers'))
         code = request.form.get('code', '').strip()
@@ -76,7 +76,7 @@ def new_cost_center():
 
 @cost_centers_bp.route('/<int:id>')
 @login_required
-@requires_permission('business_ops', access_level='READ_ONLY')
+@requires_permission('finance', access_level='READ_ONLY')
 def detail(id):
     """Display cost center details."""
     cost_center = CostCenter.query.get_or_404(id)
@@ -89,7 +89,7 @@ def detail(id):
 
 @cost_centers_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
-@requires_permission('business_ops', access_level='READ_ONLY')
+@requires_permission('finance', access_level='READ_ONLY')
 def edit(id):
     """Edit an existing cost center."""
     cost_center = CostCenter.query.get_or_404(id)
@@ -102,7 +102,7 @@ def edit(id):
         user_role = session.get('user_role')
         if (user_role or session.get('role')) != 'admin':
             perms = permissions_cache.get(user_id)
-            if perms.get('business_ops') != 'WRITE':
+            if perms.get('finance') != 'WRITE':
                 flash('Write access required for this action.', 'danger')
                 return redirect(url_for('cost_centers.detail', id=id))
         code = request.form.get('code', '').strip()
@@ -142,7 +142,7 @@ def edit(id):
 
 @cost_centers_bp.route('/<int:id>/delete', methods=['POST'])
 @login_required
-@requires_permission('business_ops', access_level='WRITE')
+@requires_permission('finance', access_level='WRITE')
 def delete(id):
     """Delete a cost center."""
     cost_center = CostCenter.query.get_or_404(id)

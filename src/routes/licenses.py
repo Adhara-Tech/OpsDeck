@@ -8,7 +8,7 @@ licenses_bp = Blueprint('licenses', __name__, url_prefix='/licenses')
 
 @licenses_bp.route('/')
 @login_required
-@requires_permission('access_control', access_level='READ_ONLY')
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def list_licenses():
     page = request.args.get('page', 1, type=int)
     licenses = License.query.filter_by(is_archived=False).order_by(License.name.asc()).paginate(page=page, per_page=15)
@@ -16,14 +16,14 @@ def list_licenses():
 
 @licenses_bp.route('/<int:id>')
 @login_required
-@requires_permission('access_control', access_level='READ_ONLY')
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def detail(id):
     license = License.query.get_or_404(id)
     return render_template('licenses/detail.html', license=license)
 
 @licenses_bp.route('/new', methods=['GET', 'POST'])
 @login_required
-@requires_permission('access_control', access_level='READ_ONLY')
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def add_license():
     if request.method == 'POST':
         # Manual check for WRITE access
@@ -33,7 +33,7 @@ def add_license():
         user_role = session.get('user_role')
         if (user_role or session.get('role')) != 'admin':
             perms = permissions_cache.get(user_id)
-            if perms.get('access_control') != 'WRITE':
+            if perms.get('core_inventory') != 'WRITE':
                 flash('Write access required for this action.', 'danger')
                 return redirect(url_for('licenses.list_licenses'))
         cost_form = request.form.get('cost')
@@ -80,7 +80,7 @@ def add_license():
 
 @licenses_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
-@requires_permission('access_control', access_level='READ_ONLY')
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def edit_license(id):
     license = License.query.get_or_404(id)
     original_purchase = license.purchase # Store original purchase before potential changes
@@ -93,7 +93,7 @@ def edit_license(id):
         user_role = session.get('user_role')
         if (user_role or session.get('role')) != 'admin':
             perms = permissions_cache.get(user_id)
-            if perms.get('access_control') != 'WRITE':
+            if perms.get('core_inventory') != 'WRITE':
                 flash('Write access required for this action.', 'danger')
                 return redirect(url_for('licenses.detail', id=id))
         # --- Check if original or NEW purchase is validated ---
@@ -233,7 +233,7 @@ def edit_license(id):
 
 @licenses_bp.route('/<int:id>/archive', methods=['POST'])
 @login_required
-@requires_permission('access_control', access_level='WRITE')
+@requires_permission('core_inventory', access_level='WRITE')
 def archive_license(id):
     license = License.query.get_or_404(id)
     license.is_archived = True
@@ -243,14 +243,14 @@ def archive_license(id):
 
 @licenses_bp.route('/archived')
 @login_required
-@requires_permission('access_control', access_level='READ_ONLY')
+@requires_permission('core_inventory', access_level='READ_ONLY')
 def archived_licenses():
     licenses = License.query.filter_by(is_archived=True).order_by(License.name).all()
     return render_template('licenses/archived.html', licenses=licenses)
 
 @licenses_bp.route('/<int:id>/restore', methods=['POST'])
 @login_required
-@requires_permission('access_control', access_level='WRITE')
+@requires_permission('core_inventory', access_level='WRITE')
 def restore_license(id):
     license = License.query.get_or_404(id)
     license.is_archived = False
