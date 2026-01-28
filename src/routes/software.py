@@ -50,12 +50,16 @@ def add_software():
     if request.method == 'POST':
         # Manual check for WRITE access
         from ..services.permissions_cache import permissions_cache
+        from ..services.permissions_service import get_user_modules
         from flask import session
         user_id = session.get('user_id')
         user_role = session.get('user_role')
         if (user_role or session.get('role')) != 'admin':
             perms = permissions_cache.get(user_id)
-            if perms.get('core_inventory') != 'WRITE':
+            if perms is None:
+                get_user_modules(user_id)
+                perms = permissions_cache.get(user_id)
+            if perms is None or perms.get('core_inventory') != 'WRITE':
                 flash('Write access required for this action.', 'danger')
                 return redirect(url_for('software.list_software'))
         owner_type, owner_id = (request.form['owner'].split('_') + [None])[:2]
@@ -87,12 +91,16 @@ def edit_software(id):
     if request.method == 'POST':
         # Manual check for WRITE access
         from ..services.permissions_cache import permissions_cache
+        from ..services.permissions_service import get_user_modules
         from flask import session
         user_id = session.get('user_id')
         user_role = session.get('user_role')
         if (user_role or session.get('role')) != 'admin':
             perms = permissions_cache.get(user_id)
-            if perms.get('core_inventory') != 'WRITE':
+            if perms is None:
+                get_user_modules(user_id)
+                perms = permissions_cache.get(user_id)
+            if perms is None or perms.get('core_inventory') != 'WRITE':
                 flash('Write access required for this action.', 'danger')
                 return redirect(url_for('software.detail', id=id))
         owner_type, owner_id = (request.form['owner'].split('_') + [None])[:2]

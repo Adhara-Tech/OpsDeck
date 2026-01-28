@@ -21,12 +21,16 @@ def new_group():
     if request.method == 'POST':
         # Manual check for WRITE access
         from ..services.permissions_cache import permissions_cache
+        from ..services.permissions_service import get_user_modules
         from flask import session
         user_id = session.get('user_id')
         user_role = session.get('user_role')
         if user_role != 'admin':
             perms = permissions_cache.get(user_id)
-            if perms.get('administration') != 'WRITE':
+            if perms is None:
+                get_user_modules(user_id)
+                perms = permissions_cache.get(user_id)
+            if perms is None or perms.get('administration') != 'WRITE':
                 flash('Write access required for this action.', 'danger')
                 return redirect(url_for('groups.list_groups'))
         group = Group(
@@ -48,12 +52,16 @@ def edit_group(id):
     if request.method == 'POST':
         # Manual check for WRITE access
         from ..services.permissions_cache import permissions_cache
+        from ..services.permissions_service import get_user_modules
         from flask import session
         user_id = session.get('user_id')
         user_role = session.get('user_role')
         if user_role != 'admin':
             perms = permissions_cache.get(user_id)
-            if perms.get('administration') != 'WRITE':
+            if perms is None:
+                get_user_modules(user_id)
+                perms = permissions_cache.get(user_id)
+            if perms is None or perms.get('administration') != 'WRITE':
                 flash('Write access required for this action.', 'danger')
                 return redirect(url_for('groups.list_groups'))
         group.name = request.form['name']
