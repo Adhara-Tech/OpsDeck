@@ -95,11 +95,15 @@ def new_subscription():
     if request.method == 'POST':
         # Manual check for WRITE access
         from ..services.permissions_cache import permissions_cache
+        from ..services.permissions_service import get_user_modules
         from flask import session
         user_id = session.get('user_id')
         user_role = session.get('user_role')
         if (user_role or session.get('role')) != 'admin':
             perms = permissions_cache.get(user_id)
+            if perms is None:
+                get_user_modules(user_id)
+                perms = permissions_cache.get(user_id)
             if perms.get('core_inventory') != 'WRITE':
                 flash('Write access required for this action.', 'danger')
                 return redirect(url_for('subscriptions.subscriptions'))
@@ -188,11 +192,15 @@ def edit_subscription(id):
     if request.method == 'POST':
         # Manual check for WRITE access
         from ..services.permissions_cache import permissions_cache
+        from ..services.permissions_service import get_user_modules
         from flask import session
         user_id = session.get('user_id')
         user_role = session.get('user_role')
         if (user_role or session.get('role')) != 'admin':
             perms = permissions_cache.get(user_id)
+            if perms is None:
+                get_user_modules(user_id)
+                perms = permissions_cache.get(user_id)
             if perms.get('core_inventory') != 'WRITE':
                 flash('Write access required for this action.', 'danger')
                 return redirect(url_for('subscriptions.subscription_detail', id=id))

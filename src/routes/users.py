@@ -74,12 +74,19 @@ def new_user():
     if request.method == 'POST':
         # Manual check for WRITE access
         from ..services.permissions_cache import permissions_cache
+        from ..services.permissions_service import get_user_modules
         from flask import session
         user_id = session.get('user_id')
         user_role = session.get('user_role')
         if user_role != 'admin':
             perms = permissions_cache.get(user_id)
-            if perms.get('administration') != 'WRITE':
+            if perms is None:
+                # Refresh cache if not present
+                get_user_modules(user_id)
+                perms = permissions_cache.get(user_id)
+            
+            # Check if perms is still None or doesn't have the required permission
+            if perms is None or perms.get('administration') != 'WRITE':
                 flash('Write access required for this action.', 'danger')
                 return redirect(url_for('users.users'))
         manager_id = request.form.get('manager_id')
@@ -117,12 +124,19 @@ def edit_user(id):
     if request.method == 'POST':
         # Manual check for WRITE access
         from ..services.permissions_cache import permissions_cache
+        from ..services.permissions_service import get_user_modules
         from flask import session
         user_id = session.get('user_id')
         user_role = session.get('user_role')
         if user_role != 'admin':
             perms = permissions_cache.get(user_id)
-            if perms.get('administration') != 'WRITE':
+            if perms is None:
+                # Refresh cache if not present
+                get_user_modules(user_id)
+                perms = permissions_cache.get(user_id)
+            
+            # Check if perms is still None or doesn't have the required permission
+            if perms is None or perms.get('administration') != 'WRITE':
                 flash('Write access required for this action.', 'danger')
                 return redirect(url_for('users.user_detail', id=id))
         user.name = request.form['name']

@@ -423,6 +423,7 @@ def create_app(test_config=None):
         public_endpoints = [
             'main.login',
             'main.google_callback',
+            'google.login',  # Google OAuth login initiation
             'main.mfa_verify',  # Necesario para el flujo de 2FA
             'main.health_check',  # Health check for Kubernetes probes
             'main.internal_test_db',  # Internal route for CLI database testing
