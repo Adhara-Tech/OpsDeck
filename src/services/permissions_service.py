@@ -3,6 +3,13 @@ from functools import wraps
 from ..models import db, User, Group, Permission, Module, AccessLevel
 from .permissions_cache import permissions_cache
 
+from src.utils.logger import log_audit
+import logging
+import sys
+
+# Configure logger
+logger = logging.getLogger(__name__)
+
 def get_user_modules(user_id):
     """
     Resolves the list of modules a user has access to.
@@ -23,12 +30,17 @@ def get_user_modules(user_id):
     
     # 1. Get direct module permissions
     direct_permissions = Permission.query.filter_by(user_id=user_id).all()
+    logger.info(f"DEBUG: get_user_modules user_id={user_id} direct_perms_count={len(direct_permissions)}")
+
     
     # 2. Get permissions inherited from groups
     group_ids = [g.id for g in user.groups]
     group_permissions = []
     if group_ids:
         group_permissions = Permission.query.filter(Permission.group_id.in_(group_ids)).all()
+    
+    logger.info(f"DEBUG: group_ids={group_ids} group_perms_count={len(group_permissions)}")
+
         
     # 3. Combine and resolve access level (WRITE > READ_ONLY)
     # Mapping: module_id -> access_level
@@ -44,7 +56,9 @@ def get_user_modules(user_id):
     # 4. Fetch module objects and update cache with slugs
     if not resolved_permissions:
         permissions_cache.set(user_id, {})
+        logger.info(f"DEBUG: No permissions resolved for user {user_id}")
         return []
+
         
     modules = Module.query.filter(Module.id.in_(resolved_permissions.keys())).all()
     
