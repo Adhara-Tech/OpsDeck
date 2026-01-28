@@ -90,3 +90,19 @@ env:
 # pon el nombre aquí. La chart cargará todo el contenido como variables de entorno.
 existingSecret: ""
 
+# --- Logging Sidecar Configuration ---
+loggingSidecar:
+  enabled: false
+  image:
+    repository: docker.elastic.co/beats/filebeat
+    tag: 8.5.1
+    pullPolicy: IfNotPresent
+  elasticsearch:
+    host: "elasticsearch"
+    port: 9200
+    protocol: "http"
+    username: "elastic"
+    password: "changeme"
+  # Optional: Extra Filebeat config (merged into filebeat.yml)
+  config: {}
+
