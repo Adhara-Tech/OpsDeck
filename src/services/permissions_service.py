@@ -137,10 +137,15 @@ def requires_permission(module_slug, access_level='READ_ONLY'):
                 
             # Check permissions
             perms = permissions_cache.get(user_id)
+            logger.info(f"DEBUG: decorator check user_id={user_id} (type {type(user_id)}) module={module_slug} cached_found={perms is not None}")
+
             if perms is None:
                 # Refresh cache
+                logger.info(f"DEBUG: Refreshing cache for user {user_id}")
                 get_user_modules(user_id)
                 perms = permissions_cache.get(user_id)
+                logger.info(f"DEBUG: After refresh perms keys: {list(perms.keys()) if perms else 'None'}")
+
                 
             if module_slug not in perms:
                 flash(f"You don't have access to the {module_slug} module.", "danger")

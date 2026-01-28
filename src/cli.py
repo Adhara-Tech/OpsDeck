@@ -8,6 +8,20 @@ from .extensions import db
 # Import all necessary models
 from .models import User, Asset, Peripheral, Location, Supplier, Contact, Software, Subscription, Budget, Risk, RiskCategory, AssetAssignment, PeripheralAssignment
 
+def validate_columns(reader, required_columns):
+    """Checks if required columns exist in the CSV."""
+    if not reader.fieldnames:
+        print("❌ Error: The CSV file is empty or has no headers.")
+        return False
+    
+    missing = [col for col in required_columns if col not in reader.fieldnames]
+    if missing:
+        print(f"❌ Error: Missing required columns: {', '.join(missing)}")
+        print(f"ℹ️  Found columns: {', '.join(reader.fieldnames)}")
+        return False
+    return True
+
+
 def register_commands(app):
     
     @app.cli.group()
@@ -29,12 +43,23 @@ def register_commands(app):
 
         with open(filename, 'r', encoding='utf-8') as f:
             reader = get_csv_reader(f)
+            if not validate_columns(reader, ['name', 'email']):
+                return
+
             count = 0
             skipped = 0
+            row_num = 0
             
             for row in reader:
-                email = row['email'].strip()
-                name = row['name'].strip()
+                row_num += 1
+                try:
+                    email = row['email'].strip()
+                    name = row['name'].strip()
+                    
+                    if not email or not name:
+                        print(f"⚠️ Row {row_num}: Skipped due to missing name or email.")
+                        continue
+
                 
                 # Check if user already exists
                 if User.query.filter_by(email=email).first():
@@ -53,6 +78,9 @@ def register_commands(app):
                 # Print credentials for admin usage
                 print(f"{name:<30} | {email:<30} | {random_pw}")
                 count += 1
+                
+            except Exception as e:
+                print(f"❌ Error on row {row_num}: {e}")
             
             db.session.commit()
             print("-" * 85)
@@ -69,24 +97,38 @@ def register_commands(app):
 
         with open(filename, 'r', encoding='utf-8') as f:
             reader = get_csv_reader(f)
+            if not validate_columns(reader, ['name']):
+                return
+
             count = 0
             skipped = 0
-            for row in reader:
-                name = row['name'].strip()
-                if Supplier.query.filter_by(name=name).first():
-                    skipped += 1
-                    continue
+            row_num = 0
 
-                supplier = Supplier(
-                    name=name,
-                    email=row.get('email'),
-                    phone=row.get('phone'),
-                    address=row.get('address'),
-                    website=row.get('website'),
-                    compliance_status=row.get('compliance_status', 'Pending')
-                )
-                db.session.add(supplier)
-                count += 1
+            for row in reader:
+                row_num += 1
+                try:
+                    name = row['name'].strip()
+                    if not name:
+                         print(f"⚠️ Row {row_num}: Skipped missing name.")
+                         continue
+
+                    if Supplier.query.filter_by(name=name).first():
+                        skipped += 1
+                        continue
+
+                    supplier = Supplier(
+                        name=name,
+                        email=row.get('email'),
+                        phone=row.get('phone'),
+                        address=row.get('address'),
+                        website=row.get('website'),
+                        compliance_status=row.get('compliance_status', 'Pending')
+                    )
+                    db.session.add(supplier)
+                    count += 1
+                except Exception as e:
+                    print(f"❌ Error on row {row_num}: {e}")
+
             
             db.session.commit()
             print(f"✅ Suppliers created: {count}. Skipped (already existed): {skipped}.")
@@ -102,9 +144,16 @@ def register_commands(app):
 
         with open(filename, 'r', encoding='utf-8') as f:
             reader = get_csv_reader(f)
+            if not validate_columns(reader, ['name', 'supplier_name']):
+                return
+
             count = 0
+            row_num = 0
             for row in reader:
-                # Find supplier by name
+                row_num += 1
+                try:
+                    # Find supplier by name
+
                 sup_name = row.get('supplier_name', '').strip()
                 if not sup_name:
                     print(f"⚠️ Skipping contact '{row['name']}': missing 'supplier_name'")
@@ -128,6 +177,9 @@ def register_commands(app):
                 db.session.add(contact)
                 count += 1
             
+            except Exception as e:
+                print(f"❌ Error on row {row_num}: {e}")
+
             db.session.commit()
             print(f"✅ Contacts imported: {count}.")
 
@@ -142,11 +194,18 @@ def register_commands(app):
 
         with open(filename, 'r', encoding='utf-8') as f:
             reader = get_csv_reader(f)
+            if not validate_columns(reader, ['name']):
+                return
+
             count = 0
             skipped = 0
+            row_num = 0
             for row in reader:
-                # Check for duplicates
-                serial = row.get('serial_number')
+                row_num += 1
+                try:
+                    # Check for duplicates
+                    serial = row.get('serial_number')
+
                 if serial and Asset.query.filter_by(serial_number=serial).first():
                     print(f"⚠️ Skipped existing asset: {row['name']} ({serial})")
                     skipped += 1
@@ -213,6 +272,9 @@ def register_commands(app):
                     db.session.add(assignment)
                     
                 count += 1
+
+            except Exception as e:
+                 print(f"❌ Error on row {row_num}: {e}")
             
             db.session.commit()
             print(f"✅ Assets imported: {count}. Skipped: {skipped}.")
@@ -228,9 +290,16 @@ def register_commands(app):
 
         with open(filename, 'r', encoding='utf-8') as f:
             reader = get_csv_reader(f)
+            if not validate_columns(reader, ['name']):
+                return
+
             count = 0
+            row_num = 0
             for row in reader:
-                # User Linking Logic
+                row_num += 1
+                try:
+                    # User Linking Logic
+
                 user_id = None
                 assigned_user_name = row.get('assigned_user', '').strip()
                 if assigned_user_name:
@@ -277,7 +346,11 @@ def register_commands(app):
                     )
                     db.session.add(assignment)
                     
+                    
                 count += 1
+
+            except Exception as e:
+                print(f"❌ Error on row {row_num}: {e}")
             
             db.session.commit()
             print(f"✅ Peripherals imported: {count}.")
@@ -293,11 +366,18 @@ def register_commands(app):
 
         with open(filename, 'r', encoding='utf-8') as f:
             reader = get_csv_reader(f)
+            if not validate_columns(reader, ['name']):
+                return
+
             count = 0
             skipped = 0
+            row_num = 0
             for row in reader:
-                name = row['name'].strip()
-                if Software.query.filter_by(name=name).first():
+                row_num += 1
+                try:
+                    name = row['name'].strip()
+                    if Software.query.filter_by(name=name).first():
+
                     skipped += 1
                     continue
 
@@ -329,6 +409,9 @@ def register_commands(app):
                 )
                 db.session.add(software)
                 count += 1
+
+            except Exception as e:
+                print(f"❌ Error on row {row_num}: {e}")
             
             db.session.commit()
             print(f"✅ Software imported: {count}. Skipped (already existed): {skipped}.")
@@ -344,12 +427,19 @@ def register_commands(app):
 
         with open(filename, 'r', encoding='utf-8') as f:
             reader = get_csv_reader(f)
+            if not validate_columns(reader, ['supplier_name']):
+                return
+
             count = 0
             skipped_missing_supplier = 0
+            row_num = 0
             
             for row in reader:
-                # MANDATORY: Supplier
-                sup_name = row.get('supplier_name', '').strip()
+                row_num += 1
+                try:
+                    # MANDATORY: Supplier
+                    sup_name = row.get('supplier_name', '').strip()
+
                 if not sup_name:
                     skipped_missing_supplier += 1
                     continue
@@ -406,6 +496,9 @@ def register_commands(app):
                 db.session.add(sub)
                 count += 1
             
+            except Exception as e:
+                print(f"❌ Error on row {row_num}: {e}")
+
             db.session.commit()
             print(f"✅ Subscriptions imported: {count}. Skipped (missing supplier): {skipped_missing_supplier}.")
 
@@ -420,10 +513,17 @@ def register_commands(app):
 
         with open(filename, 'r', encoding='utf-8') as f:
             reader = get_csv_reader(f)
+            if not validate_columns(reader, ['name']):
+                return
+
             count = 0
+            row_num = 0
             
             for row in reader:
-                name = row.get('name', '').strip()
+                row_num += 1
+                try:
+                    name = row.get('name', '').strip()
+
                 if not name:
                     continue  # Skip rows without a name
 
@@ -456,5 +556,8 @@ def register_commands(app):
                 
                 count += 1
             
+            except Exception as e:
+                print(f"❌ Error on row {row_num}: {e}")
+
             db.session.commit()
             print(f"✅ Risks imported: {count}.")
