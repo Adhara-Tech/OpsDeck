@@ -67,6 +67,8 @@ def get_user_modules(user_id):
     for m in modules:
         slug_permissions[m.slug] = resolved_permissions[m.id]
         
+    logger.info(f"DEBUG: resolved_cache_keys={list(slug_permissions.keys())} for user_id={user_id}")
+        
     permissions_cache.set(user_id, slug_permissions)
     
     return modules
@@ -142,6 +144,9 @@ def requires_permission(module_slug, access_level='READ_ONLY'):
                 
             if module_slug not in perms:
                 flash(f"You don't have access to the {module_slug} module.", "danger")
+                # Prevent redirect loop if already on dashboard
+                if request.endpoint == 'main.dashboard':
+                     return render_template('errors/403.html'), 403
                 return redirect(url_for('main.dashboard'))
                 
             if access_level == 'WRITE' and perms.get(module_slug) != 'WRITE':
