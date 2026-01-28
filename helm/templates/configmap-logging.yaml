@@ -1,0 +1,31 @@
+{{- if .Values.loggingSidecar.enabled -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "opsdeck.fullname" . }}-logging-config
+  labels:
+    {{- include "opsdeck.labels" . | nindent 4 }}
+data:
+  filebeat.yml: |
+    filebeat.inputs:
+    - type: filestream
+      id: opsdeck-logs
+      paths:
+        - /app/logs/*.log
+        - /app/logs/*.json
+      parsers:
+        - ndjson:
+            target: ""
+            overwrite_keys: true
+            add_error_key: true
+
+    output.elasticsearch:
+      hosts: ["{{ .Values.loggingSidecar.elasticsearch.protocol }}://{{ .Values.loggingSidecar.elasticsearch.host }}:{{ .Values.loggingSidecar.elasticsearch.port }}"]
+      username: "{{ .Values.loggingSidecar.elasticsearch.username }}"
+      password: "{{ .Values.loggingSidecar.elasticsearch.password }}"
+
+    # Allow extra config injection
+    {{- if .Values.loggingSidecar.config }}
+    {{- toYaml .Values.loggingSidecar.config | nindent 4 }}
+    {{- end }}
+{{- end -}}
