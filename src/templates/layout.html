@@ -8,7 +8,7 @@
     <title>{% block title %}OpsDeck{% endblock %}</title>
     <link href="{{ url_for('static', filename='vendor/bootstrap/css/bootstrap.min.css') }}" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/easymde/easymde.min.css') }}">
-    <link href="{{ url_for('static', filename='vendor/simple-datatables/css/simple-datatables.css') }}" rel="stylesheet"
+    <link href="{{ url_for('static', filename='vendor/simple-datatables/style.css') }}" rel="stylesheet"
         type="text/css">
     <link href="{{ url_for('static', filename='vendor/font-awesome/css/all.min.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='vendor/tom-select/css/tom-select.bootstrap5.min.css') }}"
@@ -149,8 +149,7 @@
         <div class="sidebar-body" id="sidebar-accordion">
             <ul class="nav flex-column">
                 {% if has_permission('health_dashboard') %}
-                <li class="nav-item"><a
-                        class="nav-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}"
+                <li class="nav-item"><a class="nav-link {% if request.endpoint == 'main.dashboard' %}active{% endif %}"
                         href="{{ url_for('main.dashboard') }}"><i class="fas fa-heartbeat"></i> Health
                         Dashboard</a></li>
                 {% endif %}
@@ -732,7 +731,7 @@
     <script src="{{ url_for('static', filename='js/search.js') }}"></script>
     <script src="{{ url_for('static', filename='js/export.js') }}"></script>
     <script src="{{ url_for('static', filename='vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='vendor/simple-datatables/js/simple-datatables.js') }}"></script>
+    <script src="{{ url_for('static', filename='vendor/simple-datatables/umd/simple-datatables.js') }}"></script>
     <script src="{{ url_for('static', filename='vendor/tom-select/js/tom-select.complete.min.js') }}"></script>
 
     {# Global Modal for replacing native alert/confirm/prompt #}
