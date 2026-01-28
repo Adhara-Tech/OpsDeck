@@ -12,7 +12,7 @@ from ..models.security import SecurityIncident, Risk, Framework, FrameworkContro
 from ..models.credentials import Credential, CredentialSecret
 from ..models.certificates import Certificate, CertificateVersion
 from ..models.audits import ComplianceAudit
-from ..services.permissions_service import requires_permission
+from ..services.permissions_service import requires_permission, get_user_modules
 from src import limiter
 from src import notifications
 import calendar
@@ -98,6 +98,10 @@ def verify_ip_and_login(user):
             user_email=user.email # Explicitly passed as session isn't set yet
         )
         session['user_id'] = user.id
+        
+        # Populate permissions cache immediately
+        get_user_modules(user.id)
+        
         flash('Logged in successfully', 'success')
         return redirect(url_for('main.dashboard'))
     
@@ -191,6 +195,10 @@ def mfa_verify():
                 
                 # Complete login
                 session['user_id'] = user.id
+                
+                # Populate permissions cache immediately
+                get_user_modules(user.id)
+                
                 flash('Dispositivo verificado. Bienvenido.', 'success')
                 return redirect(url_for('main.dashboard'))
         
@@ -245,6 +253,9 @@ def impersonate(user_id):
     session['original_user_id'] = current_user.id
     session['user_id'] = target_user.id
     
+    # Populate permissions cache for the target user
+    get_user_modules(target_user.id)
+    
     # Log the impersonation start
     log_audit(
         event_type='security.impersonation',
@@ -276,6 +287,9 @@ def stop_impersonate():
     # Restore original user session
     session['user_id'] = original_user_id
     session.pop('original_user_id', None)
+    
+    # Refresh permissions cache for the original user
+    get_user_modules(original_user_id)
     
     # Log the impersonation end
     log_audit(
@@ -346,6 +360,10 @@ def google_callback():
             provider="google"
         )
         session['user_id'] = user.id
+        
+        # Populate permissions cache immediately
+        get_user_modules(user.id)
+        
         flash('Logged in successfully via Google', 'success')
         return redirect(url_for('main.dashboard'))
     else:
