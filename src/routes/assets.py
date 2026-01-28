@@ -7,6 +7,7 @@ from ..models.core import CustomFieldDefinition
 from .main import login_required
 
 from ..services.permissions_service import requires_permission
+from src.utils.logger import log_audit
 
 assets_bp = Blueprint('assets', __name__)
 
