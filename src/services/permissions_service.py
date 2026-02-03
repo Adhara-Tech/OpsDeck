@@ -1,4 +1,4 @@
-from flask import session, redirect, url_for, flash, request, abort
+from flask import session, redirect, url_for, flash, request, abort, render_template
 from functools import wraps
 from ..models import db, User, Group, Permission, Module, AccessLevel
 from .permissions_cache import permissions_cache
@@ -17,7 +17,7 @@ def get_user_modules(user_id):
     if they belong to a group that has the permission.
     Returns modules with their access levels cached.
     """
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
     if not user:
         return []
     
@@ -127,7 +127,7 @@ def requires_permission(module_slug, access_level='READ_ONLY'):
             if not user_id:
                 return redirect(url_for('main.login'))
             
-            user = User.query.get(user_id)
+            user = db.session.get(User, user_id)
             if not user:
                 return redirect(url_for('main.login'))
                 
@@ -172,7 +172,7 @@ def has_write_permission(module_slug):
     if not user_id:
         return False
     
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
     if not user:
         return False
     

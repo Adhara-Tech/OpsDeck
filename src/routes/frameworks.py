@@ -36,9 +36,8 @@ def detail(id):
 @requires_permission('compliance')
 def create():
     if not has_write_permission('compliance'):
-        if request.method == 'POST':
-            flash('You do not have permission to create frameworks.', 'danger')
-            return redirect(url_for('frameworks.list'))
+        flash('You do not have permission to create frameworks.', 'danger')
+        return redirect(url_for('frameworks.list'))
     """Crea un nuevo framework personalizado."""
     if request.method == 'POST':
         # Obtener datos manualmente
@@ -89,9 +88,8 @@ def create():
 @requires_permission('compliance')
 def edit(id):
     if not has_write_permission('compliance'):
-        if request.method == 'POST':
-            flash('You do not have permission to edit frameworks.', 'danger')
-            return redirect(url_for('frameworks.detail', id=id))
+        flash('You do not have permission to edit frameworks.', 'danger')
+        return redirect(url_for('frameworks.detail', id=id))
     """Edita un framework."""
     framework = Framework.query.get_or_404(id)
     

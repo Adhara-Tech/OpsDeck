@@ -30,7 +30,7 @@ def test_permissions():
         assert len(modules) == 0
         
         # Test 2: Direct permission
-        update_permission_matrix('user', test_user.id, [test_module.id])
+        update_permission_matrix('user', test_user.id, [{'module_id': test_module.id, 'access_level': 'WRITE'}])
         modules = get_user_modules(test_user.id)
         print(f"Modules after direct permission: {[m.name for m in modules]}")
         assert test_module.id in [m.id for m in modules]
@@ -40,13 +40,13 @@ def test_permissions():
         test_user.groups.append(test_group)
         db.session.commit()
         
-        update_permission_matrix('group', test_group.id, [test_module.id])
+        update_permission_matrix('group', test_group.id, [{'module_id': test_module.id, 'access_level': 'WRITE'}])
         modules = get_user_modules(test_user.id)
         print(f"Modules after group permission: {[m.name for m in modules]}")
         assert test_module.id in [m.id for m in modules]
         
         # Test 4: Combined permission
-        update_permission_matrix('user', test_user.id, [test_module.id])
+        update_permission_matrix('user', test_user.id, [{'module_id': test_module.id, 'access_level': 'WRITE'}])
         modules = get_user_modules(test_user.id)
         print(f"Modules after combined permissions: {[m.name for m in modules]}")
         assert len(modules) == 1 # Deduplicated

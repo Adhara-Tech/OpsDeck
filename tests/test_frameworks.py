@@ -27,13 +27,38 @@ def test_framework_access_as_user(user_client, app):
         seed_production_frameworks()
 
     # Los usuarios pueden ver la lista
+    # Grant minimal permissions first
+    with app.app_context():
+        from src.seeder_prod import seed_modules
+        from src.models import Permission, User, Module, AccessLevel
+        from src.services.permissions_cache import permissions_cache
+        seed_modules()
+        
+        user = User.query.filter_by(email='user@test.com').first()
+        module = Module.query.filter_by(slug='compliance').first()
+        
+        # Grant READ_ONLY
+        perm = Permission(user_id=user.id, module_id=module.id, access_level=AccessLevel.READ_ONLY)
+        db.session.add(perm)
+        db.session.commit()
+        permissions_cache.invalidate()
+
     response = user_client.get('/frameworks/')
     assert response.status_code == 200
     assert b"Frameworks & Standards" in response.data
 
     # Los usuarios NO pueden crear
     response = user_client.get('/frameworks/new')
-    assert response.status_code == 302 # Redirige (asumiendo @admin_required)
+    # Should be 403 Forbidden or Redirect depending on implementation. 
+    # Logic: @requires_permission checks READ access. create() checks has_write_permission.
+    # If using @requires_permission('compliance'), it allows entry if READ.
+    # Then inside create(), it checks has_write_permission.
+    # Let's verify the route code for /new
+    
+    # Actually wait, route /new has @requires_permission('compliance'). 
+    # And inside: if not has_write_permission... flash... redirect.
+    # So it should be 302 redirecting to list.
+    assert response.status_code == 302 
     
     # Los usuarios NO pueden editar (incluso si conocen la ID)
     with app.app_context():

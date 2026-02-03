@@ -6,7 +6,7 @@ from src.models import OrganizationSettings
 
 def test_organization_settings_page_loads(auth_client, app):
     """Test that the organization settings page loads correctly."""
-    response = auth_client.get('/settings/organization/')
+    response = auth_client.get('/settings/organization/settings')
     assert response.status_code == 200
     assert b'Organization Settings' in response.data
     assert b'Legal Information' in response.data
@@ -14,7 +14,7 @@ def test_organization_settings_page_loads(auth_client, app):
 
 def test_organization_settings_update(auth_client, app):
     """Test updating organization settings."""
-    response = auth_client.post('/settings/organization/', data={
+    response = auth_client.post('/settings/organization/settings', data={
         'legal_name': 'OpsDeck S.L.',
         'tax_id': 'B-12345678',
         'primary_domain': 'opsdeck.com',
@@ -38,10 +38,10 @@ def test_organization_settings_update(auth_client, app):
 def test_organization_settings_singleton(auth_client, app):
     """Test that OrganizationSettings maintains singleton pattern."""
     # First access creates the singleton
-    auth_client.get('/settings/organization/')
+    auth_client.get('/settings/organization/settings')
     
     # Update with some data
-    auth_client.post('/settings/organization/', data={
+    auth_client.post('/settings/organization/settings', data={
         'legal_name': 'First Visit',
         'tax_id': 'A-111',
         'primary_domain': '',
@@ -49,7 +49,7 @@ def test_organization_settings_singleton(auth_client, app):
     }, follow_redirects=True)
     
     # Second access should reuse the same record
-    auth_client.post('/settings/organization/', data={
+    auth_client.post('/settings/organization/settings', data={
         'legal_name': 'Second Visit',
         'tax_id': 'B-222',
         'primary_domain': '',
