@@ -59,28 +59,27 @@ def register_commands(app):
                     if not email or not name:
                         print(f"⚠️ Row {row_num}: Skipped due to missing name or email.")
                         continue
-
-                
-                # Check if user already exists
-                if User.query.filter_by(email=email).first():
-                    skipped += 1
-                    continue
-                
-                # Generate random password
-                random_pw = generate_secure_password()
-                
-                # Force role='user' for security reasons
-                user = User(name=name, email=email, role='user')
-                user.set_password(random_pw)
-                
-                db.session.add(user)
-                
-                # Print credentials for admin usage
-                print(f"{name:<30} | {email:<30} | {random_pw}")
-                count += 1
-                
-            except Exception as e:
-                print(f"❌ Error on row {row_num}: {e}")
+                    
+                    # Check if user already exists
+                    if User.query.filter_by(email=email).first():
+                        skipped += 1
+                        continue
+                    
+                    # Generate random password
+                    random_pw = generate_secure_password()
+                    
+                    # Force role='user' for security reasons
+                    user = User(name=name, email=email, role='user')
+                    user.set_password(random_pw)
+                    
+                    db.session.add(user)
+                    
+                    # Print credentials for admin usage
+                    print(f"{name:<30} | {email:<30} | {random_pw}")
+                    count += 1
+                    
+                except Exception as e:
+                    print(f"❌ Error on row {row_num}: {e}")
             
             db.session.commit()
             print("-" * 85)
@@ -153,32 +152,31 @@ def register_commands(app):
                 row_num += 1
                 try:
                     # Find supplier by name
+                    sup_name = row.get('supplier_name', '').strip()
+                    if not sup_name:
+                        print(f"⚠️ Skipping contact '{row['name']}': missing 'supplier_name'")
+                        continue
 
-                sup_name = row.get('supplier_name', '').strip()
-                if not sup_name:
-                    print(f"⚠️ Skipping contact '{row['name']}': missing 'supplier_name'")
-                    continue
+                    supplier = Supplier.query.filter_by(name=sup_name).first()
+                    if not supplier:
+                        # Create stub supplier if it doesn't exist
+                        supplier = Supplier(name=sup_name, compliance_status='Pending')
+                        db.session.add(supplier)
+                        db.session.commit() # Commit needed to get ID
+                        print(f"🏢 Supplier created automatically: {sup_name}")
 
-                supplier = Supplier.query.filter_by(name=sup_name).first()
-                if not supplier:
-                    # Create stub supplier if it doesn't exist
-                    supplier = Supplier(name=sup_name, compliance_status='Pending')
-                    db.session.add(supplier)
-                    db.session.commit() # Commit needed to get ID
-                    print(f"🏢 Supplier created automatically: {sup_name}")
-
-                contact = Contact(
-                    name=row['name'],
-                    email=row.get('email'),
-                    phone=row.get('phone'),
-                    role=row.get('role'),
-                    supplier_id=supplier.id
-                )
-                db.session.add(contact)
-                count += 1
-            
-            except Exception as e:
-                print(f"❌ Error on row {row_num}: {e}")
+                    contact = Contact(
+                        name=row['name'],
+                        email=row.get('email'),
+                        phone=row.get('phone'),
+                        role=row.get('role'),
+                        supplier_id=supplier.id
+                    )
+                    db.session.add(contact)
+                    count += 1
+                
+                except Exception as e:
+                    print(f"❌ Error on row {row_num}: {e}")
 
             db.session.commit()
             print(f"✅ Contacts imported: {count}.")
@@ -206,75 +204,75 @@ def register_commands(app):
                     # Check for duplicates
                     serial = row.get('serial_number')
 
-                if serial and Asset.query.filter_by(serial_number=serial).first():
-                    print(f"⚠️ Skipped existing asset: {row['name']} ({serial})")
-                    skipped += 1
-                    continue
+                    if serial and Asset.query.filter_by(serial_number=serial).first():
+                        print(f"⚠️ Skipped existing asset: {row['name']} ({serial})")
+                        skipped += 1
+                        continue
 
-                # User Linking Logic
-                user_id = None
-                assigned_user_name = row.get('assigned_user', '').strip()
-                if assigned_user_name:
-                    user_obj = User.query.filter_by(name=assigned_user_name).first()
-                    if user_obj:
-                        user_id = user_obj.id
+                    # User Linking Logic
+                    user_id = None
+                    assigned_user_name = row.get('assigned_user', '').strip()
+                    if assigned_user_name:
+                        user_obj = User.query.filter_by(name=assigned_user_name).first()
+                        if user_obj:
+                            user_id = user_obj.id
 
-                # Location Logic
-                loc_name = row.get('location_name', '').strip() # Use .strip() for safety
-                location_id = None
-                
-                # Check for "Remote" or virtual locations
-                is_remote = False
-                if loc_name.lower() in ['remote', 'work from home', 'wfh', 'virtual']:
-                    is_remote = True
-                    # Do not create a location, rely on user link
-                
-                if loc_name and not is_remote:
-                    loc = Location.query.filter_by(name=loc_name).first()
-                    if not loc:
-                        loc = Location(name=loc_name)
-                        db.session.add(loc)
-                        db.session.commit()
-                        print(f"📍 Location created: {loc_name}")
-                    location_id = loc.id
-
-                # Date Parsing Logic
-                p_date = None
-                if row.get('purchase_date'):
-                    try:
-                        p_date = datetime.strptime(row['purchase_date'], '%Y-%m-%d').date()
-                    except ValueError:
-                        pass
-
-                asset = Asset(
-                    name=row['name'],
-                    model=row.get('model'),
-                    brand=row.get('brand'),
-                    serial_number=row.get('serial_number'),
-                    status=row.get('status', 'In Use'),
-                    location_id=location_id,
-                    user_id=user_id, # Link user
-                    purchase_date=p_date,
-                    cost=float(row['cost']) if row.get('cost') else 0.0,
-                    warranty_length=int(row['warranty_length']) if row.get('warranty_length') else 0
-                )
-                db.session.add(asset)
-                db.session.flush() # Flush to get ID for assignment
-
-                # Create Assignment if user is linked
-                if user_id:
-                    assignment = AssetAssignment(
-                        asset_id=asset.id,
-                        user_id=user_id,
-                        checked_out_date=datetime.utcnow(),
-                        notes="Imported via CSV"
-                    )
-                    db.session.add(assignment)
+                    # Location Logic
+                    loc_name = row.get('location_name', '').strip() # Use .strip() for safety
+                    location_id = None
                     
-                count += 1
+                    # Check for "Remote" or virtual locations
+                    is_remote = False
+                    if loc_name.lower() in ['remote', 'work from home', 'wfh', 'virtual']:
+                        is_remote = True
+                        # Do not create a location, rely on user link
+                    
+                    if loc_name and not is_remote:
+                        loc = Location.query.filter_by(name=loc_name).first()
+                        if not loc:
+                            loc = Location(name=loc_name)
+                            db.session.add(loc)
+                            db.session.commit()
+                            print(f"📍 Location created: {loc_name}")
+                        location_id = loc.id
 
-            except Exception as e:
-                 print(f"❌ Error on row {row_num}: {e}")
+                    # Date Parsing Logic
+                    p_date = None
+                    if row.get('purchase_date'):
+                        try:
+                            p_date = datetime.strptime(row['purchase_date'], '%Y-%m-%d').date()
+                        except ValueError:
+                            pass
+
+                    asset = Asset(
+                        name=row['name'],
+                        model=row.get('model'),
+                        brand=row.get('brand'),
+                        serial_number=row.get('serial_number'),
+                        status=row.get('status', 'In Use'),
+                        location_id=location_id,
+                        user_id=user_id, # Link user
+                        purchase_date=p_date,
+                        cost=float(row['cost']) if row.get('cost') else 0.0,
+                        warranty_length=int(row['warranty_length']) if row.get('warranty_length') else 0
+                    )
+                    db.session.add(asset)
+                    db.session.flush() # Flush to get ID for assignment
+
+                    # Create Assignment if user is linked
+                    if user_id:
+                        assignment = AssetAssignment(
+                            asset_id=asset.id,
+                            user_id=user_id,
+                            checked_out_date=datetime.utcnow(),
+                            notes="Imported via CSV"
+                        )
+                        db.session.add(assignment)
+                        
+                    count += 1
+
+                except Exception as e:
+                    print(f"❌ Error on row {row_num}: {e}")
             
             db.session.commit()
             print(f"✅ Assets imported: {count}. Skipped: {skipped}.")
@@ -299,58 +297,56 @@ def register_commands(app):
                 row_num += 1
                 try:
                     # User Linking Logic
+                    user_id = None
+                    assigned_user_name = row.get('assigned_user', '').strip()
+                    if assigned_user_name:
+                        user_obj = User.query.filter_by(name=assigned_user_name).first()
+                        if user_obj:
+                            user_id = user_obj.id
 
-                user_id = None
-                assigned_user_name = row.get('assigned_user', '').strip()
-                if assigned_user_name:
-                    user_obj = User.query.filter_by(name=assigned_user_name).first()
-                    if user_obj:
-                        user_id = user_obj.id
+                    # Location Logic (Added for peripherals)
+                    loc_name = row.get('location_name', '').strip()
+                    location_id = None
+                    
+                    is_remote = False
+                    if loc_name.lower() in ['remote', 'work from home', 'wfh', 'virtual']:
+                        is_remote = True
+                    
+                    if loc_name and not is_remote:
+                        loc = Location.query.filter_by(name=loc_name).first()
+                        if not loc:
+                            loc = Location(name=loc_name)
+                            db.session.add(loc)
+                            db.session.commit()
+                            print(f"📍 Location created for peripheral: {loc_name}")
+                        location_id = loc.id
 
-                # Location Logic (Added for peripherals)
-                loc_name = row.get('location_name', '').strip()
-                location_id = None
-                
-                is_remote = False
-                if loc_name.lower() in ['remote', 'work from home', 'wfh', 'virtual']:
-                    is_remote = True
-                
-                if loc_name and not is_remote:
-                    loc = Location.query.filter_by(name=loc_name).first()
-                    if not loc:
-                        loc = Location(name=loc_name)
-                        db.session.add(loc)
-                        db.session.commit()
-                        print(f"📍 Location created for peripheral: {loc_name}")
-                    location_id = loc.id
-
-                peripheral = Peripheral(
-                    name=row['name'],
-                    type=row.get('type', 'Accessory'),
-                    brand=row.get('brand'),
-                    serial_number=row.get('serial_number'),
-                    status=row.get('status', 'In Use'),
-                    user_id=user_id, # Link user
-                    location_id=location_id
-                )
-                db.session.add(peripheral)
-                db.session.flush() # Flush to get ID
-
-                # Create Assignment if user is linked
-                if user_id:
-                    assignment = PeripheralAssignment(
-                        peripheral_id=peripheral.id,
-                        user_id=user_id,
-                        checked_out_date=datetime.utcnow(),
-                        notes="Imported via CSV"
+                    peripheral = Peripheral(
+                        name=row['name'],
+                        type=row.get('type', 'Accessory'),
+                        brand=row.get('brand'),
+                        serial_number=row.get('serial_number'),
+                        status=row.get('status', 'In Use'),
+                        user_id=user_id, # Link user
+                        location_id=location_id
                     )
-                    db.session.add(assignment)
-                    
-                    
-                count += 1
+                    db.session.add(peripheral)
+                    db.session.flush() # Flush to get ID
 
-            except Exception as e:
-                print(f"❌ Error on row {row_num}: {e}")
+                    # Create Assignment if user is linked
+                    if user_id:
+                        assignment = PeripheralAssignment(
+                            peripheral_id=peripheral.id,
+                            user_id=user_id,
+                            checked_out_date=datetime.utcnow(),
+                            notes="Imported via CSV"
+                        )
+                        db.session.add(assignment)
+                        
+                    count += 1
+
+                except Exception as e:
+                    print(f"❌ Error on row {row_num}: {e}")
             
             db.session.commit()
             print(f"✅ Peripherals imported: {count}.")
@@ -377,41 +373,40 @@ def register_commands(app):
                 try:
                     name = row['name'].strip()
                     if Software.query.filter_by(name=name).first():
+                        skipped += 1
+                        continue
 
-                    skipped += 1
-                    continue
+                    # Optional Supplier Linking
+                    supplier_id = None
+                    sup_name = row.get('supplier_name')
+                    if sup_name:
+                        supplier = Supplier.query.filter_by(name=sup_name.strip()).first()
+                        if supplier:
+                            supplier_id = supplier.id
 
-                # Optional Supplier Linking
-                supplier_id = None
-                sup_name = row.get('supplier_name')
-                if sup_name:
-                    supplier = Supplier.query.filter_by(name=sup_name.strip()).first()
-                    if supplier:
-                        supplier_id = supplier.id
+                    # Optional Owner Linking (User)
+                    owner_id, owner_type = None, None
+                    owner_email = row.get('owner_email')
+                    if owner_email:
+                        user = User.query.filter_by(email=owner_email.strip()).first()
+                        if user:
+                            owner_id = user.id
+                            owner_type = 'user'
 
-                # Optional Owner Linking (User)
-                owner_id, owner_type = None, None
-                owner_email = row.get('owner_email')
-                if owner_email:
-                    user = User.query.filter_by(email=owner_email.strip()).first()
-                    if user:
-                        owner_id = user.id
-                        owner_type = 'user'
+                    software = Software(
+                        name=name,
+                        category=row.get('category'),
+                        description=row.get('description'),
+                        supplier_id=supplier_id,
+                        owner_id=owner_id,
+                        owner_type=owner_type,
+                        iso_27001_control_references=row.get('iso_27001_controls')
+                    )
+                    db.session.add(software)
+                    count += 1
 
-                software = Software(
-                    name=name,
-                    category=row.get('category'),
-                    description=row.get('description'),
-                    supplier_id=supplier_id,
-                    owner_id=owner_id,
-                    owner_type=owner_type,
-                    iso_27001_control_references=row.get('iso_27001_controls')
-                )
-                db.session.add(software)
-                count += 1
-
-            except Exception as e:
-                print(f"❌ Error on row {row_num}: {e}")
+                except Exception as e:
+                    print(f"❌ Error on row {row_num}: {e}")
             
             db.session.commit()
             print(f"✅ Software imported: {count}. Skipped (already existed): {skipped}.")
@@ -440,64 +435,64 @@ def register_commands(app):
                     # MANDATORY: Supplier
                     sup_name = row.get('supplier_name', '').strip()
 
-                if not sup_name:
-                    skipped_missing_supplier += 1
-                    continue
+                    if not sup_name:
+                        skipped_missing_supplier += 1
+                        continue
+                        
+                    supplier = Supplier.query.filter_by(name=sup_name).first()
+                    if not supplier:
+                        print(f"⚠️ Skipped '{row.get('name')}': Supplier '{sup_name}' not found.")
+                        skipped_missing_supplier += 1
+                        continue
+
+                    # Optional Links
+                    software_id = None
+                    soft_name = row.get('software_name')
+                    if soft_name:
+                        soft = Software.query.filter_by(name=soft_name.strip()).first()
+                        if soft: software_id = soft.id
                     
-                supplier = Supplier.query.filter_by(name=sup_name).first()
-                if not supplier:
-                    print(f"⚠️ Skipped '{row.get('name')}': Supplier '{sup_name}' not found.")
-                    skipped_missing_supplier += 1
-                    continue
+                    budget_id = None
+                    bud_name = row.get('budget_name')
+                    if bud_name:
+                        bud = Budget.query.filter_by(name=bud_name.strip()).first()
+                        if bud: budget_id = bud.id
+                    
+                    user_id = None
+                    u_email = row.get('assigned_user_email')
+                    if u_email:
+                        u = User.query.filter_by(email=u_email.strip()).first()
+                        if u: user_id = u.id
 
-                # Optional Links
-                software_id = None
-                soft_name = row.get('software_name')
-                if soft_name:
-                    soft = Software.query.filter_by(name=soft_name.strip()).first()
-                    if soft: software_id = soft.id
+                    # Parsing
+                    try:
+                        r_date = datetime.strptime(row.get('renewal_date', ''), '%Y-%m-%d').date()
+                    except ValueError:
+                        r_date = datetime.today().date() # Fallback
+
+                    auto_renew = row.get('auto_renew', '').lower() in ['yes', 'y', 'true', '1']
+                    cost = float(row.get('cost')) if row.get('cost') else 0.0
+
+                    sub = Subscription(
+                        name=row.get('name'),
+                        subscription_type=row.get('type', 'SaaS'),
+                        description=row.get('description'),
+                        cost=cost,
+                        currency=row.get('currency', 'EUR'),
+                        renewal_date=r_date,
+                        renewal_period_type=row.get('period_type', 'yearly'),
+                        renewal_period_value=int(row.get('period_value', 1)),
+                        auto_renew=auto_renew,
+                        supplier_id=supplier.id,
+                        software_id=software_id,
+                        budget_id=budget_id,
+                        user_id=user_id
+                    )
+                    db.session.add(sub)
+                    count += 1
                 
-                budget_id = None
-                bud_name = row.get('budget_name')
-                if bud_name:
-                    bud = Budget.query.filter_by(name=bud_name.strip()).first()
-                    if bud: budget_id = bud.id
-                
-                user_id = None
-                u_email = row.get('assigned_user_email')
-                if u_email:
-                    u = User.query.filter_by(email=u_email.strip()).first()
-                    if u: user_id = u.id
-
-                # Parsing
-                try:
-                    r_date = datetime.strptime(row.get('renewal_date', ''), '%Y-%m-%d').date()
-                except ValueError:
-                    r_date = datetime.today().date() # Fallback
-
-                auto_renew = row.get('auto_renew', '').lower() in ['yes', 'y', 'true', '1']
-                cost = float(row.get('cost')) if row.get('cost') else 0.0
-
-                sub = Subscription(
-                    name=row.get('name'),
-                    subscription_type=row.get('type', 'SaaS'),
-                    description=row.get('description'),
-                    cost=cost,
-                    currency=row.get('currency', 'EUR'),
-                    renewal_date=r_date,
-                    renewal_period_type=row.get('period_type', 'yearly'),
-                    renewal_period_value=int(row.get('period_value', 1)),
-                    auto_renew=auto_renew,
-                    supplier_id=supplier.id,
-                    software_id=software_id,
-                    budget_id=budget_id,
-                    user_id=user_id
-                )
-                db.session.add(sub)
-                count += 1
-            
-            except Exception as e:
-                print(f"❌ Error on row {row_num}: {e}")
+                except Exception as e:
+                    print(f"❌ Error on row {row_num}: {e}")
 
             db.session.commit()
             print(f"✅ Subscriptions imported: {count}. Skipped (missing supplier): {skipped_missing_supplier}.")
@@ -524,40 +519,40 @@ def register_commands(app):
                 try:
                     name = row.get('name', '').strip()
 
-                if not name:
-                    continue  # Skip rows without a name
+                    if not name:
+                        continue  # Skip rows without a name
 
-                try:
-                    likelihood = int(row.get('likelihood', 1))
-                    impact = int(row.get('impact', 1))
-                except ValueError:
-                    print(f"⚠️ Warning: Invalid score for risk '{name}'. Defaulting to 1.")
-                    likelihood = 1
-                    impact = 1
+                    try:
+                        likelihood = int(row.get('likelihood', 1))
+                        impact = int(row.get('impact', 1))
+                    except ValueError:
+                        print(f"⚠️ Warning: Invalid score for risk '{name}'. Defaulting to 1.")
+                        likelihood = 1
+                        impact = 1
 
-                risk = Risk(
-                    risk_description=name,
-                    inherent_likelihood=likelihood,
-                    inherent_impact=impact,
-                    residual_likelihood=likelihood, # Default to inherent
-                    residual_impact=impact,         # Default to inherent
-                    extended_description=row.get('description')
-                )
-                db.session.add(risk)
-                db.session.flush() # Flush to get ID for categories
+                    risk = Risk(
+                        risk_description=name,
+                        inherent_likelihood=likelihood,
+                        inherent_impact=impact,
+                        residual_likelihood=likelihood, # Default to inherent
+                        residual_impact=impact,         # Default to inherent
+                        extended_description=row.get('description')
+                    )
+                    db.session.add(risk)
+                    db.session.flush() # Flush to get ID for categories
 
-                # Category Parsing
-                raw_cats = row.get('category', '')
-                if raw_cats:
-                    for cat in raw_cats.split(','):
-                        clean_cat = cat.strip()
-                        if clean_cat:
-                            db.session.add(RiskCategory(risk_id=risk.id, category=clean_cat))
+                    # Category Parsing
+                    raw_cats = row.get('category', '')
+                    if raw_cats:
+                        for cat in raw_cats.split(','):
+                            clean_cat = cat.strip()
+                            if clean_cat:
+                                db.session.add(RiskCategory(risk_id=risk.id, category=clean_cat))
+                    
+                    count += 1
                 
-                count += 1
-            
-            except Exception as e:
-                print(f"❌ Error on row {row_num}: {e}")
+                except Exception as e:
+                    print(f"❌ Error on row {row_num}: {e}")
 
             db.session.commit()
             print(f"✅ Risks imported: {count}.")

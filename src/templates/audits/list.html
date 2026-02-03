@@ -3,19 +3,19 @@
 {% block title %}Compliance Audits - OpsDeck{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2">Compliance Audits</h1>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-clipboard-list"></i> Compliance Audits</h2>
     <div class="btn-toolbar mb-2 mb-md-0">
-        <a href="{{ url_for('audits.new_audit') }}" class="btn btn-sm btn-primary">
+        <a href="{{ url_for('audits.new_audit') }}" class="btn btn-primary">
             <i class="fas fa-plus"></i> New Audit
         </a>
     </div>
 </div>
 
-<div class="card shadow mb-4">
+<div class="card mb-4">
     <div class="card-body">
         <div class="table-responsive">
-            <table class="table table-bordered datatable" width="100%" cellspacing="0">
+            <table class="table table-striped datatable">
                 <thead>
                     <tr>
                         <th>Name</th>
@@ -30,7 +30,8 @@
                     {% for audit in audits %}
                     <tr>
                         <td>
-                            <a href="{{ url_for('audits.view_audit', id=audit.id) }}" class="text-decoration-none fw-bold">
+                            <a href="{{ url_for('audits.view_audit', id=audit.id) }}"
+                                class="text-decoration-none fw-bold">
                                 {{ audit.name }}
                             </a>
                         </td>
@@ -38,21 +39,23 @@
                         <td>{{ audit.auditor.email }}</td>
                         <td>
                             {% if audit.status == 'Completed' %}
-                                <span class="badge bg-success">Completed</span>
+                            <span class="badge bg-success">Completed</span>
                             {% elif audit.status == 'In Progress' %}
-                                <span class="badge bg-primary">In Progress</span>
+                            <span class="badge bg-primary">In Progress</span>
                             {% elif audit.status == 'Planned' %}
-                                <span class="badge bg-secondary">Planned</span>
+                            <span class="badge bg-secondary">Planned</span>
                             {% else %}
-                                <span class="badge bg-dark">{{ audit.status }}</span>
+                            <span class="badge bg-dark">{{ audit.status }}</span>
                             {% endif %}
                         </td>
                         <td>{{ audit.created_at.strftime('%Y-%m-%d') }}</td>
                         <td>
-                            <a href="{{ url_for('audits.view_audit', id=audit.id) }}" class="btn btn-sm btn-outline-primary" title="View">
+                            <a href="{{ url_for('audits.view_audit', id=audit.id) }}"
+                                class="btn btn-sm btn-outline-primary" title="View">
                                 <i class="fas fa-eye"></i>
                             </a>
-                            <a href="{{ url_for('audits.export_audit', id=audit.id) }}" class="btn btn-sm btn-outline-secondary" title="Export PDF">
+                            <a href="{{ url_for('audits.export_audit', id=audit.id) }}"
+                                class="btn btn-sm btn-outline-secondary" title="Export PDF">
                                 <i class="fas fa-file-pdf"></i>
                             </a>
                         </td>

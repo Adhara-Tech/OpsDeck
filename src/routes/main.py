@@ -475,7 +475,7 @@ def organizational_health():
             'severity': 'critical',
             'title': f'{secret.credential.name} - Credential Expired',
             'description': f'Type: {secret.credential.type}',
-            'link': url_for('credentials.credential_detail', id=secret.credential.id)
+            'link': url_for('credentials.detail_credential', id=secret.credential.id)
         })
     
     # Expired certificates (still active)

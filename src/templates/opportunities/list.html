@@ -6,7 +6,7 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="fas fa-lightbulb"></i> Evaluations</h2>
     <div>
-        <button class="btn btn-success" onclick="exportTableToCSV('opportunities-table', 'opportunities.csv')">
+        <button class="btn btn-outline-success" onclick="exportTableToCSV('opportunities-table', 'opportunities.csv')">
             <i class="fas fa-file-csv"></i> Export to CSV
         </button>
         {% if can_write('procurement') %}

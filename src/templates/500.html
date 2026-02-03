@@ -7,69 +7,10 @@
     <title>500 - Internal Server Error | OpsDeck</title>
     <link href="{{ url_for('static', filename='vendor/bootstrap/css/bootstrap.min.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='vendor/font-awesome/css/all.min.css') }}" rel="stylesheet">
-    <style>
-        body {
-            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-        }
-
-        .error-container {
-            text-align: center;
-            color: white;
-            padding: 2rem;
-        }
-
-        .error-code {
-            font-size: 8rem;
-            font-weight: 700;
-            line-height: 1;
-            margin-bottom: 1rem;
-            text-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-
-        .error-title {
-            font-size: 2rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
-        }
-
-        .error-message {
-            font-size: 1.1rem;
-            margin-bottom: 2rem;
-            opacity: 0.9;
-        }
-
-        .error-icon {
-            font-size: 4rem;
-            margin-bottom: 1.5rem;
-            opacity: 0.8;
-        }
-
-        .btn-home {
-            background: white;
-            color: #fa709a;
-            padding: 0.75rem 2rem;
-            border-radius: 50px;
-            text-decoration: none;
-            font-weight: 600;
-            display: inline-block;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-        }
-
-        .btn-home:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
-            color: #fee140;
-        }
-    </style>
+    <link href="{{ url_for('static', filename='css/custom.css') }}" rel="stylesheet">
 </head>
 
-<body>
+<body class="error-page-body">
     <div class="error-container">
         <div class="error-icon">
             <i class="fas fa-exclamation-triangle"></i>
@@ -80,7 +21,7 @@
             Oops! Something went wrong on our end.<br>
             Our team has been notified and is working on it.
         </div>
-        <a href="{{ url_for('risk.dashboard') }}" class="btn-home">
+        <a href="{{ url_for('main.dashboard') }}" class="btn-home">
             <i class="fas fa-home me-2"></i>Back to Dashboard
         </a>
     </div>
