@@ -98,6 +98,7 @@ def verify_ip_and_login(user):
             user_email=user.email # Explicitly passed as session isn't set yet
         )
         session['user_id'] = user.id
+        session['user_role'] = user.role
         
         # Populate permissions cache immediately
         get_user_modules(user.id)
@@ -195,6 +196,7 @@ def mfa_verify():
                 
                 # Complete login
                 session['user_id'] = user.id
+                session['user_role'] = user.role
                 
                 # Populate permissions cache immediately
                 get_user_modules(user.id)
@@ -360,6 +362,7 @@ def google_callback():
             provider="google"
         )
         session['user_id'] = user.id
+        session['user_role'] = user.role
         
         # Populate permissions cache immediately
         get_user_modules(user.id)
@@ -475,7 +478,7 @@ def organizational_health():
             'severity': 'critical',
             'title': f'{secret.credential.name} - Credential Expired',
             'description': f'Type: {secret.credential.type}',
-            'link': url_for('credentials.credential_detail', id=secret.credential.id)
+            'link': url_for('credentials.detail_credential', id=secret.credential.id)
         })
     
     # Expired certificates (still active)

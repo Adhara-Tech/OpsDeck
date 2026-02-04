@@ -83,7 +83,7 @@
                                     class="btn btn-sm btn-outline-primary">View</a>
                                 {% if can_write('knowledge_policy') %}
                                 <a href="{{ url_for('policies.edit_version', id=version.id) }}"
-                                    class="btn btn-sm btn-outline-secondary">Edit</a>
+                                    class="btn btn-sm btn-outline-primary">Edit</a>
                                 {% if version.status == 'Draft' %}
                                 <form action="{{ url_for('policies.activate_version', id=version.id) }}" method="POST"
                                     class="d-inline"

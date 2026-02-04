@@ -3,11 +3,11 @@
 {% block title %}Risk Dashboard{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-    <h1 class="h2">Risk Dashboard</h1>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-tachometer-alt"></i> Risk Dashboard</h2>
     <div class="btn-toolbar mb-2 mb-md-0">
         <div class="btn-group me-2">
-            <a href="{{ url_for('risk.dashboard_pdf') }}" class="btn btn-sm btn-outline-secondary">
+            <a href="{{ url_for('risk.dashboard_pdf') }}" class="btn btn-outline-secondary">
                 <i class="bi bi-file-earmark-pdf"></i> Export PDF
             </a>
         </div>

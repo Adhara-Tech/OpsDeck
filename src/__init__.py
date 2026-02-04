@@ -16,7 +16,7 @@ from flask_talisman import Talisman
 from flask_smorest import Api
 
 from .extensions import db, migrate
-from .extensions import db, migrate
+
 from .models import User, Contract, ContractItem
 from . import notifications # Added the missing import
 import markdown
@@ -187,7 +187,11 @@ def create_app(test_config=None):
     # --- Custom Error Handlers ---
     @app.errorhandler(404)
     def page_not_found(e):
-        return render_template('404.html'), 404
+        return render_template('errors/404.html'), 404
+
+    @app.errorhandler(403)
+    def forbidden(e):
+        return render_template('errors/403.html'), 403
     
     @app.errorhandler(429)
     def ratelimit_handler(e):
@@ -198,7 +202,7 @@ def create_app(test_config=None):
             outcome='failure',
             error_message=e.description
         )
-        return render_template('429.html', error=e.description), 429
+        return render_template('errors/429.html', error=e.description), 429
     
     @app.errorhandler(500)
     def internal_server_error(e):
@@ -209,7 +213,7 @@ def create_app(test_config=None):
             outcome='failure',
             error_message=str(e)
         )
-        return render_template('500.html'), 500
+        return render_template('errors/500.html'), 500
     
     # --- REGISTER THE CUSTOM MARKDOWN FILTER ---
     @app.template_filter('markdown')
@@ -358,7 +362,7 @@ def create_app(test_config=None):
         is_impersonating = original_user_id is not None
         
         if user_id:
-            user = User.query.get(user_id)
+            user = db.session.get(User, user_id)
             if user:
                 context = dict(
                     current_user=user, 
@@ -369,7 +373,7 @@ def create_app(test_config=None):
                 
                 # Add original user if impersonating
                 if is_impersonating and original_user_id:
-                    original_user = User.query.get(original_user_id)
+                    original_user = db.session.get(User, original_user_id)
                     context['original_user'] = original_user
                 
                 return context
@@ -398,13 +402,13 @@ def create_app(test_config=None):
             return perms or {}
 
         def can_read(module_slug):
-            user = User.query.get(user_id) if user_id else None
+            user = db.session.get(User, user_id) if user_id else None
             if user and user.role == 'admin':
                 return True
             return module_slug in get_perms()
 
         def can_write(module_slug):
-            user = User.query.get(user_id) if user_id else None
+            user = db.session.get(User, user_id) if user_id else None
             if user and user.role == 'admin':
                 return True
             return get_perms().get(module_slug) == 'WRITE'
@@ -474,7 +478,7 @@ def create_app(test_config=None):
             if request.endpoint in ['main.change_password', 'main.logout', 'static', 'favicon']:
                 return None
                 
-            user = User.query.get(user_id)
+            user = db.session.get(User, user_id)
             if user:
                 # Get configured admin credentials from app config
                 default_admin_email = app.config.get('DEFAULT_ADMIN_EMAIL', 'admin@example.com')

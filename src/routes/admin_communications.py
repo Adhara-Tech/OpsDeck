@@ -10,6 +10,7 @@ from ..extensions import db
 from ..models.communications import EmailTemplate, PackCommunication
 from ..services.permissions_service import requires_permission, has_write_permission
 from .. import notifications
+from ..utils.communications_context import validate_template_syntax, render_email_template
 from .main import login_required
 
 admin_communications_bp = Blueprint('admin_communications', __name__)

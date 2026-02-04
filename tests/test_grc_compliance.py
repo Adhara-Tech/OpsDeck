@@ -5,6 +5,7 @@ from src.models import (
     User, Policy, PolicyVersion, PolicyAcknowledgement, 
     Course, CourseAssignment, CourseCompletion, Attachment
 )
+from flask import session
 from datetime import datetime, timedelta
 
 # --- Tests 5, 6: Policies ---
@@ -47,6 +48,25 @@ def test_policy_acknowledgement_flow(client, app):
         assert policy_version.id == 1
         assert test_user.id == 2
 
+        # --- Grant Permissions ---
+        from src.seeder_prod import seed_modules
+        from src.models import Permission, Module, AccessLevel
+        from src.services.permissions_cache import permissions_cache
+        seed_modules()
+        
+        # Grant knowledge_policy permission
+        module_kp = Module.query.filter_by(slug='knowledge_policy').first()
+        perm_kp = Permission(user_id=test_user.id, module_id=module_kp.id, access_level=AccessLevel.READ_ONLY)
+        db.session.add(perm_kp)
+
+        # Grant health_dashboard permission (required for dashboard redirect)
+        module_hd = Module.query.filter_by(slug='health_dashboard').first()
+        perm_hd = Permission(user_id=test_user.id, module_id=module_hd.id, access_level=AccessLevel.READ_ONLY)
+        db.session.add(perm_hd)
+
+        db.session.commit()
+        permissions_cache.invalidate()
+
     # --- 2. Login (como 'Test User') ---
     response = client.post('/login', data={
         'email': 'user@test.com',
@@ -61,6 +81,8 @@ def test_policy_acknowledgement_flow(client, app):
     assert b'Debes aceptar esto.' in response.data
     
     # El usuario envía el POST para aceptar
+    # El usuario envía el POST para aceptar
+    
     response = client.post('/policies/version/1/acknowledge', follow_redirects=True)
     assert response.status_code == 200
     assert b'You have successfully acknowledged' in response.data

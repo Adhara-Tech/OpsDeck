@@ -48,7 +48,7 @@
                             </a>
                             {% if can_write('business_ops') %}
                             <a href="{{ url_for('cost_centers.edit', id=cc.id) }}"
-                                class="btn btn-sm btn-outline-secondary" title="Edit">
+                                class="btn btn-sm btn-outline-primary" title="Edit">
                                 <i class="fas fa-edit"></i>
                             </a>
                             <form method="POST" action="{{ url_for('cost_centers.delete', id=cc.id) }}"

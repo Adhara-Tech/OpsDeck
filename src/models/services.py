@@ -245,4 +245,7 @@ class ServiceComponent(db.Model):
         }
         
         model = model_map.get(self.component_type)
+        if model:
+            return model.query.get(self.component_id)
+        return None
 

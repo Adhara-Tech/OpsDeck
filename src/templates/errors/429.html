@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>429 - Too Many Requests | OpsDeck</title>
+    <link href="{{ url_for('static', filename='vendor/bootstrap/css/bootstrap.min.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='vendor/font-awesome/css/all.min.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/custom.css') }}" rel="stylesheet">
+</head>
+
+<body class="error-page-body">
+    <div class="error-container">
+        <div class="error-icon">
+            <i class="fas fa-hand-paper"></i>
+        </div>
+        <div class="error-code">429</div>
+        <div class="error-title">Too Many Requests</div>
+        <div class="error-message">
+            You've exceeded the request limit.<br>
+            Please wait a moment before trying again.
+        </div>
+        <a href="{{ url_for('main.dashboard') }}" class="btn-home">
+            <i class="fas fa-home me-2"></i>Return Home
+        </a>
+    </div>
+</body>
+
+</html>

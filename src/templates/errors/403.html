@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>403 - Access Denied | OpsDeck</title>
+    <link href="{{ url_for('static', filename='vendor/bootstrap/css/bootstrap.min.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='vendor/font-awesome/css/all.min.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/custom.css') }}" rel="stylesheet">
+</head>
+
+<body class="error-page-body">
+    <div class="error-container">
+        <div class="error-icon text-danger">
+            <i class="fas fa-ban"></i>
+        </div>
+        <div class="error-code">403</div>
+        <div class="error-title">Access Denied</div>
+        <div class="error-message">
+            You don't have permission to access this resource.<br>
+            Please contact your administrator if you believe this is an error.
+        </div>
+        <a href="{{ url_for('main.dashboard') }}" class="btn-home">
+            <i class="fas fa-home me-2"></i>Back to Dashboard
+        </a>
+    </div>
+</body>
+
+</html>

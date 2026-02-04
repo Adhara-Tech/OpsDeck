@@ -3,16 +3,16 @@
 {% block content %}
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1 class="h3 mb-0 text-gray-800">Configurations</h1>
+        <h2><i class="fas fa-cogs"></i> Configurations</h2>
         <a href="{{ url_for('configuration.new') }}" class="btn btn-primary">
             <i class="fas fa-plus me-1"></i> New Configuration
         </a>
     </div>
 
-    <div class="card shadow mb-4">
+    <div class="card mb-4">
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-bordered table-hover" id="dataTable" width="100%" cellspacing="0">
+                <table class="table table-striped datatable" id="dataTable">
                     <thead>
                         <tr>
                             <th>ID</th>
@@ -50,7 +50,7 @@
                             </td>
                             <td>
                                 <a href="{{ url_for('configuration.detail', id=config.id) }}"
-                                    class="btn btn-sm btn-info" title="View">
+                                    class="btn btn-sm btn-outline-primary" title="View">
                                     <i class="fas fa-eye"></i>
                                 </a>
                             </td>
