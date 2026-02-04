@@ -532,6 +532,17 @@ def create_app(test_config=None):
             minute=0,
             id="sync_exchange_rates"
         )
+        # UAR automation - runs daily at 8:00 AM UTC
+        from .services.uar_service import run_scheduled_uar_comparisons
+        scheduler.add_job(
+            func=run_scheduled_uar_comparisons,
+            args=[app],
+            trigger="cron",
+            hour=8,
+            minute=0,
+            id="uar_scheduled_comparisons",
+            replace_existing=True
+        )
         scheduler.start()
         atexit.register(lambda: scheduler.shutdown())
 

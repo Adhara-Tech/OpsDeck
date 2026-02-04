@@ -11,6 +11,7 @@ from .certificates import Certificate, CertificateVersion
 from .crm import *
 from .policy import *
 from .security import *
+from .uar import UARComparison, UARExecution, UARFinding
 from .bcdr import *
 from .training import *
 from .services import BusinessService, ServiceComponent

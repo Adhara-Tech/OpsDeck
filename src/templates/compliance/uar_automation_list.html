@@ -1,0 +1,123 @@
+{% extends "layout.html" %}
+{% block title %}User Access Review Automation - {{ super() }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-robot"></i> User Access Review Automation</h2>
+    {% if can_write('compliance') %}
+    <a href="{{ url_for('compliance.uar_automation_form') }}" class="btn btn-primary">
+        <i class="fas fa-plus"></i> New Comparison
+    </a>
+    {% endif %}
+</div>
+
+<div class="alert alert-info">
+    <i class="fas fa-info-circle"></i> Automated comparisons run on schedule and alert you when access discrepancies are detected.
+    <a href="{{ url_for('compliance.access_review') }}" class="alert-link">Run a manual comparison</a> to test configurations.
+</div>
+
+<div class="card">
+    <div class="card-body">
+        {% if comparisons %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Schedule</th>
+                        <th>Status</th>
+                        <th>Last Run</th>
+                        <th>Next Run</th>
+                        <th>Findings</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for comparison in comparisons %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('compliance.uar_automation_detail', id=comparison.id) }}">
+                                <strong>{{ comparison.name }}</strong>
+                            </a>
+                            <br>
+                            <small class="text-muted">{{ comparison.description|truncate(80) if comparison.description }}</small>
+                        </td>
+                        <td>
+                            {% if comparison.schedule_type == 'manual' %}
+                                <span class="badge bg-secondary">Manual</span>
+                            {% elif comparison.schedule_type == 'daily' %}
+                                <span class="badge bg-primary">Daily</span>
+                            {% elif comparison.schedule_type == 'weekly' %}
+                                <span class="badge bg-info">Weekly</span>
+                            {% elif comparison.schedule_type == 'monthly' %}
+                                <span class="badge bg-warning">Monthly</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if comparison.is_enabled %}
+                                <span class="badge bg-success">Enabled</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Disabled</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if comparison.last_run_at %}
+                                {{ comparison.last_run_at.strftime('%Y-%m-%d %H:%M') }}
+                            {% else %}
+                                <span class="text-muted">Never</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if comparison.next_run_at and comparison.is_enabled %}
+                                {{ comparison.next_run_at.strftime('%Y-%m-%d %H:%M') }}
+                            {% else %}
+                                <span class="text-muted">N/A</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% set last_execution = comparison.executions.first() %}
+                            {% if last_execution %}
+                                <span class="badge bg-{% if last_execution.findings_count > 0 %}danger{% else %}success{% endif %}">
+                                    {{ last_execution.findings_count }}
+                                </span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{{ url_for('compliance.uar_automation_detail', id=comparison.id) }}"
+                               class="btn btn-sm btn-outline-primary" title="View">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            {% if can_write('compliance') %}
+                            <a href="{{ url_for('compliance.uar_automation_form', id=comparison.id) }}"
+                               class="btn btn-sm btn-outline-secondary" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <form action="{{ url_for('compliance.uar_automation_run', id=comparison.id) }}"
+                                  method="POST" style="display:inline;">
+                                <button type="submit" class="btn btn-sm btn-outline-success" title="Run Now">
+                                    <i class="fas fa-play"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center p-5">
+            <i class="fas fa-robot fa-3x text-muted mb-3"></i>
+            <h5>No automated comparisons configured yet</h5>
+            <p class="text-muted">Create your first automated access review to get started.</p>
+            {% if can_write('compliance') %}
+            <a href="{{ url_for('compliance.uar_automation_form') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Create First Comparison
+            </a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

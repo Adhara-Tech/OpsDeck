@@ -1,9 +1,10 @@
 """
 Compliance Service - Evaluation Engine
 
-Provides automated compliance checking by evaluating ComplianceRules 
-against target models (ActivityExecution, Campaign, MaintenanceLog, etc.)
-and calculating SLA-based traffic-light status.
+Provides automated compliance checking by evaluating ComplianceRules
+against target models (ActivityExecution, Campaign, MaintenanceLog,
+BCDRTestLog, OnboardingProcess, OffboardingProcess, SecurityAssessment,
+RiskAssessment, UARExecution) and calculating SLA-based traffic-light status.
 """
 from datetime import date, datetime, timedelta
 
@@ -52,6 +53,8 @@ class ComplianceEvaluator:
                 evidence, evidence_date = self._evaluate_supplier_assessment(rule)
             elif target_model == 'RiskAssessment':
                 evidence, evidence_date = self._evaluate_risk_assessment(rule)
+            elif target_model == 'UARExecution':
+                evidence, evidence_date = self._evaluate_uar_execution(rule)
             else:
                 return self._unknown_result(f"Unknown target_model: {target_model}")
             
@@ -96,6 +99,8 @@ class ComplianceEvaluator:
                 results = self._collect_supplier_assessment(rule, threshold_date)
             elif target_model == 'RiskAssessment':
                 results = self._collect_risk_assessment(rule, threshold_date)
+            elif target_model == 'UARExecution':
+                results = self._collect_uar_execution(rule, threshold_date)
             else:
                 return []
             
@@ -564,23 +569,84 @@ class ComplianceEvaluator:
     def _evaluate_risk_assessment(self, rule):
         """
         Evaluate rule against RiskAssessment model.
-        
+
         Criteria format:
             {} (no specific criteria - just finds most recent)
-        
+
         Returns:
             tuple: (evidence_object, evidence_date) or (None, None)
         """
         from src.models.risk_assessment import RiskAssessment
-        
+
         query = RiskAssessment.query
-        
+
         # Get the most recent risk assessment
         latest = query.order_by(RiskAssessment.created_at.desc()).first()
-        
+
         if latest:
             return latest, latest.created_at
-        
+
+        return None, None
+
+    def _evaluate_uar_execution(self, rule):
+        """
+        Evaluate rule against UARExecution model.
+
+        Criteria format:
+            {"method": "any_completed"} (default - any completed UAR execution)
+            {"method": "comparison_match", "comparison_id": 123} (specific comparison)
+            {"method": "comparison_name_match", "comparison_name": "Active Users Review"}
+
+        Returns:
+            tuple: (evidence_object, evidence_date) or (None, None)
+        """
+        from src.models.uar import UARExecution, UARComparison
+
+        criteria = rule.get_criteria()
+        method = criteria.get('method', 'any_completed')
+
+        if method == 'comparison_match':
+            comparison_id = criteria.get('comparison_id')
+            if not comparison_id:
+                return None, None
+
+            # Get the most recent completed execution for this comparison
+            execution = UARExecution.query.filter_by(
+                comparison_id=comparison_id,
+                status='completed'
+            ).order_by(UARExecution.started_at.desc()).first()
+
+            if execution:
+                return execution, execution.started_at
+
+        elif method == 'comparison_name_match':
+            comparison_name = criteria.get('comparison_name')
+            if not comparison_name:
+                return None, None
+
+            # Find comparison by name
+            comparison = UARComparison.query.filter_by(name=comparison_name).first()
+            if not comparison:
+                return None, None
+
+            # Get the most recent completed execution
+            execution = UARExecution.query.filter_by(
+                comparison_id=comparison.id,
+                status='completed'
+            ).order_by(UARExecution.started_at.desc()).first()
+
+            if execution:
+                return execution, execution.started_at
+
+        elif method == 'any_completed':
+            # Find any completed UAR execution
+            execution = UARExecution.query.filter_by(
+                status='completed'
+            ).order_by(UARExecution.started_at.desc()).first()
+
+            if execution:
+                return execution, execution.started_at
+
         return None, None
     
     # -------------------------------------------------------------------------
@@ -748,12 +814,63 @@ class ComplianceEvaluator:
     def _collect_risk_assessment(self, rule, threshold_date):
         """Collect RiskAssessment records within the time period."""
         from src.models.risk_assessment import RiskAssessment
-        
+
         assessments = RiskAssessment.query.filter(
             RiskAssessment.created_at >= threshold_date
         ).order_by(RiskAssessment.created_at.desc()).all()
-        
+
         return assessments
+
+    def _collect_uar_execution(self, rule, threshold_date):
+        """Collect UARExecution records within the time period."""
+        from src.models.uar import UARExecution, UARComparison
+
+        criteria = rule.get_criteria()
+        method = criteria.get('method', 'any_completed')
+
+        if method == 'comparison_match':
+            comparison_id = criteria.get('comparison_id')
+            if not comparison_id:
+                return []
+
+            # Get all completed executions for this comparison within the time period
+            executions = UARExecution.query.filter(
+                UARExecution.comparison_id == comparison_id,
+                UARExecution.status == 'completed',
+                UARExecution.started_at >= threshold_date
+            ).order_by(UARExecution.started_at.desc()).all()
+
+            return executions
+
+        elif method == 'comparison_name_match':
+            comparison_name = criteria.get('comparison_name')
+            if not comparison_name:
+                return []
+
+            # Find comparison by name
+            comparison = UARComparison.query.filter_by(name=comparison_name).first()
+            if not comparison:
+                return []
+
+            # Get all completed executions within the time period
+            executions = UARExecution.query.filter(
+                UARExecution.comparison_id == comparison.id,
+                UARExecution.status == 'completed',
+                UARExecution.started_at >= threshold_date
+            ).order_by(UARExecution.started_at.desc()).all()
+
+            return executions
+
+        elif method == 'any_completed':
+            # Find all completed UAR executions within the time period
+            executions = UARExecution.query.filter(
+                UARExecution.status == 'completed',
+                UARExecution.started_at >= threshold_date
+            ).order_by(UARExecution.started_at.desc()).all()
+
+            return executions
+
+        return []
     
     # -------------------------------------------------------------------------
     # Private: Status Calculation

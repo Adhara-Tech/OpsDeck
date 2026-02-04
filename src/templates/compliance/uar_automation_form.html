@@ -1,0 +1,398 @@
+{% extends "layout.html" %}
+{% block title %}{% if comparison.id %}Edit{% else %}New{% endif %} UAR Comparison - {{ super() }}{% endblock %}
+{% block content %}
+<div class="mb-4">
+    <h2>
+        <i class="fas fa-robot"></i>
+        {% if comparison.id %}Edit{% else %}New{% endif %} User Access Review Comparison
+    </h2>
+</div>
+
+<form method="POST">
+    <!-- Basic Info -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <h5><i class="fas fa-info-circle"></i> Basic Information</h5>
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <label for="name" class="form-label">Name *</label>
+                <input type="text" class="form-control" id="name" name="name"
+                       value="{{ comparison.name or '' }}" required>
+            </div>
+            <div class="mb-3">
+                <label for="description" class="form-label">Description</label>
+                <textarea class="form-control" id="description" name="description"
+                          rows="2">{{ comparison.description or '' }}</textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Sources -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <h5><i class="fas fa-database"></i> Data Sources</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Dataset A (Authoritative Source)</h6>
+                    <div class="mb-3">
+                        <label for="source_a_type" class="form-label">Type *</label>
+                        <select class="form-select" id="source_a_type" name="source_a_type" required>
+                            <option value="Active Users" {% if comparison.source_a_type == 'Active Users' %}selected{% endif %}>Active Users</option>
+                            <option value="Subscription" {% if comparison.source_a_type == 'Subscription' %}selected{% endif %}>Subscription</option>
+                            <option value="Business Service" {% if comparison.source_a_type == 'Business Service' %}selected{% endif %}>Business Service</option>
+                            <option value="Database Query" {% if comparison.source_a_type == 'Database Query' %}selected{% endif %}>Database Query (SQL)</option>
+                            {% if reports %}
+                            <option value="Enterprise Report" {% if comparison.source_a_type == 'Enterprise Report' %}selected{% endif %}>Enterprise Report</option>
+                            {% endif %}
+                        </select>
+                    </div>
+
+                    <!-- Dynamic fields for source A -->
+                    <div id="source_a_config">
+                        <div class="mb-3 source-field" data-source="Subscription">
+                            <label class="form-label">Subscription</label>
+                            <select class="form-select" name="source_a_subscription_id">
+                                <option value="">Select...</option>
+                                {% for sub in subscriptions %}
+                                <option value="{{ sub.id }}"
+                                        {% if comparison.source_a_config and comparison.source_a_config.get('subscription_id') == sub.id %}selected{% endif %}>
+                                    {{ sub.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3 source-field" data-source="Business Service">
+                            <label class="form-label">Business Service</label>
+                            <select class="form-select" name="source_a_service_id">
+                                <option value="">Select...</option>
+                                {% for service in services %}
+                                <option value="{{ service.id }}"
+                                        {% if comparison.source_a_config and comparison.source_a_config.get('service_id') == service.id %}selected{% endif %}>
+                                    {{ service.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3 source-field" data-source="Database Query">
+                            <label class="form-label">SQL Query</label>
+                            <textarea class="form-control font-monospace" name="source_a_query" rows="4"
+                                      placeholder="SELECT id, email, name, role FROM user WHERE is_archived = false">{{ comparison.source_a_config.get('query', '') if comparison.source_a_config else '' }}</textarea>
+                            <small class="text-muted">Only SELECT queries are allowed</small>
+                        </div>
+
+                        {% if reports %}
+                        <div class="mb-3 source-field" data-source="Enterprise Report">
+                            <label class="form-label">Report</label>
+                            <select class="form-select" name="source_a_report_id">
+                                <option value="">Select...</option>
+                                {% for report in reports %}
+                                <option value="{{ report.id }}"
+                                        {% if comparison.source_a_config and comparison.source_a_config.get('report_id') == report.id %}selected{% endif %}>
+                                    {{ report.name }} ({{ report.created_at.strftime('%Y-%m-%d') }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="key_field_a" class="form-label">Key Field *</label>
+                        <input type="text" class="form-control" id="key_field_a" name="key_field_a"
+                               value="{{ comparison.key_field_a or 'email' }}" required
+                               placeholder="email">
+                        <small class="text-muted">Column to match on (e.g., email, id, login)</small>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <h6>Dataset B (Target System)</h6>
+                    <div class="mb-3">
+                        <label for="source_b_type" class="form-label">Type *</label>
+                        <select class="form-select" id="source_b_type" name="source_b_type" required>
+                            <option value="Active Users" {% if comparison.source_b_type == 'Active Users' %}selected{% endif %}>Active Users</option>
+                            <option value="Subscription" {% if comparison.source_b_type == 'Subscription' %}selected{% endif %}>Subscription</option>
+                            <option value="Business Service" {% if comparison.source_b_type == 'Business Service' %}selected{% endif %}>Business Service</option>
+                            <option value="Database Query" {% if comparison.source_b_type == 'Database Query' %}selected{% endif %}>Database Query (SQL)</option>
+                            {% if reports %}
+                            <option value="Enterprise Report" {% if comparison.source_b_type == 'Enterprise Report' %}selected{% endif %}>Enterprise Report</option>
+                            {% endif %}
+                        </select>
+                    </div>
+
+                    <!-- Dynamic fields for source B -->
+                    <div id="source_b_config">
+                        <div class="mb-3 source-field" data-source="Subscription">
+                            <label class="form-label">Subscription</label>
+                            <select class="form-select" name="source_b_subscription_id">
+                                <option value="">Select...</option>
+                                {% for sub in subscriptions %}
+                                <option value="{{ sub.id }}"
+                                        {% if comparison.source_b_config and comparison.source_b_config.get('subscription_id') == sub.id %}selected{% endif %}>
+                                    {{ sub.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3 source-field" data-source="Business Service">
+                            <label class="form-label">Business Service</label>
+                            <select class="form-select" name="source_b_service_id">
+                                <option value="">Select...</option>
+                                {% for service in services %}
+                                <option value="{{ service.id }}"
+                                        {% if comparison.source_b_config and comparison.source_b_config.get('service_id') == service.id %}selected{% endif %}>
+                                    {{ service.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3 source-field" data-source="Database Query">
+                            <label class="form-label">SQL Query</label>
+                            <textarea class="form-control font-monospace" name="source_b_query" rows="4"
+                                      placeholder="SELECT id, email, name, role FROM external_system">{{ comparison.source_b_config.get('query', '') if comparison.source_b_config else '' }}</textarea>
+                            <small class="text-muted">Only SELECT queries are allowed</small>
+                        </div>
+
+                        {% if reports %}
+                        <div class="mb-3 source-field" data-source="Enterprise Report">
+                            <label class="form-label">Report</label>
+                            <select class="form-select" name="source_b_report_id">
+                                <option value="">Select...</option>
+                                {% for report in reports %}
+                                <option value="{{ report.id }}"
+                                        {% if comparison.source_b_config and comparison.source_b_config.get('report_id') == report.id %}selected{% endif %}>
+                                    {{ report.name }} ({{ report.created_at.strftime('%Y-%m-%d') }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="key_field_b" class="form-label">Key Field *</label>
+                        <input type="text" class="form-control" id="key_field_b" name="key_field_b"
+                               value="{{ comparison.key_field_b or 'email' }}" required
+                               placeholder="email">
+                        <small class="text-muted">Column to match on (e.g., email, id, login)</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Schedule -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <h5><i class="fas fa-calendar-alt"></i> Schedule</h5>
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <label class="form-label">Schedule Type</label>
+                <select class="form-select" name="schedule_type" id="schedule_type">
+                    <option value="manual" {% if not comparison.schedule_type or comparison.schedule_type == 'manual' %}selected{% endif %}>Manual Only</option>
+                    <option value="daily" {% if comparison.schedule_type == 'daily' %}selected{% endif %}>Daily</option>
+                    <option value="weekly" {% if comparison.schedule_type == 'weekly' %}selected{% endif %}>Weekly</option>
+                    <option value="monthly" {% if comparison.schedule_type == 'monthly' %}selected{% endif %}>Monthly</option>
+                </select>
+            </div>
+
+            <div id="schedule_config" style="display: none;">
+                <div class="mb-3">
+                    <label for="schedule_hour" class="form-label">Hour (UTC)</label>
+                    <input type="number" class="form-control" id="schedule_hour" name="schedule_hour"
+                           min="0" max="23" value="{{ comparison.schedule_config.get('hour', 8) if comparison.schedule_config else 8 }}">
+                </div>
+                <div class="mb-3" id="schedule_day_of_week_div" style="display: none;">
+                    <label for="schedule_day_of_week" class="form-label">Day of Week</label>
+                    <select class="form-select" name="schedule_day_of_week">
+                        <option value="1" {% if comparison.schedule_config and comparison.schedule_config.get('day_of_week') == 1 %}selected{% endif %}>Monday</option>
+                        <option value="2" {% if comparison.schedule_config and comparison.schedule_config.get('day_of_week') == 2 %}selected{% endif %}>Tuesday</option>
+                        <option value="3" {% if comparison.schedule_config and comparison.schedule_config.get('day_of_week') == 3 %}selected{% endif %}>Wednesday</option>
+                        <option value="4" {% if comparison.schedule_config and comparison.schedule_config.get('day_of_week') == 4 %}selected{% endif %}>Thursday</option>
+                        <option value="5" {% if comparison.schedule_config and comparison.schedule_config.get('day_of_week') == 5 %}selected{% endif %}>Friday</option>
+                        <option value="6" {% if comparison.schedule_config and comparison.schedule_config.get('day_of_week') == 6 %}selected{% endif %}>Saturday</option>
+                        <option value="7" {% if comparison.schedule_config and comparison.schedule_config.get('day_of_week') == 7 %}selected{% endif %}>Sunday</option>
+                    </select>
+                </div>
+                <div class="mb-3" id="schedule_day_of_month_div" style="display: none;">
+                    <label for="schedule_day_of_month" class="form-label">Day of Month</label>
+                    <input type="number" class="form-control" name="schedule_day_of_month"
+                           min="1" max="31" value="{{ comparison.schedule_config.get('day_of_month', 1) if comparison.schedule_config else 1 }}">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alerts -->
+    <div class="card mb-3">
+        <div class="card-header">
+            <h5><i class="fas fa-bell"></i> Alerts & Notifications</h5>
+        </div>
+        <div class="card-body">
+            <div class="mb-3">
+                <label class="form-label">Alert When:</label>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="alert_on_left_only" id="alert_on_left_only"
+                           {% if comparison.alert_on_left_only or not comparison.id %}checked{% endif %}>
+                    <label class="form-check-label" for="alert_on_left_only">
+                        Left Only (A) - Missing in target system
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="alert_on_right_only" id="alert_on_right_only"
+                           {% if comparison.alert_on_right_only or not comparison.id %}checked{% endif %}>
+                    <label class="form-check-label" for="alert_on_right_only">
+                        Right Only (B) - Unauthorized in target system
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="alert_on_mismatches" id="alert_on_mismatches"
+                           {% if comparison.alert_on_mismatches or not comparison.id %}checked{% endif %}>
+                    <label class="form-check-label" for="alert_on_mismatches">
+                        Mismatches - Different attribute values
+                    </label>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="min_findings_threshold" class="form-label">Minimum Findings Threshold</label>
+                <input type="number" class="form-control" id="min_findings_threshold" name="min_findings_threshold"
+                       min="1" value="{{ comparison.min_findings_threshold or 1 }}">
+                <small class="text-muted">Alert only if findings count exceeds this threshold</small>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Notification Channels</label>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="notify_email" id="notify_email"
+                           {% if not comparison.notification_channels or 'email' in (comparison.notification_channels or []) %}checked{% endif %}>
+                    <label class="form-check-label" for="notify_email">Email</label>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="recipient_emails" class="form-label">Email Recipients</label>
+                <input type="text" class="form-control" id="recipient_emails" name="recipient_emails"
+                       value="{% if comparison.notification_recipients %}{% for r in comparison.notification_recipients %}{% if r.type == 'email' %}{{ r.value }}{% if not loop.last %}, {% endif %}{% endif %}{% endfor %}{% endif %}"
+                       placeholder="security@company.com, admin@company.com">
+                <small class="text-muted">Comma-separated email addresses</small>
+            </div>
+
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" name="auto_create_incidents" id="auto_create_incidents"
+                       {% if comparison.auto_create_incidents %}checked{% endif %}>
+                <label class="form-check-label" for="auto_create_incidents">
+                    Auto-create Security Incidents for critical/high findings
+                </label>
+            </div>
+
+            <div class="mb-3" id="auto_incident_severity_div" style="{% if not comparison.auto_create_incidents %}display: none;{% endif %}">
+                <label for="auto_incident_severity" class="form-label">Incident Severity</label>
+                <select class="form-select" name="auto_incident_severity">
+                    <option value="SEV-1" {% if comparison.auto_incident_severity == 'SEV-1' %}selected{% endif %}>SEV-1 (Critical)</option>
+                    <option value="SEV-2" {% if comparison.auto_incident_severity == 'SEV-2' or not comparison.id %}selected{% endif %}>SEV-2 (High)</option>
+                    <option value="SEV-3" {% if comparison.auto_incident_severity == 'SEV-3' %}selected{% endif %}>SEV-3 (Medium)</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Status -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="is_enabled" id="is_enabled"
+                       {% if comparison.is_enabled or not comparison.id %}checked{% endif %}>
+                <label class="form-check-label" for="is_enabled">
+                    <strong>Enable this comparison</strong>
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <input type="hidden" name="mapping_count" value="0">
+    <input type="hidden" name="recipient_count" id="recipient_count" value="0">
+
+    <div class="d-flex justify-content-end gap-2">
+        <a href="{{ url_for('compliance.uar_automation_list') }}" class="btn btn-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save"></i> Save Comparison
+        </button>
+    </div>
+</form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Show/hide source config fields based on type
+    function updateSourceFields(side) {
+        const select = document.getElementById('source_' + side + '_type');
+        const container = document.getElementById('source_' + side + '_config');
+        const selectedType = select.value;
+
+        container.querySelectorAll('.source-field').forEach(field => {
+            field.style.display = field.dataset.source === selectedType ? 'block' : 'none';
+        });
+    }
+
+    document.getElementById('source_a_type').addEventListener('change', () => updateSourceFields('a'));
+    document.getElementById('source_b_type').addEventListener('change', () => updateSourceFields('b'));
+
+    // Show/hide schedule config based on type
+    document.getElementById('schedule_type').addEventListener('change', function() {
+        const scheduleConfig = document.getElementById('schedule_config');
+        const dayOfWeekDiv = document.getElementById('schedule_day_of_week_div');
+        const dayOfMonthDiv = document.getElementById('schedule_day_of_month_div');
+
+        if (this.value === 'manual') {
+            scheduleConfig.style.display = 'none';
+        } else {
+            scheduleConfig.style.display = 'block';
+            dayOfWeekDiv.style.display = this.value === 'weekly' ? 'block' : 'none';
+            dayOfMonthDiv.style.display = this.value === 'monthly' ? 'block' : 'none';
+        }
+    });
+
+    // Show/hide incident severity based on auto-create checkbox
+    document.getElementById('auto_create_incidents').addEventListener('change', function() {
+        document.getElementById('auto_incident_severity_div').style.display = this.checked ? 'block' : 'none';
+    });
+
+    // Parse email recipients into hidden fields
+    const form = document.querySelector('form');
+    form.addEventListener('submit', function(e) {
+        const emailsInput = document.getElementById('recipient_emails');
+        const emails = emailsInput.value.split(',').map(e => e.trim()).filter(e => e);
+
+        // Create hidden fields for each recipient
+        document.getElementById('recipient_count').value = emails.length;
+        emails.forEach((email, i) => {
+            const typeInput = document.createElement('input');
+            typeInput.type = 'hidden';
+            typeInput.name = `recipient_${i}_type`;
+            typeInput.value = 'email';
+            form.appendChild(typeInput);
+
+            const valueInput = document.createElement('input');
+            valueInput.type = 'hidden';
+            valueInput.name = `recipient_${i}_value`;
+            valueInput.value = email;
+            form.appendChild(valueInput);
+        });
+    });
+
+    // Initialize on load
+    updateSourceFields('a');
+    updateSourceFields('b');
+    document.getElementById('schedule_type').dispatchEvent(new Event('change'));
+});
+</script>
+
+{% endblock %}
