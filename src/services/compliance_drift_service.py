@@ -7,11 +7,13 @@ and provides drift analysis for compliance frameworks.
 from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime, timedelta
 from sqlalchemy import desc
+from flask import current_app, url_for
 from ..extensions import db
 from ..models.security import Framework, FrameworkControl
 from ..models.audits import ComplianceAudit
+from ..models.communications import EmailTemplate, ScheduledCommunication
+from ..models.auth import User
 from ..services.compliance_service import get_compliance_evaluator
-from flask import current_app
 
 
 class ComplianceDrift:
@@ -395,6 +397,66 @@ class ComplianceDriftDetector:
                 "Review required to prevent non-compliance."
             )
 
+    def send_drift_notifications(self, alert: Dict[str, Any]) -> None:
+        """
+        Send email notifications for detected compliance drift.
+
+        Args:
+            alert: Alert data dictionary from generate_drift_alert
+        """
+        template = EmailTemplate.query.filter_by(
+            name='Compliance Drift Alert - Regressions Detected'
+        ).first()
+
+        if not template:
+            current_app.logger.warning(
+                "[Drift] Email template 'Compliance Drift Alert - Regressions Detected' not found"
+            )
+            return
+
+        # Get all admin users to notify
+        admin_users = User.query.filter_by(role='admin').all()
+
+        if not admin_users:
+            current_app.logger.warning("[Drift] No admin users found to notify")
+            return
+
+        # Calculate next scan time (daily at 9:00 AM UTC)
+        now = datetime.utcnow()
+        next_scan = now.replace(hour=9, minute=0, second=0, microsecond=0)
+        if next_scan <= now:
+            next_scan += timedelta(days=1)
+
+        # Prepare context for email template
+        context = {
+            'regression_count': alert['total_regressions'],
+            'total_changes': alert['total_regressions'] + len(alert.get('improvements', [])),
+            'improvement_count': len(alert.get('improvements', [])),
+            'detection_time': datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC'),
+            'critical_drifts': alert.get('critical_drifts', []),
+            'high_drifts': alert.get('high_drifts', []),
+            'dashboard_url': url_for('compliance.drift_dashboard', _external=True),
+            'next_scan_time': next_scan.strftime('%Y-%m-%d %H:%M UTC')
+        }
+
+        # Send notification to each admin
+        for admin in admin_users:
+            comm = ScheduledCommunication(
+                template_id=template.id,
+                recipient_type='email',
+                recipient_value=admin.email,
+                context=context,
+                status='pending',
+                send_at=datetime.utcnow()  # Send immediately
+            )
+            db.session.add(comm)
+
+        db.session.commit()
+
+        current_app.logger.info(
+            f"[Drift] Queued {len(admin_users)} drift alert notification(s)"
+        )
+
 
 # Singleton instance
 _drift_detector = None
@@ -435,8 +497,15 @@ def run_drift_detection(app):
                         f"[Drift] {alert['summary']}"
                     )
 
-                    # TODO: Send notification via email/Slack
-                    # notifications.send_drift_alert(alert)
+                    # Send email notifications to admins
+                    try:
+                        detector.send_drift_notifications(alert)
+                        current_app.logger.info("[Drift] Drift alert notifications sent")
+                    except Exception as e:
+                        current_app.logger.error(
+                            f"[Drift] Failed to send notifications: {e}",
+                            exc_info=True
+                        )
 
             current_app.logger.info("[Drift] Daily drift detection completed")
 

@@ -345,6 +345,10 @@
                             class="nav-link {% if request.endpoint and 'uar_automation' in request.endpoint %}active{% endif %}"
                             href="{{ url_for('compliance.uar_automation_list') }}"><i class="fa-fw fas fa-robot"></i>
                             UAR Automation</a></li>
+                    <li class="nav-item"><a
+                            class="nav-link {% if request.endpoint and 'drift' in request.endpoint %}active{% endif %}"
+                            href="{{ url_for('compliance.drift_dashboard') }}"><i class="fa-fw fas fa-chart-line"></i>
+                            Drift Detection</a></li>
                 </div>
                 {% endif %}
 

@@ -2080,8 +2080,8 @@ def drift_dashboard():
 
     detector = get_drift_detector()
 
-    # Get all frameworks
-    frameworks = Framework.query.filter_by(is_archived=False).all()
+    # Get all active frameworks
+    frameworks = Framework.query.filter_by(is_active=True).all()
 
     return render_template(
         'compliance/drift_dashboard.html',
