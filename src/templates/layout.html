@@ -341,6 +341,10 @@
                             class="nav-link {% if request.endpoint and 'access-review' in request.endpoint %}active{% endif %}"
                             href="{{ url_for('compliance.access_review') }}"><i class="fa-fw fas fa-user-lock"></i>
                             User Access Review</a></li>
+                    <li class="nav-item"><a
+                            class="nav-link {% if request.endpoint and 'uar_automation' in request.endpoint %}active{% endif %}"
+                            href="{{ url_for('compliance.uar_automation_list') }}"><i class="fa-fw fas fa-robot"></i>
+                            UAR Automation</a></li>
                 </div>
                 {% endif %}
 

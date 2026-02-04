@@ -2,113 +2,94 @@
 
 # OpsDeck
 
-OpsDeck is the definitive Enterprise Resource Planning (ERP) system designed specifically for modern IT departments. Moving beyond simple inventory tracking, it serves as a unified command center that orchestrates people, processes, technology, and compliance within a single, integrated platform. OpsDeck eliminates tool fragmentation and provides IT leaders with total visibility and control over their entire ecosystem.
+OpsDeck is an integrated IT operations and governance platform designed for teams that need operational rigor without enterprise complexity. It serves as the operational system of record for IT departments in regulated environments.
 
 ![OpsDeck Dashboard](images/main-dashboard.png)
 
-## Overview
+## What It Does
 
-At its core, OpsDeck is engineered to manage the **complete lifecycle of IT assets**, ensuring absolute traceability from procurement and assignment to maintenance and final disposal. However, it distinguishes itself from traditional tools by integrating a robust **Service Catalog** that allows departments to standardize and control their technological offerings. 
+OpsDeck consolidates the essential operational and governance needs of IT teams into a single platform:
 
-Designed with a "Compliance-First" approach, OpsDeck excels in Governance, Risk, and Compliance (GRC). It features a specialized module for managing **Security Activities** with detailed execution logs, specifically built to facilitate **Audit Defense** and demonstrate regulatory adherence effortlessly. The platform is fortified with enterprise-grade capabilities, including modern **OAuth authentication** and comprehensive **centralized logging** for security auditing. 
+**Asset Lifecycle Management** - Track hardware from procurement to disposal with maintenance logs, assignment history, and warranty tracking.
 
-By unifying vendor management, budget forecasting, policy enforcement, and operational workflows, OpsDeck provides the professional infrastructure required to scale IT operations securely and efficiently.
+**Compliance & Audit Defense** - Continuous monitoring for SOC 2 and ISO 27001 with automated evidence collection, compliance drift detection, and audit snapshots that create immutable records for auditors.
 
-## Tech Stack
-* **Backend:** Python 3, Flask
-* **Database:** SQLAlchemy ORM, Flask-Migrate (defaults to SQLite, compatible with PostgreSQL/MySQL)
-* **Frontend:** Jinja2 Templates, Bootstrap 5
-* **Scheduling:** APScheduler
+**User Access Review (UAR)** - Automated comparisons between systems to detect orphaned accounts and access mismatches. Scheduled execution with finding workflows and visual diff viewer.
 
-## Setup and Installation
-Follow these steps to get the application running locally.
+**Service Catalog** - Map business services to their technical dependencies. Understand what assets and vendors support which business capabilities.
 
-### 1. Prerequisites
-* Python 3+
-* A virtual environment tool (optional)
+**Risk & Security Operations** - Track security incidents, maintain a risk register, manage credentials in an internal vault, and log all security activities with audit trails.
 
-### 2. Installation
+**Vendor Management** - Supplier tracking with compliance status, contract lifecycle management, and subscription renewal forecasting.
+
+**Policy & Training** - Policy acknowledgment workflows and training assignment tracking linked to compliance controls.
+
+Built for mid-market IT teams (50-500 employees) in finance, healthcare, SaaS, and other regulated industries.
+
+## Quick Start
+
+**Local Development**
 ```bash
-# Clone the repository
-# git clone [https://github.com/pixelotes/opsdeck.git](https://github.com/pixelotes/opsdeck.git)
-# cd opsdeck
-
-# Create and activate a virtual environment
+# Clone and setup
+git clone https://github.com/pixelotes/opsdeck.git
+cd opsdeck
 python3 -m venv venv
 source venv/bin/activate
-
-# Install the required Python packages
 pip install -r requirements.txt
 
-```
-
-### 3. Configuration
-
-The application is configured using environment variables. Create a file named `.env` in the root of the project.
-
-Example `.env`:
-
-```bash
-# Flask Configuration
-SECRET_KEY='a-very-strong-and-random-secret-key'
-FLASK_APP=run:app
-
-# Database URL (optional, defaults to a local SQLite file)
-# DATABASE_URL='sqlite:///opsdeck.db'
-
-# SMTP Email Notification Settings (optional)
-SMTP_SERVER='smtp.gmail.com'
-SMTP_PORT=587
-EMAIL_USERNAME='your-email@gmail.com'
-EMAIL_PASSWORD='your-gmail-app-password'
-
-# Default Admin User Credentials (optional)
-DEFAULT_ADMIN_EMAIL='admin@example.com'
-DEFAULT_ADMIN_INITIAL_PASSWORD='admin123'
-
-```
-
-### 4. Initialize the Database
-
-The first time you run the app, you need to create the database schema and the initial admin user.
-
-```bash
-# Initialize migrations and apply schema
-flask db init
-flask db migrate -m "Initial migration"
+# Initialize database
 flask db upgrade
-
-# Create the default admin user
-# By default, this creates: admin@example.com / admin123
-# You can customize these credentials using environment variables:
-# DEFAULT_ADMIN_EMAIL and DEFAULT_ADMIN_INITIAL_PASSWORD
 flask init-db
-
 flask seed-db-prod
-# Optionally
-# flask seed-db-demodata
 
-```
-
-> **Security Note:** The `flask init-db` command is idempotent and safe to run multiple times. If the admin user already exists, it will skip creation. You can set custom admin credentials via environment variables before running this command (see [Environment Variables](documentation/environment_variables.md)).
-
-## Usage
-
-To run the application, use the Flask CLI:
-
-```bash
-# Running flask without debug forces HTTPS
+# Run
 flask run --debug
-
 ```
 
-The application will be available at http://127.0.0.1:5000.
+Access at `http://127.0.0.1:5000` with default credentials `admin@example.com` / `admin123` (you'll be prompted to change on first login).
 
-* **Default Login:**
-  * Email: `admin@example.com` (or the value of `DEFAULT_ADMIN_EMAIL`)
-  * Password: `admin123` (or the value of `DEFAULT_ADMIN_INITIAL_PASSWORD`)
-  * **⚠️ You will be prompted to change the default password on first login**
+**Docker Deployment**
+```bash
+docker-compose up -d --build
+```
+
+See [deployment documentation](documentation/deployment_docker.md) for production configuration including PostgreSQL, TLS, backup strategies, and monitoring.
+
+## Tech Stack
+
+Python 3 + Flask, SQLAlchemy ORM, Bootstrap 5, APScheduler. Supports SQLite (development) and PostgreSQL (production).
+
+## Documentation
+
+- [Getting Started Guide](documentation/getting_started.md) - Onboarding and core workflows
+- [Architecture Overview](documentation/architecture.md) - System design and technical details
+- [Use Cases](documentation/use_cases.md) - Common scenarios and target organizations
+- [API Usage](documentation/api_usage.md) - REST API integration
+- [FAQ](documentation/faq.md) - Common questions
+- [Deployment Guides](documentation/) - Docker, manual, and Kubernetes deployment
+
+## Key Features
+
+**Automated User Access Reviews** - Schedule comparisons between systems (HRIS vs. IDP, AD vs. database, etc.) with automated finding detection and bulk remediation workflows.
+
+**Compliance Drift Detection** - Daily snapshots of compliance status with automatic alerting when controls regress. Timeline visualization shows changes over configurable periods.
+
+**Audit Defense Interface** - Create immutable compliance snapshots for audits. Link evidence continuously to controls. Export comprehensive evidence packages for auditors.
+
+**Service Dependency Mapping** - Understand which assets, vendors, and systems support business services. Impact analysis for incidents and changes.
+
+**Universal Search** - Search across assets, users, incidents, findings, vendors, and compliance controls with faceted filtering.
+
+**REST API** - Programmatic access to all platform functionality with bearer token authentication. OpenAPI documentation at `/swagger-ui`.
+
+## Enterprise Plugin
+
+LDAP/AD integration, SAML SSO, advanced analytics, multi-tenancy, and custom branding available under separate commercial license.
 
 ## License
 
-OpsDeck is released under the [Elastic License](./LICENSE).
+[Elastic License](./LICENSE) - Free to use and modify, restrictions on offering as a managed service.
+
+---
+
+Built for IT teams who need operational excellence without operational overhead.

@@ -131,10 +131,49 @@
     </div>
     <div class="card-body">
         {% if findings.items %}
+
+        <!-- Bulk Actions Toolbar -->
+        {% if can_write('compliance') %}
+        <div id="bulkActionsToolbar" class="alert alert-info mb-3" style="display: none;">
+            <div class="row align-items-center">
+                <div class="col-md-4">
+                    <span id="selectedCount">0</span> findings selected
+                </div>
+                <div class="col-md-8 text-end">
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="bulkMarkFalsePositive()">
+                            <i class="fas fa-times-circle"></i> Mark False Positive
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="bulkAssign()">
+                            <i class="fas fa-user"></i> Assign
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-success" onclick="bulkResolve()">
+                            <i class="fas fa-check"></i> Resolve
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="bulkCreateIncident()">
+                            <i class="fas fa-exclamation-triangle"></i> Create Incident
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-info" onclick="bulkExport()">
+                            <i class="fas fa-download"></i> Export
+                        </button>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-secondary ms-2" onclick="clearSelection()">
+                        <i class="fas fa-times"></i> Clear
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
         <div class="table-responsive">
-            <table class="table table-hover">
+            <table class="table table-hover" id="findingsTable">
                 <thead>
                     <tr>
+                        {% if can_write('compliance') %}
+                        <th style="width: 40px;">
+                            <input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)">
+                        </th>
+                        {% endif %}
                         <th>Severity</th>
                         <th>Key</th>
                         <th>Finding Type</th>
@@ -145,7 +184,12 @@
                 </thead>
                 <tbody>
                     {% for finding in findings.items %}
-                    <tr>
+                    <tr data-finding-id="{{ finding.id }}" class="finding-row">
+                        {% if can_write('compliance') %}
+                        <td>
+                            <input type="checkbox" class="finding-checkbox" value="{{ finding.id }}" onchange="updateBulkActions()">
+                        </td>
+                        {% endif %}
                         <td>
                             <span class="badge bg-{% if finding.severity == 'critical' %}danger{% elif finding.severity == 'high' %}warning{% elif finding.severity == 'medium' %}info{% else %}secondary{% endif %}">
                                 {{ finding.severity|upper }}
@@ -210,6 +254,69 @@
                                         <dt class="col-sm-3">Description</dt>
                                         <dd class="col-sm-9">{{ finding.description }}</dd>
 
+                                        {% if finding.finding_type == 'Mismatch' and finding.raw_data_a and finding.raw_data_b %}
+                                        <dt class="col-sm-12 mt-3">
+                                            <h6>Visual Comparison</h6>
+                                        </dt>
+                                        <dd class="col-sm-12">
+                                            <div class="diff-viewer">
+                                                <div class="row fw-bold border-bottom pb-2 mb-2">
+                                                    <div class="col-6 text-center">Dataset A</div>
+                                                    <div class="col-6 text-center">Dataset B</div>
+                                                </div>
+                                                {% set data_a = finding.raw_data_a %}
+                                                {% set data_b = finding.raw_data_b %}
+                                                {% set all_keys = data_a.keys() | list + data_b.keys() | list | unique %}
+                                                {% for key in all_keys %}
+                                                {% set val_a = data_a.get(key) %}
+                                                {% set val_b = data_b.get(key) %}
+                                                {% set is_different = (val_a != val_b) %}
+                                                <div class="row border-top py-2 {% if is_different %}bg-warning bg-opacity-10{% endif %}">
+                                                    <div class="col-6">
+                                                        <strong>{{ key }}:</strong>
+                                                        {% if val_a is not none %}
+                                                        <code class="ms-2">{{ val_a }}</code>
+                                                        {% else %}
+                                                        <em class="text-muted ms-2">null</em>
+                                                        {% endif %}
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <strong>{{ key }}:</strong>
+                                                        {% if val_b is not none %}
+                                                        <code class="ms-2">{{ val_b }}</code>
+                                                        {% else %}
+                                                        <em class="text-muted ms-2">null</em>
+                                                        {% endif %}
+                                                        {% if is_different %}
+                                                        <span class="badge bg-warning text-dark ms-2">CHANGED</span>
+                                                        {% else %}
+                                                        <span class="badge bg-secondary ms-2">UNCHANGED</span>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                        </dd>
+
+                                        <dt class="col-sm-12 mt-3">
+                                            <details>
+                                                <summary class="text-muted" style="cursor: pointer;">
+                                                    <small>View Raw JSON Data</small>
+                                                </summary>
+                                                <div class="row mt-2">
+                                                    <div class="col-6">
+                                                        <strong>Dataset A:</strong>
+                                                        <pre class="bg-light p-2 small">{{ finding.raw_data_a|tojson(indent=2) }}</pre>
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <strong>Dataset B:</strong>
+                                                        <pre class="bg-light p-2 small">{{ finding.raw_data_b|tojson(indent=2) }}</pre>
+                                                    </div>
+                                                </div>
+                                            </details>
+                                        </dt>
+
+                                        {% else %}
                                         {% if finding.raw_data_a %}
                                         <dt class="col-sm-3">Data from A</dt>
                                         <dd class="col-sm-9"><pre class="bg-light p-2 small">{{ finding.raw_data_a|tojson(indent=2) }}</pre></dd>
@@ -223,6 +330,7 @@
                                         {% if finding.differences %}
                                         <dt class="col-sm-3">Differences</dt>
                                         <dd class="col-sm-9"><pre class="bg-light p-2 small">{{ finding.differences|tojson(indent=2) }}</pre></dd>
+                                        {% endif %}
                                         {% endif %}
                                     </dl>
                                 </div>
@@ -308,4 +416,165 @@
     </div>
 </div>
 
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Bulk Operations JavaScript
+
+function toggleSelectAll(checkbox) {
+    const checkboxes = document.querySelectorAll('.finding-checkbox');
+    checkboxes.forEach(cb => cb.checked = checkbox.checked);
+    updateBulkActions();
+}
+
+function updateBulkActions() {
+    const checkboxes = document.querySelectorAll('.finding-checkbox:checked');
+    const count = checkboxes.length;
+    const toolbar = document.getElementById('bulkActionsToolbar');
+    const countSpan = document.getElementById('selectedCount');
+
+    if (count > 0) {
+        toolbar.style.display = 'block';
+        countSpan.textContent = count;
+    } else {
+        toolbar.style.display = 'none';
+        document.getElementById('selectAll').checked = false;
+    }
+}
+
+function getSelectedFindingIds() {
+    const checkboxes = document.querySelectorAll('.finding-checkbox:checked');
+    return Array.from(checkboxes).map(cb => parseInt(cb.value));
+}
+
+function clearSelection() {
+    document.querySelectorAll('.finding-checkbox').forEach(cb => cb.checked = false);
+    document.getElementById('selectAll').checked = false;
+    updateBulkActions();
+}
+
+async function bulkMarkFalsePositive() {
+    const ids = getSelectedFindingIds();
+    if (ids.length === 0) return;
+
+    const notes = prompt(`Mark ${ids.length} findings as false positive. Enter notes:`);
+    if (!notes) return;
+
+    await performBulkAction('mark_false_positive', ids, { notes });
+}
+
+async function bulkAssign() {
+    const ids = getSelectedFindingIds();
+    if (ids.length === 0) return;
+
+    const userId = prompt(`Assign ${ids.length} findings to user (enter user ID):`);
+    if (!userId) return;
+
+    await performBulkAction('assign', ids, { user_id: parseInt(userId) });
+}
+
+async function bulkResolve() {
+    const ids = getSelectedFindingIds();
+    if (ids.length === 0) return;
+
+    const status = prompt(`Resolve ${ids.length} findings. Status (resolved/acknowledged/false_positive):`, 'resolved');
+    if (!status) return;
+
+    const notes = prompt('Enter resolution notes:');
+    if (!notes) return;
+
+    await performBulkAction('resolve', ids, { resolution_status: status, notes });
+}
+
+async function bulkCreateIncident() {
+    const ids = getSelectedFindingIds();
+    if (ids.length === 0) return;
+
+    if (!confirm(`Create a security incident for ${ids.length} findings?`)) return;
+
+    const result = await performBulkAction('create_incident', ids, {});
+    if (result && result.redirect_url) {
+        window.location.href = result.redirect_url;
+        return;
+    }
+}
+
+async function bulkExport() {
+    const ids = getSelectedFindingIds();
+    if (ids.length === 0) return;
+
+    const result = await performBulkAction('export', ids, {});
+    if (result && result.csv_data) {
+        // Download CSV file
+        const blob = new Blob([result.csv_data], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = result.filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+    }
+}
+
+async function performBulkAction(action, findingIds, payload) {
+    try {
+        const response = await fetch('{{ url_for("compliance.uar_findings_bulk_action") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: action,
+                finding_ids: findingIds,
+                ...payload
+            })
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+            alert(result.message);
+            // Reload page to show updated findings
+            if (!result.redirect_url) {
+                window.location.reload();
+            }
+            return result;
+        } else {
+            alert('Error: ' + (result.error || 'Unknown error'));
+            return null;
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+        return null;
+    }
+}
+</script>
+
+<style>
+.finding-row:hover {
+    background-color: #f8f9fa;
+}
+
+.diff-viewer {
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    padding: 1rem;
+    background-color: #f8f9fa;
+}
+
+.diff-viewer .row {
+    margin-left: 0;
+    margin-right: 0;
+}
+
+.diff-viewer code {
+    background-color: white;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.9em;
+}
+</style>
 {% endblock %}

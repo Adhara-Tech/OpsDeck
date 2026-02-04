@@ -27,7 +27,7 @@ class ComplianceAudit(db.Model):
     __tablename__ = 'compliance_audit'
 
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(255), nullable=False)
+    name = db.Column(db.String(255), nullable=True)
     
     # Status & Outcome
     status = db.Column(db.String(50), default='Planned', nullable=False) # Planned, Prep, Auditor Review, Closed
@@ -39,12 +39,16 @@ class ComplianceAudit(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     locked_at = db.Column(db.DateTime, nullable=True)
 
+    # Audit type and snapshot data for drift detection
+    audit_type = db.Column(db.String(50), default='manual', nullable=True)  # 'manual', 'drift_snapshot'
+    snapshot_data = db.Column(db.JSON, nullable=True)  # Stores compliance snapshot for drift detection
+
     @property
     def is_locked(self):
         return self.locked_at is not None
 
     # Relationships
-    framework_id = db.Column(db.Integer, db.ForeignKey('framework.id'), nullable=False)
+    framework_id = db.Column(db.Integer, db.ForeignKey('framework.id'), nullable=True)
     
     # External Auditor (Contact from CRM)
     auditor_id = db.Column(db.Integer, db.ForeignKey('contact.id'), nullable=True)

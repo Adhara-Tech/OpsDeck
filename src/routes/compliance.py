@@ -1902,3 +1902,290 @@ def uar_finding_promote(id):
 
     flash(f"Security incident created: {incident.title}", "success")
     return redirect(url_for('security.incident_detail', id=incident.id))
+
+
+@compliance_bp.route('/uar/findings/bulk-action', methods=['POST'])
+@login_required
+@requires_permission('compliance')
+def uar_findings_bulk_action():
+    """
+    Handle bulk operations on UAR findings.
+
+    Supported actions:
+    - mark_false_positive: Mark selected findings as false positives
+    - assign: Assign selected findings to a user
+    - resolve: Mark selected findings as resolved
+    - create_incident: Create a security incident for selected findings
+    - export: Export selected findings to CSV
+    """
+    if not has_write_permission('compliance'):
+        return jsonify({'error': 'Write access required'}), 403
+
+    data = request.json
+    action = data.get('action')
+    finding_ids = data.get('finding_ids', [])
+
+    if not finding_ids:
+        return jsonify({'error': 'No findings selected'}), 400
+
+    findings = UARFinding.query.filter(UARFinding.id.in_(finding_ids)).all()
+
+    if not findings:
+        return jsonify({'error': 'No valid findings found'}), 404
+
+    # Get execution_id for redirect
+    execution_id = findings[0].execution_id if findings else None
+
+    try:
+        if action == 'mark_false_positive':
+            for finding in findings:
+                finding.status = 'false_positive'
+                finding.resolved_at = datetime.utcnow()
+                finding.assigned_to_id = session.get('user_id')
+                finding.resolution_notes = data.get('notes', 'Marked as false positive via bulk action')
+
+            db.session.commit()
+            return jsonify({
+                'success': True,
+                'message': f'{len(findings)} findings marked as false positive',
+                'count': len(findings)
+            })
+
+        elif action == 'assign':
+            user_id = data.get('user_id')
+            if not user_id:
+                return jsonify({'error': 'User ID required for assignment'}), 400
+
+            user = User.query.get(user_id)
+            if not user:
+                return jsonify({'error': 'User not found'}), 404
+
+            for finding in findings:
+                finding.assigned_to_id = user_id
+                finding.status = 'acknowledged'
+
+            db.session.commit()
+            return jsonify({
+                'success': True,
+                'message': f'{len(findings)} findings assigned to {user.name}',
+                'count': len(findings)
+            })
+
+        elif action == 'resolve':
+            status = data.get('resolution_status', 'resolved')
+            notes = data.get('notes', 'Resolved via bulk action')
+
+            for finding in findings:
+                finding.status = status
+                finding.resolved_at = datetime.utcnow()
+                finding.assigned_to_id = session.get('user_id')
+                finding.resolution_notes = notes
+
+            db.session.commit()
+            return jsonify({
+                'success': True,
+                'message': f'{len(findings)} findings resolved',
+                'count': len(findings)
+            })
+
+        elif action == 'create_incident':
+            # Create a single incident for all findings
+            finding_list = '\n'.join([
+                f"- {f.key_value}: {f.finding_type} ({f.severity})"
+                for f in findings
+            ])
+
+            incident = SecurityIncident(
+                title=f"Bulk Access Violations: {len(findings)} findings",
+                description=(
+                    f"Bulk escalation from UAR execution #{execution_id}\n\n"
+                    f"Total findings: {len(findings)}\n\n"
+                    f"Affected entities:\n{finding_list}"
+                ),
+                status='Investigating',
+                severity='SEV-2',
+                impact='Moderate',
+                source='User Access Review - Bulk Action'
+            )
+            db.session.add(incident)
+            db.session.flush()
+
+            # Link all findings to the incident
+            for finding in findings:
+                finding.security_incident_id = incident.id
+                finding.status = 'acknowledged'
+
+            db.session.commit()
+            return jsonify({
+                'success': True,
+                'message': f'Security incident created for {len(findings)} findings',
+                'count': len(findings),
+                'incident_id': incident.id,
+                'redirect_url': url_for('security.incident_detail', id=incident.id)
+            })
+
+        elif action == 'export':
+            # Generate CSV data
+            import io
+            import csv
+
+            output = io.StringIO()
+            writer = csv.DictWriter(output, fieldnames=[
+                'ID', 'Finding Type', 'Severity', 'Key Value', 'Status',
+                'Description', 'Dataset A', 'Dataset B', 'Created At'
+            ])
+            writer.writeheader()
+
+            for finding in findings:
+                writer.writerow({
+                    'ID': finding.id,
+                    'Finding Type': finding.finding_type,
+                    'Severity': finding.severity,
+                    'Key Value': finding.key_value,
+                    'Status': finding.status,
+                    'Description': finding.description,
+                    'Dataset A': json.dumps(finding.raw_data_a) if finding.raw_data_a else '',
+                    'Dataset B': json.dumps(finding.raw_data_b) if finding.raw_data_b else '',
+                    'Created At': finding.created_at.isoformat() if finding.created_at else ''
+                })
+
+            csv_data = output.getvalue()
+            return jsonify({
+                'success': True,
+                'message': f'{len(findings)} findings exported',
+                'count': len(findings),
+                'csv_data': csv_data,
+                'filename': f'uar_findings_{execution_id}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+            })
+
+        else:
+            return jsonify({'error': f'Unknown action: {action}'}), 400
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Bulk action failed: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+# --- Compliance Drift Detection Routes ---
+
+@compliance_bp.route('/drift')
+@login_required
+@requires_permission('compliance')
+def drift_dashboard():
+    """
+    Compliance drift detection dashboard showing timeline and regressions.
+    """
+    from ..services.compliance_drift_service import get_drift_detector
+
+    detector = get_drift_detector()
+
+    # Get all frameworks
+    frameworks = Framework.query.filter_by(is_archived=False).all()
+
+    return render_template(
+        'compliance/drift_dashboard.html',
+        frameworks=frameworks
+    )
+
+
+@compliance_bp.route('/drift/api/timeline/<int:framework_id>')
+@login_required
+@requires_permission('compliance')
+def api_drift_timeline(framework_id):
+    """
+    API endpoint to get drift timeline for a framework.
+
+    Query Parameters:
+        days: Number of days to look back (default: 30)
+
+    Returns:
+        JSON with drift timeline data
+    """
+    from ..services.compliance_drift_service import get_drift_detector
+
+    detector = get_drift_detector()
+    days = request.args.get('days', type=int, default=30)
+
+    try:
+        timeline = detector.get_drift_timeline(framework_id, days)
+        return jsonify(timeline)
+    except Exception as e:
+        current_app.logger.error(f"Drift timeline error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@compliance_bp.route('/drift/api/detect', methods=['POST'])
+@login_required
+@requires_permission('compliance')
+def api_detect_drift():
+    """
+    API endpoint to manually trigger drift detection.
+
+    Request Body:
+        framework_id: Optional framework ID (null for all frameworks)
+        lookback_hours: Hours to look back (default: 24)
+
+    Returns:
+        JSON with detected drifts
+    """
+    from ..services.compliance_drift_service import get_drift_detector
+
+    detector = get_drift_detector()
+    data = request.json or {}
+
+    framework_id = data.get('framework_id')
+    lookback_hours = data.get('lookback_hours', 24)
+
+    try:
+        drifts = detector.detect_drift(framework_id, lookback_hours)
+
+        # Generate alert if regressions found
+        alert = detector.generate_drift_alert(drifts) if drifts else None
+
+        return jsonify({
+            'success': True,
+            'drift_count': len(drifts),
+            'drifts': [d.to_dict() for d in drifts],
+            'alert': alert
+        })
+    except Exception as e:
+        current_app.logger.error(f"Drift detection error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@compliance_bp.route('/drift/api/snapshot', methods=['POST'])
+@login_required
+@requires_permission('compliance')
+def api_create_snapshot():
+    """
+    API endpoint to manually create a compliance snapshot.
+
+    Request Body:
+        framework_id: Optional framework ID (null for all frameworks)
+
+    Returns:
+        JSON with snapshot ID
+    """
+    if not has_write_permission('compliance'):
+        return jsonify({'error': 'Write permission required'}), 403
+
+    from ..services.compliance_drift_service import get_drift_detector
+
+    detector = get_drift_detector()
+    data = request.json or {}
+
+    framework_id = data.get('framework_id')
+
+    try:
+        snapshot = detector.capture_snapshot(framework_id)
+
+        return jsonify({
+            'success': True,
+            'snapshot_id': snapshot.id,
+            'timestamp': snapshot.created_at.isoformat(),
+            'message': 'Compliance snapshot created successfully'
+        })
+    except Exception as e:
+        current_app.logger.error(f"Snapshot creation error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500

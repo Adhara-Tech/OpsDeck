@@ -290,6 +290,9 @@ def create_app(test_config=None):
     app.register_blueprint(policies_bp, url_prefix='/policies')
     app.register_blueprint(compliance_bp, url_prefix='/compliance')
     app.register_blueprint(risk_bp, url_prefix='/risk')
+
+    from .routes.search import search_bp
+    app.register_blueprint(search_bp, url_prefix='/search')
     app.register_blueprint(training_bp, url_prefix='/training')
     app.register_blueprint(maintenance_bp)
     app.register_blueprint(disposal_bp)
@@ -541,6 +544,17 @@ def create_app(test_config=None):
             hour=8,
             minute=0,
             id="uar_scheduled_comparisons",
+            replace_existing=True
+        )
+        # Compliance drift detection - runs daily at 9:00 AM UTC
+        from .services.compliance_drift_service import run_drift_detection
+        scheduler.add_job(
+            func=run_drift_detection,
+            args=[app],
+            trigger="cron",
+            hour=9,
+            minute=0,
+            id="compliance_drift_detection",
             replace_existing=True
         )
         scheduler.start()

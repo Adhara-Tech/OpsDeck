@@ -6,6 +6,7 @@ against target models (ActivityExecution, Campaign, MaintenanceLog,
 BCDRTestLog, OnboardingProcess, OffboardingProcess, SecurityAssessment,
 RiskAssessment, UARExecution) and calculating SLA-based traffic-light status.
 """
+from typing import Dict, List, Any, Optional, Tuple
 from datetime import date, datetime, timedelta
 
 
@@ -15,13 +16,13 @@ class ComplianceEvaluator:
     to determine compliance status (Green/Yellow/Red).
     """
     
-    def evaluate_rule(self, rule):
+    def evaluate_rule(self, rule: Any) -> Dict[str, Any]:
         """
         Evaluate a single ComplianceRule.
-        
+
         Args:
             rule: ComplianceRule instance
-            
+
         Returns:
             dict with keys:
                 - status: "compliant" | "warning" | "non_compliant" | "unknown"
@@ -64,15 +65,20 @@ class ComplianceEvaluator:
         except Exception as e:
             return self._unknown_result(f"Evaluation error: {str(e)}")
     
-    def collect_evidence(self, rule, months_lookback: int, sample_size: int = None):
+    def collect_evidence(
+        self,
+        rule: Any,
+        months_lookback: int,
+        sample_size: Optional[int] = None
+    ) -> List[Any]:
         """
         Collect historical evidence for a rule over a time period.
-        
+
         Args:
             rule: ComplianceRule instance
             months_lookback: Number of months to look back for evidence
             sample_size: Optional limit on number of items to return (random sample)
-            
+
         Returns:
             List of evidence objects found within the time period
         """
@@ -116,10 +122,10 @@ class ComplianceEvaluator:
             logging.warning(f"Error collecting evidence for rule {rule.id}: {e}")
             return []
     
-    def evaluate_all_rules(self):
+    def evaluate_all_rules(self) -> List[Dict[str, Any]]:
         """
         Evaluate all enabled ComplianceRules.
-        
+
         Returns:
             list of dicts, each containing rule info and evaluation result
         """
@@ -142,10 +148,10 @@ class ComplianceEvaluator:
         
         return results
     
-    def get_dashboard_summary(self):
+    def get_dashboard_summary(self) -> Dict[str, Any]:
         """
         Get a summary of compliance status for dashboard display.
-        
+
         Returns:
             dict with counts by status and overall health percentage
         """
@@ -175,16 +181,16 @@ class ComplianceEvaluator:
         
         return summary
     
-    def get_framework_status(self, framework_id):
+    def get_framework_status(self, framework_id: int) -> Optional[Dict[str, Any]]:
         """
         Get aggregated compliance status for a single framework.
-        
+
         Evaluates all controls and their rules, determining status using
         worst-case scenario logic.
-        
+
         Args:
             framework_id: ID of the Framework to evaluate
-            
+
         Returns:
             dict with:
                 - framework: Framework object
@@ -300,13 +306,13 @@ class ComplianceEvaluator:
     # Private: Evaluation Methods per Target Model
     # -------------------------------------------------------------------------
     
-    def _evaluate_activity_execution(self, rule):
+    def _evaluate_activity_execution(self, rule: Any) -> Tuple[Optional[Any], Optional[datetime]]:
         """
         Evaluate rule against ActivityExecution model.
-        
+
         Criteria format:
             {"method": "parent_match", "value": <activity_id>}
-        
+
         Returns:
             tuple: (evidence_object, evidence_date) or (None, None)
         """
@@ -340,13 +346,13 @@ class ComplianceEvaluator:
         
         return None, None
     
-    def _evaluate_campaign(self, rule):
+    def _evaluate_campaign(self, rule: Any) -> Tuple[Optional[Any], Optional[datetime]]:
         """
         Evaluate rule against Campaign model.
-        
+
         Criteria format:
             {"method": "tag_match", "tags": ["Phishing", "Security"]}
-        
+
         Returns:
             tuple: (evidence_object, evidence_date) or (None, None)
         """
@@ -876,10 +882,15 @@ class ComplianceEvaluator:
     # Private: Status Calculation
     # -------------------------------------------------------------------------
     
-    def _calculate_status(self, rule, evidence, evidence_date):
+    def _calculate_status(
+        self,
+        rule: Any,
+        evidence: Optional[Any],
+        evidence_date: Optional[datetime]
+    ) -> Dict[str, Any]:
         """
         Calculate compliance status based on evidence date and rule SLA.
-        
+
         Traffic Light Logic:
             - Green (compliant): days_since <= frequency_days
             - Yellow (warning): frequency_days < days_since <= (frequency + grace)
@@ -927,7 +938,7 @@ class ComplianceEvaluator:
             'message': message
         }
     
-    def _unknown_result(self, message="Unknown error"):
+    def _unknown_result(self, message: str = "Unknown error") -> Dict[str, Any]:
         """Return a result dict for unknown/error states."""
         return {
             'status': 'unknown',
@@ -942,7 +953,7 @@ class ComplianceEvaluator:
 # Singleton instance for convenience
 _evaluator_instance = None
 
-def get_compliance_evaluator():
+def get_compliance_evaluator() -> ComplianceEvaluator:
     """Get singleton instance of ComplianceEvaluator."""
     global _evaluator_instance
     if _evaluator_instance is None:

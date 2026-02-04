@@ -4,8 +4,9 @@ UAR Automation Service
 Handles execution of automated User Access Review comparisons,
 alert processing, and incident creation.
 """
+from typing import Dict, List, Any, Optional, Tuple
 from datetime import datetime, timedelta
-from flask import current_app, url_for
+from flask import current_app, url_for, Flask
 from ..extensions import db
 from ..models.uar import UARComparison, UARExecution, UARFinding
 from ..models.auth import User
@@ -124,7 +125,13 @@ class UARAutomationService:
             current_app.logger.error(f"[UAR] Execution {execution.id} failed: {e}", exc_info=True)
             raise
 
-    def _load_dataset(self, engine, table_name, source_type, source_config):
+    def _load_dataset(
+        self,
+        engine: AccessReviewEngine,
+        table_name: str,
+        source_type: str,
+        source_config: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
         """
         Load data from various sources into the UAR engine.
 
@@ -211,7 +218,7 @@ class UARAutomationService:
         engine.load_dataset(table_name, data)
         return data
 
-    def _load_active_users(self):
+    def _load_active_users(self) -> List[Dict[str, Any]]:
         """Load active users from database (similar to compliance.py)."""
         users = User.query.filter_by(is_archived=False).all()
         data = []
@@ -232,7 +239,7 @@ class UARAutomationService:
 
         return data
 
-    def _validate_and_execute_query(self, query):
+    def _validate_and_execute_query(self, query: str) -> List[Dict[str, Any]]:
         """
         Validate and execute a SQL query.
 
@@ -269,7 +276,7 @@ class UARAutomationService:
 
         return []
 
-    def _create_snapshot(self, data, label):
+    def _create_snapshot(self, data: List[Dict[str, Any]], label: str) -> Dict[str, Any]:
         """Create a snapshot of loaded data for audit trail."""
         if not data:
             return {"columns": [], "row_count": 0, "sample": []}
@@ -281,7 +288,12 @@ class UARAutomationService:
             "sample": data[:10]  # First 10 rows
         }
 
-    def _create_findings(self, execution, results, comparison):
+    def _create_findings(
+        self,
+        execution: UARExecution,
+        results: List[Dict[str, Any]],
+        comparison: UARComparison
+    ) -> None:
         """
         Convert comparison results to UARFinding records.
 
@@ -314,7 +326,7 @@ class UARAutomationService:
 
             db.session.add(finding)
 
-    def _extract_row_data(self, result, prefix):
+    def _extract_row_data(self, result: Dict[str, Any], prefix: str) -> Optional[Dict[str, Any]]:
         """Extract row data from result dict based on prefix."""
         row_data = {}
         for key, value in result.items():
@@ -323,7 +335,7 @@ class UARAutomationService:
                 row_data[clean_key] = value
         return row_data if row_data else None
 
-    def _extract_differences(self, result):
+    def _extract_differences(self, result: Dict[str, Any]) -> Optional[List[Dict[str, str]]]:
         """Extract field differences for mismatch findings."""
         # Parse the status message to extract differences
         # Example status: "A.role='user' ≠ B.role='admin', A.department='IT' ≠ B.department='Sales'"
@@ -340,7 +352,7 @@ class UARAutomationService:
 
         return differences if differences else None
 
-    def _calculate_severity(self, finding_type, comparison):
+    def _calculate_severity(self, finding_type: str, comparison: UARComparison) -> str:
         """
         Assign severity based on finding type.
 
@@ -360,7 +372,7 @@ class UARAutomationService:
         else:
             return 'low'
 
-    def _calculate_next_run(self, comparison):
+    def _calculate_next_run(self, comparison: UARComparison) -> Optional[datetime]:
         """
         Calculate next scheduled execution time.
 
@@ -413,7 +425,7 @@ class UARAutomationService:
 
         return None  # Manual only
 
-    def _handle_alerts(self, comparison, execution):
+    def _handle_alerts(self, comparison: UARComparison, execution: UARExecution) -> None:
         """
         Send notifications and create incidents based on configuration.
 
@@ -445,7 +457,7 @@ class UARAutomationService:
             except Exception as e:
                 current_app.logger.error(f"[UAR] Failed to create incidents: {e}", exc_info=True)
 
-    def _send_notifications(self, comparison, execution):
+    def _send_notifications(self, comparison: UARComparison, execution: UARExecution) -> None:
         """
         Queue ScheduledCommunication records for alert notifications.
 
@@ -479,7 +491,7 @@ class UARAutomationService:
             )
             db.session.add(comm)
 
-    def _create_security_incidents(self, comparison, execution):
+    def _create_security_incidents(self, comparison: UARComparison, execution: UARExecution) -> int:
         """
         Auto-promote critical/high findings to SecurityIncidents.
 
@@ -521,7 +533,7 @@ class UARAutomationService:
         return incidents_created
 
 
-def run_scheduled_uar_comparisons(app):
+def run_scheduled_uar_comparisons(app: Flask) -> None:
     """
     Execute all enabled UAR comparisons that are due.
 
