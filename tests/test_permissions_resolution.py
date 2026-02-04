@@ -1,11 +1,26 @@
-from src import create_app
 from src.models import db, User, Group, Module, Permission
 from src.services.permissions_service import get_user_modules, update_permission_matrix
 
-def test_permissions():
-    app = create_app()
+def test_permissions(app, init_database):
+    """
+    Test permissions resolution using the standard app fixture to ensure
+    the database is properly initialized (tables created).
+    """
     with app.app_context():
-        # Setup: Create a test user, group, and module
+        # Setup: Ensure we have a module to test with
+        test_module = Module.query.first()
+        if not test_module:
+            # Create a dummy module if none exists (e.g. in CI/clean DB)
+            test_module = Module(
+                name="Test Module",
+                slug="test-module",
+                description="A module for testing permissions"
+            )
+            db.session.add(test_module)
+            db.session.commit()
+
+        # Setup: Create a test user and group
+        # We check for existence just in case, though init_database should give us a clean slate
         test_user = User.query.filter_by(email='test_perm@example.com').first()
         if not test_user:
             test_user = User(name='Test Perm User', email='test_perm@example.com', role='user')
@@ -16,11 +31,6 @@ def test_permissions():
             test_group = Group(name='Test Perm Group')
             db.session.add(test_group)
             
-        test_module = Module.query.first()
-        if not test_module:
-            print("✗ No modules found in DB. Run seed-db-prod first.")
-            return
-
         db.session.commit()
         
         # Test 1: No permissions
@@ -51,13 +61,14 @@ def test_permissions():
         print(f"Modules after combined permissions: {[m.name for m in modules]}")
         assert len(modules) == 1 # Deduplicated
         
-        # Cleanup
+        # Cleanup (not strictly necessary with init_database fixture, but good for hygiene)
         db.session.delete(test_user)
         db.session.delete(test_group)
         Permission.query.filter_by(module_id=test_module.id, user_id=test_user.id).delete()
         Permission.query.filter_by(module_id=test_module.id, group_id=test_group.id).delete()
+        # If we created the module, we might leave it or delete it. Leaving it is fine for the session scope if needed, 
+        # but init_database cleans up per function usually if scoped that way. 
+        # Checking conftest, init_database is function-scoped and does db.drop_all/create_all.
+        # So manual cleanup is redundant but harmless.
         db.session.commit()
         print("✓ All tests passed successfully.")
-
-if __name__ == "__main__":
-    test_permissions()
