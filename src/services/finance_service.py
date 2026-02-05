@@ -9,6 +9,8 @@ import requests
 from ..extensions import db
 from ..models.finance import FinanceSettings, ExchangeRate
 from ..models.core import CURRENCY_RATES
+from src.utils.timezone_helper import now
+
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +38,7 @@ def update_exchange_rates():
             return False
         
         # Store each rate
-        fetched_at = datetime.utcnow()
+        fetched_at = now()
         for currency_code, rate in rates.items():
             # Store as rate to convert TO base currency (inverse of API response)
             # API gives: 1 EUR = X USD, we want conversion rate TO EUR

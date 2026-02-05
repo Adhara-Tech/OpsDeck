@@ -3,6 +3,8 @@ from sqlalchemy import and_
 from sqlalchemy.orm import foreign
 from ..extensions import db
 from .auth import User
+from src.utils.timezone_helper import now
+
 
 # Association table for Credential <-> BusinessService
 service_credentials = db.Table('service_credentials',
@@ -56,8 +58,8 @@ class Credential(db.Model):
     # ==========================================
     # TIMESTAMPS
     # ==========================================
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: now(), nullable=False)
+    updated_at = db.Column(db.DateTime, default=lambda: now(), onupdate=lambda: now(), nullable=False)
     
     # ==========================================
     # RELATIONSHIPS
@@ -137,7 +139,7 @@ class CredentialSecret(db.Model):
     masked_value = db.Column(db.String(255), nullable=False)
     
     # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=lambda: now(), nullable=False)
     expires_at = db.Column(db.DateTime, nullable=True)
     
     # Active flag (only one secret should be active per credential)
@@ -178,14 +180,14 @@ class CredentialSecret(db.Model):
         """Check if this secret has expired"""
         if not self.expires_at:
             return False
-        return datetime.utcnow() > self.expires_at
+        return now() > self.expires_at
     
     @property
     def days_until_expiry(self):
         """Calculate days until expiration (negative if expired)"""
         if not self.expires_at:
             return None
-        delta = self.expires_at - datetime.utcnow()
+        delta = self.expires_at - now()
         return delta.days
     
     @property

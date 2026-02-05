@@ -41,10 +41,21 @@ def new_budget():
             if perms.get('finance') != 'WRITE':
                 flash('Write access required for this action.', 'danger')
                 return redirect(url_for('budgets.budgets'))
+
+        # Validate amount
+        try:
+            amount = float(request.form['amount'])
+            if amount <= 0:
+                flash('Budget amount must be greater than 0.', 'danger')
+                return render_template('budgets/form.html')
+        except (ValueError, KeyError):
+            flash('Invalid amount value.', 'danger')
+            return render_template('budgets/form.html')
+
         budget = Budget(
             name=request.form['name'],
             category=request.form.get('category'),
-            amount=float(request.form['amount']),
+            amount=amount,
             currency=request.form.get('currency', 'EUR'), # Use .get() and add default
             period=request.form.get('period', 'One-time'), # Use .get() and add default
             valid_from=datetime.strptime(request.form['valid_from'], '%Y-%m-%d').date(),
@@ -78,9 +89,20 @@ def edit_budget(id):
             if perms.get('finance') != 'WRITE':
                 flash('Write access required for this action.', 'danger')
                 return redirect(url_for('budgets.budget_detail', id=id))
+
+        # Validate amount
+        try:
+            amount = float(request.form['amount'])
+            if amount <= 0:
+                flash('Budget amount must be greater than 0.', 'danger')
+                return render_template('budgets/form.html', budget=budget)
+        except (ValueError, KeyError):
+            flash('Invalid amount value.', 'danger')
+            return render_template('budgets/form.html', budget=budget)
+
         budget.name = request.form['name']
         budget.category = request.form.get('category')
-        budget.amount = float(request.form['amount'])
+        budget.amount = amount
         budget.currency = request.form['currency']
         budget.period = request.form['period']
         budget.valid_from = datetime.strptime(request.form['valid_from'], '%Y-%m-%d').date()

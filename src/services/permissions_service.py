@@ -171,20 +171,65 @@ def has_write_permission(module_slug):
     user_id = session.get('user_id')
     if not user_id:
         return False
-    
+
     user = db.session.get(User, user_id)
     if not user:
         return False
-    
+
     # Admin bypass
     if user.role == 'admin':
         return True
-    
+
     # Check permissions
     perms = permissions_cache.get(user_id)
     if perms is None:
         # Refresh cache
         get_user_modules(user_id)
         perms = permissions_cache.get(user_id)
-    
+
     return perms.get(module_slug) == 'WRITE'
+
+def user_has_module_access(user_id, module_slug, required_access_level='READ_ONLY'):
+    """
+    Helper function to check if a specific user has access to a module at the required level.
+
+    Args:
+        user_id: ID of the user to check
+        module_slug: Slug of the module to check access for
+        required_access_level: 'READ_ONLY' or 'WRITE' (default: 'READ_ONLY')
+
+    Returns:
+        bool: True if user has the required access level or higher, False otherwise
+    """
+    if not user_id:
+        return False
+
+    user = db.session.get(User, user_id)
+    if not user:
+        return False
+
+    # Admin bypass
+    if user.role == 'admin':
+        return True
+
+    # Check permissions from cache
+    perms = permissions_cache.get(user_id)
+    if perms is None:
+        # Refresh cache
+        get_user_modules(user_id)
+        perms = permissions_cache.get(user_id)
+
+    if not perms:
+        return False
+
+    user_access = perms.get(module_slug)
+    if not user_access:
+        return False
+
+    # If user has WRITE, they also have READ_ONLY
+    if required_access_level == 'READ_ONLY':
+        return user_access in ['READ_ONLY', 'WRITE']
+    elif required_access_level == 'WRITE':
+        return user_access == 'WRITE'
+
+    return False

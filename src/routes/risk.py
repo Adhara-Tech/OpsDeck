@@ -213,7 +213,7 @@ def dashboard_pdf():
         top_critical_risks=top_critical_risks,
         accepted_risks=accepted_risks,
         detailed_risks=detailed_risks,
-        generated_at=datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
+        generated_at=now().strftime('%Y-%m-%d %H:%M:%S'),
         generated_by=user.name if user else 'System'
     )
     
@@ -245,6 +245,8 @@ def catalog_detail(id):
     return render_template('risk/catalog_detail.html', catalog=catalog)
 
 from ..models.security import ThreatType
+from src.utils.timezone_helper import now
+
 
 @risk_bp.route('/new', methods=['GET', 'POST'])
 @requires_permission('risk_governance')

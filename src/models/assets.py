@@ -5,11 +5,13 @@ from sqlalchemy import and_
 from ..extensions import db
 from .auth import User, Group
 from .core import CustomPropertiesMixin
+from src.utils.timezone_helper import today, now
+
 
 class Location(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False, unique=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
     assets = db.relationship('Asset', backref='location', lazy=True)
     is_archived = db.Column(db.Boolean, default=False, nullable=False)
 
@@ -81,7 +83,7 @@ class Asset(db.Model, CustomPropertiesMixin):
     maintenance_logs = db.relationship('MaintenanceLog', backref='asset', lazy='dynamic', cascade='all, delete-orphan')
     disposal_record = db.relationship('DisposalRecord', backref='asset', uselist=False, cascade='all, delete-orphan')
     
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
 
     @property
     def warranty_end_date(self):
@@ -208,7 +210,7 @@ class AssetAssignment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     asset_id = db.Column(db.Integer, db.ForeignKey('asset.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True) # Can be unassigned
-    checked_out_date = db.Column(db.DateTime, default=datetime.utcnow)
+    checked_out_date = db.Column(db.DateTime, default=lambda: now())
     checked_in_date = db.Column(db.DateTime, nullable=True)
     notes = db.Column(db.Text)
     user = db.relationship('User', backref='assignments')
@@ -219,13 +221,13 @@ class AssetHistory(db.Model):
     field_changed = db.Column(db.String(100), nullable=False)
     old_value = db.Column(db.String(255))
     new_value = db.Column(db.String(255))
-    changed_at = db.Column(db.DateTime, default=datetime.utcnow)
+    changed_at = db.Column(db.DateTime, default=lambda: now())
 
 class PeripheralAssignment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     peripheral_id = db.Column(db.Integer, db.ForeignKey('peripheral.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True) # Can be unassigned
-    checked_out_date = db.Column(db.DateTime, default=datetime.utcnow)
+    checked_out_date = db.Column(db.DateTime, default=lambda: now())
     checked_in_date = db.Column(db.DateTime, nullable=True)
     notes = db.Column(db.Text)
     user = db.relationship('User', backref='peripheral_assignments')
@@ -273,7 +275,7 @@ class Peripheral(db.Model, CustomPropertiesMixin):
         overlaps="compliance_links"
     )
     
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
     
     def __init__(self, **kwargs):
         super(Peripheral, self).__init__(**kwargs)
@@ -323,7 +325,7 @@ class License(db.Model):
     
     # Metadata
     is_archived = db.Column(db.Boolean, default=False, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
 
     compliance_links = db.relationship('ComplianceLink',
         primaryjoin=lambda: and_(
@@ -336,8 +338,8 @@ class License(db.Model):
 
     @property
     def status(self):
-        today = date.today()
-        if self.expiry_date and self.expiry_date < today:
+        current_date = today()
+        if self.expiry_date and self.expiry_date < current_date:
             return "Expired"
         if self.user_id:
             return "In use"
@@ -365,7 +367,7 @@ class Software(db.Model):
 
     # Metadata
     is_archived = db.Column(db.Boolean, default=False, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
 
     compliance_links = db.relationship('ComplianceLink',
         primaryjoin=lambda: and_(
@@ -421,11 +423,11 @@ class MaintenanceLog(db.Model):
     event_type = db.Column(db.String(100), nullable=False) # e.g., Repair, Planned Maintenance, Unplanned Maintenance
     description = db.Column(db.Text, nullable=False)
     status = db.Column(db.String(50), nullable=False, default='Open') # Open, In Progress, Completed, Cancelled
-    event_date = db.Column(db.Date, nullable=False, default=date.today)
+    event_date = db.Column(db.Date, nullable=False, default=lambda: today())
     ticket_link = db.Column(db.String(512))
     notes = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: now())
+    updated_at = db.Column(db.DateTime, nullable=False, default=lambda: now(), onupdate=datetime.utcnow)
     
     # Relationships
     assigned_to_id = db.Column(db.Integer, db.ForeignKey('user.id'))
@@ -458,13 +460,13 @@ class DisposalHistory(db.Model):
     new_value = db.Column(db.Text)
     reason = db.Column(db.Text, nullable=False)
     changed_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    changed_at = db.Column(db.DateTime, default=datetime.utcnow)
+    changed_at = db.Column(db.DateTime, default=lambda: now())
     
     changed_by = db.relationship('User')
 
 class DisposalRecord(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    disposal_date = db.Column(db.Date, nullable=False, default=date.today)
+    disposal_date = db.Column(db.Date, nullable=False, default=lambda: today())
     disposal_method = db.Column(db.String(100), nullable=False) # e.g., Recycled, Destroyed, Sold
     disposal_partner = db.Column(db.String(255))
     notes = db.Column(db.Text)

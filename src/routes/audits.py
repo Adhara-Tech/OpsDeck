@@ -14,6 +14,8 @@ import uuid
 from datetime import datetime
 from werkzeug.utils import secure_filename
 from ..services.permissions_service import requires_permission, has_write_permission
+from src.utils.timezone_helper import now
+
 
 audits_bp = Blueprint('audits', __name__, url_prefix='/security/audits')
 
@@ -25,6 +27,9 @@ audits_bp = Blueprint('audits', __name__, url_prefix='/security/audits')
 @login_required
 @requires_permission('compliance')
 def list_audits():
+    # IMPORTANT: Show ALL audits regardless of framework.is_active status
+    # Audits are historical evidence snapshots and remain valid even if framework is deactivated
+    # This allows companies to maintain audit history when frameworks are no longer in use
     audits = ComplianceAudit.query.order_by(ComplianceAudit.created_at.desc()).all()
     return render_template('audits/list.html', audits=audits)
 
@@ -537,7 +542,7 @@ def lock_audit(id):
     if audit.is_locked:
         flash('Audit is already locked.', 'info')
     else:
-        audit.locked_at = datetime.utcnow()
+        audit.locked_at = now()
         db.session.commit()
         flash('Audit has been locked. No further modifications are allowed.', 'success')
     
@@ -572,7 +577,7 @@ def unlock_audit(id):
 def export_audit(id):
     audit = ComplianceAudit.query.get_or_404(id)
     
-    html = render_template('audits/export_pdf.html', audit=audit, now=datetime.utcnow())
+    html = render_template('audits/export_pdf.html', audit=audit, now=now())
     pdf = HTML(string=html).write_pdf()
     
     return send_file(

@@ -96,7 +96,11 @@ def test_structured_comparison():
     engine.load_dataset("dataset_b", data_b)
     
     # Test
-    findings = engine.perform_structured_comparison(key_field="email", compare_fields=["role"])
+    findings = engine.perform_structured_comparison(
+        key_field_a="email",
+        key_field_b="email",
+        field_mappings=[{"field_a": "role", "field_b": "role"}]
+    )
     
     # Findings should contain:
     # 1. Bob (Mismatch)

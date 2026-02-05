@@ -1,4 +1,5 @@
 from datetime import datetime
+from src.utils.timezone_helper import now
 from ..extensions import db
 from sqlalchemy.orm import foreign
 from sqlalchemy import and_
@@ -31,7 +32,7 @@ class Change(db.Model):
     test_plan = db.Column(db.Text)            # Verification steps
     
     # --- Temporalization ---
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
     scheduled_start = db.Column(db.DateTime, nullable=True)
     scheduled_end = db.Column(db.DateTime, nullable=True)
     estimated_duration = db.Column(db.Integer, nullable=True) # In minutes

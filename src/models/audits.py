@@ -5,6 +5,8 @@ from ..extensions import db
 from .core import Attachment
 from .security import Framework
 from .onboarding import OnboardingProcess, OffboardingProcess
+from src.utils.timezone_helper import now
+
 
 # Association table for audit participants
 audit_participants = db.Table('audit_participants',
@@ -36,7 +38,7 @@ class ComplianceAudit(db.Model):
     # Dates
     start_date = db.Column(db.Date)
     end_date = db.Column(db.Date)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
     locked_at = db.Column(db.DateTime, nullable=True)
 
     # Audit type and snapshot data for drift detection
@@ -284,7 +286,7 @@ class ComplianceAudit(db.Model):
              raise ValueError(f"Source audit with id {source_id} not found")
 
         # 1. Create New Audit Header
-        year = target_date.year if target_date else datetime.utcnow().year
+        year = target_date.year if target_date else now().year
         new_audit = cls(
             name=f"Renewal {year}: {source.name}",
             framework_id=source.framework_id,
@@ -533,7 +535,7 @@ class AuditControlLink(db.Model):
         from .activities import ActivityExecution, SecurityActivity
         from .communications import Campaign
         from .risk_assessment import RiskAssessment
-        
+
         # Map types to models
         model_map = {
             'OrgChartSnapshot': OrgChartSnapshot,
@@ -565,8 +567,53 @@ class AuditControlLink(db.Model):
             'SecurityActivity': SecurityActivity,
             'Campaign': Campaign,
         }
-        
+
         model = model_map.get(self.linkable_type)
         if model:
             return model.query.get(self.linkable_id)
         return None
+
+    def is_orphaned(self):
+        """
+        Check if this link is orphaned (linked object no longer exists).
+
+        Returns:
+            bool: True if the linked object doesn't exist
+        """
+        return self.linked_object is None
+
+    @staticmethod
+    def find_orphaned_links():
+        """
+        Find all audit control links where the linked object no longer exists.
+
+        Returns:
+            list: List of orphaned AuditControlLink objects
+        """
+        orphaned = []
+        all_links = AuditControlLink.query.all()
+
+        for link in all_links:
+            if link.is_orphaned():
+                orphaned.append(link)
+
+        return orphaned
+
+    @staticmethod
+    def cleanup_orphaned_links():
+        """
+        Remove all audit control links where the linked object no longer exists.
+
+        Returns:
+            int: Number of orphaned links removed
+        """
+        orphaned = AuditControlLink.find_orphaned_links()
+        count = len(orphaned)
+
+        for link in orphaned:
+            db.session.delete(link)
+
+        if count > 0:
+            db.session.commit()
+
+        return count

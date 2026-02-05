@@ -1,4 +1,5 @@
 from datetime import datetime
+from src.utils.timezone_helper import now
 from ..extensions import db
 
 class HiringStage(db.Model):
@@ -31,6 +32,6 @@ class Candidate(db.Model):
     # Metadata
     resume_link = db.Column(db.String(255))  # Optional external link or file path
     notes = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
+    updated_at = db.Column(db.DateTime, default=lambda: now(), onupdate=lambda: now())
     is_archived = db.Column(db.Boolean, default=False)

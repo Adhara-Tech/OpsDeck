@@ -8,6 +8,8 @@ from .main import login_required
 
 from ..services.permissions_service import requires_permission
 from src.utils.logger import log_audit
+from src.utils.timezone_helper import now, today
+
 
 assets_bp = Blueprint('assets', __name__)
 
@@ -361,7 +363,7 @@ def checkin_asset(id):
     assignment = AssetAssignment.query.filter_by(asset_id=id, checked_in_date=None).order_by(AssetAssignment.checked_out_date.desc()).first()
     
     if assignment:
-        assignment.checked_in_date = datetime.utcnow()
+        assignment.checked_in_date = now()
 
     history_entry = AssetHistory(asset_id=id, field_changed='Status', old_value=f'Checked out to {asset.user.name}', new_value=f'Checked In to {target_location.name}')
     db.session.add(history_entry)
@@ -399,7 +401,7 @@ def warranties():
     
     sorted_items = sorted(items_with_warranties, key=lambda x: x.warranty_end_date, reverse=True)
     
-    return render_template('assets/warranties.html', items=sorted_items, today=date.today())
+    return render_template('assets/warranties.html', items=sorted_items, today=today())
 
 @assets_bp.route('/<int:id>/history')
 @login_required

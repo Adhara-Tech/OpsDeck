@@ -4,6 +4,7 @@ from sqlalchemy import and_
 from ..extensions import db
 from .core import Tag
 from .auth import User
+from src.utils.timezone_helper import today, now
 
 # --- Association Tables for BCDR ---
 bcdr_plan_subscriptions = db.Table('bcdr_plan_subscriptions',
@@ -27,7 +28,7 @@ class BCDRPlan(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
     
     # Relationships
     subscriptions = db.relationship('Subscription', secondary=bcdr_plan_subscriptions, backref='bcdr_plans')
@@ -47,7 +48,7 @@ class BCDRTestLog(db.Model):
     __tablename__ = 'bcdr_test_log'
     id = db.Column(db.Integer, primary_key=True)
     plan_id = db.Column(db.Integer, db.ForeignKey('bcdr_plan.id'), nullable=False)
-    test_date = db.Column(db.Date, nullable=False, default=date.today)
+    test_date = db.Column(db.Date, nullable=False, default=lambda: today())
     status = db.Column(db.String(50), nullable=False) # In Progress, Passed, Failed
     notes = db.Column(db.Text)
     

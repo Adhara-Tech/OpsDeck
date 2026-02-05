@@ -70,7 +70,7 @@
                         <p><strong>Description:</strong> {{ subscription.description or 'N/A' }}</p>
                     </div>
                     <div class="col-md-6">
-                        <p><strong>Next Renewal:</strong> {{ subscription.next_renewal_date.strftime('%B %d, %Y') }}</p>
+                        <p><strong>Next Renewal:</strong> {{ subscription.next_renewal_date.strftime('%B %d, %Y') if subscription.next_renewal_date else 'N/A' }}</p>
                         <p><strong>Cost:</strong> €{{ "%.2f"|format(subscription.cost_eur) }} ({{ subscription.cost }}
                             {{
                             subscription.currency }})</p>

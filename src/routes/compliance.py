@@ -14,6 +14,8 @@ from .main import login_required
 from ..services.permissions_service import requires_permission, has_write_permission
 from ..services.uar_service import UARAutomationService
 from ..utils.uar_engine import AccessReviewEngine
+from src.utils.timezone_helper import now
+
 
 # Optional import for Enterprise Plugin
 try:
@@ -438,7 +440,7 @@ def promote_finding_to_incident():
         severity='SEV-2', 
         impact='Moderate',
         reported_by_id=session.get('user_id'),
-        incident_date=datetime.utcnow()
+        incident_date=now()
     )
     
     db.session.add(incident)
@@ -554,7 +556,7 @@ def new_assessment(supplier_id):
         flash('New security assessment has been logged.', 'success')
         return redirect(url_for('suppliers.supplier_detail', id=supplier_id))
 
-    return render_template('compliance/assessment_form.html', supplier=supplier, today_date=datetime.utcnow().strftime('%Y-%m-%d'))
+    return render_template('compliance/assessment_form.html', supplier=supplier, today_date=now().strftime('%Y-%m-%d'))
 
 @compliance_bp.route('/assessment/<int:id>')
 @requires_permission('compliance')
@@ -882,7 +884,7 @@ def log_bcdr_test(plan_id):
         return redirect(url_for('compliance.bcdr_test_log_detail', test_id=test_log.id))
     
     users = User.query.order_by(User.name).all()
-    return render_template('compliance/bcdr_test_log_form.html', plan=plan, today_date=datetime.utcnow().strftime('%Y-%m-%d'), users=users)
+    return render_template('compliance/bcdr_test_log_form.html', plan=plan, today_date=now().strftime('%Y-%m-%d'), users=users)
 
 @compliance_bp.route('/bcdr/test/<int:test_id>/edit', methods=['GET', 'POST'])
 @requires_permission('compliance')
@@ -1016,7 +1018,7 @@ def edit_incident(id):
         incident.third_party_impacted = 'third_party_impacted' in request.form
         incident.owner_id = request.form.get('owner_id') or None
         if incident.status == 'Closed' and not incident.resolved_at:
-            incident.resolved_at = datetime.utcnow()
+            incident.resolved_at = now()
         elif incident.status != 'Closed':
             incident.resolved_at = None
         incident.affected_assets = Asset.query.filter(Asset.id.in_(request.form.getlist('asset_ids'))).all()
@@ -1097,7 +1099,7 @@ def toggle_pir_lock(review_id):
     else:
         # Lock
         review.is_locked = True
-        review.locked_at = datetime.utcnow()
+        review.locked_at = now()
         review.locked_by_id = session.get('user_id')
         flash('Post-Incident Review has been finalized and locked.', 'success')
     
@@ -1186,7 +1188,7 @@ def export_pir_pdf(id):
         review=review,
         sorted_timeline=sorted_timeline,
         org_settings=org_settings,
-        generated_at=datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
+        generated_at=now().strftime('%Y-%m-%d %H:%M:%S'),
         generated_by=user.name if user else 'System'
     )
     
@@ -1426,10 +1428,14 @@ def link_control():
 def dashboard():
     """Displays the compliance dashboard with real-time status evaluation."""
     from src.services.compliance_service import get_compliance_evaluator
-    
+
     evaluator = get_compliance_evaluator()
+
+    # IMPORTANT: Only show active frameworks in dashboard (current compliance state)
+    # Historical audits (ComplianceAudit) can reference inactive frameworks as historical evidence
+    # This design allows companies to deactivate frameworks without losing historical audit data
     frameworks = Framework.query.filter_by(is_active=True).order_by(Framework.name).all()
-    
+
     # Build dashboard data with evaluated status for each framework
     dashboard_data = []
     for framework in frameworks:
@@ -1462,7 +1468,7 @@ def export_dashboard_pdf():
     html_content = render_template(
         'compliance/dashboard_pdf.html', 
         dashboard_data=dashboard_data,
-        generated_at=datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
+        generated_at=now().strftime('%Y-%m-%d %H:%M:%S'),
         generated_by=user.name if user else 'System'
     )
     
@@ -1858,7 +1864,7 @@ def uar_finding_resolve(id):
 
     finding.status = request.form.get('status')
     finding.resolution_notes = request.form.get('notes')
-    finding.resolved_at = datetime.utcnow()
+    finding.resolved_at = now()
     finding.assigned_to_id = session.get('user_id')
 
     db.session.commit()
@@ -1940,7 +1946,7 @@ def uar_findings_bulk_action():
         if action == 'mark_false_positive':
             for finding in findings:
                 finding.status = 'false_positive'
-                finding.resolved_at = datetime.utcnow()
+                finding.resolved_at = now()
                 finding.assigned_to_id = session.get('user_id')
                 finding.resolution_notes = data.get('notes', 'Marked as false positive via bulk action')
 
@@ -1977,7 +1983,7 @@ def uar_findings_bulk_action():
 
             for finding in findings:
                 finding.status = status
-                finding.resolved_at = datetime.utcnow()
+                finding.resolved_at = now()
                 finding.assigned_to_id = session.get('user_id')
                 finding.resolution_notes = notes
 
@@ -2055,7 +2061,7 @@ def uar_findings_bulk_action():
                 'message': f'{len(findings)} findings exported',
                 'count': len(findings),
                 'csv_data': csv_data,
-                'filename': f'uar_findings_{execution_id}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+                'filename': f'uar_findings_{execution_id}_{now().strftime("%Y%m%d_%H%M%S")}.csv'
             })
 
         else:

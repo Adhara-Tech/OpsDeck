@@ -1,4 +1,5 @@
 from datetime import datetime
+from src.utils.timezone_helper import now
 from sqlalchemy import and_
 from sqlalchemy.orm import foreign
 from ..extensions import db
@@ -20,7 +21,7 @@ class Attachment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     filename = db.Column(db.String(255), nullable=False) # Original filename
     secure_filename = db.Column(db.String(255), nullable=False, unique=True) # Stored filename
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
 
     linkable_id = db.Column(db.Integer, nullable=False)
     linkable_type = db.Column(db.String(50), nullable=False)
@@ -48,7 +49,7 @@ class Link(db.Model):
     name = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text)
     url = db.Column(db.String(512), nullable=False) # Mandatory URL
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
     
     # Propietario polimórfico (User o Group)
     owner_id = db.Column(db.Integer)
@@ -90,7 +91,7 @@ class Documentation(db.Model):
     name = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text)
     external_link = db.Column(db.String(512)) # Enlace externo
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
     
     # Propietario polimórfico (User o Group)
     owner_id = db.Column(db.Integer)
@@ -138,8 +139,8 @@ class CostCenter(db.Model):
     code = db.Column(db.String(50), unique=True, index=True, nullable=False)
     name = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
+    updated_at = db.Column(db.DateTime, default=lambda: now(), onupdate=lambda: now())
     
     def __repr__(self):
         return f'<CostCenter {self.code}>'
@@ -174,7 +175,7 @@ class OrganizationSettings(db.Model):
     primary_domain = db.Column(db.String(255))       # "opsdeck.com"
     logo_filename = db.Column(db.String(255))        # For PDF reports
     email_domains = db.Column(db.String(500))        # Comma-separated: "empresa.com,empresa.es"
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=lambda: now(), onupdate=lambda: now())
     
     def __repr__(self):
         return f'<OrganizationSettings {self.legal_name}>'

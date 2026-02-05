@@ -7,6 +7,8 @@ from ..models import db, Subscription, Supplier, Contact, PaymentMethod, Tag, Co
 from ..services.finance_service import get_conversion_rate
 from ..services.permissions_service import requires_permission
 from .main import login_required
+from src.utils.timezone_helper import today
+
 
 subscriptions_bp = Blueprint('subscriptions', __name__)
 
@@ -109,7 +111,25 @@ def new_subscription():
                 return redirect(url_for('subscriptions.subscriptions'))
         renewal_date = datetime.strptime(request.form['renewal_date'], '%Y-%m-%d').date()
         budget_id = request.form.get('budget_id') or None
-        
+
+        # Validate renewal_date is not too far in the past (prevents performance issues)
+        from datetime import timedelta
+        current_date = today()
+        days_in_past = (current_date - renewal_date).days if renewal_date < current_date else 0
+
+        if days_in_past > 365:
+            flash('Error: Renewal date cannot be more than 1 year in the past. Please use a more recent date.', 'danger')
+            return render_template('subscriptions/form.html',
+                                    suppliers=Supplier.query.order_by(Supplier.name).all(),
+                                    contacts=Contact.query.order_by(Contact.name).all(),
+                                    payment_methods=PaymentMethod.query.order_by(PaymentMethod.name).all(),
+                                    tags=Tag.query.order_by(Tag.name).all(),
+                                    software_items=software_items,
+                                    budgets=Budget.query.order_by(Budget.name).all(),
+                                    users=users)
+        elif days_in_past > 30:
+            flash(f'Warning: Renewal date is {days_in_past} days in the past. The next renewal will be calculated from this date.', 'warning')
+
         # Validate budget validity period if budget is selected
         if budget_id:
             budget = Budget.query.get(budget_id)
@@ -123,9 +143,33 @@ def new_subscription():
                                         software_items=software_items,
                                         budgets=Budget.query.order_by(Budget.name).all(),
                                         users=users)
-        
+
+        # Validate cost
+        try:
+            cost = float(request.form['cost'])
+            if cost <= 0:
+                flash('Error: Subscription cost must be greater than 0.', 'danger')
+                return render_template('subscriptions/form.html',
+                                        suppliers=Supplier.query.order_by(Supplier.name).all(),
+                                        contacts=Contact.query.order_by(Contact.name).all(),
+                                        payment_methods=PaymentMethod.query.order_by(PaymentMethod.name).all(),
+                                        tags=Tag.query.order_by(Tag.name).all(),
+                                        software_items=software_items,
+                                        budgets=Budget.query.order_by(Budget.name).all(),
+                                        users=users)
+        except (ValueError, KeyError):
+            flash('Error: Invalid cost value.', 'danger')
+            return render_template('subscriptions/form.html',
+                                    suppliers=Supplier.query.order_by(Supplier.name).all(),
+                                    contacts=Contact.query.order_by(Contact.name).all(),
+                                    payment_methods=PaymentMethod.query.order_by(PaymentMethod.name).all(),
+                                    tags=Tag.query.order_by(Tag.name).all(),
+                                    software_items=software_items,
+                                    budgets=Budget.query.order_by(Budget.name).all(),
+                                    users=users)
+
         user_id = request.form.get('user_id')
-        
+
         subscription = Subscription(
             name=request.form['name'],
             subscription_type=request.form['subscription_type'],
@@ -134,7 +178,7 @@ def new_subscription():
             renewal_period_type=request.form['renewal_period_type'],
             renewal_period_value=int(request.form.get('renewal_period_value', 1)),
             auto_renew='auto_renew' in request.form,
-            cost=float(request.form['cost']),
+            cost=cost,
             currency=request.form['currency'],
             supplier_id=request.form.get('supplier_id') or None,
             software_id=request.form.get('software_id') or None,
@@ -150,7 +194,7 @@ def new_subscription():
                 subscription.monthly_renewal_day = request.form.get('monthly_renewal_day')
 
         initial_cost = CostHistory(
-            subscription=subscription, cost=subscription.cost, currency=subscription.currency, changed_date=date.today()
+            subscription=subscription, cost=subscription.cost, currency=subscription.currency, changed_date=today()
         )
         db.session.add(initial_cost)
 
@@ -206,7 +250,26 @@ def edit_subscription(id):
                 return redirect(url_for('subscriptions.subscription_detail', id=id))
         renewal_date = datetime.strptime(request.form['renewal_date'], '%Y-%m-%d').date()
         budget_id = request.form.get('budget_id') or None
-        
+
+        # Validate renewal_date is not too far in the past (prevents performance issues)
+        from datetime import timedelta
+        current_date = today()
+        days_in_past = (current_date - renewal_date).days if renewal_date < current_date else 0
+
+        if days_in_past > 365:
+            flash('Error: Renewal date cannot be more than 1 year in the past. Please use a more recent date.', 'danger')
+            return render_template('subscriptions/form.html',
+                                    subscription=subscription,
+                                    suppliers=Supplier.query.order_by(Supplier.name).all(),
+                                    contacts=Contact.query.order_by(Contact.name).all(),
+                                    payment_methods=PaymentMethod.query.order_by(PaymentMethod.name).all(),
+                                    tags=Tag.query.order_by(Tag.name).all(),
+                                    software_items=software_items,
+                                    budgets=Budget.query.order_by(Budget.name).all(),
+                                    users=users)
+        elif days_in_past > 30:
+            flash(f'Warning: Renewal date is {days_in_past} days in the past. The next renewal will be calculated from this date.', 'warning')
+
         # Validate budget validity period if budget is selected
         if budget_id:
             budget = Budget.query.get(budget_id)
@@ -221,13 +284,38 @@ def edit_subscription(id):
                                         software_items=software_items,
                                         budgets=Budget.query.order_by(Budget.name).all(),
                                         users=users)
-        
-        new_cost = float(request.form['cost'])
+
+        # Validate cost
+        try:
+            new_cost = float(request.form['cost'])
+            if new_cost <= 0:
+                flash('Error: Subscription cost must be greater than 0.', 'danger')
+                return render_template('subscriptions/form.html',
+                                        subscription=subscription,
+                                        suppliers=Supplier.query.order_by(Supplier.name).all(),
+                                        contacts=Contact.query.order_by(Contact.name).all(),
+                                        payment_methods=PaymentMethod.query.order_by(PaymentMethod.name).all(),
+                                        tags=Tag.query.order_by(Tag.name).all(),
+                                        software_items=software_items,
+                                        budgets=Budget.query.order_by(Budget.name).all(),
+                                        users=users)
+        except (ValueError, KeyError):
+            flash('Error: Invalid cost value.', 'danger')
+            return render_template('subscriptions/form.html',
+                                    subscription=subscription,
+                                    suppliers=Supplier.query.order_by(Supplier.name).all(),
+                                    contacts=Contact.query.order_by(Contact.name).all(),
+                                    payment_methods=PaymentMethod.query.order_by(PaymentMethod.name).all(),
+                                    tags=Tag.query.order_by(Tag.name).all(),
+                                    software_items=software_items,
+                                    budgets=Budget.query.order_by(Budget.name).all(),
+                                    users=users)
+
         new_currency = request.form['currency']
 
         if subscription.cost != new_cost or subscription.currency != new_currency:
             cost_entry = CostHistory(
-                subscription_id=subscription.id, cost=new_cost, currency=new_currency, changed_date=date.today()
+                subscription_id=subscription.id, cost=new_cost, currency=new_currency, changed_date=today()
             )
             db.session.add(cost_entry)
 

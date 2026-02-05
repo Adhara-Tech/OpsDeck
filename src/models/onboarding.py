@@ -1,4 +1,5 @@
 from datetime import datetime
+from src.utils.timezone_helper import now
 from ..extensions import db
 
 # --- PLANTILLAS Y CONFIGURACIÓN ---
@@ -62,7 +63,7 @@ class OnboardingProcess(db.Model):
     pack_id = db.Column(db.Integer, db.ForeignKey('onboarding_pack.id'))
     pack = db.relationship('OnboardingPack')
     
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
     
     # Pre-assignment of roles (Manager & Buddy)
     assigned_manager_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
@@ -84,7 +85,7 @@ class OffboardingProcess(db.Model):
     departure_date = db.Column(db.Date, nullable=False)
     status = db.Column(db.String(50), default='In Progress') # In Progress, Completed
     notes = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
 
     # Relaciones
     user = db.relationship('User', foreign_keys=[user_id], backref='offboardings')

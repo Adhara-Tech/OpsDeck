@@ -1,9 +1,11 @@
 import calendar
 from datetime import datetime, date, timedelta
 from dateutil.relativedelta import relativedelta
-from sqlalchemy.orm import foreign
+from sqlalchemy.orm import foreign, validates
 from sqlalchemy import and_
 from ..extensions import db
+from src.utils.timezone_helper import today, now
+
 
 # Association table for Subscriptions and Tags
 subscription_tags = db.Table('subscription_tags',
@@ -46,7 +48,7 @@ class Supplier(db.Model):
     phone = db.Column(db.String(20))
     address = db.Column(db.Text)
     website = db.Column(db.String(255), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
     is_archived = db.Column(db.Boolean, default=False, nullable=False)
     compliance_status = db.Column(db.String(50), default='Pending')
     gdpr_dpa_signed = db.Column(db.Date, nullable=True)
@@ -82,7 +84,7 @@ class PurchaseCostHistory(db.Model):
     purchase_id = db.Column(db.Integer, db.ForeignKey('purchase.id'), nullable=False)
     action = db.Column(db.String(50), nullable=False)  # 'validated' or 'un-validated'
     cost = db.Column(db.Float)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, default=lambda: now())
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     user = db.relationship('User')
 
@@ -96,7 +98,7 @@ class Purchase(db.Model):
     supplier_id = db.Column(db.Integer, db.ForeignKey('supplier.id'))
     payment_method_id = db.Column(db.Integer, db.ForeignKey('payment_method.id'))
     budget_id = db.Column(db.Integer, db.ForeignKey('budget.id'))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
     is_archived = db.Column(db.Boolean, default=False, nullable=False)
 
     validated_cost = db.Column(db.Float, nullable=True)
@@ -166,9 +168,9 @@ class Budget(db.Model):
     amount = db.Column(db.Float, nullable=False)
     currency = db.Column(db.String(3), default='EUR')
     period = db.Column(db.String(50), nullable=False, default='One-time') # e.g., 'monthly', 'yearly'
-    valid_from = db.Column(db.Date, nullable=False, default=lambda: date(date.today().year, 1, 1))
-    valid_until = db.Column(db.Date, nullable=False, default=lambda: date(date.today().year, 12, 31))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    valid_from = db.Column(db.Date, nullable=False, default=lambda: today().replace(month=1, day=1))
+    valid_until = db.Column(db.Date, nullable=False, default=lambda: today().replace(month=12, day=31))
+    created_at = db.Column(db.DateTime, default=lambda: now())
     purchases = db.relationship('Purchase', backref='budget', lazy=True)
     subscriptions = db.relationship('Subscription', backref='budget', lazy=True)
     is_archived = db.Column(db.Boolean, default=False, nullable=False)
@@ -182,25 +184,114 @@ class Budget(db.Model):
         overlaps="compliance_links"
     )
 
+    @validates('amount')
+    def validate_amount(self, key, value):
+        """
+        Validate that budget amount is positive and non-zero.
+
+        Raises:
+            ValueError: If amount is <= 0
+        """
+        if value is not None and value <= 0:
+            raise ValueError(f"Budget amount must be greater than 0, got {value}")
+        return value
+
     def is_active(self, date_to_check=None):
         """
         Check if the budget is active on a given date.
-        
+
+        This method uses Date (not DateTime) comparisons because budgets are valid
+        for complete days, not specific hours. A budget is considered valid for the
+        entire duration of both valid_from and valid_until dates (inclusive on both sides).
+
+        Examples:
+            - Budget valid from 2024-01-01 to 2024-12-31
+            - A subscription renewing on 2024-01-01 → VALID (first day inclusive)
+            - A subscription renewing on 2024-12-31 → VALID (last day inclusive)
+            - A subscription renewing on 2025-01-01 → INVALID (outside period)
+
         Args:
-            date_to_check: Date to check (defaults to today)
-            
+            date_to_check: Date to check (defaults to today). Can be a date or datetime
+                          object (datetime will be converted to date for comparison)
+
         Returns:
-            True if date_to_check is between valid_from and valid_until (inclusive)
+            bool: True if date_to_check falls within the budget's validity period (inclusive)
         """
         if date_to_check is None:
-            date_to_check = date.today()
+            date_to_check = today()
+
+        # Convert datetime to date if necessary (for flexibility in calling code)
+        if isinstance(date_to_check, datetime):
+            date_to_check = date_to_check.date()
+
         return self.valid_from <= date_to_check <= self.valid_until
 
     @property
     def remaining(self):
-        # CORRECTED: Use the total_cost property from the Purchase model
+        """
+        Calculate remaining budget after purchases and subscription renewals.
+
+        For subscriptions, calculates all renewals that occur within the budget's
+        valid period (valid_from to valid_until).
+        """
+        from ..services.finance_service import get_conversion_rate
+
+        # Calculate spent from purchases
         spent = sum(purchase.total_cost for purchase in self.purchases)
+
+        # Calculate spent from subscriptions
+        # For each subscription, count all renewals within the budget period
+        for subscription in self.subscriptions:
+            if subscription.is_archived:
+                continue
+
+            # Convert subscription cost to budget currency
+            rate = get_conversion_rate(subscription.currency)
+            cost_in_budget_currency = subscription.cost * rate
+
+            # Count renewals within budget validity period
+            renewal_count = self._count_renewals_in_period(
+                subscription.renewal_date,
+                subscription.renewal_period_type,
+                subscription.renewal_period_value
+            )
+
+            spent += cost_in_budget_currency * renewal_count
+
         return self.amount - spent
+
+    def _count_renewals_in_period(self, renewal_date, period_type, period_value):
+        """
+        Count how many renewals occur within the budget's validity period.
+
+        Args:
+            renewal_date: Initial renewal date
+            period_type: 'monthly', 'yearly', or 'custom'
+            period_value: Number of months/years/days between renewals
+
+        Returns:
+            Number of renewals within the budget period
+        """
+        from dateutil.relativedelta import relativedelta
+        from datetime import timedelta
+
+        count = 0
+        current_renewal = renewal_date
+
+        # Only count renewals that fall within budget validity
+        while current_renewal <= self.valid_until:
+            if current_renewal >= self.valid_from:
+                count += 1
+
+            # Calculate next renewal date
+            if period_type == 'monthly':
+                current_renewal += relativedelta(months=+period_value)
+            elif period_type == 'yearly':
+                current_renewal += relativedelta(years=+period_value)
+            else:  # custom (days)
+                current_renewal += timedelta(days=period_value)
+
+        return count
 
 class CostHistory(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -208,7 +299,7 @@ class CostHistory(db.Model):
     cost = db.Column(db.Float, nullable=False)
     currency = db.Column(db.String(3), nullable=False)
     # The date this cost became effective
-    changed_date = db.Column(db.Date, nullable=False, default=date.today)
+    changed_date = db.Column(db.Date, nullable=False, default=lambda: today())
 
 class PaymentMethod(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -218,7 +309,7 @@ class PaymentMethod(db.Model):
     expiry_date = db.Column(db.Date)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     user = db.relationship('User', backref='payment_methods')
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
     is_archived = db.Column(db.Boolean, default=False, nullable=False)
 
 
@@ -279,9 +370,21 @@ class Subscription(db.Model):
     
     # Metadata
     is_archived = db.Column(db.Boolean, default=False, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+    created_at = db.Column(db.DateTime, default=lambda: now())
+    updated_at = db.Column(db.DateTime, default=lambda: now(), onupdate=lambda: now())
+
+    @validates('cost')
+    def validate_cost(self, key, value):
+        """
+        Validate that subscription cost is positive and non-zero.
+
+        Raises:
+            ValueError: If cost is <= 0
+        """
+        if value is not None and value <= 0:
+            raise ValueError(f"Subscription cost must be greater than 0, got {value}")
+        return value
+
     @property
     def cost_eur(self):
         from ..services.finance_service import get_conversion_rate
@@ -293,39 +396,81 @@ class Subscription(db.Model):
         """
         Calculates the next upcoming renewal date with advanced logic for
         specific monthly renewal days.
+
+        Optimized to avoid CPU-intensive loops when renewal_date is far in the past.
+
+        Returns:
+            date: Next renewal date, or None if auto_renew is False
         """
-        current_date = date.today()
+        # If auto-renewal is disabled, don't calculate next renewal
+        if not self.auto_renew:
+            return None
+
+        current_date = today()
         renewal_date = self.renewal_date
-        
-        while renewal_date < current_date:
-            if self.renewal_period_type == 'monthly':
-                # --- NEW: Advanced Monthly Logic ---
-                # Move to the next month(s) first
+
+        # If renewal_date is already in the future, return it
+        if renewal_date >= current_date:
+            return renewal_date
+
+        # OPTIMIZATION: Calculate periods mathematically instead of looping
+        # This prevents CPU-intensive loops when renewal_date is years in the past
+
+        if self.renewal_period_type == 'monthly':
+            # Calculate months difference
+            months_diff = (current_date.year - renewal_date.year) * 12 + \
+                         (current_date.month - renewal_date.month)
+
+            # Calculate how many renewal periods have passed
+            periods_passed = months_diff // self.renewal_period_value
+
+            # Jump to approximately the right date
+            renewal_date = renewal_date + relativedelta(months=+(periods_passed * self.renewal_period_value))
+
+            # Fine-tune: ensure we're at or past current_date
+            while renewal_date < current_date:
                 next_month = renewal_date + relativedelta(months=+self.renewal_period_value)
-                
+
                 day = next_month.day
                 if self.monthly_renewal_day:
                     if self.monthly_renewal_day == 'first':
                         day = 1
                     elif self.monthly_renewal_day == 'last':
-                        # Get the last day of that month
                         day = calendar.monthrange(next_month.year, next_month.month)[1]
                     else:
                         try:
-                            # Use the specific day, but ensure it's valid for that month
                             day = int(self.monthly_renewal_day)
                             last_day_of_month = calendar.monthrange(next_month.year, next_month.month)[1]
                             day = min(day, last_day_of_month)
                         except (ValueError, TypeError):
-                            pass # Fallback to original day if invalid
-                
+                            pass
+
                 renewal_date = next_month.replace(day=day)
 
-            elif self.renewal_period_type == 'yearly':
+        elif self.renewal_period_type == 'yearly':
+            # Calculate years difference
+            years_diff = current_date.year - renewal_date.year
+            periods_passed = years_diff // self.renewal_period_value
+
+            # Jump to approximately the right date
+            renewal_date = renewal_date + relativedelta(years=+(periods_passed * self.renewal_period_value))
+
+            # Fine-tune: ensure we're at or past current_date
+            while renewal_date < current_date:
                 renewal_date += relativedelta(years=+self.renewal_period_value)
-            else: # custom
+
+        else:  # custom (days)
+            # Calculate days difference
+            days_diff = (current_date - renewal_date).days
+            periods_passed = days_diff // self.renewal_period_value
+
+            # Jump to approximately the right date
+            renewal_date = renewal_date + timedelta(days=(periods_passed * self.renewal_period_value))
+
+            # Fine-tune: ensure we're at or past current_date
+            while renewal_date < current_date:
                 renewal_date += timedelta(days=self.renewal_period_value)
-        
+
         return renewal_date
     
 

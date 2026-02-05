@@ -15,6 +15,8 @@ from ..models.procurement import Subscription
 from ..models.services import BusinessService
 from ..models.communications import ScheduledCommunication, EmailTemplate
 from ..utils.uar_engine import AccessReviewEngine
+from src.utils.timezone_helper import now
+
 
 
 class UARAutomationService:
@@ -39,7 +41,7 @@ class UARAutomationService:
         execution = UARExecution(
             comparison_id=comparison.id,
             status='running',
-            started_at=datetime.utcnow()
+            started_at=now()
         )
         db.session.add(execution)
         db.session.flush()  # Get execution.id
@@ -94,13 +96,13 @@ class UARAutomationService:
             execution.right_only_count = len([r for r in results if r['finding_type'] == 'Right Only (B)'])
             execution.mismatch_count = len([r for r in results if r['finding_type'] == 'Mismatch'])
             execution.status = 'completed'
-            execution.completed_at = datetime.utcnow()
+            execution.completed_at = now()
 
             # Handle alerts
             self._handle_alerts(comparison, execution)
 
             # Update comparison metadata
-            comparison.last_run_at = datetime.utcnow()
+            comparison.last_run_at = now()
             if comparison.schedule_type != 'manual':
                 comparison.next_run_at = self._calculate_next_run(comparison)
 
@@ -120,7 +122,7 @@ class UARAutomationService:
         except Exception as e:
             execution.status = 'failed'
             execution.error_message = str(e)
-            execution.completed_at = datetime.utcnow()
+            execution.completed_at = now()
             db.session.commit()
             current_app.logger.error(f"[UAR] Execution {execution.id} failed: {e}", exc_info=True)
             raise
@@ -295,36 +297,156 @@ class UARAutomationService:
         comparison: UARComparison
     ) -> None:
         """
-        Convert comparison results to UARFinding records.
+        Convert comparison results to UARFinding records with deduplication.
+
+        Deduplication logic:
+        - Checks for existing open/acknowledged findings with same comparison, key, and type
+        - If found, updates the existing finding and links it to the new execution
+        - If not found, creates a new finding
+        - Auto-resolves findings from previous execution that are no longer present
 
         Args:
             execution: UARExecution instance
             results: List of comparison result dicts
             comparison: UARComparison instance
         """
+        # Get the previous execution for this comparison
+        previous_execution = UARExecution.query.filter(
+            UARExecution.comparison_id == comparison.id,
+            UARExecution.id != execution.id,
+            UARExecution.status == 'completed'
+        ).order_by(UARExecution.completed_at.desc()).first()
+
+        # Track which findings are still present in current execution
+        current_finding_keys = set()
+
         for result in results:
             severity = self._calculate_severity(result['finding_type'], comparison)
+            key_value = result['key']
+            finding_type = result['finding_type']
 
-            finding = UARFinding(
-                execution_id=execution.id,
-                finding_type=result['finding_type'],
-                severity=severity,
-                key_value=result['key'],
-                description=result['status'],
-                raw_data_a=self._extract_row_data(result, 'a_'),
-                raw_data_b=self._extract_row_data(result, 'b_'),
-                differences=self._extract_differences(result) if result['finding_type'] == 'Mismatch' else None,
-                status='open'
+            current_finding_keys.add((key_value, finding_type))
+
+            # Check if this finding already exists in previous executions
+            existing_finding = self._find_existing_finding(
+                comparison.id,
+                key_value,
+                finding_type
             )
 
-            # Try to link to affected user
-            if comparison.key_field_a == 'email' or comparison.key_field_b == 'email':
-                user = User.query.filter_by(email=result['key']).first()
-                if user:
-                    finding.affected_entity_type = 'user'
-                    finding.affected_entity_id = user.id
+            if existing_finding:
+                # Update existing finding
+                current_app.logger.debug(
+                    f"[UAR] Updating existing finding {existing_finding.id}: {key_value}"
+                )
+                existing_finding.execution_id = execution.id  # Link to new execution
+                existing_finding.severity = severity
+                existing_finding.description = result['status']
+                existing_finding.raw_data_a = self._extract_row_data(result, 'a_')
+                existing_finding.raw_data_b = self._extract_row_data(result, 'b_')
+                existing_finding.differences = self._extract_differences(result) if finding_type == 'Mismatch' else None
+                existing_finding.last_seen_at = now()
+                # Keep status unless it was resolved/false_positive
+                if existing_finding.status in ['resolved', 'false_positive']:
+                    existing_finding.status = 'open'  # Reopen if issue returned
+            else:
+                # Create new finding
+                current_app.logger.debug(
+                    f"[UAR] Creating new finding: {key_value}"
+                )
+                finding = UARFinding(
+                    execution_id=execution.id,
+                    finding_type=finding_type,
+                    severity=severity,
+                    key_value=key_value,
+                    description=result['status'],
+                    raw_data_a=self._extract_row_data(result, 'a_'),
+                    raw_data_b=self._extract_row_data(result, 'b_'),
+                    differences=self._extract_differences(result) if finding_type == 'Mismatch' else None,
+                    status='open',
+                    first_seen_at=now(),
+                    last_seen_at=now()
+                )
 
-            db.session.add(finding)
+                # Try to link to affected user
+                if comparison.key_field_a == 'email' or comparison.key_field_b == 'email':
+                    user = User.query.filter_by(email=result['key']).first()
+                    if user:
+                        finding.affected_entity_type = 'user'
+                        finding.affected_entity_id = user.id
+
+                db.session.add(finding)
+
+        # Auto-resolve findings from previous execution that are no longer present
+        if previous_execution:
+            self._auto_resolve_missing_findings(
+                previous_execution,
+                current_finding_keys,
+                execution
+            )
+
+    def _find_existing_finding(
+        self,
+        comparison_id: int,
+        key_value: str,
+        finding_type: str
+    ) -> Optional[UARFinding]:
+        """
+        Find an existing open/acknowledged finding for deduplication.
+
+        Args:
+            comparison_id: UARComparison ID
+            key_value: The key value to match
+            finding_type: The finding type to match
+
+        Returns:
+            UARFinding or None
+        """
+        # Find the most recent finding with matching key and type
+        # that is still open or acknowledged (not resolved/false_positive)
+        return UARFinding.query.join(UARExecution).filter(
+            UARExecution.comparison_id == comparison_id,
+            UARFinding.key_value == key_value,
+            UARFinding.finding_type == finding_type,
+            UARFinding.status.in_(['open', 'acknowledged'])
+        ).order_by(UARFinding.last_seen_at.desc()).first()
+
+    def _auto_resolve_missing_findings(
+        self,
+        previous_execution: UARExecution,
+        current_finding_keys: set,
+        current_execution: UARExecution
+    ) -> None:
+        """
+        Auto-resolve findings from previous execution that are no longer present.
+
+        Args:
+            previous_execution: Previous UARExecution instance
+            current_finding_keys: Set of (key_value, finding_type) tuples from current execution
+            current_execution: Current UARExecution instance
+        """
+        previous_findings = UARFinding.query.filter_by(
+            execution_id=previous_execution.id,
+            status='open'
+        ).all()
+
+        resolved_count = 0
+        for finding in previous_findings:
+            finding_key = (finding.key_value, finding.finding_type)
+            if finding_key not in current_finding_keys:
+                # Finding no longer present, auto-resolve
+                finding.status = 'resolved'
+                finding.resolution_notes = (
+                    f"Auto-resolved: No longer detected in execution {current_execution.id} "
+                    f"on {current_execution.started_at.strftime('%Y-%m-%d %H:%M UTC')}"
+                )
+                finding.resolved_at = now()
+                resolved_count += 1
+
+        if resolved_count > 0:
+            current_app.logger.info(
+                f"[UAR] Auto-resolved {resolved_count} findings that are no longer present"
+            )
 
     def _extract_row_data(self, result: Dict[str, Any], prefix: str) -> Optional[Dict[str, Any]]:
         """Extract row data from result dict based on prefix."""
@@ -382,14 +504,14 @@ class UARAutomationService:
         Returns:
             datetime: Next run time or None for manual
         """
-        now = datetime.utcnow()
+        current_time = now()
         schedule_type = comparison.schedule_type
         schedule_config = comparison.schedule_config or {}
 
         if schedule_type == 'daily':
             hour = schedule_config.get('hour', 8)
-            next_run = now.replace(hour=hour, minute=0, second=0, microsecond=0)
-            if next_run <= now:
+            next_run = current_time.replace(hour=hour, minute=0, second=0, microsecond=0)
+            if next_run <= current_time:
                 next_run += timedelta(days=1)
             return next_run
 
@@ -398,11 +520,11 @@ class UARAutomationService:
             day_of_week = schedule_config.get('day_of_week', 1)  # Monday=1
 
             # Calculate days until next occurrence
-            days_ahead = day_of_week - now.isoweekday()
+            days_ahead = day_of_week - current_time.isoweekday()
             if days_ahead <= 0:  # Target day already happened this week or today
                 days_ahead += 7
 
-            next_run = now + timedelta(days=days_ahead)
+            next_run = current_time + timedelta(days=days_ahead)
             next_run = next_run.replace(hour=hour, minute=0, second=0, microsecond=0)
             return next_run
 
@@ -411,17 +533,17 @@ class UARAutomationService:
             day_of_month = schedule_config.get('day_of_month', 1)
 
             # Start with the first of next month
-            if now.month == 12:
-                next_run = now.replace(year=now.year + 1, month=1, day=day_of_month, hour=hour, minute=0, second=0, microsecond=0)
+            if current_time.month == 12:
+                next_run = current_time.replace(year=current_time.year + 1, month=1, day=day_of_month, hour=hour, minute=0, second=0, microsecond=0)
             else:
-                next_run = now.replace(month=now.month + 1, day=day_of_month, hour=hour, minute=0, second=0, microsecond=0)
+                next_run = current_time.replace(month=current_time.month + 1, day=day_of_month, hour=hour, minute=0, second=0, microsecond=0)
 
             # If the target day already passed this month, use next month
-            if now.day >= day_of_month:
+            if current_time.day >= day_of_month:
                 return next_run
             else:
                 # Use this month
-                return now.replace(day=day_of_month, hour=hour, minute=0, second=0, microsecond=0)
+                return current_time.replace(day=day_of_month, hour=hour, minute=0, second=0, microsecond=0)
 
         return None  # Manual only
 
@@ -443,7 +565,7 @@ class UARAutomationService:
             try:
                 self._send_notifications(comparison, execution)
                 execution.alerts_sent = True
-                execution.alerts_sent_at = datetime.utcnow()
+                execution.alerts_sent_at = now()
                 current_app.logger.info(f"[UAR] Alerts sent for execution {execution.id}")
             except Exception as e:
                 current_app.logger.error(f"[UAR] Failed to send notifications: {e}", exc_info=True)
@@ -487,7 +609,7 @@ class UARAutomationService:
                 recipient_value=recipient_config.get('value'),
                 context=context,
                 status='pending',
-                send_at=datetime.utcnow()  # Send immediately
+                send_at=now()  # Send immediately
             )
             db.session.add(comm)
 
@@ -543,12 +665,12 @@ def run_scheduled_uar_comparisons(app: Flask) -> None:
         app: Flask application instance
     """
     with app.app_context():
-        now = datetime.utcnow()
+        current_time = now()
 
         # Find all enabled comparisons that are due
         comparisons = UARComparison.query.filter(
             UARComparison.is_enabled == True,
-            UARComparison.next_run_at <= now
+            UARComparison.next_run_at <= current_time
         ).all()
 
         current_app.logger.info(f"[UAR] Found {len(comparisons)} comparisons to execute")

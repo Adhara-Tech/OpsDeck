@@ -2,6 +2,8 @@ from datetime import datetime, date
 from sqlalchemy import and_
 from sqlalchemy.orm import foreign
 from ..extensions import db
+from src.utils.timezone_helper import today, now
+
 
 class Contract(db.Model):
     __tablename__ = 'contract'
@@ -31,7 +33,7 @@ class Contract(db.Model):
     renewal_notes = db.Column(db.Text)
     
     description = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
     
     # Relationships
     # 1. Polymorphic Attachments (Reuse existing system)
@@ -49,12 +51,12 @@ class Contract(db.Model):
         # Handle cases where dates might be None (though schema says nullable=False, nice to be safe)
         if not self.start_date or not self.end_date:
             return False
-        return self.start_date <= date.today() <= self.end_date
+        return self.start_date <= today() <= self.end_date
 
     @property
     def days_until_expiry(self):
         if not self.end_date: return 9999
-        return (self.end_date - date.today()).days
+        return (self.end_date - today()).days
 
 
 class ContractItem(db.Model):
@@ -70,7 +72,7 @@ class ContractItem(db.Model):
     item_id = db.Column(db.Integer, nullable=False)
     item_type = db.Column(db.String(50), nullable=False) # 'Asset', 'Subscription', 'License', 'BusinessService'
     
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
 
     @property
     def item(self):

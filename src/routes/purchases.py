@@ -5,6 +5,8 @@ from datetime import datetime
 from ..models import db, Purchase, Supplier, User, PaymentMethod, Tag, Budget, PurchaseCostHistory
 from .main import login_required
 from ..services.permissions_service import requires_permission, has_write_permission
+from src.utils.timezone_helper import now
+
 
 purchases_bp = Blueprint('purchases', __name__, url_prefix='/purchases')
 
@@ -124,7 +126,7 @@ def approve_purchase(id):
     purchase = Purchase.query.get_or_404(id)
     user_id = session.get('user_id')
     purchase.validated_cost = purchase.calculated_cost
-    purchase.cost_validated_at = datetime.utcnow()
+    purchase.cost_validated_at = now()
     purchase.cost_validated_by_id = user_id
     history_log = PurchaseCostHistory(
         purchase_id=id, action='Validated', cost=purchase.validated_cost, user_id=user_id

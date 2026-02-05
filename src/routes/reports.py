@@ -8,6 +8,8 @@ from ..models import db, Subscription, Asset, Supplier, User, Group, Peripheral,
 from ..services.finance_service import get_conversion_rate
 from .main import login_required
 from ..services.permissions_service import requires_permission
+from src.utils.timezone_helper import now, today
+
 
 reports_bp = Blueprint('reports', __name__)
 
@@ -15,8 +17,8 @@ reports_bp = Blueprint('reports', __name__)
 @login_required
 @requires_permission('core_inventory')
 def subscription_reports():
-    today = date.today()
-    selected_year = request.args.get('year', default=today.year, type=int)
+    local_today = today()
+    selected_year = request.args.get('year', default=local_today.year, type=int)
 
     all_active_subscriptions = Subscription.query.filter_by(is_archived=False).all()
 
@@ -51,7 +53,7 @@ def subscription_reports():
     type_data = [item[1] for item in subscriptions_by_type]
 
     # Chart 3 & 4: Historical Spending
-    monthly_start_date = (today.replace(day=1) - relativedelta(months=12))
+    monthly_start_date = (local_today.replace(day=1) - relativedelta(months=12))
     monthly_labels, monthly_costs = [], {}
     for i in range(13): # 13 months to cover the full range
         month_date = monthly_start_date + relativedelta(months=+i)
@@ -59,7 +61,7 @@ def subscription_reports():
         monthly_labels.append(month_date.strftime('%b %Y'))
         monthly_costs[year_month_key] = 0
 
-    yearly_start_date = today.replace(year=today.year - 4, month=1, day=1)
+    yearly_start_date = local_today.replace(year=local_today.year - 4, month=1, day=1)
     yearly_labels, yearly_costs = [], {}
     for i in range(5): # Last 5 years including current
         year_date = yearly_start_date + relativedelta(years=i)
@@ -72,7 +74,7 @@ def subscription_reports():
         while renewal < yearly_start_date:
              renewal = subscription.get_renewal_date_after(renewal)
 
-        while renewal <= today:
+        while renewal <= local_today:
             year_key = renewal.strftime('%Y')
             if year_key in yearly_costs:
                 yearly_costs[year_key] += subscription.cost_eur
@@ -87,7 +89,7 @@ def subscription_reports():
     yearly_data = [round(cost, 2) for cost in yearly_costs.values()]
 
     # Forecast Chart (Logic reused from dashboard)
-    forecast_start_date = today.replace(day=1)
+    forecast_start_date = local_today.replace(day=1)
     end_of_forecast_period = forecast_start_date + relativedelta(months=+13)
     forecast_labels, forecast_keys, forecast_costs = [], [], {}
     for i in range(13):
@@ -138,7 +140,7 @@ def asset_reports():
     status_data = [item[1] for item in assets_by_status]
 
     # --- Warranty Logic (Considering both Assets and Peripherals potentially) ---
-    today = date.today()
+    local_today = today()
     # Query only non-archived items with purchase_date and warranty_length
     all_assets_with_warranty = Asset.query.filter(
         not Asset.is_archived,
@@ -152,7 +154,7 @@ def asset_reports():
 
     warranty_active = 0
     for item in all_items_with_warranty:
-        if item.warranty_end_date and item.warranty_end_date > today:
+        if item.warranty_end_date and item.warranty_end_date > local_today:
             warranty_active += 1
 
     warranty_expired = len(all_items_with_warranty) - warranty_active
@@ -179,7 +181,7 @@ def assets_dashboard():
     from sqlalchemy.orm import joinedload
     from ..models.assets import MaintenanceLog
     
-    today = date.today()
+    local_today = today()
     
     # Single optimized query for all non-archived assets
     all_assets = Asset.query.filter(
@@ -206,7 +208,7 @@ def assets_dashboard():
             
             # Calculate depreciated value
             if asset.purchase_date:
-                months_old = (today - asset.purchase_date).days / 30.44
+                months_old = (local_today - asset.purchase_date).days / 30.44
                 depreciation_amount = (cost_eur / useful_life_months) * months_old
                 current_value = max(0.0, cost_eur - depreciation_amount)
                 total_current_value += current_value
@@ -218,7 +220,7 @@ def assets_dashboard():
     ages = []
     for asset in all_assets:
         if asset.purchase_date:
-            age_years = (today - asset.purchase_date).days / 365.25
+            age_years = (local_today - asset.purchase_date).days / 365.25
             ages.append(age_years)
     
     avg_fleet_age = round(sum(ages) / len(ages), 1) if ages else 0.0
@@ -228,7 +230,7 @@ def assets_dashboard():
     dead_stock_rate = round((in_stock_count / total_fleet * 100), 1) if total_fleet > 0 else 0.0
     
     # --- Health Metric 1: Breakdown Rate (last 12 months) ---
-    twelve_months_ago = today - relativedelta(months=12)
+    twelve_months_ago = local_today - relativedelta(months=12)
     
     # Get all repair maintenance logs from last 12 months
     repair_logs = MaintenanceLog.query.filter(
@@ -267,7 +269,7 @@ def assets_dashboard():
     
     for asset in all_assets:
         if asset.warranty_end_date:
-            days_until_expiry = (asset.warranty_end_date - today).days
+            days_until_expiry = (asset.warranty_end_date - local_today).days
             
             if 0 <= days_until_expiry <= 30:
                 warranty_30_days += 1
@@ -287,7 +289,7 @@ def assets_dashboard():
     eol_candidates = []
     for asset in all_assets:
         if asset.purchase_date:
-            age_years = (today - asset.purchase_date).days / 365.25
+            age_years = (local_today - asset.purchase_date).days / 365.25
             if age_years > 5:
                 eol_candidates.append(asset)
     
@@ -356,7 +358,7 @@ def assets_dashboard_pdf():
     from sqlalchemy.orm import joinedload
     from ..models.assets import MaintenanceLog
     
-    today = date.today()
+    local_today = today()
     
     # Re-fetch data (similar to dashboard but optimized for PDF)
     all_assets = Asset.query.filter(
@@ -380,7 +382,7 @@ def assets_dashboard_pdf():
             total_capex += cost_eur
             
             if asset.purchase_date:
-                months_old = (today - asset.purchase_date).days / 30.44
+                months_old = (local_today - asset.purchase_date).days / 30.44
                 depreciation_amount = (cost_eur / useful_life_months) * months_old
                 current_value = max(0.0, cost_eur - depreciation_amount)
                 total_current_value += current_value
@@ -388,7 +390,7 @@ def assets_dashboard_pdf():
                 total_current_value += cost_eur
     
     ages = [
-        (today - asset.purchase_date).days / 365.25
+        (local_today - asset.purchase_date).days / 365.25
         for asset in all_assets if asset.purchase_date
     ]
     avg_fleet_age = round(sum(ages) / len(ages), 1) if ages else 0.0
@@ -397,7 +399,7 @@ def assets_dashboard_pdf():
     dead_stock_rate = round((in_stock_count / total_fleet * 100), 1) if total_fleet > 0 else 0.0
     
     # Breakdown rate
-    twelve_months_ago = today - relativedelta(months=12)
+    twelve_months_ago = local_today - relativedelta(months=12)
     repair_logs = MaintenanceLog.query.filter(
         MaintenanceLog.event_type == 'Repair',
         MaintenanceLog.event_date >= twelve_months_ago,
@@ -427,7 +429,7 @@ def assets_dashboard_pdf():
     warranty_expiring_soon = []
     for asset in all_assets:
         if asset.warranty_end_date:
-            days_until_expiry = (asset.warranty_end_date - today).days
+            days_until_expiry = (asset.warranty_end_date - local_today).days
             if 0 <= days_until_expiry <= 90:
                 warranty_expiring_soon.append({
                     'asset': asset,
@@ -457,7 +459,7 @@ def assets_dashboard_pdf():
         lemons=lemons,
         warranty_expiring_soon=warranty_expiring_soon[:20],
         status_counts=status_counts,
-        generated_at=datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
+        generated_at=now().strftime('%Y-%m-%d %H:%M:%S'),
         generated_by=user.name if user else 'System'
     )
     
@@ -657,7 +659,7 @@ def depreciation_report():
 
     # --- Depreciation and Chart Calculations ---
     depreciation_results_display = [] # For the table display
-    today = date.today()
+    local_today = today()
     total_original_value_eur = 0.0
     total_depreciated_value_eur = 0.0
     depreciation_by_location = {} # Store {'Location Name': {'original': X, 'depreciated': Y}} in EUR
@@ -669,7 +671,7 @@ def depreciation_report():
         original_value_eur = cost * rate_to_eur
 
         if item.purchase_date: # Already filtered for purchase_date is not None
-            age_in_days = (today - item.purchase_date).days
+            age_in_days = (local_today - item.purchase_date).days
             age_in_years = age_in_days / 365.25 # Approximate years
 
             if depreciation_period <= 0: # Avoid division by zero

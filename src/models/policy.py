@@ -1,4 +1,5 @@
 from datetime import datetime
+from src.utils.timezone_helper import now
 from sqlalchemy.orm import foreign
 from sqlalchemy import and_
 from ..extensions import db
@@ -19,7 +20,7 @@ class Policy(db.Model):
     category = db.Column(db.String(100)) # e.g., 'IT Security', 'HR', 'General'
     description = db.Column(db.Text)
     link = db.Column(db.String(512))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
 
     # Relationship to its versions
     versions = db.relationship('PolicyVersion', backref='policy', lazy=True, cascade='all, delete-orphan')
@@ -61,4 +62,4 @@ class PolicyAcknowledgement(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     policy_version_id = db.Column(db.Integer, db.ForeignKey('policy_version.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    acknowledged_at = db.Column(db.DateTime, default=datetime.utcnow)
+    acknowledged_at = db.Column(db.DateTime, default=lambda: now())

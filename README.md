@@ -82,10 +82,6 @@ Python 3 + Flask, SQLAlchemy ORM, Bootstrap 5, APScheduler. Supports SQLite (dev
 
 **REST API** - Programmatic access to all platform functionality with bearer token authentication. OpenAPI documentation at `/swagger-ui`.
 
-## Enterprise Plugin
-
-LDAP/AD integration, SAML SSO, advanced analytics, multi-tenancy, and custom branding available under separate commercial license.
-
 ## License
 
 [Elastic License](./LICENSE) - Free to use and modify, restrictions on offering as a managed service.

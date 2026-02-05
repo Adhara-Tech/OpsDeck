@@ -33,6 +33,8 @@ limiter = Limiter(
 
 # --- CSRF Protection ---
 from flask_wtf.csrf import CSRFProtect
+from src.utils.timezone_helper import today
+
 csrf = CSRFProtect()
 
 # --- Content Security Policy ---
@@ -370,7 +372,7 @@ def create_app(test_config=None):
                 context = dict(
                     current_user=user, 
                     current_user_role=user.role, 
-                    today=date.today(),
+                    today=today(),
                     is_impersonating=is_impersonating
                 )
                 
@@ -384,7 +386,7 @@ def create_app(test_config=None):
         return dict(
             current_user=None, 
             current_user_role=None, 
-            today=date.today(),
+            today=today(),
             is_impersonating=False
         )
 
@@ -497,7 +499,10 @@ def create_app(test_config=None):
     # --- Scheduler and Notifications ---
     # Only start the scheduler if not in testing mode
     if not app.config.get('TESTING'):
-        scheduler = BackgroundScheduler()
+        from .utils.timezone_helper import get_timezone_name
+        app_timezone = get_timezone_name()
+
+        scheduler = BackgroundScheduler(timezone=app_timezone)
         scheduler.add_job(
             func=notifications.check_upcoming_renewals,
             args=[app],
@@ -523,7 +528,7 @@ def create_app(test_config=None):
             trigger="interval",
             minutes=5
         )
-        # Exchange rate sync - runs daily at 3:00 AM UTC
+        # Exchange rate sync - runs daily at 3:00 AM local time
         from .services.finance_service import update_exchange_rates
         def sync_exchange_rates():
             with app.app_context():
@@ -533,9 +538,10 @@ def create_app(test_config=None):
             trigger="cron",
             hour=3,
             minute=0,
+            timezone=app_timezone,
             id="sync_exchange_rates"
         )
-        # UAR automation - runs daily at 8:00 AM UTC
+        # UAR automation - runs daily at 8:00 AM local time
         from .services.uar_service import run_scheduled_uar_comparisons
         scheduler.add_job(
             func=run_scheduled_uar_comparisons,
@@ -543,10 +549,11 @@ def create_app(test_config=None):
             trigger="cron",
             hour=8,
             minute=0,
+            timezone=app_timezone,
             id="uar_scheduled_comparisons",
             replace_existing=True
         )
-        # Compliance drift detection - runs daily at 9:00 AM UTC
+        # Compliance drift detection - runs daily at 9:00 AM local time
         from .services.compliance_drift_service import run_drift_detection
         scheduler.add_job(
             func=run_drift_detection,
@@ -554,6 +561,7 @@ def create_app(test_config=None):
             trigger="cron",
             hour=9,
             minute=0,
+            timezone=app_timezone,
             id="compliance_drift_detection",
             replace_existing=True
         )

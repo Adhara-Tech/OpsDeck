@@ -8,6 +8,8 @@ RiskAssessment, UARExecution) and calculating SLA-based traffic-light status.
 """
 from typing import Dict, List, Any, Optional, Tuple
 from datetime import date, datetime, timedelta
+from src.utils.timezone_helper import now
+
 
 
 class ComplianceEvaluator:
@@ -88,7 +90,7 @@ class ComplianceEvaluator:
         try:
             # Calculate threshold date
             from dateutil.relativedelta import relativedelta
-            threshold_date = datetime.now() - relativedelta(months=months_lookback)
+            threshold_date = now() - relativedelta(months=months_lookback)
             
             # Dispatch based on target_model
             target_model = rule.target_model
@@ -896,7 +898,7 @@ class ComplianceEvaluator:
             - Yellow (warning): frequency_days < days_since <= (frequency + grace)
             - Red (non_compliant): days_since > (frequency + grace) OR no evidence
         """
-        today = datetime.now()
+        today = now()
         
         if not evidence or not evidence_date:
             # No evidence found = non-compliant

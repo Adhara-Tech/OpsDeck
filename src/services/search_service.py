@@ -15,6 +15,8 @@ from ..models.uar import UARExecution, UARFinding
 from ..models.security import Framework, FrameworkControl, ComplianceRule, SecurityIncident
 from ..models.procurement import Supplier, Subscription
 from ..models.services import BusinessService
+from src.utils.timezone_helper import now
+
 
 
 class SearchService:
@@ -393,7 +395,7 @@ class SearchService:
 
     def _get_date_range_presets(self) -> List[Dict[str, Any]]:
         """Get preset date range options."""
-        now = datetime.now()
+        now = now()
 
         return [
             {

@@ -7,6 +7,8 @@ from datetime import datetime
 from .extensions import db
 # Import all necessary models
 from .models import User, Asset, Peripheral, Location, Supplier, Contact, Software, Subscription, Budget, Risk, RiskCategory, AssetAssignment, PeripheralAssignment
+from src.utils.timezone_helper import now
+
 
 def validate_columns(reader, required_columns):
     """Checks if required columns exist in the CSV."""
@@ -264,7 +266,7 @@ def register_commands(app):
                         assignment = AssetAssignment(
                             asset_id=asset.id,
                             user_id=user_id,
-                            checked_out_date=datetime.utcnow(),
+                            checked_out_date=now(),
                             notes="Imported via CSV"
                         )
                         db.session.add(assignment)
@@ -338,7 +340,7 @@ def register_commands(app):
                         assignment = PeripheralAssignment(
                             peripheral_id=peripheral.id,
                             user_id=user_id,
-                            checked_out_date=datetime.utcnow(),
+                            checked_out_date=now(),
                             notes="Imported via CSV"
                         )
                         db.session.add(assignment)

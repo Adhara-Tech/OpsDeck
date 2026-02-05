@@ -14,6 +14,8 @@ from ..models.audits import ComplianceAudit
 from ..models.communications import EmailTemplate, ScheduledCommunication
 from ..models.auth import User
 from ..services.compliance_service import get_compliance_evaluator
+from src.utils.timezone_helper import now
+
 
 
 class ComplianceDrift:
@@ -108,7 +110,7 @@ class ComplianceDriftDetector:
 
         # Build snapshot data
         snapshot_data = {
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': now().isoformat(),
             'frameworks': {}
         }
 
@@ -136,7 +138,7 @@ class ComplianceDriftDetector:
         audit = ComplianceAudit(
             audit_type='drift_snapshot',
             snapshot_data=snapshot_data,
-            created_at=datetime.utcnow()
+            created_at=now()
         )
 
         db.session.add(audit)
@@ -168,7 +170,7 @@ class ComplianceDriftDetector:
         current_snapshot = self.capture_snapshot(framework_id)
 
         # Get previous snapshot
-        threshold_date = datetime.utcnow() - timedelta(hours=lookback_hours)
+        threshold_date = now() - timedelta(hours=lookback_hours)
         previous_audit = ComplianceAudit.query.filter(
             ComplianceAudit.audit_type == 'drift_snapshot',
             ComplianceAudit.created_at >= threshold_date,
@@ -210,7 +212,7 @@ class ComplianceDriftDetector:
             List of ComplianceDrift objects
         """
         drifts = []
-        timestamp = datetime.utcnow()
+        timestamp = now()
 
         # Compare each framework
         for framework_id_str, new_framework_data in new_snapshot['frameworks'].items():
@@ -273,7 +275,7 @@ class ComplianceDriftDetector:
         Returns:
             Timeline data with drift events
         """
-        threshold_date = datetime.utcnow() - timedelta(days=days)
+        threshold_date = now() - timedelta(days=days)
 
         # Get all snapshots for the period
         snapshots = ComplianceAudit.query.filter(
@@ -365,7 +367,7 @@ class ComplianceDriftDetector:
         medium = [d for d in regressions if d.severity == 'medium']
 
         alert = {
-            'timestamp': datetime.utcnow().isoformat(),
+            'timestamp': now().isoformat(),
             'total_regressions': len(regressions),
             'by_severity': {
                 'critical': len(critical),
@@ -422,7 +424,7 @@ class ComplianceDriftDetector:
             return
 
         # Calculate next scan time (daily at 9:00 AM UTC)
-        now = datetime.utcnow()
+        now = now()
         next_scan = now.replace(hour=9, minute=0, second=0, microsecond=0)
         if next_scan <= now:
             next_scan += timedelta(days=1)
@@ -432,7 +434,7 @@ class ComplianceDriftDetector:
             'regression_count': alert['total_regressions'],
             'total_changes': alert['total_regressions'] + len(alert.get('improvements', [])),
             'improvement_count': len(alert.get('improvements', [])),
-            'detection_time': datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC'),
+            'detection_time': now().strftime('%Y-%m-%d %H:%M UTC'),
             'critical_drifts': alert.get('critical_drifts', []),
             'high_drifts': alert.get('high_drifts', []),
             'dashboard_url': url_for('compliance.drift_dashboard', _external=True),
@@ -447,7 +449,7 @@ class ComplianceDriftDetector:
                 recipient_value=admin.email,
                 context=context,
                 status='pending',
-                send_at=datetime.utcnow()  # Send immediately
+                send_at=now()  # Send immediately
             )
             db.session.add(comm)
 

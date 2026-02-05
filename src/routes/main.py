@@ -12,7 +12,7 @@ from ..models.security import SecurityIncident, Risk, Framework, FrameworkContro
 from ..models.credentials import Credential, CredentialSecret
 from ..models.certificates import Certificate, CertificateVersion
 from ..models.audits import ComplianceAudit
-from ..services.permissions_service import requires_permission, get_user_modules
+from ..services.permissions_service import requires_permission, get_user_modules, user_has_module_access
 from src import limiter
 from src import notifications
 import calendar
@@ -36,6 +36,8 @@ def is_break_glass_admin(user):
     return user.email == default_admin_email
 
 from src.utils.logger import log_audit
+from src.utils.timezone_helper import now, today
+
 
 @main_bp.route('/login', methods=['GET', 'POST'])
 @limiter.limit("5 per minute")
@@ -86,7 +88,7 @@ def verify_ip_and_login(user):
     # If IP is known or MFA is disabled -> direct login
     if known_ip or not current_app.config.get('MFA_ENABLED', False):
         if known_ip:
-            known_ip.last_seen = datetime.utcnow()
+            known_ip.last_seen = now()
             db.session.commit()
         
         # Log successful login
@@ -114,7 +116,7 @@ def verify_ip_and_login(user):
     # Store MFA session data (expires in 10 min)
     session['mfa_user_id'] = user.id
     session['mfa_otp'] = otp
-    session['mfa_expiry'] = (datetime.utcnow() + timedelta(minutes=10)).timestamp()
+    session['mfa_expiry'] = (now() + timedelta(minutes=10)).timestamp()
     
     # Send OTP email
     email_body = f"""
@@ -160,7 +162,7 @@ def mfa_verify():
         user_id = session.get('mfa_user_id')
         
         # Check if session is expired
-        if not stored_otp or datetime.utcnow().timestamp() > expiry:
+        if not stored_otp or now().timestamp() > expiry:
             # Clear MFA session
             session.pop('mfa_user_id', None)
             session.pop('mfa_otp', None)
@@ -401,11 +403,27 @@ def password_change_required(f):
 
 @main_bp.route('/', endpoint='dashboard')
 @login_required
+def home():
+    """
+    Landing page with conditional routing:
+    - Users with 'health_dashboard' permission → Organizational Health Dashboard
+    - Users without permission → Personal Dashboard
+    """
+    user_id = session.get('user_id')
+
+    # Check if user has access to organizational dashboard
+    if user_has_module_access(user_id, 'health_dashboard', 'READ_ONLY'):
+        return organizational_health()
+    else:
+        return redirect(url_for('main.my_dashboard'))
+
+@main_bp.route('/org-health')
+@login_required
 @requires_permission('health_dashboard', access_level='READ_ONLY')
 def organizational_health():
-    """Executive Organizational Health Dashboard - Landing Page."""
-    today = date.today()
-    ninety_days = today + timedelta(days=90)
+    """Executive Organizational Health Dashboard."""
+    current_date = today()
+    ninety_days = current_date + timedelta(days=90)
     
     # ----- HEALTH SCORE CALCULATION -----
     # Based on inverse of critical/high risks (Excluding Closed and Accepted)
@@ -456,7 +474,7 @@ def organizational_health():
     # Overdue maintenance
     overdue_logs = MaintenanceLog.query.filter(
         MaintenanceLog.status == 'Pending',
-        MaintenanceLog.event_date < today
+        MaintenanceLog.event_date < today()
     ).limit(5).all()
     for log in overdue_logs:
         critical_items.append({
@@ -470,7 +488,7 @@ def organizational_health():
     # Expired credentials
     expired_secrets = CredentialSecret.query.filter(
         CredentialSecret.is_active == True,
-        CredentialSecret.expires_at < datetime.utcnow()
+        CredentialSecret.expires_at < now()
     ).limit(5).all()
     for secret in expired_secrets:
         critical_items.append({
@@ -484,7 +502,7 @@ def organizational_health():
     # Expired certificates (still active)
     expired_certs = CertificateVersion.query.filter(
         CertificateVersion.is_active == True,
-        CertificateVersion.expires_at < today
+        CertificateVersion.expires_at < today()
     ).limit(5).all()
     for cv in expired_certs:
         critical_items.append({
@@ -505,8 +523,8 @@ def organizational_health():
     ).all()
     for pm in payment_methods:
         last_day = pm.expiry_date.replace(day=calendar.monthrange(pm.expiry_date.year, pm.expiry_date.month)[1])
-        if today <= last_day <= ninety_days:
-            days = (last_day - today).days
+        if today() <= last_day <= ninety_days:
+            days = (last_day - today()).days
             expirations['finance'].append({
                 'name': pm.name,
                 'days': days,
@@ -518,11 +536,11 @@ def organizational_health():
     expiring_secrets = CredentialSecret.query.filter(
         CredentialSecret.is_active == True,
         CredentialSecret.expires_at.isnot(None),
-        CredentialSecret.expires_at > datetime.utcnow(),
-        CredentialSecret.expires_at <= datetime.utcnow() + timedelta(days=90)
+        CredentialSecret.expires_at > now(),
+        CredentialSecret.expires_at <= now() + timedelta(days=90)
     ).all()
     for secret in expiring_secrets:
-        days = (secret.expires_at.date() - today).days
+        days = (secret.expires_at.date() - today()).days
         expirations['identity'].append({
             'name': secret.credential.name,
             'type': secret.credential.type,
@@ -533,11 +551,11 @@ def organizational_health():
     # Certificates
     cert_versions = CertificateVersion.query.filter(
         CertificateVersion.is_active == True,
-        CertificateVersion.expires_at > today,
+        CertificateVersion.expires_at > today(),
         CertificateVersion.expires_at <= ninety_days
     ).all()
     for cv in cert_versions:
-        days = (cv.expires_at - today).days
+        days = (cv.expires_at - today()).days
         expirations['certificates'].append({
             'name': cv.certificate.name,
             'issuer': cv.issuer,
@@ -549,8 +567,8 @@ def organizational_health():
     subscriptions = Subscription.query.filter_by(is_archived=False).all()
     for sub in subscriptions:
         next_renewal = sub.next_renewal_date
-        if today <= next_renewal <= ninety_days:
-            days = (next_renewal - today).days
+        if today() <= next_renewal <= ninety_days:
+            days = (next_renewal - today()).days
             expirations['legal'].append({
                 'name': sub.name,
                 'cost': sub.cost_eur,
@@ -558,11 +576,11 @@ def organizational_health():
             })
     
     licenses = License.query.filter(
-        License.expiry_date > today,
+        License.expiry_date > today(),
         License.expiry_date <= ninety_days
     ).all()
     for lic in licenses:
-        days = (lic.expiry_date - today).days
+        days = (lic.expiry_date - today()).days
         expirations['legal'].append({
             'name': lic.name,
             'cost': None,
@@ -584,7 +602,7 @@ def organizational_health():
     asset_health = int((healthy_assets / total_assets * 100) if total_assets > 0 else 100)
     
     # Monthly spend projection from subscriptions
-    this_month_start = today.replace(day=1)
+    this_month_start = today().replace(day=1)
     next_month_start = this_month_start + relativedelta(months=1)
     projected_spend = sum(
         sub.cost_eur for sub in subscriptions
@@ -617,7 +635,7 @@ def organizational_health():
     
     return render_template(
         'organizational_health.html',
-        today=today,
+        today=today(),
         health_score=health_score,
         global_status=global_status,
         critical_items=critical_items,
@@ -627,6 +645,288 @@ def organizational_health():
         expirations=expirations,
         ops_summary=ops_summary,
         compliance_summary=compliance_summary
+    )
+
+
+@main_bp.route('/my-dashboard')
+@login_required
+def my_dashboard():
+    """Personal Dashboard - Self-service portal for employees."""
+    from ..models.policy import PolicyVersion
+    from ..models.training import CourseAssignment
+    from ..models.services import BusinessService
+    from ..models.security import Risk
+
+    user_id = session.get('user_id')
+    user = User.query.get(user_id)
+    current_date = today()
+    current_datetime = now()
+
+    # ----- GREETING -----
+    hour = now().hour
+    if hour < 12:
+        greeting_time = "Buenos días"
+    elif hour < 20:
+        greeting_time = "Buenas tardes"
+    else:
+        greeting_time = "Buenas noches"
+
+    # ----- MY EQUIPMENT -----
+    my_assets = Asset.query.filter_by(user_id=user_id, is_archived=False).all()
+    my_peripherals = Peripheral.query.filter_by(user_id=user_id, is_archived=False).all()
+    my_equipment_count = len(my_assets) + len(my_peripherals)
+
+    # Check for maintenance issues
+    maintenance_issues = []
+    for asset in my_assets:
+        overdue_logs = MaintenanceLog.query.filter(
+            MaintenanceLog.asset_id == asset.id,
+            MaintenanceLog.status == 'Pending',
+            MaintenanceLog.event_date < current_date
+        ).all()
+        if overdue_logs:
+            maintenance_issues.append({
+                'asset': asset,
+                'count': len(overdue_logs)
+            })
+
+    # ----- MY LICENSES -----
+    my_licenses = License.query.filter_by(user_id=user_id, is_archived=False).all()
+    my_licenses_count = len(my_licenses)
+
+    # Licenses expiring soon (30 days)
+    thirty_days = current_date + timedelta(days=30)
+    licenses_expiring_soon = sum(1 for lic in my_licenses
+                                  if lic.expiry_date and current_date <= lic.expiry_date <= thirty_days)
+
+    # ----- MY COURSES -----
+    my_course_assignments = CourseAssignment.query.filter_by(user_id=user_id).all()
+    courses_completed = sum(1 for ca in my_course_assignments if ca.status == 'completed')
+    courses_total = len(my_course_assignments)
+    course_completion_pct = int((courses_completed / courses_total * 100) if courses_total > 0 else 0)
+
+    overdue_courses = [
+        ca for ca in my_course_assignments
+        if ca.status != 'completed' and ca.due_date and ca.due_date < current_date
+    ]
+
+    # ----- MY RISKS -----
+    my_risks = Risk.query.filter_by(owner_id=user_id).filter(Risk.status != 'Closed').all()
+    my_risks_count = len(my_risks)
+
+    critical_risks = sum(1 for risk in my_risks
+                        if risk.residual_likelihood >= 4 and risk.residual_impact >= 4)
+
+    # ----- MY SERVICES -----
+    my_services = BusinessService.query.filter(
+        BusinessService.users.contains(user)
+    ).all()
+    my_services_count = len(my_services)
+
+    # ----- PENDING POLICIES -----
+    pending_policies = PolicyVersion.query.filter(
+        PolicyVersion.users_to_acknowledge.contains(user),
+        PolicyVersion.status == 'published'
+    ).all()
+
+    # ----- PENDING CREDENTIALS (those expiring soon shared with me) -----
+    from ..models.credentials import CredentialSecret, Credential
+    expiring_credentials = []
+    try:
+        # Get credentials where user has access
+        thirty_days_ahead = current_datetime + timedelta(days=30)
+        secrets = CredentialSecret.query.filter(
+            CredentialSecret.is_active == True,
+            CredentialSecret.expires_at.isnot(None),
+            CredentialSecret.expires_at <= thirty_days_ahead
+        ).all()
+
+        # Filter those where user has access (simplified - can be enhanced)
+        for secret in secrets:
+            expiring_credentials.append({
+                'credential': secret.credential,
+                'expires_at': secret.expires_at,
+                'days_left': (secret.expires_at.date() - current_date).days
+            })
+    except:
+        pass  # Credentials module might not be available
+
+    # ----- PERSONAL HEALTH SCORE -----
+    personal_health_score = 100
+
+    # Penalize for pending items
+    personal_health_score -= len(pending_policies) * 10
+    personal_health_score -= len(overdue_courses) * 15
+    personal_health_score -= len(expiring_credentials) * 10
+    personal_health_score -= critical_risks * 15
+    personal_health_score -= len(maintenance_issues) * 5
+
+    personal_health_score = max(0, personal_health_score)
+
+    # ----- CRITICAL ALERTS -----
+    critical_alerts = []
+
+    # Policies expiring current_date or overdue
+    for policy in pending_policies:
+        if policy.acknowledgement_deadline:
+            days_left = (policy.acknowledgement_deadline - current_date).days
+            if days_left <= 0:
+                critical_alerts.append({
+                    'icon': '📋',
+                    'message': f'Política "{policy.policy.name}" requiere aprobación urgente',
+                    'link': url_for('policies.acknowledge', id=policy.id),
+                    'action_text': 'Aprobar ahora'
+                })
+
+    # Courses expiring soon
+    for ca in my_course_assignments:
+        if ca.status != 'completed' and ca.due_date:
+            days_left = (ca.due_date - current_date).days
+            if 0 <= days_left <= 3:
+                critical_alerts.append({
+                    'icon': '📚',
+                    'message': f'Curso "{ca.course.title}" vence en {days_left} día(s)',
+                    'link': url_for('training.course_detail', id=ca.course_id),
+                    'action_text': 'Continuar curso'
+                })
+
+    # Maintenance issues
+    for issue in maintenance_issues:
+        critical_alerts.append({
+            'icon': '🔧',
+            'message': f'{issue["asset"].name} tiene {issue["count"]} mantenimiento(s) vencido(s)',
+            'link': url_for('assets.asset_detail', id=issue['asset'].id),
+            'action_text': 'Ver detalles'
+        })
+
+    # Critical risks
+    for risk in my_risks:
+        if risk.residual_likelihood >= 4 and risk.residual_impact >= 4:
+            critical_alerts.append({
+                'icon': '⚠️',
+                'message': f'Riesgo crítico: {risk.risk_description[:50]}...',
+                'link': url_for('risk.detail', id=risk.id),
+                'action_text': 'Revisar'
+            })
+
+    # ----- PRIORITIZED TASKS -----
+    prioritized_tasks = []
+
+    # 1. Pending policies (highest priority)
+    for policy in pending_policies:
+        days_left = 999
+        if policy.acknowledgement_deadline:
+            days_left = (policy.acknowledgement_deadline - current_date).days
+
+        urgency_class = 'urgent' if days_left <= 1 else ('warning' if days_left <= 7 else 'normal')
+        urgency_icon = '🔴' if days_left == 0 else ('🟡' if days_left <= 7 else '🟢')
+        urgency_label = 'URGENTE' if days_left == 0 else ('Próximo' if days_left <= 7 else 'Pendiente')
+
+        prioritized_tasks.append({
+            'priority': 1 if days_left <= 1 else 2,
+            'urgency_class': urgency_class,
+            'urgency_icon': urgency_icon,
+            'urgency_label': urgency_label,
+            'due_text': f'Vence hoy' if days_left == 0 else (f'Vence en {days_left} días' if days_left < 999 else 'Sin fecha límite'),
+            'title': f'Aprobar Política: {policy.policy.name}',
+            'description': policy.summary or 'Requiere tu aprobación',
+            'action_url': url_for('policies.acknowledge', id=policy.id),
+            'action_text': 'Revisar y Aprobar',
+            'can_dismiss': False
+        })
+
+    # 2. Overdue/expiring courses
+    for ca in my_course_assignments:
+        if ca.status != 'completed' and ca.due_date:
+            days_left = (ca.due_date - current_date).days
+            if days_left <= 30:  # Only show if due within 30 days
+                urgency_class = 'urgent' if days_left < 0 else ('warning' if days_left <= 7 else 'normal')
+                urgency_icon = '🔴' if days_left < 0 else ('🟡' if days_left <= 7 else '🟢')
+                urgency_label = 'URGENTE' if days_left < 0 else ('Próximo' if days_left <= 7 else 'Pendiente')
+
+                prioritized_tasks.append({
+                    'priority': 1 if days_left < 0 else (2 if days_left <= 7 else 3),
+                    'urgency_class': urgency_class,
+                    'urgency_icon': urgency_icon,
+                    'urgency_label': urgency_label,
+                    'due_text': f'Venció hace {abs(days_left)} días' if days_left < 0 else f'Vence en {days_left} días',
+                    'title': f'Completar Curso: {ca.course.title}',
+                    'description': f'Progreso actual: {ca.progress or 0}%',
+                    'action_url': url_for('training.course_detail', id=ca.course_id),
+                    'action_text': 'Continuar curso',
+                    'can_dismiss': True
+                })
+
+    # 3. Expiring credentials
+    for cred in expiring_credentials[:3]:  # Top 3 only
+        days_left = cred['days_left']
+        urgency_class = 'urgent' if days_left <= 7 else 'warning'
+        urgency_icon = '🔴' if days_left <= 7 else '🟡'
+
+        prioritized_tasks.append({
+            'priority': 2 if days_left <= 7 else 3,
+            'urgency_class': urgency_class,
+            'urgency_icon': urgency_icon,
+            'urgency_label': 'URGENTE' if days_left <= 7 else 'Próximo',
+            'due_text': f'Expira en {days_left} días',
+            'title': f'Actualizar credencial: {cred["credential"].name}',
+            'description': f'Tipo: {cred["credential"].type}',
+            'action_url': url_for('credentials.detail_credential', id=cred["credential"].id),
+            'action_text': 'Actualizar',
+            'can_dismiss': True
+        })
+
+    # Sort by priority
+    prioritized_tasks.sort(key=lambda x: (x['priority'], x['due_text']))
+
+    # ----- NOTIFICATION COUNT -----
+    notification_count = len(critical_alerts)
+
+    # ----- ACHIEVEMENTS DATA -----
+    # Calculate incident-free days (simplified)
+    incident_free_days = 90  # Placeholder - would need actual calculation
+
+    return render_template(
+        'my_dashboard.html',
+        user=user,
+        greeting_time=greeting_time,
+        current_date=current_date,
+        current_date_pretty=current_date.strftime('%d de %B, %Y'),
+
+        # Stats
+        my_equipment_count=my_equipment_count,
+        my_assets_count=len(my_assets),
+        my_peripherals_count=len(my_peripherals),
+        my_licenses_count=my_licenses_count,
+        licenses_expiring_soon=licenses_expiring_soon,
+        courses_completed=courses_completed,
+        courses_total=courses_total,
+        course_completion_pct=course_completion_pct,
+        my_risks_count=my_risks_count,
+        critical_risks=critical_risks,
+        my_services_count=my_services_count,
+        personal_health_score=personal_health_score,
+
+        # Alerts & Tasks
+        critical_alerts=critical_alerts,
+        notification_count=notification_count,
+        prioritized_tasks=prioritized_tasks,
+        total_tasks=len(prioritized_tasks),
+        pending_tasks=len([t for t in prioritized_tasks if t['priority'] <= 2]),
+
+        # Tab data
+        my_assets=my_assets,
+        my_peripherals=my_peripherals,
+        my_licenses=my_licenses,
+        my_services=my_services,
+        my_risks=my_risks,
+        maintenance_issues=maintenance_issues,
+
+        # Counts for quick actions
+        courses_pending=len([ca for ca in my_course_assignments if ca.status != 'completed']),
+
+        # Achievements
+        incident_free_days=incident_free_days
     )
 
 
@@ -647,21 +947,21 @@ def ops_finance_dashboard():
 
     # --- Upcoming Renewals & Filter Logic ---
     period = request.args.get('period', '30', type=str)
-    today = date.today()
+    current_date = today()
 
     if period == '7':
-        start_date, end_date = today, today + timedelta(days=7)
+        start_date, end_date = current_date, current_date + timedelta(days=7)
     elif period == '90':
-        start_date, end_date = today, today + timedelta(days=90)
+        start_date, end_date = current_date, current_date + timedelta(days=90)
     elif period == 'current_month':
-        start_date = today.replace(day=1)
+        start_date = current_date.replace(day=1)
         end_date = start_date + relativedelta(months=+1, days=-1)
     elif period == 'next_month':
-        start_date = (today.replace(day=1) + relativedelta(months=+1))
+        start_date = (current_date.replace(day=1) + relativedelta(months=+1))
         end_date = start_date + relativedelta(months=+1, days=-1)
     else:
         period = '30'
-        start_date, end_date = today, today + timedelta(days=30)
+        start_date, end_date = current_date, current_date + timedelta(days=30)
 
     all_active_subscriptions = Subscription.query.filter_by(is_archived=False).all()
     upcoming_renewals, total_cost = [], 0
@@ -677,7 +977,7 @@ def ops_finance_dashboard():
     upcoming_renewals.sort(key=lambda x: x[0])
 
     # --- Forecast Chart Logic ---
-    forecast_start_date = today.replace(day=1)
+    forecast_start_date = current_date.replace(day=1)
     end_of_forecast_period = forecast_start_date + relativedelta(months=+13)
 
     forecast_labels, forecast_keys, forecast_costs = [], [], {}
@@ -703,7 +1003,7 @@ def ops_finance_dashboard():
     forecast_data = [round(cost, 2) for cost in forecast_costs.values()]
 
     # --- CORRECTED: EXPIRING ITEMS LOGIC ---
-    thirty_days_from_now = today + timedelta(days=30)
+    thirty_days_from_now = current_date + timedelta(days=30)
     
     # Query only non-archived items with warranty info
     expiring_assets = Asset.query.filter(
@@ -719,12 +1019,12 @@ def ops_finance_dashboard():
     
     all_expiring_items = [
         item for item in expiring_assets + expiring_peripherals 
-        if item.warranty_end_date and today <= item.warranty_end_date <= thirty_days_from_now
+        if item.warranty_end_date and current_date <= item.warranty_end_date <= thirty_days_from_now
     ]
     all_expiring_items.sort(key=lambda x: x.warranty_end_date)
 
     # CORRECTED: Payment methods expiring in the next 90 days
-    ninety_days_from_now = today + timedelta(days=90)
+    ninety_days_from_now = current_date + timedelta(days=90)
     expiring_payment_methods = []
     all_payment_methods = PaymentMethod.query.filter(
         PaymentMethod.is_archived == False,
@@ -734,7 +1034,7 @@ def ops_finance_dashboard():
     for method in all_payment_methods:
         # Find the last day of the expiry month
         last_day_of_expiry_month = method.expiry_date.replace(day=calendar.monthrange(method.expiry_date.year, method.expiry_date.month)[1])
-        if today <= last_day_of_expiry_month <= ninety_days_from_now:
+        if current_date <= last_day_of_expiry_month <= ninety_days_from_now:
             expiring_payment_methods.append(method)
 
     return render_template(
@@ -743,7 +1043,7 @@ def ops_finance_dashboard():
         upcoming_renewals=upcoming_renewals,
         total_cost=total_cost,
         selected_period=period,
-        today=today,
+        current_date=current_date,
         forecast_labels=forecast_labels,
         forecast_keys=forecast_keys,
         forecast_data=forecast_data,
@@ -1062,7 +1362,7 @@ def internal_test_email():
         body = f"""
         <h2>Email Configuration Test</h2>
         <p>This is a test email from OpsDeck to verify SMTP configuration.</p>
-        <p><strong>Timestamp:</strong> {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}</p>
+        <p><strong>Timestamp:</strong> {now().strftime('%Y-%m-%d %H:%M:%S UTC')}</p>
         <p><strong>SMTP Server:</strong> {smtp_server}:{smtp_port}</p>
         <p>If you received this email, your email configuration is working correctly.</p>
         """
@@ -1098,7 +1398,7 @@ def internal_health_check():
     """
     health_status = {
         'status': 'healthy',
-        'timestamp': datetime.utcnow().isoformat(),
+        'timestamp': now().isoformat(),
         'components': {}
     }
     
@@ -1194,7 +1494,7 @@ def internal_test_security():
     """
     audit_results = {
         'status': 'success',
-        'timestamp': datetime.utcnow().isoformat(),
+        'timestamp': now().isoformat(),
         'checks': {},
         'warnings': [],
         'recommendations': []

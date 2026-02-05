@@ -1,4 +1,5 @@
 from datetime import datetime
+from src.utils.timezone_helper import now
 from ..extensions import db
 from .auth import User
 from .security import SecurityIncident
@@ -57,8 +58,8 @@ class UARComparison(db.Model):
     ai_task_id = db.Column(db.Integer, nullable=True)  # Will be FK to ai_task when implemented
 
     # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
+    updated_at = db.Column(db.DateTime, default=lambda: now(), onupdate=lambda: now())
 
     # Relationships
     executions = db.relationship('UARExecution', backref='comparison', lazy='dynamic', cascade='all, delete-orphan')
@@ -81,7 +82,7 @@ class UARExecution(db.Model):
 
     # Execution Status
     status = db.Column(db.String(20), default='running')  # 'running', 'completed', 'failed'
-    started_at = db.Column(db.DateTime, default=datetime.utcnow)
+    started_at = db.Column(db.DateTime, default=lambda: now())
     completed_at = db.Column(db.DateTime)
 
     # Data Snapshots (for audit trail)
@@ -147,7 +148,9 @@ class UARFinding(db.Model):
     security_incident_id = db.Column(db.Integer, db.ForeignKey('security_incident.id'), nullable=True)
 
     # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
+    first_seen_at = db.Column(db.DateTime)  # When this finding first appeared
+    last_seen_at = db.Column(db.DateTime)   # When this finding was last detected
 
     # Relationships
     assigned_to = db.relationship('User', foreign_keys=[assigned_to_id], backref='assigned_uar_findings')

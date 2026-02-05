@@ -13,6 +13,8 @@ from ..models.communications import EmailTemplate, PackCommunication, ScheduledC
 from ..utils.helpers import generate_secure_password
 from ..utils.communications_manager import trigger_workflow_communications, get_process_communications
 from .main import login_required
+from src.utils.timezone_helper import now, today
+
 
 onboarding_bp = Blueprint('onboarding', __name__)
 
@@ -557,7 +559,7 @@ def complete_process(type, id):
     else: # Offboarding
         process = OffboardingProcess.query.get_or_404(id)
         process.status = 'Completed'
-        process.departure_date = datetime.utcnow().date() # Fijar fecha real de cierre
+        process.departure_date = today() # Fijar fecha real de cierre
         
         # LÓGICA DE ARCHIVADO AUTOMÁTICO
         if process.user:
@@ -603,7 +605,7 @@ def revoke_service_access(process_id, item_id):
             
         # Mark item as completed
         item.is_completed = True
-        item.completed_at = datetime.utcnow()
+        item.completed_at = now()
         db.session.commit()
     else:
         flash('Service or User not found.', 'danger')
@@ -639,7 +641,7 @@ def revoke_subscription_access(process_id, item_id):
             flash(f'User was not in {subscription.name} (already removed?).', 'warning')
             
         item.is_completed = True
-        item.completed_at = datetime.utcnow()
+        item.completed_at = now()
         db.session.commit()
     else:
         flash('Subscription or User not found.', 'danger')
@@ -808,7 +810,7 @@ def add_user_to_course(process_id, item_id):
     # Check if user is already assigned to this course
     existing = CourseAssignment.query.filter_by(course_id=course.id, user_id=process.user.id).first()
     if not existing:
-        due_date = date.today() + timedelta(days=course.completion_days)
+        due_date = today() + timedelta(days=course.completion_days)
         assignment = CourseAssignment(course_id=course.id, user_id=process.user.id, due_date=due_date)
         db.session.add(assignment)
         flash(f'User {process.user.name} assigned to course {course.title}.', 'success')
@@ -1025,7 +1027,7 @@ def send_communication_now(id):
         
         if success:
             comm.status = 'sent'
-            comm.sent_at = datetime.utcnow()
+            comm.sent_at = now()
             flash(f'Email "{comm.template.name}" sent successfully to {comm.recipient_email}.', 'success')
         else:
             comm.status = 'failed'
