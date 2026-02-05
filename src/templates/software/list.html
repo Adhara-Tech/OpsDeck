@@ -11,6 +11,7 @@
 
 <div class="card">
     <div class="card-body">
+        {% if all_software.items %}
         <table class="table table-striped datatable">
             <thead>
                 <tr>
@@ -32,13 +33,17 @@
                     <td>{{ software.licenses.count() }}</td>
                     <td>{{ software.subscriptions.count() }}</td>
                 </tr>
-                {% else %}
-                <tr>
-                    <td colspan="6" class="text-center">No software found.</td>
-                </tr>
                 {% endfor %}
             </tbody>
         </table>
+        {% else %}
+        {% set icon = '💻' %}
+        {% set title = 'No Software Found' %}
+        {% set message = 'Add software products to track licenses and subscriptions.' %}
+        {% set action_url = url_for('software.add_software') if can_write('core_inventory') else none %}
+        {% set action_text = 'Add First Software' %}
+        {% include 'components/empty_state.html' %}
+        {% endif %}
     </div>
 </div>
 {% endblock %}

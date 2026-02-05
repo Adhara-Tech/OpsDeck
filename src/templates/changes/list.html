@@ -37,6 +37,7 @@
         </div>
     </div>
     <div class="card-body">
+        {% if changes %}
         <div class="table-responsive">
             <table class="table table-striped datatable">
                 <thead>
@@ -124,7 +125,7 @@
                                 <i class="fas fa-eye"></i>
                             </a>
                             {% if can_write('operations') %}
-                            <a href="{{ url_for('changes.edit_change', id=change.id) }}"
+                            <a href="{{ url_for('changes.detail_change', id=change.id) }}"
                                 class="btn btn-sm btn-outline-secondary" title="Edit">
                                 <i class="fas fa-edit"></i>
                             </a>
@@ -135,6 +136,14 @@
                 </tbody>
             </table>
         </div>
+        {% else %}
+        {% set icon = '🔄' %}
+        {% set title = 'No Change Requests Found' %}
+        {% set message = 'Manage infrastructure changes with proper approval workflows.' %}
+        {% set action_url = url_for('changes.new_change') if can_write('operations') else none %}
+        {% set action_text = 'Create First Change' %}
+        {% include 'components/empty_state.html' %}
+        {% endif %}
     </div>
 </div>
 {% endblock %}

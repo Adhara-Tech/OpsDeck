@@ -11,6 +11,7 @@
 </div>
 <div class="card">
     <div class="card-body">
+        {% if policies %}
         <div class="list-group">
             {% for policy in policies %}
             <a href="{{ url_for('policies.detail', id=policy.id) }}" class="list-group-item list-group-item-action">
@@ -40,10 +41,16 @@
                     </div>
                 </div>
             </a>
-            {% else %}
-            <div class="text-center p-4">No policies found.</div>
             {% endfor %}
         </div>
+        {% else %}
+        {% set icon = '📚' %}
+        {% set title = 'No Policies Found' %}
+        {% set message = 'Create company policies to establish guidelines and procedures.' %}
+        {% set action_url = url_for('policies.new_policy') if can_write('knowledge_policy') else none %}
+        {% set action_text = 'Create First Policy' %}
+        {% include 'components/empty_state.html' %}
+        {% endif %}
     </div>
 </div>
 {% endblock %}

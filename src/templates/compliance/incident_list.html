@@ -17,6 +17,7 @@
 
 <div class="card">
     <div class="card-body">
+        {% if incidents %}
         <table class="table table-striped datatable" id="incidents-table">
             <thead>
                 <tr>
@@ -56,13 +57,17 @@
                         {% endif %}
                     </td>
                 </tr>
-                {% else %}
-                <tr>
-                    <td colspan="7" class="text-center">No security incidents have been logged.</td>
-                </tr>
                 {% endfor %}
             </tbody>
         </table>
+        {% else %}
+        {% set icon = '⚠️' %}
+        {% set title = 'No Security Incidents Logged' %}
+        {% set message = 'Track and manage security incidents for compliance and reporting.' %}
+        {% set action_url = url_for('compliance.new_incident') if can_write('compliance') else none %}
+        {% set action_text = 'Log First Incident' %}
+        {% include 'components/empty_state.html' %}
+        {% endif %}
     </div>
 </div>
 {% endblock %}

@@ -10,6 +10,7 @@
 
 <div class="card">
     <div class="card-body">
+        {% if licenses.items %}
         <table class="table table-striped datatable">
             <thead>
                 <tr>
@@ -41,13 +42,17 @@
                     <td>{{ license.expiry_date.strftime('%Y-%m-%d') if license.expiry_date else 'Perpetual' }}</td>
                     <td>{{ license.currency }} {{ "%.2f"|format(license.cost) if license.cost else '' }}</td>
                 </tr>
-                {% else %}
-                <tr>
-                    <td colspan="6" class="text-center">No licenses found.</td>
-                </tr>
                 {% endfor %}
             </tbody>
         </table>
+        {% else %}
+        {% set icon = '🎓' %}
+        {% set title = 'No Licenses Found' %}
+        {% set message = 'Track software licenses and their assignments to users.' %}
+        {% set action_url = url_for('licenses.add_license') if can_write('access_control') else none %}
+        {% set action_text = 'Add First License' %}
+        {% include 'components/empty_state.html' %}
+        {% endif %}
     </div>
 </div>
 {% endblock %}
