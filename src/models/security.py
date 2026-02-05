@@ -4,6 +4,7 @@ from sqlalchemy import and_
 from ..extensions import db
 from .core import Attachment, Tag
 from .auth import User
+from src.utils.timezone_helper import today, now
 
 class ComplianceLink(db.Model):
     """
@@ -107,7 +108,7 @@ class SecurityIncident(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text, nullable=False)
-    incident_date = db.Column(db.DateTime, default=datetime.utcnow)
+    incident_date = db.Column(db.DateTime, default=lambda: now())
     status = db.Column(db.String(50), default='Investigating') # Investigating, Contained, Resolved, Closed
     severity = db.Column(db.String(50), default='SEV-3') # SEV-0 (Critical) to SEV-3 (Low)
     impact = db.Column(db.String(50), default='Minor') # Minor, Moderate, Significant, Extensive
@@ -115,7 +116,7 @@ class SecurityIncident(db.Model):
     third_party_impacted = db.Column(db.Boolean, default=False)
     review = db.relationship('PostIncidentReview', backref='incident', uselist=False, cascade='all, delete-orphan')
     
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
     resolved_at = db.Column(db.DateTime)
     
     # Relationships
@@ -159,8 +160,8 @@ class PostIncidentReview(db.Model):
     response = db.Column(db.Text)
     recovery = db.Column(db.Text)
     lessons_learned = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
+    updated_at = db.Column(db.DateTime, default=lambda: now(), onupdate=lambda: now())
     
     # Locking mechanism for finalized reports
     is_locked = db.Column(db.Boolean, default=False, nullable=False)
@@ -184,7 +185,7 @@ class RiskAffectedItem(db.Model):
     risk_id = db.Column(db.Integer, db.ForeignKey('risk.id'), nullable=False)
     linkable_type = db.Column(db.String(50), nullable=False)
     linkable_id = db.Column(db.Integer, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
 
     @property
     def item(self):
@@ -239,7 +240,7 @@ class RiskReference(db.Model):
     risk_id = db.Column(db.Integer, db.ForeignKey('risk.id'), nullable=False)
     linkable_type = db.Column(db.String(50), nullable=False)  # 'Policy', 'Documentation', 'Link'
     linkable_id = db.Column(db.Integer, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
 
     @property
     def item(self):
@@ -367,7 +368,7 @@ class Risk(db.Model):
     
     mitigation_plan = db.Column(db.Text)
     
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
     link = db.Column(db.String(512))
     
     # Relationships
@@ -425,7 +426,7 @@ class Risk(db.Model):
 
     @property
     def is_overdue(self):
-        if self.next_review_date and self.next_review_date < date.today():
+        if self.next_review_date and self.next_review_date < today():
             return True
         return False
 
@@ -468,7 +469,7 @@ class RiskHistory(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     risk_id = db.Column(db.Integer, db.ForeignKey('risk.id'), nullable=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    timestamp = db.Column(db.DateTime, default=lambda: now(), nullable=False)
     field_changed = db.Column(db.String(100), nullable=False)
     old_value = db.Column(db.String(500))
     new_value = db.Column(db.String(500))
@@ -484,6 +485,7 @@ class RiskHistory(db.Model):
 # --- Event Listener for Risk Audit Trail ---
 from sqlalchemy import event
 from flask import session as flask_session, has_request_context
+
 
 # Fields to track for audit
 RISK_TRACKED_FIELDS = [
@@ -529,7 +531,7 @@ def risk_before_update(mapper, connection, target):
 
 class SecurityAssessment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    assessment_date = db.Column(db.Date, nullable=False, default=date.today)
+    assessment_date = db.Column(db.Date, nullable=False, default=lambda: today())
     status = db.Column(db.String(50), default='Pending Review') # Pending Review, Approved, Rejected
     notes = db.Column(db.Text)
     
@@ -551,7 +553,7 @@ class AssetInventory(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
     conducted_by_user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     is_completed = db.Column(db.Boolean, default=False)
 
@@ -572,7 +574,7 @@ class AssetInventoryItem(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id')) # The user assigned at time of inventory
     status = db.Column(db.String(50), nullable=False) # e.g., 'Verified', 'Flagged'
     notes = db.Column(db.Text)
-    event_time = db.Column(db.DateTime, default=datetime.utcnow)
+    event_time = db.Column(db.DateTime, default=lambda: now())
 
     # Relationships to get details in templates
     asset = db.relationship('Asset')
@@ -706,8 +708,8 @@ class ComplianceRule(db.Model):
     
     # State
     enabled = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
+    updated_at = db.Column(db.DateTime, default=lambda: now(), onupdate=lambda: now())
     
     # Relationships
     control = db.relationship('FrameworkControl', backref=db.backref('rules', lazy='dynamic'))

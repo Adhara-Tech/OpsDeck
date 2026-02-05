@@ -6,6 +6,8 @@ from ..models import db, Peripheral, Asset, Purchase, Supplier, User, Peripheral
 from ..models.core import CustomFieldDefinition
 from .main import login_required
 from ..services.permissions_service import requires_permission
+from src.utils.timezone_helper import now
+
 
 peripherals_bp = Blueprint('peripherals', __name__)
 
@@ -212,7 +214,7 @@ def checkin_peripheral(id):
     assignment = PeripheralAssignment.query.filter_by(peripheral_id=id, checked_in_date=None).order_by(PeripheralAssignment.checked_out_date.desc()).first()
     
     if assignment:
-        assignment.checked_in_date = datetime.utcnow()
+        assignment.checked_in_date = now()
 
     flash(f'Peripheral "{peripheral.name}" has been checked in from {peripheral.user.name} to {target_location.name}.', 'success')
     peripheral.user = None

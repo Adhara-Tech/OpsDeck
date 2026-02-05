@@ -1,6 +1,6 @@
-# Workflows
+# OpsDeck Operational Workflows
 
-OpsDeck is designed around several key operational workflows.
+This document describes the primary workflows implemented in OpsDeck and how different modules interact to support IT operations and governance.
 
 ## Asset Lifecycle Management
 
@@ -95,3 +95,71 @@ OpsDeck is designed around several key operational workflows.
 2.  **Investigation**: Evidence gathered, affected assets linked.
 3.  **Resolution**: Root cause identified, status "Resolved".
 4.  **Review**: Post-Incident Review (PIR), lessons learned.
+
+## User Access Review (UAR) Automation
+
+1.  **Comparison Setup**:
+    *   Define a **UARComparison** with two datasets (e.g., HRIS vs. Identity Provider).
+    *   Configure data sources (CSV upload, database query, API endpoint).
+    *   Map fields for comparison (email, employee_id, etc.).
+
+2.  **Scheduled Execution**:
+    *   Comparisons can be scheduled (daily, weekly, monthly).
+    *   APScheduler triggers **UARExecution** automatically.
+    *   Data is loaded from configured sources and compared.
+
+3.  **Finding Detection**:
+    *   **UARFinding** records are created for discrepancies:
+        *   **Mismatch**: Record exists in both but fields differ.
+        *   **Orphan**: Record exists in system A but not B.
+        *   **Missing**: Record exists in system B but not A.
+    *   Each finding includes severity, affected user, and detailed comparison data.
+
+4.  **Finding Management**:
+    *   Findings can be marked as false positives.
+    *   Bulk operations: assign, resolve, create incidents, export.
+    *   Visual diff viewer shows field-by-field changes for mismatches.
+    *   Comments and status tracking for resolution workflow.
+
+5.  **Compliance Integration**:
+    *   UAR findings can be linked to compliance controls.
+    *   Regular UAR execution provides evidence for access governance requirements.
+    *   Findings feed into compliance status for frameworks like SOC 2.
+
+## Compliance Drift Detection
+
+1.  **Snapshot Capture**:
+    *   Daily automated snapshots of compliance status for all frameworks.
+    *   Captures control status (compliant, manual, warning, non-compliant, uncovered).
+    *   Manual snapshot creation available via UI.
+
+2.  **Drift Analysis**:
+    *   Compares consecutive snapshots to detect changes.
+    *   Identifies **regressions** (status worsened) and **improvements**.
+    *   Assigns severity: critical (non-compliant), high (warning), medium (other regressions).
+
+3.  **Timeline Visualization**:
+    *   Drift dashboard displays timeline of changes over configurable periods.
+    *   Statistics cards show total regressions, improvements, and net change.
+    *   Event details modal provides control-by-control breakdown.
+
+4.  **Alerting**:
+    *   Automatic alerts when critical regressions are detected.
+    *   Logged to application logs for monitoring integration.
+    *   Future: email/Slack notifications for immediate response.
+
+## Universal Search
+
+1.  **Query Execution**:
+    *   Users enter search query in universal search interface.
+    *   Search executes across configured entity types (assets, users, findings, incidents, etc.).
+    *   Results grouped by entity type with result counts.
+
+2.  **Faceted Filtering**:
+    *   Dynamic filters based on search results (status, severity, date ranges).
+    *   Entity type selection to narrow search scope.
+    *   Filter application triggers new search with updated parameters.
+
+3.  **Saved Searches**:
+    *   Users can save frequently-used searches with filters.
+    *   Saved searches accessible from sidebar for quick re-execution.

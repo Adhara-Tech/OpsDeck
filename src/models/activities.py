@@ -2,6 +2,7 @@ from datetime import datetime, date
 from sqlalchemy.orm import foreign
 from sqlalchemy import and_
 from ..extensions import db
+from src.utils.timezone_helper import today, now
 
 # --- Association Tables for Security Activities ---
 
@@ -31,7 +32,7 @@ class ActivityRelatedObject(db.Model):
     activity_id = db.Column(db.Integer, db.ForeignKey('security_activity.id'), nullable=False)
     related_object_id = db.Column(db.Integer, nullable=False, index=True)
     related_object_type = db.Column(db.String(50), nullable=False, index=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
     
     # Relationship back to the activity
     activity = db.relationship('SecurityActivity', backref='related_object_links')
@@ -78,7 +79,7 @@ class SecurityActivity(db.Model):
     name = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text)
     frequency = db.Column(db.String(50))  # 'monthly', 'quarterly', 'annual', etc.
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
     
     # Polymorphic owner (User or Group) - following Link pattern from core.py
     owner_id = db.Column(db.Integer)
@@ -133,10 +134,10 @@ class ActivityExecution(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     activity_id = db.Column(db.Integer, db.ForeignKey('security_activity.id'), nullable=False)
     executor_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    execution_date = db.Column(db.Date, nullable=False, default=date.today)
+    execution_date = db.Column(db.Date, nullable=False, default=lambda: today())
     status = db.Column(db.String(50), nullable=False)  # 'in_progress', 'success', 'failed', 'issue_detected'
     outcome_notes = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
     
     # Relationships
     executor = db.relationship('User', foreign_keys=[executor_id])

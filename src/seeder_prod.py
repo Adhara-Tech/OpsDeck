@@ -952,6 +952,112 @@ def seed_notification_templates():
     This is an automated notification from OpsDeck Compliance Monitoring.
 </p>
             """
+        ),
+        (
+            "UAR Alert - Findings Detected",
+            "🔍 User Access Review Alert: {{ findings_count }} findings detected in {{ comparison_name }}",
+            """
+<h2 style="color: #dc3545;">⚠️ User Access Review Alert</h2>
+<p>Hello,</p>
+<p>An automated User Access Review has been completed with <strong style="color: #dc3545;">{{ findings_count }} findings</strong> requiring attention.</p>
+
+<div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0; border-left: 4px solid #dc3545;">
+    <strong>Comparison:</strong> {{ comparison_name }}<br>
+    <strong>Execution Date:</strong> {{ execution_date }}<br>
+    <strong>Total Findings:</strong> {{ findings_count }}<br>
+    <hr style="margin: 10px 0; border: none; border-top: 1px solid #dee2e6;">
+    <strong>Breakdown:</strong>
+    <ul style="margin: 10px 0; padding-left: 20px;">
+        <li><strong>Missing in Target System (Left Only):</strong> {{ left_only_count }} - Users expected but not found in target system</li>
+        <li><strong>Unauthorized Access (Right Only):</strong> <span style="color: #dc3545; font-weight: bold;">{{ right_only_count }}</span> - Users in target system but not authorized</li>
+        <li><strong>Attribute Mismatches:</strong> {{ mismatch_count }} - Users exist in both but with different attributes</li>
+    </ul>
+</div>
+
+<p><strong>Required Action:</strong> Please review the findings and take appropriate action. High-severity findings may indicate unauthorized access or security policy violations.</p>
+
+<p>
+    <a href="{{ execution_url }}" style="display: inline-block; background: #0d6efd; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 10px;">
+        View Detailed Findings Report
+    </a>
+</p>
+
+<div style="background: #fff3cd; padding: 10px; border-radius: 5px; margin: 15px 0; border: 1px solid #ffeeba;">
+    <strong>⚠️ Security Note:</strong> Right Only (Unauthorized Access) findings are marked as <span style="color: #dc3545;">CRITICAL</span> severity and require immediate investigation. These represent users who have access to systems but are not in the authoritative source.
+</div>
+
+<p style="color: #6c757d; font-size: 12px; margin-top: 20px;">
+    This is an automated notification from OpsDeck User Access Review Automation.<br>
+    To modify alert settings, please update the UAR comparison configuration.
+</p>
+            """
+        ),
+        (
+            "Compliance Drift Alert - Regressions Detected",
+            "🚨 Compliance Drift Alert: {{ regression_count }} control(s) regressed",
+            """
+<h2 style="color: #dc3545;">⚠️ Compliance Drift Alert</h2>
+<p>Hello,</p>
+<p>Automated compliance monitoring has detected <strong style="color: #dc3545;">{{ regression_count }} control regression(s)</strong> in your compliance frameworks.</p>
+
+<div style="background: #f8d7da; padding: 15px; border-radius: 5px; margin: 15px 0; border-left: 4px solid #dc3545;">
+    <strong>Alert Summary:</strong><br>
+    <strong>Total Changes Detected:</strong> {{ total_changes }}<br>
+    <strong>Regressions (Worse):</strong> <span style="color: #dc3545; font-weight: bold;">{{ regression_count }}</span><br>
+    <strong>Improvements (Better):</strong> <span style="color: #28a745;">{{ improvement_count }}</span><br>
+    <strong>Detection Time:</strong> {{ detection_time }}<br>
+</div>
+
+{% if critical_drifts %}
+<h3 style="color: #dc3545; margin-top: 20px;">🔴 Critical Regressions (Non-Compliant Status)</h3>
+<div style="background: #f8d7da; padding: 10px; border-radius: 5px; margin: 10px 0;">
+    {% for drift in critical_drifts %}
+    <div style="padding: 10px; margin: 5px 0; background: white; border-radius: 3px; border-left: 3px solid #dc3545;">
+        <strong>{{ drift.framework_name }}</strong> - Control {{ drift.control_id }}<br>
+        <span style="color: #666;">{{ drift.control_name }}</span><br>
+        <span style="color: #dc3545;">Status: {{ drift.old_status }} → {{ drift.new_status }}</span>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if high_drifts %}
+<h3 style="color: #fd7e14; margin-top: 20px;">⚠️ High Priority Regressions (Warning Status)</h3>
+<div style="background: #fff3cd; padding: 10px; border-radius: 5px; margin: 10px 0;">
+    {% for drift in high_drifts %}
+    <div style="padding: 10px; margin: 5px 0; background: white; border-radius: 3px; border-left: 3px solid #fd7e14;">
+        <strong>{{ drift.framework_name }}</strong> - Control {{ drift.control_id }}<br>
+        <span style="color: #666;">{{ drift.control_name }}</span><br>
+        <span style="color: #fd7e14;">Status: {{ drift.old_status }} → {{ drift.new_status }}</span>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<p style="margin-top: 20px;"><strong>Required Action:</strong> Please review the affected compliance controls and update evidence or implement corrective measures to restore compliance status.</p>
+
+<p>
+    <a href="{{ dashboard_url }}" style="display: inline-block; background: #0d6efd; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 10px;">
+        View Drift Dashboard
+    </a>
+</p>
+
+<div style="background: #d1ecf1; padding: 10px; border-radius: 5px; margin: 15px 0; border: 1px solid #bee5eb;">
+    <strong>ℹ️ About Compliance Drift:</strong> Drift occurs when a control's compliance status changes over time. Common causes include:
+    <ul style="margin: 5px 0; padding-left: 20px;">
+        <li>Evidence aging beyond SLA thresholds</li>
+        <li>Failed security activity executions</li>
+        <li>Removal of compliance evidence</li>
+        <li>Changes in compliance rule configuration</li>
+    </ul>
+</div>
+
+<p style="color: #6c757d; font-size: 12px; margin-top: 20px;">
+    This is an automated notification from OpsDeck Compliance Drift Detection.<br>
+    Drift detection runs daily at 9:00 AM UTC. Next scan: {{ next_scan_time }}<br>
+    To disable these alerts, contact your system administrator.
+</p>
+            """
         )
     ]
 

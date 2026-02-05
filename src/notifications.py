@@ -11,6 +11,8 @@ from .models import Subscription, NotificationSetting
 from .models.credentials import Credential, CredentialSecret
 from .models.certificates import Certificate, CertificateVersion
 from .models.communications import ScheduledCommunication
+from src.utils.timezone_helper import now, today
+
 
 # --- Notification Functions ---
 
@@ -97,7 +99,7 @@ def check_upcoming_renewals(app):
     from .models.auth import User
     
     with app.app_context():
-        today = datetime.now().date()
+        today = today()
         queued_count = 0
         
         # ============================================================
@@ -234,7 +236,7 @@ def check_credential_expirations(app):
         # Notification thresholds (days before expiry)
         NOTIFY_DAYS = [30, 14, 7]
         
-        today = datetime.now().date()
+        today = today()
         credentials_to_notify = []
         
         # Query all active secrets with expiry dates
@@ -338,7 +340,7 @@ def check_certificate_expirations(app):
         # Notification thresholds (days before expiry)
         NOTIFY_DAYS = [30, 7, 1]
         
-        today = datetime.now().date()
+        today = today()
         certificates_to_notify = []
         
         # Query all active certificate versions using the CertificateVersion model directly
@@ -444,8 +446,8 @@ def check_compliance_breaches(app):
     from .services.compliance_service import get_compliance_evaluator
     
     with app.app_context():
-        today = datetime.now().date()
-        now = datetime.now()
+        today = today()
+        now = now()
         queued_count = 0
         
         # Find the compliance breach event
@@ -555,7 +557,7 @@ def process_communications_queue(app):
     BATCH_SIZE = 50
     
     with app.app_context():
-        now = datetime.utcnow()
+        now = now()
         today = now.date()
         
         # Query pending communications that are due (scheduled_date <= today)
@@ -648,7 +650,7 @@ def process_communications_queue(app):
                 
                 if success:
                     comm.status = 'sent'
-                    comm.sent_at = datetime.utcnow()
+                    comm.sent_at = now()
                     comm.next_retry_at = None  # Clear any retry scheduling
                     sent_count += 1
                     app.logger.info(f"Communication {comm.id}: Sent via {channel} to {comm.recipient_email}")
@@ -774,7 +776,7 @@ def _send_webhook_notification(app, comm, subject, body_html):
     # Build structured JSON payload
     payload = {
         'event': event_code,
-        'timestamp': datetime.utcnow().isoformat() + 'Z',
+        'timestamp': now().isoformat() + 'Z',
         'communication_id': comm.id,
         'data': {
             'target_type': comm.target_type,

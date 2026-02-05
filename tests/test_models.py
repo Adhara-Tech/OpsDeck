@@ -1,9 +1,10 @@
 """
-Tests for model functionality - Software, License, CostCenter, Subscription, 
+Tests for model functionality - Software, License, CostCenter, Subscription,
 BusinessService, ServiceComponent.
 Migrated from test_missing_coverage.py
 """
-from datetime import date, timedelta
+from datetime import timedelta
+from src.utils.timezone_helper import today
 from src.models import (
     Software, License, CostCenter, Subscription, Supplier,
     BusinessService, ServiceComponent, Asset, User
@@ -39,8 +40,8 @@ def test_software_and_license_creation(init_database):
         license_key="XXXX-YYYY-ZZZZ",
         cost=100.0,
         currency="USD",
-        purchase_date=date.today(),
-        expiry_date=date.today() + timedelta(days=365),
+        purchase_date=today(),
+        expiry_date=today() + timedelta(days=365),
         software_id=software.id,
         user_id=user.id
     )
@@ -49,7 +50,7 @@ def test_software_and_license_creation(init_database):
     
     assert lic.id is not None
     assert lic.software == software
-    assert lic.status == "Expired" if lic.expiry_date < date.today() else "In use"
+    assert lic.status == "Expired" if lic.expiry_date < today() else "In use"
 
 
 def test_cost_center_creation(init_database):
@@ -77,20 +78,22 @@ def test_subscription_creation_and_renewal(init_database):
         supplier_id=supplier.id,
         cost=50.0,
         currency="EUR",
-        renewal_date=date.today() - timedelta(days=1),
+        renewal_date=today() - timedelta(days=1),
         renewal_period_type="monthly",
         renewal_period_value=1,
-        monthly_renewal_day="15"
+        monthly_renewal_day="15",
+        auto_renew=True  # Required for next_renewal_date to be calculated
     )
     db.session.add(sub)
     db.session.commit()
-    
+
     assert sub.id is not None
     assert sub.cost_eur == 50.0
-    
+
     # Test renewal logic
     next_date = sub.next_renewal_date
-    assert next_date > date.today()
+    assert next_date is not None
+    assert next_date > today()
 
 
 def test_business_service_and_components(init_database):

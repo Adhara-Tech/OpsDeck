@@ -74,6 +74,17 @@
     </div>
 </div>
 
+{% if audit.framework and not audit.framework.is_active %}
+<div class="alert alert-info d-flex align-items-center mb-4" role="alert">
+    <i class="fas fa-info-circle fa-2x me-3"></i>
+    <div>
+        <strong>Framework Inactivo:</strong> Este audit está asociado a un framework que actualmente está inactivo
+        (<strong>{{ audit.framework.name }}</strong>). Este audit representa evidencia histórica válida de compliance
+        en el momento en que fue realizado.
+    </div>
+</div>
+{% endif %}
+
 <div class="row mb-4">
     <div class="col-md-3">
         <div class="card text-white bg-success shadow">

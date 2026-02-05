@@ -12,6 +12,8 @@ from .models import (
 )
 from .models.hiring import HiringStage, Candidate
 from . import create_app
+from src.utils.timezone_helper import now, today
+
 
 fake = Faker()
 
@@ -222,7 +224,7 @@ def seed_data(app=None):
         db.session.add(course)
         db.session.commit()
 
-        assignment = CourseAssignment(course_id=course.id, user_id=users[1].id, due_date=date.today() + timedelta(days=30))
+        assignment = CourseAssignment(course_id=course.id, user_id=users[1].id, due_date=today() + timedelta(days=30))
         db.session.add(assignment)
         
         # 7. Create Compliance & Governance Entities
@@ -236,7 +238,7 @@ def seed_data(app=None):
                 residual_likelihood=2, residual_impact=5,
                 treatment_strategy="Mitigate",
                 owner=users[0], # Alice
-                next_review_date=date.today() + timedelta(days=90),
+                next_review_date=today() + timedelta(days=90),
                 mitigation_plan="Enforce MFA and rotate keys quarterly."
             ),
             Risk(
@@ -247,7 +249,7 @@ def seed_data(app=None):
                 residual_likelihood=1, residual_impact=4,
                 treatment_strategy="Mitigate",
                 owner=users[5], # Fiona
-                next_review_date=date.today() + timedelta(days=30),
+                next_review_date=today() + timedelta(days=30),
                 mitigation_plan="Implement daily backups to a secondary location."
             ),
             Risk(
@@ -258,7 +260,7 @@ def seed_data(app=None):
                 residual_likelihood=3, residual_impact=3,
                 treatment_strategy="Mitigate",
                 owner=users[0], # Alice
-                next_review_date=date.today() + timedelta(days=60),
+                next_review_date=today() + timedelta(days=60),
                 mitigation_plan="Deploy EDR solution."
             ),
             Risk(
@@ -269,7 +271,7 @@ def seed_data(app=None):
                 residual_likelihood=2, residual_impact=4,
                 treatment_strategy="Transfer",
                 owner=users[6], # George (Sales/Vendor Mgmt)
-                next_review_date=date.today() + timedelta(days=180),
+                next_review_date=today() + timedelta(days=180),
                 mitigation_plan="Include strict SLAs and penalties in contracts."
             ),
             Risk(
@@ -280,7 +282,7 @@ def seed_data(app=None):
                 residual_likelihood=3, residual_impact=4,
                 treatment_strategy="Mitigate",
                 owner=users[1], # Bob
-                next_review_date=date.today() + timedelta(days=45),
+                next_review_date=today() + timedelta(days=45),
                 mitigation_plan="Implement DLP rules for email."
             ),
             Risk(
@@ -291,7 +293,7 @@ def seed_data(app=None):
                 residual_likelihood=1, residual_impact=3,
                 treatment_strategy="Mitigate",
                 owner=users[0], # Alice
-                next_review_date=date.today() + timedelta(days=90),
+                next_review_date=today() + timedelta(days=90),
                 mitigation_plan="Quarterly access reviews."
             ),
             # New Risks for Dashboard Variety
@@ -303,7 +305,7 @@ def seed_data(app=None):
                 residual_likelihood=2, residual_impact=3,
                 treatment_strategy="Accept",
                 owner=users[0], # Alice
-                next_review_date=date.today() + timedelta(days=180),
+                next_review_date=today() + timedelta(days=180),
                 mitigation_plan="System is air-gapped; risk accepted until decommissioning in 2026."
             ),
             Risk(
@@ -314,7 +316,7 @@ def seed_data(app=None):
                 residual_likelihood=1, residual_impact=5,
                 treatment_strategy="Mitigate",
                 owner=users[2], # Charlie
-                next_review_date=date.today() + timedelta(days=120),
+                next_review_date=today() + timedelta(days=120),
                 mitigation_plan="Background checks and least privilege access."
             ),
             Risk(
@@ -325,7 +327,7 @@ def seed_data(app=None):
                 residual_likelihood=1, residual_impact=2,
                 treatment_strategy="Transfer",
                 owner=users[5], # Fiona
-                next_review_date=date.today() + timedelta(days=365),
+                next_review_date=today() + timedelta(days=365),
                 mitigation_plan="Use Cloudflare DDoS protection."
             ),
             Risk(
@@ -336,7 +338,7 @@ def seed_data(app=None):
                 residual_likelihood=2, residual_impact=5,
                 treatment_strategy="Avoid",
                 owner=users[1], # Bob
-                next_review_date=date.today() + timedelta(days=60),
+                next_review_date=today() + timedelta(days=60),
                 mitigation_plan="Do not process data of EU citizens until compliant."
             ),
              Risk(
@@ -347,7 +349,7 @@ def seed_data(app=None):
                 residual_likelihood=5, residual_impact=5,
                 treatment_strategy="Mitigate",
                 owner=users[0], # Alice
-                next_review_date=date.today() + timedelta(days=1),
+                next_review_date=today() + timedelta(days=1),
                 mitigation_plan="Immediate rotation and secrets management implementation."
             )
         ]
@@ -625,7 +627,7 @@ def seed_data(app=None):
             service=services[0], # E-Commerce
             requires_approval=True,
             approved_by=users[0],
-            approved_at=datetime.utcnow()
+            approved_at=now()
         )
         
         db.session.add_all([change1, change2])
@@ -840,7 +842,7 @@ def seed_data(app=None):
         
         # Create historical executions for "Quarterly User Access Review" (80 days ago)
         # This allows testing of overdue/expired alerts
-        past_execution_date = date.today() - timedelta(days=80)
+        past_execution_date = today() - timedelta(days=80)
         
         activity_executions = [
             ActivityExecution(

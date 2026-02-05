@@ -4,6 +4,8 @@ from ..models import db, RiskAssessment, RiskAssessmentItem, Risk
 from datetime import datetime
 from ..services.permissions_service import requires_permission, has_write_permission
 import io
+from src.utils.timezone_helper import now
+
 
 risk_assessment_bp = Blueprint('risk_assessment', __name__, url_prefix='/risk-assessments')
 
@@ -99,7 +101,7 @@ def lock_assessment(id):
     
     # 1. Lock the assessment
     assessment.status = 'Locked'
-    assessment.locked_at = datetime.utcnow()
+    assessment.locked_at = now()
     assessment.calculate_total_risk()
     
     # 2. Write-back: Update live risks (Optional Sync)
@@ -143,7 +145,7 @@ def export_pdf(id):
     assessment = RiskAssessment.query.get_or_404(id)
     from weasyprint import HTML
     
-    html = render_template('risk_assessment/pdf_report.html', assessment=assessment, now=datetime.utcnow())
+    html = render_template('risk_assessment/pdf_report.html', assessment=assessment, now=now())
     pdf = HTML(string=html).write_pdf()
     
     return send_file(

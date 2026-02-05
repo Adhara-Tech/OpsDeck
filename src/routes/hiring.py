@@ -8,6 +8,8 @@ from ..models.hiring import HiringStage, Candidate
 from ..models.onboarding import OnboardingProcess
 from .main import login_required
 from ..services.permissions_service import requires_permission, has_write_permission
+from src.utils.timezone_helper import now, today
+
 
 hiring_bp = Blueprint('hiring', __name__)
 
@@ -24,7 +26,7 @@ def board():
     
     # Filter 'Hired' and 'Rejected' candidates > 15 days
     from datetime import datetime, timedelta
-    cutoff_date = datetime.utcnow() - timedelta(days=15)
+    cutoff_date = now() - timedelta(days=15)
     
     for stage in stages:
         if stage.name in ['Hired', 'Rejected']:
@@ -319,7 +321,7 @@ def move_candidate():
                 personal_email=personal_email,
                 target_email=company_email,
                 pack_id=int(pack_id) if pack_id else None,
-                start_date=date.today(),
+                start_date=today(),
                 status='Pending',
                 assigned_manager_id=int(manager_id) if manager_id else None,
                 assigned_buddy_id=int(buddy_id) if buddy_id else None

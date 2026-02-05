@@ -1,4 +1,5 @@
 from datetime import datetime
+from src.utils.timezone_helper import now
 from werkzeug.security import generate_password_hash, check_password_hash
 from ..extensions import db
 import secrets
@@ -29,7 +30,7 @@ class User(db.Model, CustomPropertiesMixin): # Add UserMixin here if using Flask
     role = db.Column(db.String(50), default='user') # e.g., 'user', 'editor', 'admin'
     department = db.Column(db.String(100))
     job_title = db.Column(db.String(100))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
     
     assets = db.relationship('Asset', backref='user', lazy=True)
     peripherals = db.relationship('Peripheral', backref='user', lazy=True)
@@ -72,6 +73,69 @@ class User(db.Model, CustomPropertiesMixin): # Add UserMixin here if using Flask
         self.api_token = secrets.token_hex(32)
         return self.api_token
 
+    def can_be_archived(self):
+        """
+        Check if user can be archived. Returns (can_archive, error_messages).
+
+        A user cannot be archived if they have:
+        - Active (non-archived) assets assigned
+        - Active (non-archived) peripherals assigned
+        - Active (non-archived) licenses assigned
+        - Active payment methods
+
+        Returns:
+            tuple: (bool, list) - (can_archive, list_of_error_messages)
+        """
+        errors = []
+
+        # Check for active assets
+        from .assets import Asset
+        active_assets = [a for a in self.assets if not a.is_archived]
+        if active_assets:
+            errors.append(f"User has {len(active_assets)} active asset(s) assigned")
+
+        # Check for active peripherals
+        from .assets import Peripheral
+        active_peripherals = [p for p in self.peripherals if not p.is_archived]
+        if active_peripherals:
+            errors.append(f"User has {len(active_peripherals)} active peripheral(s) assigned")
+
+        # Check for active licenses
+        from .assets import License
+        active_licenses = [l for l in self.licenses if not l.is_archived]
+        if active_licenses:
+            errors.append(f"User has {len(active_licenses)} active license(s) assigned")
+
+        # Check for payment methods
+        if hasattr(self, 'payment_methods') and self.payment_methods:
+            errors.append(f"User has {len(self.payment_methods)} payment method(s) registered")
+
+        return (len(errors) == 0, errors)
+
+    def prepare_for_archival(self):
+        """
+        Clean up non-critical relationships before archiving.
+
+        This method:
+        - Removes user from subscription assignments (subscription_users many-to-many)
+        - Nullifies direct subscription.user_id references
+
+        Critical relationships (assets, licenses, payment methods) are NOT cleaned
+        and should be checked with can_be_archived() first.
+        """
+        from .procurement import Subscription
+
+        # Clean up subscription assignments (many-to-many)
+        # The 'access_subscriptions' backref comes from subscription_users table
+        if hasattr(self, 'access_subscriptions'):
+            for subscription in list(self.access_subscriptions):
+                subscription.users.remove(self)
+
+        # Nullify direct subscription ownership (Subscription.user_id)
+        direct_subscriptions = Subscription.query.filter_by(user_id=self.id, is_archived=False).all()
+        for subscription in direct_subscriptions:
+            subscription.user_id = None
+
 
 class UserKnownIP(db.Model):
     """Stores known IP addresses for users to enable MFA bypass."""
@@ -80,8 +144,8 @@ class UserKnownIP(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     ip_address = db.Column(db.String(45), nullable=False)  # IPv6 compatible
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    last_seen = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
+    last_seen = db.Column(db.DateTime, default=lambda: now())
     
     user = db.relationship('User', backref=db.backref('known_ips', lazy=True, cascade='all, delete-orphan'))
     
@@ -99,7 +163,7 @@ class OrgChartSnapshot(db.Model):
     """
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False) # Ej: "Organigrama Q1 2024"
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
     created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     
     # Aquí guardamos el árbol completo en formato JSON

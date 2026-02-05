@@ -1,4 +1,5 @@
 from datetime import datetime
+from src.utils.timezone_helper import now
 from ..extensions import db
 
 class Configuration(db.Model):
@@ -77,7 +78,7 @@ class ConfigurationVersion(db.Model):
     configuration_id = db.Column(db.Integer, db.ForeignKey('configuration.id'), nullable=False)
     version_number = db.Column(db.Integer, nullable=False)
     data = db.Column(db.JSON, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
     created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
     commit_message = db.Column(db.String(255))
     

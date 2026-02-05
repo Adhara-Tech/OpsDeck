@@ -1,0 +1,719 @@
+{% extends "layout.html" %}
+
+{% block title %}User Access Review{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div
+        class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h1 class="h2">User Access Review (UAR)</h1>
+    </div>
+
+    <!-- Automation Promotion Banner -->
+    <div class="alert alert-info alert-dismissible fade show" role="alert">
+        <i class="fas fa-robot me-2"></i>
+        <strong>Tip:</strong> Running access reviews regularly?
+        <a href="{{ url_for('compliance.uar_automation_list') }}" class="alert-link">Set up automated access reviews</a>
+        to schedule comparisons, receive alerts, and track findings over time.
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+
+    <div class="row">
+        <!-- Configuration Panel -->
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0"><i class="fas fa-database me-2"></i>Data Sources</h5>
+                </div>
+                <div class="card-body">
+                    <form id="uarForm">
+                        <!-- Dataset A -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Dataset A</label>
+                            <div class="row g-2">
+                                <div class="col-md-5">
+                                    <select class="form-select form-select-sm" id="typeA">
+                                        <option value="Active Users" selected>Active Users (OpsDeck)</option>
+                                        <option value="Subscription">Subscription</option>
+                                        <option value="Service">Business Service</option>
+                                        <option value="Database Query">Database Query (SQL)</option>
+                                        <option value="JSON">Paste JSON</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-7">
+                                    <div id="contextA_Container">
+                                        <div class="text-muted small pt-2" id="contextA_None">No extra config needed
+                                        </div>
+                                        <select class="form-select form-select-sm d-none" id="contextA_Sub"></select>
+                                        <select class="form-select form-select-sm d-none" id="contextA_Svc"></select>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-2 d-none" id="contextA_Json_Div">
+                                <textarea class="form-control font-monospace" id="contextA_Json" rows="3"
+                                    placeholder='[{"email": "user@co.com", "role": "admin"}]'
+                                    style="font-size: 0.8rem;"></textarea>
+                            </div>
+                            <div class="mt-2 d-none" id="contextA_Query_Div">
+                                <textarea class="form-control font-monospace" id="contextA_Query" rows="4"
+                                    placeholder='SELECT id, name, email, role FROM "user" WHERE is_archived = false'
+                                    style="font-size: 0.8rem;"></textarea>
+                                <small class="form-text text-muted">SELECT and JOIN only. Quote table names with "quotes"</small>
+                            </div>
+                        </div>
+
+                        <!-- Dataset B -->
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Dataset B</label>
+                            <div class="row g-2">
+                                <div class="col-md-5">
+                                    <select class="form-select form-select-sm" id="typeB">
+                                        <option value="Active Users">Active Users (OpsDeck)</option>
+                                        {% if reports %}
+                                        <option value="Report" selected>Enterprise Report</option>
+                                        {% endif %}
+                                        <option value="Subscription">Subscription</option>
+                                        <option value="Service">Business Service</option>
+                                        <option value="Database Query">Database Query (SQL)</option>
+                                        <option value="JSON">Paste JSON</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-7">
+                                    <div id="contextB_Container">
+                                        <div class="text-muted small pt-2 d-none" id="contextB_None">No extra config
+                                            needed</div>
+                                        <select class="form-select form-select-sm {% if not reports %}d-none{% endif %}"
+                                            id="contextB_Report">
+                                            {% for report in reports %}
+                                            <option value="{{ report.id }}">Report #{{ report.id }} ({{
+                                                report.created_at.strftime('%Y-%m-%d') }})</option>
+                                            {% endfor %}
+                                        </select>
+                                        <select class="form-select form-select-sm d-none" id="contextB_Sub"></select>
+                                        <select class="form-select form-select-sm d-none" id="contextB_Svc"></select>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-2 d-none" id="contextB_Json_Div">
+                                <textarea class="form-control font-monospace" id="contextB_Json" rows="3"
+                                    placeholder='[{"login": "alice", "access_level": "admin"}]'
+                                    style="font-size: 0.8rem;"></textarea>
+                            </div>
+                            <div class="mt-2 d-none" id="contextB_Query_Div">
+                                <textarea class="form-control font-monospace" id="contextB_Query" rows="4"
+                                    placeholder='SELECT subscription_id, user_id FROM subscription_users'
+                                    style="font-size: 0.8rem;"></textarea>
+                                <small class="form-text text-muted">SELECT and JOIN only. Quote table names with "quotes"</small>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <div class="d-grid">
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="previewSchemaBtn">
+                                <i class="fas fa-eye me-2"></i>Load & Preview Datasets
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Column Mapping Panel (shown after preview) -->
+            <div class="card mb-4 d-none" id="mappingCard">
+                <div class="card-header">
+                    <h5 class="card-title mb-0"><i class="fas fa-columns me-2"></i>Column Mapping</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label small text-muted text-uppercase">Match Key (Join Column)</label>
+                        <div class="row g-2 align-items-center">
+                            <div class="col-5">
+                                <select class="form-select form-select-sm" id="keyFieldA">
+                                    <option value="">-- Select A column --</option>
+                                </select>
+                                <small class="text-muted">Dataset A</small>
+                            </div>
+                            <div class="col-2 text-center">
+                                <i class="fas fa-arrows-alt-h text-primary"></i>
+                            </div>
+                            <div class="col-5">
+                                <select class="form-select form-select-sm" id="keyFieldB">
+                                    <option value="">-- Select B column --</option>
+                                </select>
+                                <small class="text-muted">Dataset B</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label class="form-label small text-muted text-uppercase mb-0">Additional Field
+                                Comparisons</label>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="addMappingBtn">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                        <div id="fieldMappingsContainer">
+                            <!-- Dynamic field mappings added here -->
+                        </div>
+                        <small class="text-muted">Compare additional fields beyond the match key</small>
+                    </div>
+
+                    <hr>
+
+                    <!-- Advanced SQL Query -->
+                    <div class="mb-3">
+                        <a class="text-muted small" data-bs-toggle="collapse" href="#collapseQuery" role="button">
+                            <i class="bi bi-code-square me-1"></i>Advanced SQL Query
+                        </a>
+                        <div class="collapse mt-2" id="collapseQuery">
+                            <textarea class="form-control font-monospace" id="queryInput" rows="4"
+                                style="font-size: 0.75rem;" placeholder="SELECT * FROM dataset_b WHERE ..."></textarea>
+                            <div class="form-text small">Overrides column mapping if used.</div>
+                        </div>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="button" class="btn btn-primary" id="runBtn">
+                            <i class="fas fa-play me-2"></i>Run Comparison
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Preview Panel -->
+        <div class="col-md-8">
+            <div class="card mb-3" id="previewCard">
+                <div class="card-header">
+                    <h5 class="card-title mb-0"><i class="fas fa-table me-2"></i>Dataset Preview</h5>
+                </div>
+                <div class="card-body">
+                    <div id="schemaInfo" class="d-none">
+                        <ul class="nav nav-tabs" id="previewTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="tab-a" data-bs-toggle="tab" data-bs-target="#pane-a"
+                                    type="button" role="tab">
+                                    <i class="fas fa-database me-1"></i>Dataset A
+                                    <span class="badge bg-secondary ms-1" id="countA">0</span>
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="tab-b" data-bs-toggle="tab" data-bs-target="#pane-b"
+                                    type="button" role="tab">
+                                    <i class="fas fa-database me-1"></i>Dataset B
+                                    <span class="badge bg-secondary ms-1" id="countB">0</span>
+                                </button>
+                            </li>
+                        </ul>
+                        <div class="tab-content border border-top-0 p-2" id="previewTabContent">
+                            <div class="tab-pane fade show active" id="pane-a" role="tabpanel">
+                                <small class="text-muted d-block mb-1">Columns: <code id="colsA"></code></small>
+                                <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                                    <table class="table table-sm table-bordered mb-0" style="font-size: 0.8rem;">
+                                        <thead class="table-light sticky-top" id="headA"></thead>
+                                        <tbody id="bodyA"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="pane-b" role="tabpanel">
+                                <small class="text-muted d-block mb-1">Columns: <code id="colsB"></code></small>
+                                <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                                    <table class="table table-sm table-bordered mb-0" style="font-size: 0.8rem;">
+                                        <thead class="table-light sticky-top" id="headB"></thead>
+                                        <tbody id="bodyB"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="previewPlaceholder" class="text-center text-muted py-4">
+                        <i class="fas fa-arrow-left fa-2x mb-2"></i>
+                        <p>Select data sources and click "Load & Preview Datasets" to see the data</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Panel -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0"><i class="fas fa-search me-2"></i>Comparison Results</h5>
+                    <span class="badge bg-secondary" id="resultCount">0 Findings</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover mb-0" id="resultsTable">
+                            <thead class="table-light">
+                                <tr id="tableHeader">
+                                    <th>Status</th>
+                                    <th>Run a comparison to see results.</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // --- CSRF ---
+        const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+        if (!csrfMeta) {
+            console.error('CSRF token meta tag not found');
+            alert('Security token missing. Please refresh the page.');
+            return;
+        }
+        const csrfToken = csrfMeta.getAttribute('content');
+        console.log('[UAR] Initializing User Access Review interface...');
+        console.log('[UAR] CSRF Token present:', !!csrfToken);
+
+        // --- State ---
+        let schemaA = [];
+        let schemaB = [];
+
+        // --- Elements ---
+        const els = {
+            typeA: document.getElementById('typeA'),
+            contextA_Container: document.getElementById('contextA_Container'),
+            contextA_None: document.getElementById('contextA_None'),
+            contextA_Sub: document.getElementById('contextA_Sub'),
+            contextA_Svc: document.getElementById('contextA_Svc'),
+            contextA_Json_Div: document.getElementById('contextA_Json_Div'),
+            contextA_Json: document.getElementById('contextA_Json'),
+            contextA_Query_Div: document.getElementById('contextA_Query_Div'),
+            contextA_Query: document.getElementById('contextA_Query'),
+
+            typeB: document.getElementById('typeB'),
+            contextB_Container: document.getElementById('contextB_Container'),
+            contextB_None: document.getElementById('contextB_None'),
+            contextB_Report: document.getElementById('contextB_Report'),
+            contextB_Sub: document.getElementById('contextB_Sub'),
+            contextB_Svc: document.getElementById('contextB_Svc'),
+            contextB_Json_Div: document.getElementById('contextB_Json_Div'),
+            contextB_Json: document.getElementById('contextB_Json'),
+            contextB_Query_Div: document.getElementById('contextB_Query_Div'),
+            contextB_Query: document.getElementById('contextB_Query'),
+
+            mappingCard: document.getElementById('mappingCard'),
+            keyFieldA: document.getElementById('keyFieldA'),
+            keyFieldB: document.getElementById('keyFieldB'),
+            fieldMappingsContainer: document.getElementById('fieldMappingsContainer'),
+            addMappingBtn: document.getElementById('addMappingBtn'),
+            queryInput: document.getElementById('queryInput'),
+
+            previewBtn: document.getElementById('previewSchemaBtn'),
+            runBtn: document.getElementById('runBtn'),
+            schemaInfo: document.getElementById('schemaInfo'),
+            previewPlaceholder: document.getElementById('previewPlaceholder'),
+            tableHeader: document.getElementById('tableHeader'),
+            tableBody: document.getElementById('tableBody'),
+            resultCount: document.getElementById('resultCount')
+        };
+
+        // --- Cache for Dropdowns ---
+        const cache = { subs: null, svcs: null };
+
+        // --- Functions to toggle UI ---
+        async function updateUI(side) {
+            const typeVal = els[`type${side}`].value;
+            const isJson = typeVal === 'JSON';
+            const isQuery = typeVal === 'Database Query';
+
+            const jsonDiv = els[`context${side}_Json_Div`];
+            if (isJson) jsonDiv.classList.remove('d-none');
+            else jsonDiv.classList.add('d-none');
+            console.log(`[UAR] JSON textarea for ${side}:`, isJson ? 'shown' : 'hidden');
+
+            const queryDiv = els[`context${side}_Query_Div`];
+            if (isQuery) queryDiv.classList.remove('d-none');
+            else queryDiv.classList.add('d-none');
+            console.log(`[UAR] Query textarea for ${side}:`, isQuery ? 'shown' : 'hidden');
+
+            const container = els[`context${side}_Container`];
+            Array.from(container.children).forEach(c => c.classList.add('d-none'));
+
+            if (isJson || isQuery) return;
+
+            if (typeVal === 'Active Users') {
+                els[`context${side}_None`].classList.remove('d-none');
+            } else if (typeVal === 'Report') {
+                if (els[`context${side}_Report`]) els[`context${side}_Report`].classList.remove('d-none');
+            } else if (typeVal === 'Subscription') {
+                const sel = els[`context${side}_Sub`];
+                sel.classList.remove('d-none');
+                if (!cache.subs) await fetchOptions('subscriptions', cache, 'subs');
+                populateSelect(sel, cache.subs);
+            } else if (typeVal === 'Service') {
+                const sel = els[`context${side}_Svc`];
+                sel.classList.remove('d-none');
+                if (!cache.svcs) await fetchOptions('services', cache, 'svcs');
+                populateSelect(sel, cache.svcs);
+            }
+        }
+
+        async function fetchOptions(endpoint, cacheObj, key) {
+            try {
+                const res = await fetch(`/compliance/json/${endpoint}`);
+                cacheObj[key] = await res.json();
+            } catch (e) {
+                console.error("Failed to load options", e);
+                cacheObj[key] = [];
+            }
+        }
+
+        function populateSelect(selectEl, data) {
+            if (selectEl.options.length > 0) return;
+            data.forEach(item => {
+                const opt = new Option(item.name, item.id);
+                selectEl.add(opt);
+            });
+        }
+
+        function populateColumnDropdown(selectEl, columns, defaultValue = '') {
+            selectEl.innerHTML = '<option value="">-- Select column --</option>';
+            columns.forEach(col => {
+                const opt = new Option(col, col);
+                if (col === defaultValue) opt.selected = true;
+                selectEl.add(opt);
+            });
+        }
+
+        // --- Event Listeners ---
+        els.typeA.addEventListener('change', () => updateUI('A'));
+        els.typeB.addEventListener('change', () => updateUI('B'));
+        updateUI('A');
+        updateUI('B');
+
+        // --- Add Field Mapping ---
+        els.addMappingBtn.addEventListener('click', () => addFieldMapping());
+
+        function addFieldMapping(fieldA = '', fieldB = '') {
+            const row = document.createElement('div');
+            row.className = 'row g-2 align-items-center mb-2 field-mapping-row';
+
+            let optionsA = '<option value="">--</option>' + schemaA.map(c => `<option value="${c}" ${c === fieldA ? 'selected' : ''}>${c}</option>`).join('');
+            let optionsB = '<option value="">--</option>' + schemaB.map(c => `<option value="${c}" ${c === fieldB ? 'selected' : ''}>${c}</option>`).join('');
+
+            row.innerHTML = `
+                <div class="col-5">
+                    <select class="form-select form-select-sm mapping-field-a">${optionsA}</select>
+                </div>
+                <div class="col-2 text-center">
+                    <i class="fas fa-arrows-alt-h text-muted"></i>
+                </div>
+                <div class="col-4">
+                    <select class="form-select form-select-sm mapping-field-b">${optionsB}</select>
+                </div>
+                <div class="col-1">
+                    <button type="button" class="btn btn-sm btn-outline-danger remove-mapping-btn">&times;</button>
+                </div>
+            `;
+
+            row.querySelector('.remove-mapping-btn').addEventListener('click', () => row.remove());
+            els.fieldMappingsContainer.appendChild(row);
+        }
+
+        // --- Payload Builder ---
+        function buildPayload() {
+            const getSide = (side) => {
+                const type = els[`type${side}`].value;
+                const p = { [`source_${side.toLowerCase()}_type`]: type };
+
+                if (type === 'Report') {
+                    const sel = els[`context${side}_Report`];
+                    if (sel) p[`source_${side.toLowerCase()}_id`] = sel.value;
+                } else if (type === 'Subscription') {
+                    p[`source_${side.toLowerCase()}_id`] = els[`context${side}_Sub`].value;
+                } else if (type === 'Service') {
+                    p[`source_${side.toLowerCase()}_id`] = els[`context${side}_Svc`].value;
+                } else if (type === 'JSON') {
+                    p[`source_${side.toLowerCase()}_json`] = els[`context${side}_Json`].value;
+                } else if (type === 'Database Query') {
+                    p[`source_${side.toLowerCase()}_query`] = els[`context${side}_Query`].value;
+                }
+                return p;
+            };
+
+            // Build field mappings from UI
+            const fieldMappings = [];
+            document.querySelectorAll('.field-mapping-row').forEach(row => {
+                const fieldA = row.querySelector('.mapping-field-a').value;
+                const fieldB = row.querySelector('.mapping-field-b').value;
+                if (fieldA && fieldB) {
+                    fieldMappings.push({ field_a: fieldA, field_b: fieldB });
+                }
+            });
+
+            return {
+                ...getSide('A'),
+                ...getSide('B'),
+                key_field_a: els.keyFieldA.value,
+                key_field_b: els.keyFieldB.value,
+                field_mappings: fieldMappings,
+                query: els.queryInput.value
+            };
+        }
+
+        // --- Preview Action ---
+        els.previewBtn.addEventListener('click', async function () {
+            const btn = els.previewBtn;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Loading...';
+            btn.disabled = true;
+
+            try {
+                const payload = buildPayload();
+
+                const response = await fetch('/compliance/access-review/schema', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    // Backend returned an error message
+                    throw new Error(data.error || 'Unknown error from server');
+                }
+
+                if (data.success) {
+                    schemaA = data.schema.dataset_a || [];
+                    schemaB = data.schema.dataset_b || [];
+                    console.log('[UAR] Schema loaded:', {
+                        schemaA: schemaA.length + ' columns',
+                        schemaB: schemaB.length + ' columns',
+                        samplesA: (data.samples.dataset_a || []).length + ' rows',
+                        samplesB: (data.samples.dataset_b || []).length + ' rows'
+                    });
+
+                    document.getElementById('colsA').innerText = schemaA.join(', ');
+                    document.getElementById('colsB').innerText = schemaB.join(', ');
+                    document.getElementById('countA').innerText = (data.samples.dataset_a || []).length + ' rows';
+                    document.getElementById('countB').innerText = (data.samples.dataset_b || []).length + ' rows';
+
+                    renderPreviewTable('headA', 'bodyA', data.samples.dataset_a);
+                    renderPreviewTable('headB', 'bodyB', data.samples.dataset_b);
+
+                    // Populate column mapping dropdowns
+                    const guessKeyA = schemaA.find(c => ['email', 'id', 'user_id', 'login', 'username'].includes(c.toLowerCase())) || schemaA[0] || '';
+                    const guessKeyB = schemaB.find(c => ['email', 'id', 'user_id', 'login', 'username'].includes(c.toLowerCase())) || schemaB[0] || '';
+
+                    populateColumnDropdown(els.keyFieldA, schemaA, guessKeyA);
+                    populateColumnDropdown(els.keyFieldB, schemaB, guessKeyB);
+
+                    // Show panels
+                    els.schemaInfo.classList.remove('d-none');
+                    els.previewPlaceholder.classList.add('d-none');
+                    els.mappingCard.classList.remove('d-none');
+
+                    // Clear old field mappings
+                    els.fieldMappingsContainer.innerHTML = '';
+                } else {
+                    alert("Error: " + data.error);
+                }
+            } catch (e) {
+                console.error('Preview error:', e);
+                alert(`Failed to fetch schema: ${e.message}\n\nPlease check:\n- Data source selections\n- JSON format if using paste\n- Network connectivity`);
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        });
+
+        function renderPreviewTable(headId, bodyId, rows) {
+            const thead = document.getElementById(headId);
+            const tbody = document.getElementById(bodyId);
+            thead.innerHTML = '';
+            tbody.innerHTML = '';
+
+            if (!rows || rows.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="100%" class="text-muted text-center">No data sample available</td></tr>';
+                return;
+            }
+
+            const keys = Object.keys(rows[0]);
+
+            let trHead = '<tr>';
+            keys.forEach(k => trHead += `<th>${k}</th>`);
+            trHead += '</tr>';
+            thead.innerHTML = trHead;
+
+            rows.forEach(row => {
+                let tr = '<tr>';
+                keys.forEach(k => {
+                    let val = row[k];
+                    if (typeof val === 'object' && val !== null) val = JSON.stringify(val);
+                    tr += `<td>${val !== null && val !== undefined ? val : ''}</td>`;
+                });
+                tr += '</tr>';
+                tbody.innerHTML += tr;
+            });
+        }
+
+        // --- Run Action ---
+        els.runBtn.addEventListener('click', async function () {
+            const btn = els.runBtn;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Running...';
+            btn.disabled = true;
+
+            try {
+                const payload = buildPayload();
+
+                // Validate key fields are selected
+                if (!payload.key_field_a || !payload.key_field_b) {
+                    if (!payload.query) {
+                        alert("Please select match key columns for both datasets, or provide a custom SQL query.");
+                        return;
+                    }
+                }
+
+                const response = await fetch('/compliance/access-review/preview', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    // Backend returned an error message
+                    throw new Error(data.error || 'Unknown error from server');
+                }
+
+                if (!data.success) {
+                    alert("Error: " + data.error);
+                    return;
+                }
+
+                renderResultsTable(data.results);
+
+            } catch (err) {
+                console.error('Comparison error:', err);
+                alert(`An unexpected error occurred: ${err.message}\n\nPlease verify:\n- Match key columns are selected\n- Datasets are loaded\n- Valid JSON if pasted`);
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        });
+
+        function renderResultsTable(results) {
+            els.tableBody.innerHTML = '';
+            els.tableHeader.innerHTML = '';
+            els.resultCount.textContent = `${results.length} Findings`;
+
+            if (results.length === 0) {
+                els.tableHeader.innerHTML = '<th>Status</th><th>Message</th>';
+                els.tableBody.innerHTML = '<tr><td><span class="badge bg-success">OK</span></td><td>No discrepancies found. All records match!</td></tr>';
+                return;
+            }
+
+            // Build header - show key, status, finding_type, and filtered data columns
+            const firstRow = results[0];
+            const showCols = ['key', 'finding_type', 'status'];
+
+            // Add a_ and b_ prefixed columns for context
+            const dataCols = Object.keys(firstRow).filter(k =>
+                (k.startsWith('a_') || k.startsWith('b_')) &&
+                !k.includes('key_field')
+            ).slice(0, 6); // Limit to avoid huge tables
+
+            let headerRow = '<th>Finding</th><th>Key</th>';
+            dataCols.forEach(k => headerRow += `<th>${k}</th>`);
+            headerRow += '<th>Details</th><th>Actions</th>';
+            els.tableHeader.innerHTML = headerRow;
+
+            results.forEach(row => {
+                let tr = document.createElement('tr');
+
+                // Color coding by finding type
+                if (row.finding_type === 'Left Only (A)') tr.classList.add('table-info');
+                else if (row.finding_type === 'Right Only (B)') tr.classList.add('table-warning');
+                else if (row.finding_type === 'Mismatch') tr.classList.add('table-danger');
+
+                // Finding Type Badge
+                let badgeClass = 'bg-secondary';
+                if (row.finding_type === 'Left Only (A)') badgeClass = 'bg-info';
+                else if (row.finding_type === 'Right Only (B)') badgeClass = 'bg-warning text-dark';
+                else if (row.finding_type === 'Mismatch') badgeClass = 'bg-danger';
+
+                tr.innerHTML += `<td><span class="badge ${badgeClass}">${row.finding_type || 'Info'}</span></td>`;
+                tr.innerHTML += `<td><strong>${row.key || ''}</strong></td>`;
+
+                // Data columns
+                dataCols.forEach(k => {
+                    let val = row[k];
+                    if (typeof val === 'object') val = JSON.stringify(val);
+                    tr.innerHTML += `<td>${val !== null && val !== undefined ? val : '<span class="text-muted">-</span>'}</td>`;
+                });
+
+                // Status/Details
+                tr.innerHTML += `<td><small class="text-muted">${row.status || ''}</small></td>`;
+
+                // Action Button
+                const actionTd = document.createElement('td');
+                const btn = document.createElement('button');
+                btn.className = 'btn btn-sm btn-outline-danger';
+                btn.innerHTML = '<i class="fas fa-exclamation-triangle"></i>';
+                btn.title = 'Create Incident';
+                btn.onclick = () => promoteToIncident(row, btn);
+                actionTd.appendChild(btn);
+                tr.appendChild(actionTd);
+
+                els.tableBody.appendChild(tr);
+            });
+        }
+
+        async function promoteToIncident(row, btnElement) {
+            if (!confirm("Create a Security Incident for this finding?")) return;
+
+            btnElement.disabled = true;
+
+            try {
+                const response = await fetch('/compliance/access-review/promote', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({ finding: row })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    alert("Incident created! ID: " + data.incident_id);
+                    btnElement.className = 'btn btn-sm btn-success';
+                    btnElement.innerHTML = '<i class="fas fa-check"></i>';
+                } else {
+                    alert("Error: " + data.message);
+                    btnElement.disabled = false;
+                }
+            } catch (err) {
+                alert("Error creating incident");
+                btnElement.disabled = false;
+            }
+        }
+    });
+</script>
+{% endblock scripts_extra %}

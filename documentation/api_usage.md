@@ -1,6 +1,21 @@
 # OpsDeck API Usage Guide
 
-This guide provides instructions on how to access and authenticate with the OpsDeck REST API.
+OpsDeck provides a comprehensive REST API for programmatic access to all platform functionality. The API supports integration with external tools, automation workflows, and custom reporting.
+
+## Supported Entity Types
+
+The API provides endpoints for:
+- Assets and peripherals
+- Users and access management
+- Suppliers and contacts
+- Business services
+- Compliance frameworks and controls
+- Audit records
+- Security incidents and risks
+- UAR comparisons and findings
+- Policies and training records
+- Subscriptions and budgets
+- Locations and cost centers
 
 ## 1. Authentication
 The API uses **Bearer Token** authentication. You must include your personal API token in the `Authorization` header of every request.
@@ -56,6 +71,48 @@ curl -X GET "http://localhost:5000/api/v1/assets?page=2&page_size=5" \
 ## 4. Error Handling
 The API returns standard HTTP status codes:
 *   `200 OK`: Success.
+*   `201 Created`: Resource successfully created.
+*   `400 Bad Request`: Invalid request parameters.
 *   `401 Unauthorized`: Missing or invalid token.
+*   `403 Forbidden`: Insufficient permissions for this operation.
 *   `404 Not Found`: Resource not found.
 *   `429 Too Many Requests`: Rate limit exceeded.
+*   `500 Internal Server Error`: Server-side error.
+
+Error responses include a JSON body with details:
+```json
+{
+  "error": "Resource not found",
+  "message": "Asset with ID 999 does not exist"
+}
+```
+
+## 5. Rate Limiting
+The API implements rate limiting to ensure fair usage:
+- **Default limit**: 100 requests per minute per token
+- Rate limit headers are included in responses:
+  - `X-RateLimit-Limit`: Maximum requests allowed
+  - `X-RateLimit-Remaining`: Requests remaining in current window
+  - `X-RateLimit-Reset`: Timestamp when limit resets
+
+When rate limited, the API returns HTTP 429 with a `Retry-After` header indicating when to retry.
+
+## 6. Best Practices
+
+**Token Security**
+- Store tokens securely (environment variables, secrets management)
+- Rotate tokens regularly
+- Use separate tokens for different integrations
+- Immediately revoke compromised tokens
+
+**Performance**
+- Use pagination for large result sets
+- Filter responses using query parameters to reduce payload size
+- Cache responses when appropriate
+- Implement exponential backoff for retries
+
+**Data Integrity**
+- Validate data before submission
+- Handle partial failures gracefully
+- Use transactions for multi-step operations
+- Implement idempotency for create operations where possible

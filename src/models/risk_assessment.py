@@ -1,4 +1,5 @@
 from datetime import datetime
+from src.utils.timezone_helper import now
 from ..extensions import db
 
 # Association table for Risk Assessment - Change Mitigation M2M
@@ -12,7 +13,7 @@ class RiskAssessment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(255), nullable=False) # e.g., "Q1 2024 Assessment"
     status = db.Column(db.String(50), default='Draft') # Draft, In Review, Locked
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
     locked_at = db.Column(db.DateTime, nullable=True)
     
     # Snapshot of global metrics at closure time
@@ -89,7 +90,7 @@ class RiskAssessmentEvidence(db.Model):
     attachment = db.relationship('Attachment')
     
     notes = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
 
     @property
     def display_name(self):

@@ -5,6 +5,7 @@ Maps system events (like license expiry, subscription renewal) to email template
 allowing admins to configure which notifications are enabled and which templates to use.
 """
 from datetime import datetime
+from src.utils.timezone_helper import now
 from ..extensions import db
 
 
@@ -46,8 +47,8 @@ class NotificationEvent(db.Model):
     webhook_url = db.Column(db.String(500), nullable=True)
     
     # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
+    updated_at = db.Column(db.DateTime, default=lambda: now(), onupdate=lambda: now())
     
     def __repr__(self):
         return f'<NotificationEvent {self.event_code}>'

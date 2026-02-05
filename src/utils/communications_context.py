@@ -6,6 +6,8 @@ the target process type.
 """
 from datetime import datetime
 from ..models.onboarding import OnboardingProcess, OffboardingProcess
+from src.utils.timezone_helper import now, today
+
 
 
 def get_template_context(scheduled_comm):
@@ -19,7 +21,7 @@ def get_template_context(scheduled_comm):
         dict: Context variables for Jinja2 template rendering
     """
     context = {
-        'today': datetime.utcnow().date(),
+        'today': today(),
     }
     
     if scheduled_comm.target_type == 'onboarding':
@@ -168,7 +170,7 @@ def get_template_context(scheduled_comm):
         
         license = License.query.get(scheduled_comm.target_id)
         if license:
-            days_left = (license.expiry_date - datetime.utcnow().date()).days if license.expiry_date else 0
+            days_left = (license.expiry_date - today()).days if license.expiry_date else 0
             context.update({
                 'recipient_name': scheduled_comm.recipient_name or 'User',
                 'license_name': license.name,
@@ -183,7 +185,7 @@ def get_template_context(scheduled_comm):
         subscription = Subscription.query.get(scheduled_comm.target_id)
         if subscription:
             renewal_date = subscription.next_renewal_date
-            days_left = (renewal_date - datetime.utcnow().date()).days if renewal_date else 0
+            days_left = (renewal_date - today()).days if renewal_date else 0
             context.update({
                 'recipient_name': scheduled_comm.recipient_name or 'Admin',
                 'subscription_name': subscription.name,

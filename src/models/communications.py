@@ -7,6 +7,8 @@ extensibility for mass campaigns and security bulletins.
 """
 from datetime import datetime
 from ..extensions import db
+from src.utils.timezone_helper import now, today
+
 
 
 class EmailTemplate(db.Model):
@@ -23,8 +25,8 @@ class EmailTemplate(db.Model):
     category = db.Column(db.String(50), default='general')  # 'onboarding', 'offboarding', 'security_bulletin', 'general'
     is_active = db.Column(db.Boolean, default=True)
     is_system = db.Column(db.Boolean, default=False)  # If True, template is protected from deletion/editing
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
+    updated_at = db.Column(db.DateTime, default=lambda: now(), onupdate=lambda: now())
     
     # Relationships
     pack_communications = db.relationship('PackCommunication', backref='template', lazy=True)
@@ -57,7 +59,7 @@ class PackCommunication(db.Model):
     recipient_type = db.Column(db.String(50), default='target_user')
     
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
     
     # Relationship to pack - creates 'pack.communications' on OnboardingPack
     pack = db.relationship('OnboardingPack', backref=db.backref('communications', lazy=True))
@@ -123,7 +125,7 @@ class Campaign(db.Model):
                            backref=db.backref('campaigns_tagged', lazy=True))
     
     # Timestamps
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
     processed_at = db.Column(db.DateTime, nullable=True)  # When it was spawned
     
     def __repr__(self):
@@ -307,7 +309,7 @@ class ScheduledCommunication(db.Model):
     # Maximum retry attempts before permanently failing
     MAX_RETRY_COUNT = 3
     
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
     
     # Indexes for efficient querying
     __table_args__ = (
@@ -322,7 +324,7 @@ class ScheduledCommunication(db.Model):
     def is_overdue(self):
         """Check if this communication is past its scheduled date."""
         if self.status == 'pending':
-            return self.scheduled_date < datetime.utcnow().date()
+            return self.scheduled_date < today()
         return False
     
     def should_retry(self):
@@ -337,7 +339,7 @@ class ScheduledCommunication(db.Model):
         from datetime import timedelta
         
         backoff_minutes = (2 ** self.retry_count) * 5
-        return datetime.utcnow() + timedelta(minutes=backoff_minutes)
+        return now() + timedelta(minutes=backoff_minutes)
     
     def mark_for_retry(self, error_msg=None):
         """

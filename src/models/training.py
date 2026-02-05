@@ -2,6 +2,7 @@ from datetime import datetime, date
 from sqlalchemy.orm import foreign
 from sqlalchemy import and_
 from ..extensions import db
+from src.utils.timezone_helper import today, now
 
 class Course(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -9,7 +10,7 @@ class Course(db.Model):
     description = db.Column(db.Text)
     link = db.Column(db.String(512))
     completion_days = db.Column(db.Integer, default=30) # Timeframe to complete after assignment
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
     
     assignments = db.relationship('CourseAssignment', backref='course', lazy=True, cascade='all, delete-orphan')
 
@@ -24,7 +25,7 @@ class Course(db.Model):
 
 class CourseAssignment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    assigned_date = db.Column(db.Date, nullable=False, default=date.today)
+    assigned_date = db.Column(db.Date, nullable=False, default=lambda: today())
     due_date = db.Column(db.Date, nullable=False)
     
     course_id = db.Column(db.Integer, db.ForeignKey('course.id'), nullable=False)
@@ -34,7 +35,7 @@ class CourseAssignment(db.Model):
 
 class CourseCompletion(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    completion_date = db.Column(db.Date, nullable=False, default=date.today)
+    completion_date = db.Column(db.Date, nullable=False, default=lambda: today())
     notes = db.Column(db.Text)
     
     assignment_id = db.Column(db.Integer, db.ForeignKey('course_assignment.id'), nullable=False)

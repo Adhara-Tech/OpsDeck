@@ -12,6 +12,8 @@ from ..services.permissions_service import requires_permission, has_write_permis
 from .. import notifications
 from ..utils.communications_context import validate_template_syntax, render_email_template
 from .main import login_required
+from src.utils.timezone_helper import now, today
+
 
 admin_communications_bp = Blueprint('admin_communications', __name__)
 
@@ -219,9 +221,9 @@ def test_send_template(id):
             'email': 'bob.wilson@example.com'
         },
         'new_hire_name': 'John Doe',
-        'start_date': datetime.now().date(),
-        'departure_date': datetime.now().date(),
-        'today': datetime.now().date(),
+        'start_date': today(),
+        'departure_date': today(),
+        'today': today(),
         'pack': type('Pack', (), {'name': 'Sample Pack', 'description': 'Test pack description'})(),
     }
     

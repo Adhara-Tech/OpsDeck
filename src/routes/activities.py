@@ -6,6 +6,8 @@ from datetime import datetime, date
 from ..models import db, SecurityActivity, ActivityExecution, User, Group, Tag, Attachment, ActivityRelatedObject
 from .main import login_required
 from ..services.permissions_service import requires_permission, has_write_permission
+from src.utils.timezone_helper import today
+
 
 activities_bp = Blueprint('activities', __name__)
 
@@ -194,7 +196,7 @@ def execute_activity(id):
     # GET request - render form
     users = User.query.filter_by(is_archived=False).order_by(User.name).all()
     current_user = User.query.get(session.get('user_id'))
-    today_date = date.today().strftime('%Y-%m-%d')
+    today_date = today().strftime('%Y-%m-%d')
     
     return render_template('activities/execution_form.html', 
                          activity=activity, 

@@ -5,6 +5,8 @@ from ..services.permissions_service import requires_permission, has_write_permis
 from werkzeug.utils import secure_filename
 from datetime import datetime
 import os
+from src.utils.timezone_helper import now
+
 
 changes_bp = Blueprint('changes', __name__)
 
@@ -106,7 +108,7 @@ def new_change():
         if not requires_approval:
             # Skip approval step
             change.status = 'Approved'
-            change.approved_at = datetime.utcnow()
+            change.approved_at = now()
             change.approved_by_id = user_id # Auto-approval by creator for Standards
             flash('Change created and auto-approved (Standard/No Approval Required).', 'success')
         else:
@@ -132,7 +134,7 @@ def new_change():
                           software=software,
                           configurations=configurations,
                           tags=tags,
-                          today=datetime.now(),
+                          today=now(),
                           change=None)
 
 @changes_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
@@ -251,7 +253,7 @@ def approve_change(id):
         
     change.status = 'Approved'
     change.approved_by_id = user_id
-    change.approved_at = datetime.utcnow()
+    change.approved_at = now()
     db.session.commit()
     
     flash('Change approved successfully.', 'success')
@@ -269,7 +271,7 @@ def start_change(id):
         return redirect(url_for('changes.detail_change', id=id))
         
     change.status = 'In Progress'
-    change.executed_at = datetime.utcnow()
+    change.executed_at = now()
     db.session.commit()
     
     flash('Change execution started.', 'info')
@@ -284,7 +286,7 @@ def complete_change(id):
     change = Change.query.get_or_404(id)
     
     change.status = 'Completed'
-    change.closed_at = datetime.utcnow()
+    change.closed_at = now()
     db.session.commit()
     
     flash('Change marked as completed.', 'success')
@@ -298,7 +300,7 @@ def cancel_change(id):
         return redirect(url_for('changes.detail_change', id=id))
     change = Change.query.get_or_404(id)
     change.status = 'Cancelled'
-    change.closed_at = datetime.utcnow()
+    change.closed_at = now()
     db.session.commit()
     
     flash('Change cancelled.', 'secondary')
@@ -324,7 +326,7 @@ def add_evidence(id):
     if file:
         filename = secure_filename(file.filename)
         # Unique filename
-        unique_filename = f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{filename}"
+        unique_filename = f"{now().strftime('%Y%m%d%H%M%S')}_{filename}"
         
         file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], unique_filename)
         file.save(file_path)

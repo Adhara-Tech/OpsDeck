@@ -1,6 +1,8 @@
 from datetime import datetime, timedelta
 from ..extensions import db
 from .auth import User
+from src.utils.timezone_helper import now, today
+
 
 # Association table for Certificate <-> BusinessService
 service_certificates = db.Table('service_certificates',
@@ -28,8 +30,8 @@ class Certificate(db.Model):
     owner_id = db.Column(db.Integer, nullable=True) 
     owner_type = db.Column(db.String(50), default='User') # 'User', 'Group'
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
+    updated_at = db.Column(db.DateTime, default=lambda: now(), onupdate=lambda: now())
 
     # Relationship to Services
     services = db.relationship('BusinessService', secondary=service_certificates, backref=db.backref('certificates', lazy='dynamic'))
@@ -97,14 +99,14 @@ class CertificateVersion(db.Model):
     
     is_active = db.Column(db.Boolean, default=True)
     
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
 
     @property
     def days_until_expiry(self):
         if not self.expires_at:
             return 0
         # Convert date to datetime for calculation if needed, or strictly use date
-        # expires_at is db.Date, datetime.utcnow().date() gives date.
-        today = datetime.utcnow().date()
+        # expires_at is db.Date, today() gives date.
+        today = today()
         delta = self.expires_at - today
         return delta.days

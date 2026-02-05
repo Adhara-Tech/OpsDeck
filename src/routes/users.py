@@ -10,6 +10,8 @@ from ..models.core import CustomFieldDefinition
 from .main import login_required
 from weasyprint import HTML
 from ..services.permissions_service import requires_permission
+from src.utils.timezone_helper import now
+
 
 users_bp = Blueprint('users', __name__)
 
@@ -40,9 +42,24 @@ def archived_users():
 @requires_permission('administration', access_level='WRITE')
 def archive_user(id):
     user = User.query.get_or_404(id)
+
+    # Validate that user can be archived
+    can_archive, errors = user.can_be_archived()
+
+    if not can_archive:
+        for error in errors:
+            flash(error, 'error')
+        flash(f'Cannot archive user "{user.name}". Please resolve the issues above first.', 'error')
+        return redirect(url_for('users.user_detail', id=id))
+
+    # Clean up non-critical relationships
+    user.prepare_for_archival()
+
+    # Archive the user
     user.is_archived = True
     db.session.commit()
-    flash(f'User "{user.name}" has been archived.')
+
+    flash(f'User "{user.name}" has been archived successfully.')
     return redirect(url_for('users.users'))
 
 
@@ -176,7 +193,7 @@ def generate_inventory(id):
     html_content = render_template(
         'users/inventory_pdf.html', 
         user=user,
-        generated_at=datetime.now()
+        generated_at=now()
     )
     
     # 2. Generar los bytes del PDF en memoria
@@ -188,7 +205,7 @@ def generate_inventory(id):
         return redirect(url_for('users.user_detail', id=id))
 
     # 3. Definir nombres de archivo
-    timestamp = datetime.now().strftime('%Y-%m-%d_%H%M')
+    timestamp = now().strftime('%Y-%m-%d_%H%M')
     original_filename = f"Inventory_{user.name.replace(' ', '_')}_{timestamp}.pdf"
     secure_filename_to_save = f"{uuid.uuid4().hex}.pdf"
     
@@ -245,7 +262,7 @@ def generate_token(id):
 @requires_permission('administration', access_level='WRITE')
 def create_org_snapshot():
     if request.method == 'POST':
-        name = request.form.get('name') or f'Org Chart - {datetime.utcnow().strftime("%Y-%m-%d")}'
+        name = request.form.get('name') or f'Org Chart - {now().strftime("%Y-%m-%d")}'
         notes = request.form.get('notes')
         
         # 1. Build hierarchy (filter out hidden users)

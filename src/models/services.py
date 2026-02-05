@@ -1,4 +1,5 @@
 from datetime import datetime
+from src.utils.timezone_helper import now
 from ..extensions import db
 from sqlalchemy.orm import foreign
 from sqlalchemy import and_
@@ -40,8 +41,8 @@ class BusinessService(db.Model):
     sla_response_hours = db.Column(db.Integer)
     sla_resolution_hours = db.Column(db.Integer)
     
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
+    updated_at = db.Column(db.DateTime, default=lambda: now(), onupdate=lambda: now())
 
     # Relationships
     cost_center = db.relationship('CostCenter', backref='services')
@@ -222,7 +223,7 @@ class ServiceComponent(db.Model):
     component_id = db.Column(db.Integer, nullable=False)
     
     notes = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
 
     @property
     def linked_object(self):

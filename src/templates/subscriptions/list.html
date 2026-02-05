@@ -81,7 +81,7 @@
                         <td><a href="{{ url_for('suppliers.supplier_detail', id=subscription.supplier.id) }}">{{
                                 subscription.supplier.name }}</a></td>
                         <td>{{ subscription.renewal_period_value }} {{ subscription.renewal_period_type.title() }}</td>
-                        <td>{{ subscription.next_renewal_date.strftime('%Y-%m-%d') }}</td>
+                        <td>{{ subscription.next_renewal_date.strftime('%Y-%m-%d') if subscription.next_renewal_date else 'N/A' }}</td>
                         <td>
                             <span class="badge {{ 'bg-success' if subscription.auto_renew else 'bg-warning' }}">
                                 {{ 'Yes' if subscription.auto_renew else 'No' }}

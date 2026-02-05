@@ -1,0 +1,580 @@
+{% extends "layout.html" %}
+{% block title %}Execution #{{ execution.id }} - {{ execution.comparison.name }} - {{ super() }}{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('compliance.uar_automation_list') }}">UAR Automation</a></li>
+        <li class="breadcrumb-item"><a href="{{ url_for('compliance.uar_automation_detail', id=execution.comparison.id) }}">{{ execution.comparison.name }}</a></li>
+        <li class="breadcrumb-item active">Execution {{ execution.started_at.strftime('%Y-%m-%d %H:%M') }}</li>
+    </ol>
+</nav>
+
+<!-- Summary Card -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5><i class="fas fa-chart-bar"></i> Execution Summary</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="text-center">
+                    <h2 class="display-4 mb-0">{{ execution.findings_count }}</h2>
+                    <small class="text-muted">Total Findings</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-center">
+                    <h3 class="text-info">{{ execution.left_only_count }}</h3>
+                    <small class="text-muted">Left Only (A)</small>
+                    <br><small class="text-muted">Missing in target</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-center">
+                    <h3 class="text-warning">{{ execution.right_only_count }}</h3>
+                    <small class="text-muted">Right Only (B)</small>
+                    <br><small class="text-muted">Unauthorized</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="text-center">
+                    <h3 class="text-danger">{{ execution.mismatch_count }}</h3>
+                    <small class="text-muted">Mismatches</small>
+                    <br><small class="text-muted">Attribute differences</small>
+                </div>
+            </div>
+        </div>
+        <hr>
+        <div class="row">
+            <div class="col-md-6">
+                <ul class="list-unstyled mb-0">
+                    <li><strong>Execution ID:</strong> #{{ execution.id }}</li>
+                    <li><strong>Comparison:</strong> {{ execution.comparison.name }}</li>
+                    <li><strong>Started:</strong> {{ execution.started_at.strftime('%Y-%m-%d %H:%M:%S UTC') }}</li>
+                    <li><strong>Completed:</strong> {{ execution.completed_at.strftime('%Y-%m-%d %H:%M:%S UTC') if execution.completed_at else 'N/A' }}</li>
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <ul class="list-unstyled mb-0">
+                    <li><strong>Duration:</strong> {{ ((execution.completed_at - execution.started_at).total_seconds())|int if execution.completed_at else 'N/A' }}s</li>
+                    <li><strong>Status:</strong>
+                        <span class="badge bg-{% if execution.status == 'completed' %}success{% elif execution.status == 'failed' %}danger{% else %}warning{% endif %}">
+                            {{ execution.status|title }}
+                        </span>
+                    </li>
+                    <li><strong>Alerts Sent:</strong> {{ 'Yes' if execution.alerts_sent else 'No' }}</li>
+                    <li><strong>Incidents Created:</strong> {{ execution.incidents_created or 0 }}</li>
+                </ul>
+            </div>
+        </div>
+
+        {% if execution.source_a_snapshot or execution.source_b_snapshot %}
+        <hr>
+        <details>
+            <summary class="text-muted" style="cursor: pointer;">
+                <small><i class="fas fa-database"></i> Dataset Snapshots (click to expand)</small>
+            </summary>
+            <div class="row mt-2">
+                <div class="col-md-6">
+                    <h6>Dataset A</h6>
+                    {% if execution.source_a_snapshot %}
+                    <ul class="small">
+                        <li>Rows: {{ execution.source_a_snapshot.row_count }}</li>
+                        <li>Columns: {{ execution.source_a_snapshot.columns|join(', ') }}</li>
+                    </ul>
+                    {% endif %}
+                </div>
+                <div class="col-md-6">
+                    <h6>Dataset B</h6>
+                    {% if execution.source_b_snapshot %}
+                    <ul class="small">
+                        <li>Rows: {{ execution.source_b_snapshot.row_count }}</li>
+                        <li>Columns: {{ execution.source_b_snapshot.columns|join(', ') }}</li>
+                    </ul>
+                    {% endif %}
+                </div>
+            </div>
+        </details>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Findings Tabs -->
+<div class="card">
+    <div class="card-header">
+        <ul class="nav nav-tabs card-header-tabs" role="tablist">
+            <li class="nav-item">
+                <a class="nav-link {% if not request.args.get('type') or request.args.get('type') == 'all' %}active{% endif %}"
+                   href="{{ url_for('compliance.uar_execution_detail', execution_id=execution.id, type='all') }}">
+                    All Findings <span class="badge bg-secondary">{{ execution.findings_count }}</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if request.args.get('type') == 'Left Only (A)' %}active{% endif %}"
+                   href="{{ url_for('compliance.uar_execution_detail', execution_id=execution.id, type='Left Only (A)') }}">
+                    Left Only (A) <span class="badge bg-info">{{ execution.left_only_count }}</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if request.args.get('type') == 'Right Only (B)' %}active{% endif %}"
+                   href="{{ url_for('compliance.uar_execution_detail', execution_id=execution.id, type='Right Only (B)') }}">
+                    Right Only (B) <span class="badge bg-warning">{{ execution.right_only_count }}</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if request.args.get('type') == 'Mismatch' %}active{% endif %}"
+                   href="{{ url_for('compliance.uar_execution_detail', execution_id=execution.id, type='Mismatch') }}">
+                    Mismatches <span class="badge bg-danger">{{ execution.mismatch_count }}</span>
+                </a>
+            </li>
+        </ul>
+    </div>
+    <div class="card-body">
+        {% if findings.items %}
+
+        <!-- Bulk Actions Toolbar -->
+        {% if can_write('compliance') %}
+        <div id="bulkActionsToolbar" class="alert alert-info mb-3" style="display: none;">
+            <div class="row align-items-center">
+                <div class="col-md-4">
+                    <span id="selectedCount">0</span> findings selected
+                </div>
+                <div class="col-md-8 text-end">
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="bulkMarkFalsePositive()">
+                            <i class="fas fa-times-circle"></i> Mark False Positive
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="bulkAssign()">
+                            <i class="fas fa-user"></i> Assign
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-success" onclick="bulkResolve()">
+                            <i class="fas fa-check"></i> Resolve
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="bulkCreateIncident()">
+                            <i class="fas fa-exclamation-triangle"></i> Create Incident
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-info" onclick="bulkExport()">
+                            <i class="fas fa-download"></i> Export
+                        </button>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-secondary ms-2" onclick="clearSelection()">
+                        <i class="fas fa-times"></i> Clear
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="table-responsive">
+            <table class="table table-hover" id="findingsTable">
+                <thead>
+                    <tr>
+                        {% if can_write('compliance') %}
+                        <th style="width: 40px;">
+                            <input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)">
+                        </th>
+                        {% endif %}
+                        <th>Severity</th>
+                        <th>Key</th>
+                        <th>Finding Type</th>
+                        <th>Description</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for finding in findings.items %}
+                    <tr data-finding-id="{{ finding.id }}" class="finding-row">
+                        {% if can_write('compliance') %}
+                        <td>
+                            <input type="checkbox" class="finding-checkbox" value="{{ finding.id }}" onchange="updateBulkActions()">
+                        </td>
+                        {% endif %}
+                        <td>
+                            <span class="badge bg-{% if finding.severity == 'critical' %}danger{% elif finding.severity == 'high' %}warning{% elif finding.severity == 'medium' %}info{% else %}secondary{% endif %}">
+                                {{ finding.severity|upper }}
+                            </span>
+                        </td>
+                        <td><code>{{ finding.key_value }}</code></td>
+                        <td>
+                            <span class="badge bg-{% if finding.finding_type == 'Right Only (B)' %}warning{% elif finding.finding_type == 'Left Only (A)' %}info{% else %}danger{% endif %}">
+                                {{ finding.finding_type }}
+                            </span>
+                        </td>
+                        <td>{{ finding.description|truncate(100) }}</td>
+                        <td>
+                            <span class="badge bg-{% if finding.status == 'open' %}danger{% elif finding.status == 'resolved' %}success{% elif finding.status == 'acknowledged' %}warning{% else %}secondary{% endif %}">
+                                {{ finding.status|title }}
+                            </span>
+                            {% if finding.security_incident_id %}
+                            <a href="{{ url_for('security.incident_detail', id=finding.security_incident_id) }}" class="badge bg-primary" title="View Incident">
+                                <i class="fas fa-link"></i> Incident
+                            </a>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#findingModal{{ finding.id }}" title="View Details">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            {% if can_write('compliance') and finding.status == 'open' %}
+                            <button class="btn btn-sm btn-outline-success" data-bs-toggle="modal" data-bs-target="#resolveModal{{ finding.id }}" title="Resolve">
+                                <i class="fas fa-check"></i>
+                            </button>
+                            {% if not finding.security_incident_id %}
+                            <form action="{{ url_for('compliance.uar_finding_promote', id=finding.id) }}" method="POST" style="display:inline;">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Promote to Incident">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                            {% endif %}
+                        </td>
+                    </tr>
+
+                    <!-- Finding Detail Modal -->
+                    <div class="modal fade" id="findingModal{{ finding.id }}" tabindex="-1">
+                        <div class="modal-dialog modal-lg">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Finding #{{ finding.id }} - {{ finding.key_value }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <dl class="row">
+                                        <dt class="col-sm-3">Type</dt>
+                                        <dd class="col-sm-9">{{ finding.finding_type }}</dd>
+
+                                        <dt class="col-sm-3">Severity</dt>
+                                        <dd class="col-sm-9">
+                                            <span class="badge bg-{{ 'danger' if finding.severity == 'critical' else 'warning' if finding.severity == 'high' else 'info' }}">
+                                                {{ finding.severity|upper }}
+                                            </span>
+                                        </dd>
+
+                                        <dt class="col-sm-3">Description</dt>
+                                        <dd class="col-sm-9">{{ finding.description }}</dd>
+
+                                        {% if finding.finding_type == 'Mismatch' and finding.raw_data_a and finding.raw_data_b %}
+                                        <dt class="col-sm-12 mt-3">
+                                            <h6>Visual Comparison</h6>
+                                        </dt>
+                                        <dd class="col-sm-12">
+                                            <div class="diff-viewer">
+                                                <div class="row fw-bold border-bottom pb-2 mb-2">
+                                                    <div class="col-6 text-center">Dataset A</div>
+                                                    <div class="col-6 text-center">Dataset B</div>
+                                                </div>
+                                                {% set data_a = finding.raw_data_a %}
+                                                {% set data_b = finding.raw_data_b %}
+                                                {% set all_keys = data_a.keys() | list + data_b.keys() | list | unique %}
+                                                {% for key in all_keys %}
+                                                {% set val_a = data_a.get(key) %}
+                                                {% set val_b = data_b.get(key) %}
+                                                {% set is_different = (val_a != val_b) %}
+                                                <div class="row border-top py-2 {% if is_different %}bg-warning bg-opacity-10{% endif %}">
+                                                    <div class="col-6">
+                                                        <strong>{{ key }}:</strong>
+                                                        {% if val_a is not none %}
+                                                        <code class="ms-2">{{ val_a }}</code>
+                                                        {% else %}
+                                                        <em class="text-muted ms-2">null</em>
+                                                        {% endif %}
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <strong>{{ key }}:</strong>
+                                                        {% if val_b is not none %}
+                                                        <code class="ms-2">{{ val_b }}</code>
+                                                        {% else %}
+                                                        <em class="text-muted ms-2">null</em>
+                                                        {% endif %}
+                                                        {% if is_different %}
+                                                        <span class="badge bg-warning text-dark ms-2">CHANGED</span>
+                                                        {% else %}
+                                                        <span class="badge bg-secondary ms-2">UNCHANGED</span>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                        </dd>
+
+                                        <dt class="col-sm-12 mt-3">
+                                            <details>
+                                                <summary class="text-muted" style="cursor: pointer;">
+                                                    <small>View Raw JSON Data</small>
+                                                </summary>
+                                                <div class="row mt-2">
+                                                    <div class="col-6">
+                                                        <strong>Dataset A:</strong>
+                                                        <pre class="bg-light p-2 small">{{ finding.raw_data_a|tojson(indent=2) }}</pre>
+                                                    </div>
+                                                    <div class="col-6">
+                                                        <strong>Dataset B:</strong>
+                                                        <pre class="bg-light p-2 small">{{ finding.raw_data_b|tojson(indent=2) }}</pre>
+                                                    </div>
+                                                </div>
+                                            </details>
+                                        </dt>
+
+                                        {% else %}
+                                        {% if finding.raw_data_a %}
+                                        <dt class="col-sm-3">Data from A</dt>
+                                        <dd class="col-sm-9"><pre class="bg-light p-2 small">{{ finding.raw_data_a|tojson(indent=2) }}</pre></dd>
+                                        {% endif %}
+
+                                        {% if finding.raw_data_b %}
+                                        <dt class="col-sm-3">Data from B</dt>
+                                        <dd class="col-sm-9"><pre class="bg-light p-2 small">{{ finding.raw_data_b|tojson(indent=2) }}</pre></dd>
+                                        {% endif %}
+
+                                        {% if finding.differences %}
+                                        <dt class="col-sm-3">Differences</dt>
+                                        <dd class="col-sm-9"><pre class="bg-light p-2 small">{{ finding.differences|tojson(indent=2) }}</pre></dd>
+                                        {% endif %}
+                                        {% endif %}
+                                    </dl>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Resolve Modal -->
+                    {% if can_write('compliance') and finding.status == 'open' %}
+                    <div class="modal fade" id="resolveModal{{ finding.id }}" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <form action="{{ url_for('compliance.uar_finding_resolve', id=finding.id) }}" method="POST">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Resolve Finding</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <div class="mb-3">
+                                            <label for="status{{ finding.id }}" class="form-label">Status</label>
+                                            <select class="form-select" name="status" id="status{{ finding.id }}" required>
+                                                <option value="resolved">Resolved</option>
+                                                <option value="acknowledged">Acknowledged</option>
+                                                <option value="false_positive">False Positive</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="notes{{ finding.id }}" class="form-label">Resolution Notes</label>
+                                            <textarea class="form-control" name="notes" id="notes{{ finding.id }}" rows="3" required></textarea>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                        <button type="submit" class="btn btn-primary">Save</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if findings.pages > 1 %}
+        <nav>
+            <ul class="pagination justify-content-center">
+                {% if findings.has_prev %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('compliance.uar_execution_detail', execution_id=execution.id, type=request.args.get('type', 'all'), page=findings.prev_num) }}">Previous</a>
+                </li>
+                {% endif %}
+
+                {% for page_num in findings.iter_pages(left_edge=1, right_edge=1, left_current=1, right_current=2) %}
+                {% if page_num %}
+                <li class="page-item {% if page_num == findings.page %}active{% endif %}">
+                    <a class="page-link" href="{{ url_for('compliance.uar_execution_detail', execution_id=execution.id, type=request.args.get('type', 'all'), page=page_num) }}">{{ page_num }}</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled"><span class="page-link">...</span></li>
+                {% endif %}
+                {% endfor %}
+
+                {% if findings.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('compliance.uar_execution_detail', execution_id=execution.id, type=request.args.get('type', 'all'), page=findings.next_num) }}">Next</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+
+        {% else %}
+        <div class="text-center p-5">
+            <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+            <h5>No findings in this category</h5>
+            <p class="text-muted">All access controls are in sync!</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Bulk Operations JavaScript
+
+function toggleSelectAll(checkbox) {
+    const checkboxes = document.querySelectorAll('.finding-checkbox');
+    checkboxes.forEach(cb => cb.checked = checkbox.checked);
+    updateBulkActions();
+}
+
+function updateBulkActions() {
+    const checkboxes = document.querySelectorAll('.finding-checkbox:checked');
+    const count = checkboxes.length;
+    const toolbar = document.getElementById('bulkActionsToolbar');
+    const countSpan = document.getElementById('selectedCount');
+
+    if (count > 0) {
+        toolbar.style.display = 'block';
+        countSpan.textContent = count;
+    } else {
+        toolbar.style.display = 'none';
+        document.getElementById('selectAll').checked = false;
+    }
+}
+
+function getSelectedFindingIds() {
+    const checkboxes = document.querySelectorAll('.finding-checkbox:checked');
+    return Array.from(checkboxes).map(cb => parseInt(cb.value));
+}
+
+function clearSelection() {
+    document.querySelectorAll('.finding-checkbox').forEach(cb => cb.checked = false);
+    document.getElementById('selectAll').checked = false;
+    updateBulkActions();
+}
+
+async function bulkMarkFalsePositive() {
+    const ids = getSelectedFindingIds();
+    if (ids.length === 0) return;
+
+    const notes = prompt(`Mark ${ids.length} findings as false positive. Enter notes:`);
+    if (!notes) return;
+
+    await performBulkAction('mark_false_positive', ids, { notes });
+}
+
+async function bulkAssign() {
+    const ids = getSelectedFindingIds();
+    if (ids.length === 0) return;
+
+    const userId = prompt(`Assign ${ids.length} findings to user (enter user ID):`);
+    if (!userId) return;
+
+    await performBulkAction('assign', ids, { user_id: parseInt(userId) });
+}
+
+async function bulkResolve() {
+    const ids = getSelectedFindingIds();
+    if (ids.length === 0) return;
+
+    const status = prompt(`Resolve ${ids.length} findings. Status (resolved/acknowledged/false_positive):`, 'resolved');
+    if (!status) return;
+
+    const notes = prompt('Enter resolution notes:');
+    if (!notes) return;
+
+    await performBulkAction('resolve', ids, { resolution_status: status, notes });
+}
+
+async function bulkCreateIncident() {
+    const ids = getSelectedFindingIds();
+    if (ids.length === 0) return;
+
+    if (!confirm(`Create a security incident for ${ids.length} findings?`)) return;
+
+    const result = await performBulkAction('create_incident', ids, {});
+    if (result && result.redirect_url) {
+        window.location.href = result.redirect_url;
+        return;
+    }
+}
+
+async function bulkExport() {
+    const ids = getSelectedFindingIds();
+    if (ids.length === 0) return;
+
+    const result = await performBulkAction('export', ids, {});
+    if (result && result.csv_data) {
+        // Download CSV file
+        const blob = new Blob([result.csv_data], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = result.filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+    }
+}
+
+async function performBulkAction(action, findingIds, payload) {
+    try {
+        const response = await fetch('{{ url_for("compliance.uar_findings_bulk_action") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: action,
+                finding_ids: findingIds,
+                ...payload
+            })
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+            alert(result.message);
+            // Reload page to show updated findings
+            if (!result.redirect_url) {
+                window.location.reload();
+            }
+            return result;
+        } else {
+            alert('Error: ' + (result.error || 'Unknown error'));
+            return null;
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+        return null;
+    }
+}
+</script>
+
+<style>
+.finding-row:hover {
+    background-color: #f8f9fa;
+}
+
+.diff-viewer {
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    padding: 1rem;
+    background-color: #f8f9fa;
+}
+
+.diff-viewer .row {
+    margin-left: 0;
+    margin-right: 0;
+}
+
+.diff-viewer code {
+    background-color: white;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.9em;
+}
+</style>
+{% endblock %}

@@ -1,3 +1,4 @@
+import json
 import os
 import uuid
 from werkzeug.utils import secure_filename
@@ -7,8 +8,20 @@ from ..models import db, Supplier, SecurityAssessment, PolicyVersion, User, Asse
 from ..models.activities import SecurityActivity
 from ..models.communications import Campaign
 from ..models.core import Tag
+from ..models.uar import UARComparison, UARExecution, UARFinding
+from ..models.services import BusinessService
 from .main import login_required
 from ..services.permissions_service import requires_permission, has_write_permission
+from ..services.uar_service import UARAutomationService
+from ..utils.uar_engine import AccessReviewEngine
+from src.utils.timezone_helper import now
+
+
+# Optional import for Enterprise Plugin
+try:
+    from opsdeck_enterprise.models.report import Report
+except ImportError:
+    Report = None
 
 compliance_bp = Blueprint('compliance', __name__)
 
@@ -77,6 +90,363 @@ def get_linkable_objects():
             })
 
     return jsonify(results)
+
+@compliance_bp.route('/json/subscriptions')
+@requires_permission('compliance')
+def get_json_subscriptions():
+    """Returns list of Subscriptions for UAR dropdown."""
+    q = request.args.get('q', '').lower()
+    query = Subscription.query.order_by(Subscription.name)
+    if q:
+        query = query.filter(Subscription.name.ilike(f'%{q}%'))
+    subs = query.limit(50).all()
+    return jsonify([{
+        'id': s.id,
+        'name': s.name
+    } for s in subs])
+
+@compliance_bp.route('/json/services')
+@requires_permission('compliance')
+def get_json_services():
+    from ..models.services import BusinessService
+    """Returns list of Business Services for UAR dropdown."""
+    q = request.args.get('q', '').lower()
+    query = BusinessService.query.order_by(BusinessService.name)
+    if q:
+        query = query.filter(BusinessService.name.ilike(f'%{q}%'))
+    svcs = query.limit(50).all()
+    return jsonify([{
+        'id': s.id,
+        'name': s.name
+    } for s in svcs])
+
+# --- User Access Review (UAR) Routes ---
+
+@compliance_bp.route('/access-review')
+@requires_permission('compliance')
+def access_review():
+    """Renders the User Access Review interface."""
+    reports = []
+    if Report:
+        # Fetch last 20 reports, joined with subtask info if possible, or just raw
+        # We probably want to show the subtask name if available. 
+        # For now, just listing recent reports.
+        reports = Report.query.order_by(Report.created_at.desc()).limit(20).all()
+        
+    return render_template('compliance/access_review.html', reports=reports)
+
+@compliance_bp.route('/access-review/preview', methods=['POST'])
+@requires_permission('compliance')
+def access_review_preview():
+    """
+    Executes a comparison of the loaded datasets.
+    Expects JSON: {
+        'source_a_type': 'Active Users' | 'Subscription' | 'Service' | 'JSON',
+        'source_a_id': 123, # For Sub/Service
+        'source_a_json': '...', # For JSON
+        
+        'source_b_type': 'Active Users' | 'Report' | 'Subscription' | 'Service' | 'JSON',
+        'source_b_id': 123,
+        'source_b_json': '...',
+        
+        'match_key': 'email', # Column to match on
+        'compare_fields': ['role', 'admin'], # Columns to compare values
+        
+        # Legacy/Advanced
+        'query': 'SELECT ...' 
+    }
+    """
+    data = request.json
+    engine = AccessReviewEngine()
+    
+    try:
+        # --- Load Dataset A ---
+        type_a = data.get('source_a_type', 'Active Users')
+        if type_a == 'Active Users':
+            users_data = _get_active_users_as_dict()
+            current_app.logger.info(f"[UAR] Loading {len(users_data)} users into dataset_a")
+            engine.load_dataset('dataset_a', users_data)
+        elif type_a == 'Subscription':
+            engine.load_from_subscription('dataset_a', data.get('source_a_id'))
+        elif type_a == 'Service':
+            engine.load_from_service('dataset_a', data.get('source_a_id'))
+        elif type_a == 'Database Query':
+            query = data.get('source_a_query', '')
+            if query:
+                query_results = _validate_and_execute_query(query)
+                engine.load_dataset('dataset_a', query_results)
+        elif type_a == 'JSON':
+            try:
+                engine.load_dataset('dataset_a', json.loads(data.get('source_a_json', '[]')))
+            except json.JSONDecodeError:
+                pass
+
+        # --- Load Dataset B ---
+        type_b = data.get('source_b_type')
+        # Legacy fallback
+        if not type_b and data.get('source_b') == 'Active Users': type_b = 'Active Users'
+        if not type_b and data.get('source_b_report_id'): type_b = 'Report'
+        if not type_b and data.get('source_b_json'): type_b = 'JSON'
+        
+        if type_b == 'Active Users':
+            engine.load_dataset('dataset_b', _get_active_users_as_dict())
+        elif type_b == 'Report':
+            # Support both new ID field or legacy field
+            r_id = data.get('source_b_report_id') or data.get('source_b_id')
+            engine.load_from_report('dataset_b', r_id)
+        elif type_b == 'Subscription':
+            engine.load_from_subscription('dataset_b', data.get('source_b_id'))
+        elif type_b == 'Service':
+            engine.load_from_service('dataset_b', data.get('source_b_id'))
+        elif type_b == 'Database Query':
+            query = data.get('source_b_query', '')
+            if query:
+                query_results = _validate_and_execute_query(query)
+                engine.load_dataset('dataset_b', query_results)
+        elif type_b == 'JSON':
+            try:
+                engine.load_dataset('dataset_b', json.loads(data.get('source_b_json', '[]')))
+            except json.JSONDecodeError:
+                pass
+            
+        # --- Comparison ---
+        # Support new flexible column mapping format
+        key_field_a = data.get('key_field_a')
+        key_field_b = data.get('key_field_b')
+        field_mappings = data.get('field_mappings', [])
+        
+        # Legacy support: single match_key means same column name in both
+        legacy_match_key = data.get('match_key')
+        legacy_compare_fields = data.get('compare_fields', [])
+        
+        if key_field_a and key_field_b:
+            # New flexible mapping format
+            results = engine.perform_structured_comparison(
+                key_field_a=key_field_a,
+                key_field_b=key_field_b,
+                field_mappings=field_mappings
+            )
+        elif legacy_match_key:
+            # Legacy format: same key name in both datasets
+            results = engine.perform_structured_comparison(
+                key_field_a=legacy_match_key,
+                key_field_b=legacy_match_key,
+                field_mappings=[{"field_a": f, "field_b": f} for f in legacy_compare_fields] if legacy_compare_fields else []
+            )
+        else:
+            # Fallback to raw SQL query
+            query = data.get('query')
+            if not query:
+                 # Default fallback if nothing provided
+                 query = "SELECT * FROM dataset_b WHERE login NOT IN (SELECT custom_field_github_user FROM dataset_a)"
+            results = engine.execute_query(query)
+        
+        return jsonify({'success': True, 'results': results})
+        
+    except Exception as e:
+        current_app.logger.error(f"[UAR] Error in endpoint: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 400
+    finally:
+        engine.cleanup()
+
+@compliance_bp.route('/access-review/schema', methods=['POST'])
+@requires_permission('compliance')
+def get_access_review_schema():
+    """
+    Returns the columns/keys for the selected datasets.
+    """
+    data = request.json
+    engine = AccessReviewEngine()
+    response_schema = {'dataset_a': [], 'dataset_b': []}
+    response_samples = {'dataset_a': [], 'dataset_b': []}
+    
+    try:
+        # --- Load Dataset A ---
+        type_a = data.get('source_a_type', 'Active Users')
+        if type_a == 'Active Users':
+            users_data = _get_active_users_as_dict()
+            current_app.logger.info(f"[UAR] Loading {len(users_data)} users into dataset_a")
+            engine.load_dataset('dataset_a', users_data)
+        elif type_a == 'Subscription':
+            engine.load_from_subscription('dataset_a', data.get('source_a_id'))
+        elif type_a == 'Service':
+            engine.load_from_service('dataset_a', data.get('source_a_id'))
+        elif type_a == 'Database Query':
+            query = data.get('source_a_query', '')
+            if query:
+                query_results = _validate_and_execute_query(query)
+                engine.load_dataset('dataset_a', query_results)
+        elif type_a == 'JSON':
+            try:
+                json_data = json.loads(data.get('source_a_json', '[]'))
+                if not isinstance(json_data, list):
+                    return jsonify({'success': False, 'error': 'JSON must be an array of objects'}), 400
+                if json_data and not isinstance(json_data[0], dict):
+                    return jsonify({'success': False, 'error': 'JSON array must contain objects'}), 400
+                engine.load_dataset('dataset_a', json_data)
+            except json.JSONDecodeError as e:
+                return jsonify({'success': False, 'error': f'Invalid JSON format for Dataset A: {str(e)}'}), 400
+                
+        # --- Load Dataset B ---
+        type_b = data.get('source_b_type')
+        # Legacy fallback logic for UI compatibility
+        if not type_b:
+             if data.get('source_b_report_id'): type_b = 'Report'
+             elif data.get('source_b') == 'Active Users': type_b = 'Active Users'
+             elif data.get('source_b_json'): type_b = 'JSON'
+        
+        if type_b == 'Active Users':
+            users_data = _get_active_users_as_dict()
+            current_app.logger.info(f"[UAR] Loading {len(users_data)} users into dataset_b")
+            engine.load_dataset('dataset_b', users_data)
+        elif type_b == 'Report':
+            r_id = data.get('source_b_report_id') or data.get('source_b_id')
+            engine.load_from_report('dataset_b', r_id)
+        elif type_b == 'Subscription':
+            engine.load_from_subscription('dataset_b', data.get('source_b_id'))
+        elif type_b == 'Service':
+            engine.load_from_service('dataset_b', data.get('source_b_id'))
+        elif type_b == 'Database Query':
+            query = data.get('source_b_query', '')
+            if query:
+                query_results = _validate_and_execute_query(query)
+                engine.load_dataset('dataset_b', query_results)
+        elif type_b == 'JSON':
+            try:
+                json_data = json.loads(data.get('source_b_json', '[]'))
+                if not isinstance(json_data, list):
+                    return jsonify({'success': False, 'error': 'JSON must be an array of objects'}), 400
+                if json_data and not isinstance(json_data[0], dict):
+                    return jsonify({'success': False, 'error': 'JSON array must contain objects'}), 400
+                engine.load_dataset('dataset_b', json_data)
+            except json.JSONDecodeError as e:
+                return jsonify({'success': False, 'error': f'Invalid JSON format for Dataset B: {str(e)}'}), 400
+        
+        # Get info
+        for ds_name in ['dataset_a', 'dataset_b']:
+            try:
+                # Check if table exists first
+                table_check = engine.execute_query(
+                    f"SELECT name FROM sqlite_master WHERE type='table' AND name='{ds_name}'"
+                )
+
+                if not table_check:
+                    # Table doesn't exist - dataset was empty
+                    current_app.logger.warning(f"[UAR] Table {ds_name} does not exist (likely empty dataset)")
+                    response_schema[ds_name] = []
+                    response_samples[ds_name] = []
+                    continue
+
+                cols = engine.execute_query(f"PRAGMA table_info({ds_name})")
+                if cols:
+                    response_schema[ds_name] = [c['name'] for c in cols]
+                    # Get samples (convert row objects to dicts)
+                    samples = engine.execute_query(f"SELECT * FROM {ds_name} LIMIT 3")
+                    response_samples[ds_name] = [dict(s) for s in samples]
+                else:
+                    # Table exists but has no columns (shouldn't happen)
+                    current_app.logger.warning(f"[UAR] No columns found for {ds_name}")
+                    response_schema[ds_name] = []
+                    response_samples[ds_name] = []
+            except Exception as schema_err:
+                current_app.logger.error(f"[UAR] Error getting schema for {ds_name}: {schema_err}")
+                # Return error but don't crash
+                response_schema[ds_name] = []
+                response_samples[ds_name] = []
+                
+        return jsonify({
+            'success': True, 
+            'schema': response_schema,
+            'samples': response_samples
+        })
+
+    except Exception as e:
+        current_app.logger.error(f"[UAR] Error in endpoint: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 400
+    finally:
+        engine.cleanup()
+
+def _validate_and_execute_query(sql_query: str):
+    """
+    Validates that the query is read-only (SELECT/JOIN only) and executes it against the database.
+    Returns list of dicts.
+    """
+    # Remove comments and normalize
+    query_normalized = sql_query.strip().upper()
+
+    # Security check: only allow SELECT queries
+    if not query_normalized.startswith('SELECT'):
+        raise ValueError("Only SELECT queries are allowed")
+
+    # Block dangerous keywords (even in subqueries)
+    dangerous_keywords = ['INSERT', 'UPDATE', 'DELETE', 'DROP', 'CREATE', 'ALTER', 'TRUNCATE', 'GRANT', 'REVOKE']
+    for keyword in dangerous_keywords:
+        if keyword in query_normalized:
+            raise ValueError(f"Query contains forbidden keyword: {keyword}")
+
+    # Execute query with read-only connection
+    try:
+        result = db.session.execute(db.text(sql_query))
+        rows = result.fetchall()
+
+        # Convert to list of dicts
+        if rows:
+            columns = result.keys()
+            return [dict(zip(columns, row)) for row in rows]
+        return []
+    except Exception as e:
+        current_app.logger.error(f"[UAR] Database query error: {e}")
+        raise ValueError(f"Query execution failed: {str(e)}")
+
+def _get_active_users_as_dict():
+    """Helper to fetch active users and format them as dicts with flat custom properties."""
+    users = User.query.filter_by(is_archived=False).all()
+    current_app.logger.info(f"[UAR] Found {len(users)} active users")
+    user_list = []
+    for u in users:
+        u_dict = {
+            'id': u.id,
+            'name': u.name,
+            'email': u.email,
+            'role': u.role,
+            'is_archived': u.is_archived
+        }
+        try:
+            for k, v in u.custom_properties.items():
+                u_dict[f"custom_field_{k}"] = v
+        except Exception as e:
+            current_app.logger.warning(f"[UAR] Error getting custom properties for user {u.id}: {e}")
+        user_list.append(u_dict)
+    current_app.logger.info(f"[UAR] Returning {len(user_list)} user records")
+    return user_list
+
+@compliance_bp.route('/access-review/promote', methods=['POST'])
+@requires_permission('compliance')
+def promote_finding_to_incident():
+    """
+    Creates a Security Incident from a specific finding row.
+    """
+    if not has_write_permission('compliance'):
+        return jsonify({'success': False, 'message': 'Permission denied'}), 403
+        
+    data = request.json
+    finding = data.get('finding', {})
+    description_text = "\n".join([f"{k}: {v}" for k, v in finding.items()])
+    
+    incident = SecurityIncident(
+        title=f"Access Violation Detected: {finding.get('email') or finding.get('login') or 'Unknown'}",
+        description=f"Generated from User Access Review.\n\nFinding Details:\n{description_text}",
+        status='Investigating',
+        severity='SEV-2', 
+        impact='Moderate',
+        reported_by_id=session.get('user_id'),
+        incident_date=now()
+    )
+    
+    db.session.add(incident)
+    db.session.commit()
+    
+    return jsonify({'success': True, 'incident_id': incident.id})
 
 # --- JSON APIs for Automation Rules Dynamic Selectors ---
 
@@ -186,7 +556,7 @@ def new_assessment(supplier_id):
         flash('New security assessment has been logged.', 'success')
         return redirect(url_for('suppliers.supplier_detail', id=supplier_id))
 
-    return render_template('compliance/assessment_form.html', supplier=supplier, today_date=datetime.utcnow().strftime('%Y-%m-%d'))
+    return render_template('compliance/assessment_form.html', supplier=supplier, today_date=now().strftime('%Y-%m-%d'))
 
 @compliance_bp.route('/assessment/<int:id>')
 @requires_permission('compliance')
@@ -514,7 +884,7 @@ def log_bcdr_test(plan_id):
         return redirect(url_for('compliance.bcdr_test_log_detail', test_id=test_log.id))
     
     users = User.query.order_by(User.name).all()
-    return render_template('compliance/bcdr_test_log_form.html', plan=plan, today_date=datetime.utcnow().strftime('%Y-%m-%d'), users=users)
+    return render_template('compliance/bcdr_test_log_form.html', plan=plan, today_date=now().strftime('%Y-%m-%d'), users=users)
 
 @compliance_bp.route('/bcdr/test/<int:test_id>/edit', methods=['GET', 'POST'])
 @requires_permission('compliance')
@@ -648,7 +1018,7 @@ def edit_incident(id):
         incident.third_party_impacted = 'third_party_impacted' in request.form
         incident.owner_id = request.form.get('owner_id') or None
         if incident.status == 'Closed' and not incident.resolved_at:
-            incident.resolved_at = datetime.utcnow()
+            incident.resolved_at = now()
         elif incident.status != 'Closed':
             incident.resolved_at = None
         incident.affected_assets = Asset.query.filter(Asset.id.in_(request.form.getlist('asset_ids'))).all()
@@ -729,7 +1099,7 @@ def toggle_pir_lock(review_id):
     else:
         # Lock
         review.is_locked = True
-        review.locked_at = datetime.utcnow()
+        review.locked_at = now()
         review.locked_by_id = session.get('user_id')
         flash('Post-Incident Review has been finalized and locked.', 'success')
     
@@ -818,7 +1188,7 @@ def export_pir_pdf(id):
         review=review,
         sorted_timeline=sorted_timeline,
         org_settings=org_settings,
-        generated_at=datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
+        generated_at=now().strftime('%Y-%m-%d %H:%M:%S'),
         generated_by=user.name if user else 'System'
     )
     
@@ -1058,10 +1428,14 @@ def link_control():
 def dashboard():
     """Displays the compliance dashboard with real-time status evaluation."""
     from src.services.compliance_service import get_compliance_evaluator
-    
+
     evaluator = get_compliance_evaluator()
+
+    # IMPORTANT: Only show active frameworks in dashboard (current compliance state)
+    # Historical audits (ComplianceAudit) can reference inactive frameworks as historical evidence
+    # This design allows companies to deactivate frameworks without losing historical audit data
     frameworks = Framework.query.filter_by(is_active=True).order_by(Framework.name).all()
-    
+
     # Build dashboard data with evaluated status for each framework
     dashboard_data = []
     for framework in frameworks:
@@ -1094,7 +1468,7 @@ def export_dashboard_pdf():
     html_content = render_template(
         'compliance/dashboard_pdf.html', 
         dashboard_data=dashboard_data,
-        generated_at=datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
+        generated_at=now().strftime('%Y-%m-%d %H:%M:%S'),
         generated_by=user.name if user else 'System'
     )
     
@@ -1274,3 +1648,550 @@ def toggle_rule(rule_id):
     status = 'enabled' if rule.enabled else 'disabled'
     flash(f'Automation rule "{rule.name}" has been {status}.', 'success')
     return redirect(request.referrer or url_for('frameworks.control_detail', id=rule.framework_control_id))
+
+# ======================================================================
+# UAR AUTOMATION ROUTES
+# ======================================================================
+
+@compliance_bp.route('/uar/automation')
+@login_required
+@requires_permission('compliance')
+def uar_automation_list():
+    """List all UAR automated comparisons."""
+    comparisons = UARComparison.query.filter_by(is_archived=False).order_by(UARComparison.name).all()
+    return render_template('compliance/uar_automation_list.html', comparisons=comparisons)
+
+
+@compliance_bp.route('/uar/automation/new', methods=['GET', 'POST'])
+@compliance_bp.route('/uar/automation/<int:id>/edit', methods=['GET', 'POST'])
+@login_required
+@requires_permission('compliance')
+def uar_automation_form(id=None):
+    """Create or edit UAR comparison."""
+    if not has_write_permission('compliance'):
+        flash('Write access required to manage UAR automation.', 'danger')
+        return redirect(url_for('compliance.uar_automation_list'))
+
+    comparison = UARComparison.query.get_or_404(id) if id else UARComparison()
+
+    if request.method == 'POST':
+        # Parse form data
+        comparison.name = request.form.get('name')
+        comparison.description = request.form.get('description')
+        comparison.source_a_type = request.form.get('source_a_type')
+        comparison.source_b_type = request.form.get('source_b_type')
+        
+        # Parse source configurations
+        source_a_config = {}
+        if comparison.source_a_type == 'Subscription':
+            source_a_config['subscription_id'] = int(request.form.get('source_a_subscription_id', 0))
+        elif comparison.source_a_type == 'Business Service':
+            source_a_config['service_id'] = int(request.form.get('source_a_service_id', 0))
+        elif comparison.source_a_type == 'Database Query':
+            source_a_config['query'] = request.form.get('source_a_query', '')
+        elif comparison.source_a_type == 'Enterprise Report':
+            source_a_config['report_id'] = int(request.form.get('source_a_report_id', 0))
+        
+        comparison.source_a_config = source_a_config
+
+        source_b_config = {}
+        if comparison.source_b_type == 'Subscription':
+            source_b_config['subscription_id'] = int(request.form.get('source_b_subscription_id', 0))
+        elif comparison.source_b_type == 'Business Service':
+            source_b_config['service_id'] = int(request.form.get('source_b_service_id', 0))
+        elif comparison.source_b_type == 'Database Query':
+            source_b_config['query'] = request.form.get('source_b_query', '')
+        elif comparison.source_b_type == 'Enterprise Report':
+            source_b_config['report_id'] = int(request.form.get('source_b_report_id', 0))
+        
+        comparison.source_b_config = source_b_config
+
+        # Comparison config
+        comparison.key_field_a = request.form.get('key_field_a')
+        comparison.key_field_b = request.form.get('key_field_b')
+        
+        # Field mappings
+        field_mappings = []
+        mapping_count = int(request.form.get('mapping_count', 0))
+        for i in range(mapping_count):
+            field_a = request.form.get(f'mapping_{i}_field_a')
+            field_b = request.form.get(f'mapping_{i}_field_b')
+            if field_a and field_b:
+                field_mappings.append({'field_a': field_a, 'field_b': field_b})
+        comparison.field_mappings = field_mappings
+
+        # Schedule config
+        comparison.schedule_type = request.form.get('schedule_type', 'manual')
+        schedule_config = {}
+        if comparison.schedule_type in ['daily', 'weekly']:
+            schedule_config['hour'] = int(request.form.get('schedule_hour', 8))
+        if comparison.schedule_type == 'weekly':
+            schedule_config['day_of_week'] = int(request.form.get('schedule_day_of_week', 1))
+        if comparison.schedule_type == 'monthly':
+            schedule_config['hour'] = int(request.form.get('schedule_hour', 8))
+            schedule_config['day_of_month'] = int(request.form.get('schedule_day_of_month', 1))
+        comparison.schedule_config = schedule_config
+
+        # Alert config
+        comparison.alert_on_left_only = 'alert_on_left_only' in request.form
+        comparison.alert_on_right_only = 'alert_on_right_only' in request.form
+        comparison.alert_on_mismatches = 'alert_on_mismatches' in request.form
+        comparison.min_findings_threshold = int(request.form.get('min_findings_threshold', 1))
+        
+        # Notification channels
+        channels = []
+        if 'notify_email' in request.form:
+            channels.append('email')
+        if 'notify_slack' in request.form:
+            channels.append('slack')
+        comparison.notification_channels = channels
+
+        # Notification recipients
+        recipients = []
+        recipient_count = int(request.form.get('recipient_count', 0))
+        for i in range(recipient_count):
+            recipient_type = request.form.get(f'recipient_{i}_type')
+            recipient_value = request.form.get(f'recipient_{i}_value')
+            if recipient_type and recipient_value:
+                recipients.append({'type': recipient_type, 'value': recipient_value})
+        comparison.notification_recipients = recipients
+
+        # Auto-escalation
+        comparison.auto_create_incidents = 'auto_create_incidents' in request.form
+        comparison.auto_incident_severity = request.form.get('auto_incident_severity', 'SEV-2')
+
+        # Status
+        comparison.is_enabled = 'is_enabled' in request.form
+
+        if not id:
+            db.session.add(comparison)
+
+        # Calculate next_run if enabled
+        if comparison.is_enabled and comparison.schedule_type != 'manual':
+            service = UARAutomationService()
+            comparison.next_run_at = service._calculate_next_run(comparison)
+
+        db.session.commit()
+        flash(f"UAR comparison '{comparison.name}' saved successfully", "success")
+        return redirect(url_for('compliance.uar_automation_detail', id=comparison.id))
+
+    # GET: render form
+    subscriptions = Subscription.query.all()
+    services = BusinessService.query.all()
+    reports = Report.query.order_by(Report.created_at.desc()).limit(50).all() if Report else []
+
+    return render_template('compliance/uar_automation_form.html',
+                         comparison=comparison,
+                         subscriptions=subscriptions,
+                         services=services,
+                         reports=reports)
+
+
+@compliance_bp.route('/uar/automation/<int:id>')
+@login_required
+@requires_permission('compliance')
+def uar_automation_detail(id):
+    """View UAR comparison configuration and execution history."""
+    comparison = UARComparison.query.get_or_404(id)
+    executions = UARExecution.query.filter_by(comparison_id=id)\
+        .order_by(UARExecution.started_at.desc())\
+        .limit(20)\
+        .all()
+
+    return render_template('compliance/uar_automation_detail.html',
+                         comparison=comparison,
+                         executions=executions)
+
+
+@compliance_bp.route('/uar/automation/<int:id>/run', methods=['POST'])
+@login_required
+@requires_permission('compliance')
+def uar_automation_run(id):
+    """Manually trigger UAR comparison execution."""
+    if not has_write_permission('compliance'):
+        flash('Write access required to run comparisons.', 'danger')
+        return redirect(url_for('compliance.uar_automation_detail', id=id))
+
+    comparison = UARComparison.query.get_or_404(id)
+
+    service = UARAutomationService()
+
+    try:
+        execution = service.execute_comparison(comparison)
+        db.session.commit()
+        flash(f"Comparison executed successfully: {execution.findings_count} findings detected", "success")
+        return redirect(url_for('compliance.uar_execution_detail', execution_id=execution.id))
+    except Exception as e:
+        current_app.logger.error(f"[UAR] Manual execution failed: {e}", exc_info=True)
+        flash(f"Execution failed: {str(e)}", "danger")
+        return redirect(url_for('compliance.uar_automation_detail', id=id))
+
+
+@compliance_bp.route('/uar/execution/<int:execution_id>')
+@login_required
+@requires_permission('compliance')
+def uar_execution_detail(execution_id):
+    """View UAR execution results with findings."""
+    execution = UARExecution.query.get_or_404(execution_id)
+
+    # Paginate findings
+    page = request.args.get('page', 1, type=int)
+    finding_type_filter = request.args.get('type', 'all')
+
+    findings_query = UARFinding.query.filter_by(execution_id=execution_id)
+    if finding_type_filter != 'all':
+        findings_query = findings_query.filter_by(finding_type=finding_type_filter)
+
+    findings = findings_query.order_by(UARFinding.severity.desc(), UARFinding.id)\
+        .paginate(page=page, per_page=50, error_out=False)
+
+    return render_template('compliance/uar_execution_detail.html',
+                         execution=execution,
+                         findings=findings)
+
+
+@compliance_bp.route('/uar/finding/<int:id>/resolve', methods=['POST'])
+@login_required
+@requires_permission('compliance')
+def uar_finding_resolve(id):
+    """Mark finding as resolved."""
+    if not has_write_permission('compliance'):
+        flash('Write access required to resolve findings.', 'danger')
+        finding = UARFinding.query.get_or_404(id)
+        return redirect(url_for('compliance.uar_execution_detail', execution_id=finding.execution_id))
+
+    finding = UARFinding.query.get_or_404(id)
+
+    finding.status = request.form.get('status')
+    finding.resolution_notes = request.form.get('notes')
+    finding.resolved_at = now()
+    finding.assigned_to_id = session.get('user_id')
+
+    db.session.commit()
+    flash("Finding updated successfully", "success")
+    return redirect(url_for('compliance.uar_execution_detail', execution_id=finding.execution_id))
+
+
+@compliance_bp.route('/uar/finding/<int:id>/promote-incident', methods=['POST'])
+@login_required
+@requires_permission('compliance')
+def uar_finding_promote(id):
+    """Manually promote finding to SecurityIncident."""
+    if not has_write_permission('compliance'):
+        flash('Write access required to create incidents.', 'danger')
+        finding = UARFinding.query.get_or_404(id)
+        return redirect(url_for('compliance.uar_execution_detail', execution_id=finding.execution_id))
+
+    finding = UARFinding.query.get_or_404(id)
+
+    if finding.security_incident_id:
+        flash("Finding already linked to an incident", "warning")
+        return redirect(url_for('compliance.uar_execution_detail', execution_id=finding.execution_id))
+
+    incident = SecurityIncident(
+        title=f"Access Violation: {finding.key_value}",
+        description=(
+            f"Manual escalation from UAR Finding #{finding.id}\n\n"
+            f"{finding.description}\n\n"
+            f"Finding Type: {finding.finding_type}\n"
+            f"Severity: {finding.severity}"
+        ),
+        status='Investigating',
+        severity='SEV-2',
+        impact='Moderate',
+        source='User Access Review'
+    )
+    db.session.add(incident)
+    db.session.flush()
+    finding.security_incident_id = incident.id
+    db.session.commit()
+
+    flash(f"Security incident created: {incident.title}", "success")
+    return redirect(url_for('security.incident_detail', id=incident.id))
+
+
+@compliance_bp.route('/uar/findings/bulk-action', methods=['POST'])
+@login_required
+@requires_permission('compliance')
+def uar_findings_bulk_action():
+    """
+    Handle bulk operations on UAR findings.
+
+    Supported actions:
+    - mark_false_positive: Mark selected findings as false positives
+    - assign: Assign selected findings to a user
+    - resolve: Mark selected findings as resolved
+    - create_incident: Create a security incident for selected findings
+    - export: Export selected findings to CSV
+    """
+    if not has_write_permission('compliance'):
+        return jsonify({'error': 'Write access required'}), 403
+
+    data = request.json
+    action = data.get('action')
+    finding_ids = data.get('finding_ids', [])
+
+    if not finding_ids:
+        return jsonify({'error': 'No findings selected'}), 400
+
+    findings = UARFinding.query.filter(UARFinding.id.in_(finding_ids)).all()
+
+    if not findings:
+        return jsonify({'error': 'No valid findings found'}), 404
+
+    # Get execution_id for redirect
+    execution_id = findings[0].execution_id if findings else None
+
+    try:
+        if action == 'mark_false_positive':
+            for finding in findings:
+                finding.status = 'false_positive'
+                finding.resolved_at = now()
+                finding.assigned_to_id = session.get('user_id')
+                finding.resolution_notes = data.get('notes', 'Marked as false positive via bulk action')
+
+            db.session.commit()
+            return jsonify({
+                'success': True,
+                'message': f'{len(findings)} findings marked as false positive',
+                'count': len(findings)
+            })
+
+        elif action == 'assign':
+            user_id = data.get('user_id')
+            if not user_id:
+                return jsonify({'error': 'User ID required for assignment'}), 400
+
+            user = User.query.get(user_id)
+            if not user:
+                return jsonify({'error': 'User not found'}), 404
+
+            for finding in findings:
+                finding.assigned_to_id = user_id
+                finding.status = 'acknowledged'
+
+            db.session.commit()
+            return jsonify({
+                'success': True,
+                'message': f'{len(findings)} findings assigned to {user.name}',
+                'count': len(findings)
+            })
+
+        elif action == 'resolve':
+            status = data.get('resolution_status', 'resolved')
+            notes = data.get('notes', 'Resolved via bulk action')
+
+            for finding in findings:
+                finding.status = status
+                finding.resolved_at = now()
+                finding.assigned_to_id = session.get('user_id')
+                finding.resolution_notes = notes
+
+            db.session.commit()
+            return jsonify({
+                'success': True,
+                'message': f'{len(findings)} findings resolved',
+                'count': len(findings)
+            })
+
+        elif action == 'create_incident':
+            # Create a single incident for all findings
+            finding_list = '\n'.join([
+                f"- {f.key_value}: {f.finding_type} ({f.severity})"
+                for f in findings
+            ])
+
+            incident = SecurityIncident(
+                title=f"Bulk Access Violations: {len(findings)} findings",
+                description=(
+                    f"Bulk escalation from UAR execution #{execution_id}\n\n"
+                    f"Total findings: {len(findings)}\n\n"
+                    f"Affected entities:\n{finding_list}"
+                ),
+                status='Investigating',
+                severity='SEV-2',
+                impact='Moderate',
+                source='User Access Review - Bulk Action'
+            )
+            db.session.add(incident)
+            db.session.flush()
+
+            # Link all findings to the incident
+            for finding in findings:
+                finding.security_incident_id = incident.id
+                finding.status = 'acknowledged'
+
+            db.session.commit()
+            return jsonify({
+                'success': True,
+                'message': f'Security incident created for {len(findings)} findings',
+                'count': len(findings),
+                'incident_id': incident.id,
+                'redirect_url': url_for('security.incident_detail', id=incident.id)
+            })
+
+        elif action == 'export':
+            # Generate CSV data
+            import io
+            import csv
+
+            output = io.StringIO()
+            writer = csv.DictWriter(output, fieldnames=[
+                'ID', 'Finding Type', 'Severity', 'Key Value', 'Status',
+                'Description', 'Dataset A', 'Dataset B', 'Created At'
+            ])
+            writer.writeheader()
+
+            for finding in findings:
+                writer.writerow({
+                    'ID': finding.id,
+                    'Finding Type': finding.finding_type,
+                    'Severity': finding.severity,
+                    'Key Value': finding.key_value,
+                    'Status': finding.status,
+                    'Description': finding.description,
+                    'Dataset A': json.dumps(finding.raw_data_a) if finding.raw_data_a else '',
+                    'Dataset B': json.dumps(finding.raw_data_b) if finding.raw_data_b else '',
+                    'Created At': finding.created_at.isoformat() if finding.created_at else ''
+                })
+
+            csv_data = output.getvalue()
+            return jsonify({
+                'success': True,
+                'message': f'{len(findings)} findings exported',
+                'count': len(findings),
+                'csv_data': csv_data,
+                'filename': f'uar_findings_{execution_id}_{now().strftime("%Y%m%d_%H%M%S")}.csv'
+            })
+
+        else:
+            return jsonify({'error': f'Unknown action: {action}'}), 400
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Bulk action failed: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+# --- Compliance Drift Detection Routes ---
+
+@compliance_bp.route('/drift')
+@login_required
+@requires_permission('compliance')
+def drift_dashboard():
+    """
+    Compliance drift detection dashboard showing timeline and regressions.
+    """
+    from ..services.compliance_drift_service import get_drift_detector
+
+    detector = get_drift_detector()
+
+    # Get all active frameworks
+    frameworks = Framework.query.filter_by(is_active=True).all()
+
+    return render_template(
+        'compliance/drift_dashboard.html',
+        frameworks=frameworks
+    )
+
+
+@compliance_bp.route('/drift/api/timeline/<int:framework_id>')
+@login_required
+@requires_permission('compliance')
+def api_drift_timeline(framework_id):
+    """
+    API endpoint to get drift timeline for a framework.
+
+    Query Parameters:
+        days: Number of days to look back (default: 30)
+
+    Returns:
+        JSON with drift timeline data
+    """
+    from ..services.compliance_drift_service import get_drift_detector
+
+    detector = get_drift_detector()
+    days = request.args.get('days', type=int, default=30)
+
+    try:
+        timeline = detector.get_drift_timeline(framework_id, days)
+        return jsonify(timeline)
+    except Exception as e:
+        current_app.logger.error(f"Drift timeline error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@compliance_bp.route('/drift/api/detect', methods=['POST'])
+@login_required
+@requires_permission('compliance')
+def api_detect_drift():
+    """
+    API endpoint to manually trigger drift detection.
+
+    Request Body:
+        framework_id: Optional framework ID (null for all frameworks)
+        lookback_hours: Hours to look back (default: 24)
+
+    Returns:
+        JSON with detected drifts
+    """
+    from ..services.compliance_drift_service import get_drift_detector
+
+    detector = get_drift_detector()
+    data = request.json or {}
+
+    framework_id = data.get('framework_id')
+    lookback_hours = data.get('lookback_hours', 24)
+
+    try:
+        drifts = detector.detect_drift(framework_id, lookback_hours)
+
+        # Generate alert if regressions found
+        alert = detector.generate_drift_alert(drifts) if drifts else None
+
+        return jsonify({
+            'success': True,
+            'drift_count': len(drifts),
+            'drifts': [d.to_dict() for d in drifts],
+            'alert': alert
+        })
+    except Exception as e:
+        current_app.logger.error(f"Drift detection error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@compliance_bp.route('/drift/api/snapshot', methods=['POST'])
+@login_required
+@requires_permission('compliance')
+def api_create_snapshot():
+    """
+    API endpoint to manually create a compliance snapshot.
+
+    Request Body:
+        framework_id: Optional framework ID (null for all frameworks)
+
+    Returns:
+        JSON with snapshot ID
+    """
+    if not has_write_permission('compliance'):
+        return jsonify({'error': 'Write permission required'}), 403
+
+    from ..services.compliance_drift_service import get_drift_detector
+
+    detector = get_drift_detector()
+    data = request.json or {}
+
+    framework_id = data.get('framework_id')
+
+    try:
+        snapshot = detector.capture_snapshot(framework_id)
+
+        return jsonify({
+            'success': True,
+            'snapshot_id': snapshot.id,
+            'timestamp': snapshot.created_at.isoformat(),
+            'message': 'Compliance snapshot created successfully'
+        })
+    except Exception as e:
+        current_app.logger.error(f"Snapshot creation error: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500

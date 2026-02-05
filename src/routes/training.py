@@ -9,6 +9,8 @@ import uuid
 import os
 from werkzeug.utils import secure_filename
 from flask import current_app
+from src.utils.timezone_helper import today
+
 
 
 training_bp = Blueprint('training', __name__)
@@ -76,7 +78,7 @@ def course_detail(id):
             # Check if user is already assigned
             existing = CourseAssignment.query.filter_by(course_id=course.id, user_id=user.id).first()
             if not existing:
-                due_date = date.today() + timedelta(days=course.completion_days)
+                due_date = today() + timedelta(days=course.completion_days)
                 assignment = CourseAssignment(course_id=course.id, user_id=user.id, due_date=due_date)
                 db.session.add(assignment)
                 assigned_count += 1

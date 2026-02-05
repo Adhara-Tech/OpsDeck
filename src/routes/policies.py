@@ -8,6 +8,8 @@ from datetime import date, datetime
 from ..models import db, Policy, PolicyVersion, User, Group, PolicyAcknowledgement, Attachment
 from .main import login_required
 from ..services.permissions_service import requires_permission, has_write_permission
+from src.utils.timezone_helper import today
+
 policies_bp = Blueprint('policies', __name__)
 
 @policies_bp.route('/')
@@ -40,7 +42,7 @@ def new_policy():
             version_number='1.0',
             status='Draft',
             content=request.form['content'],
-            effective_date=date.today()
+            effective_date=today()
         )
         
         # Assign users and groups
@@ -214,7 +216,7 @@ def activate_version(id):
     for version in policy.versions:
         if version.status == 'Active':
             version.status = 'Archived'
-            version.end_date = date.today()
+            version.end_date = today()
 
     # Activate the new one
     version_to_activate.status = 'Active'

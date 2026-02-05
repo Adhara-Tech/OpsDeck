@@ -1,0 +1,1093 @@
+{% extends "layout.html" %}
+
+{% block title %}Mi Escritorio - OpsDeck{% endblock %}
+
+{% block head %}
+<style>
+/* Personal Dashboard Styles */
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2rem 0 1rem;
+    border-bottom: 2px solid #e9ecef;
+    margin-bottom: 2rem;
+}
+
+.greeting h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #212529;
+    margin-bottom: 0.25rem;
+}
+
+.greeting p {
+    margin: 0;
+    color: #6c757d;
+}
+
+.header-actions {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.notification-bell {
+    position: relative;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0.5rem;
+}
+
+.notification-bell .badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background: #dc3545;
+    color: white;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+}
+
+/* Alert Banner */
+.alert-banner {
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    display: flex;
+    gap: 1rem;
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateY(-20px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.alert-icon {
+    font-size: 2rem;
+    flex-shrink: 0;
+}
+
+.alert-content {
+    flex: 1;
+}
+
+.alert-content h5 {
+    margin-top: 0;
+    margin-bottom: 0.5rem;
+    font-weight: 700;
+}
+
+.alert-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.alert-list li {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid rgba(255,255,255,0.2);
+}
+
+.alert-list li:last-child {
+    border-bottom: none;
+}
+
+.alert-action {
+    color: inherit;
+    text-decoration: underline;
+    font-weight: 600;
+    margin-left: 0.5rem;
+}
+
+.alert-dismiss {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: inherit;
+    cursor: pointer;
+    opacity: 0.7;
+    flex-shrink: 0;
+}
+
+.alert-dismiss:hover {
+    opacity: 1;
+}
+
+/* Quick Actions Hero */
+.quick-actions-hero {
+    margin-bottom: 2rem;
+}
+
+.quick-actions-hero h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.action-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1rem;
+}
+
+.action-card {
+    position: relative;
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    text-align: center;
+    transition: all 0.3s ease;
+    border: 2px solid #e9ecef;
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.action-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    border-color: #0d6efd;
+    color: inherit;
+    text-decoration: none;
+}
+
+.action-card.primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+}
+
+.action-card.secondary {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+    border: none;
+}
+
+.action-icon {
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.action-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.action-counter {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: #dc3545;
+    color: white;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: bold;
+    box-shadow: 0 2px 8px rgba(220, 53, 69, 0.4);
+}
+
+.action-counter.warning {
+    background: #ffc107;
+    color: #000;
+}
+
+/* Stats Section */
+.stats-section {
+    margin-bottom: 2rem;
+}
+
+.stats-section h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.stat-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 2px solid #e9ecef;
+    transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.stat-card.stat-warning {
+    border-color: #ffc107;
+    background: #fff8e1;
+}
+
+.stat-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.stat-icon.bg-blue { background: #e3f2fd; }
+.stat-icon.bg-purple { background: #f3e5f5; }
+.stat-icon.bg-green { background: #e8f5e9; }
+.stat-icon.bg-orange { background: #fff3e0; }
+.stat-icon.bg-gradient { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #212529;
+    margin-bottom: 0.25rem;
+}
+
+.stat-label {
+    font-size: 0.9rem;
+    color: #6c757d;
+    margin-bottom: 0.5rem;
+}
+
+.stat-alert {
+    background: #fff3cd;
+    color: #856404;
+    padding: 0.5rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    margin-top: 0.5rem;
+}
+
+.stat-link {
+    display: inline-block;
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+    color: #0d6efd;
+    text-decoration: none;
+}
+
+.stat-link:hover {
+    text-decoration: underline;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: #e9ecef;
+    border-radius: 4px;
+    margin-top: 0.5rem;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    border-radius: 4px;
+    transition: width 0.5s ease;
+}
+
+/* Task Timeline */
+.task-timeline {
+    margin-bottom: 2rem;
+}
+
+.timeline-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.timeline-header h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.view-all {
+    color: #0d6efd;
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+
+.timeline-list {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 2px solid #e9ecef;
+}
+
+.timeline-item {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.timeline-item:last-child {
+    border-bottom: none;
+}
+
+.timeline-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #6c757d;
+    margin-top: 0.5rem;
+    flex-shrink: 0;
+}
+
+.timeline-item.priority-1 .timeline-dot {
+    background: #dc3545;
+}
+
+.timeline-item.priority-2 .timeline-dot {
+    background: #ffc107;
+}
+
+.timeline-content {
+    flex: 1;
+}
+
+.task-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.task-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.task-badge.urgent {
+    background: #dc3545;
+    color: white;
+}
+
+.task-badge.warning {
+    background: #ffc107;
+    color: #000;
+}
+
+.task-badge.normal {
+    background: #28a745;
+    color: white;
+}
+
+.task-due {
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+.task-title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0 0 0.25rem 0;
+}
+
+.task-description {
+    font-size: 0.9rem;
+    color: #6c757d;
+    margin: 0 0 0.75rem 0;
+}
+
+.task-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+}
+
+.empty-icon {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+}
+
+.empty-state h4 {
+    color: #212529;
+    margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+    color: #6c757d;
+}
+
+/* Tabs */
+.resources-section {
+    margin-bottom: 2rem;
+}
+
+.resources-section h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.custom-tabs {
+    border-bottom: 2px solid #e9ecef;
+    margin-bottom: 1.5rem;
+}
+
+.custom-tabs .nav-link {
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: #6c757d;
+    font-weight: 600;
+    padding: 0.75rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.custom-tabs .nav-link:hover {
+    color: #0d6efd;
+    border-bottom-color: #0d6efd;
+}
+
+.custom-tabs .nav-link.active {
+    color: #0d6efd;
+    border-bottom-color: #0d6efd;
+    background: none;
+}
+
+.tab-icon {
+    font-size: 1.2rem;
+}
+
+.tab-count {
+    background: #e9ecef;
+    color: #495057;
+    padding: 0.1rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 700;
+}
+
+.tab-count.badge-danger {
+    background: #dc3545;
+    color: white;
+}
+
+/* Equipment Grid */
+.equipment-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1rem;
+}
+
+.equipment-card {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 2px solid #e9ecef;
+    transition: all 0.3s ease;
+}
+
+.equipment-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.equipment-image {
+    position: relative;
+    height: 180px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.equipment-image img {
+    max-width: 80%;
+    max-height: 80%;
+    object-fit: contain;
+}
+
+.equipment-badge {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background: white;
+    color: #212529;
+}
+
+.equipment-info {
+    padding: 1.25rem;
+}
+
+.equipment-info h5 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.equipment-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin: 0.75rem 0;
+}
+
+.warranty-status {
+    font-size: 0.85rem;
+    margin: 0.5rem 0;
+    padding: 0.5rem;
+    background: #f8f9fa;
+    border-radius: 6px;
+}
+
+.equipment-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+/* Achievements */
+.achievements-section {
+    margin-bottom: 2rem;
+}
+
+.achievements-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.achievement {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    text-align: center;
+    border: 2px solid #e9ecef;
+    opacity: 0.5;
+    transition: all 0.3s ease;
+}
+
+.achievement.unlocked {
+    opacity: 1;
+    border-color: #ffc107;
+    background: linear-gradient(135deg, #fff8e1 0%, #fffde7 100%);
+}
+
+.achievement-icon {
+    font-size: 3rem;
+    margin-bottom: 0.5rem;
+}
+
+.achievement-name {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.achievement-desc {
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin-bottom: 0.5rem;
+}
+
+.achievement-progress {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #0d6efd;
+}
+
+@media (max-width: 768px) {
+    .action-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .equipment-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="dashboard-header">
+        <div class="greeting">
+            <h1>👋 Hola, {{ user.name.split()[0] }}</h1>
+            <p class="text-muted">{{ greeting_time }} • {{ current_date_pretty }}</p>
+        </div>
+        <div class="header-actions">
+            <div class="notification-bell" title="Notificaciones">
+                <i class="fas fa-bell"></i>
+                {% if notification_count > 0 %}
+                <span class="badge">{{ notification_count }}</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Critical Alerts Banner -->
+    {% if critical_alerts %}
+    <div class="alert-banner alert-danger">
+        <div class="alert-icon">⚠️</div>
+        <div class="alert-content">
+            <h5>ACCIÓN REQUERIDA</h5>
+            <ul class="alert-list">
+                {% for alert in critical_alerts[:3] %}
+                <li>
+                    {{ alert.icon }} {{ alert.message }}
+                    <a href="{{ alert.link }}" class="alert-action">{{ alert.action_text }} →</a>
+                </li>
+                {% endfor %}
+                {% if critical_alerts|length > 3 %}
+                <li class="text-muted">... y {{ critical_alerts|length - 3 }} más</li>
+                {% endif %}
+            </ul>
+        </div>
+        <button class="alert-dismiss" onclick="this.parentElement.style.display='none'">×</button>
+    </div>
+    {% endif %}
+
+    <!-- Quick Actions Hero -->
+    <div class="quick-actions-hero">
+        <h3>🎯 Acciones Rápidas</h3>
+        <div class="action-grid">
+            <a href="{{ url_for('compliance.new_incident') }}" class="action-card primary">
+                <div class="action-icon">🎫</div>
+                <div class="action-label">Reportar<br>Incidente</div>
+            </a>
+
+            <a href="{{ url_for('changes.new_change') }}" class="action-card secondary">
+                <div class="action-icon">🔄</div>
+                <div class="action-label">Solicitar<br>Cambio</div>
+            </a>
+
+            <a href="#tareas" class="action-card">
+                <div class="action-icon">📋</div>
+                <div class="action-label">Mis<br>Tareas</div>
+                {% if pending_tasks > 0 %}
+                <div class="action-counter">{{ pending_tasks }}</div>
+                {% endif %}
+            </a>
+
+            <a href="{{ url_for('training.my_training') }}" class="action-card">
+                <div class="action-icon">📚</div>
+                <div class="action-label">Mis<br>Cursos</div>
+                {% if courses_pending > 0 %}
+                <div class="action-counter warning">{{ courses_pending }}</div>
+                {% endif %}
+            </a>
+
+            <a href="#recursos" class="action-card">
+                <div class="action-icon">💼</div>
+                <div class="action-label">Mis<br>Recursos</div>
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats Section -->
+    <div class="stats-section">
+        <h3>📊 Tu Dashboard en Números</h3>
+        <div class="stats-grid">
+            <!-- Equipos -->
+            <div class="stat-card">
+                <div class="stat-icon bg-blue">💻</div>
+                <div class="stat-value">{{ my_equipment_count }}</div>
+                <div class="stat-label">Equipos Asignados</div>
+                <a href="#tab-equipos" class="stat-link">Ver detalles →</a>
+            </div>
+
+            <!-- Cursos -->
+            <div class="stat-card">
+                <div class="stat-icon bg-purple">🎓</div>
+                <div class="stat-value">{{ courses_completed }}/{{ courses_total }}</div>
+                <div class="stat-label">Cursos Completados</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: {{ course_completion_pct }}%"></div>
+                </div>
+                <a href="{{ url_for('training.my_training') }}" class="stat-link">
+                    Continuar aprendiendo →
+                </a>
+            </div>
+
+            <!-- Licencias -->
+            <div class="stat-card">
+                <div class="stat-icon bg-green">🔐</div>
+                <div class="stat-value">{{ my_licenses_count }}</div>
+                <div class="stat-label">Licencias Activas</div>
+                {% if licenses_expiring_soon > 0 %}
+                <div class="stat-alert">⚠️ {{ licenses_expiring_soon }} por vencer</div>
+                {% endif %}
+            </div>
+
+            <!-- Riesgos -->
+            <div class="stat-card {% if my_risks_count > 0 %}stat-warning{% endif %}">
+                <div class="stat-icon bg-orange">⚠️</div>
+                <div class="stat-value">{{ my_risks_count }}</div>
+                <div class="stat-label">Riesgos Bajo Tu Responsabilidad</div>
+                {% if my_risks_count > 0 %}
+                <a href="#tab-riesgos" class="stat-link">Revisar riesgos →</a>
+                {% endif %}
+            </div>
+
+            <!-- Health Score -->
+            <div class="stat-card">
+                <div class="stat-icon bg-gradient">✨</div>
+                <div class="stat-value">{{ personal_health_score }}%</div>
+                <div class="stat-label">Tu Score de Compliance</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: {{ personal_health_score }}%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Task Timeline -->
+    <div class="task-timeline" id="tareas">
+        <div class="timeline-header">
+            <h3>✅ Tus Tareas Pendientes</h3>
+        </div>
+
+        <div class="timeline-list">
+            {% if total_tasks > 0 %}
+                {% for task in prioritized_tasks[:5] %}
+                <div class="timeline-item priority-{{ task.priority }}">
+                    <div class="timeline-dot"></div>
+                    <div class="timeline-content">
+                        <div class="task-header">
+                            <span class="task-badge {{ task.urgency_class }}">
+                                {{ task.urgency_icon }} {{ task.urgency_label }}
+                            </span>
+                            <span class="task-due">{{ task.due_text }}</span>
+                        </div>
+                        <h4 class="task-title">{{ task.title }}</h4>
+                        <p class="task-description">{{ task.description }}</p>
+                        <div class="task-actions">
+                            <a href="{{ task.action_url }}" class="btn btn-sm btn-primary">
+                                {{ task.action_text }} →
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-icon">🎉</div>
+                <h4>¡Todo listo!</h4>
+                <p>No tienes tareas pendientes ahora mismo.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Resources Section with Tabs -->
+    <div class="resources-section" id="recursos">
+        <h3>💼 Mis Recursos</h3>
+
+        <ul class="nav nav-tabs custom-tabs" role="tablist">
+            <li class="nav-item">
+                <a class="nav-link active" data-bs-toggle="tab" href="#tab-equipos">
+                    <span class="tab-icon">💻</span>
+                    Equipos
+                    <span class="tab-count">{{ my_equipment_count }}</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#tab-licenses">
+                    <span class="tab-icon">🔐</span>
+                    Licencias
+                    <span class="tab-count">{{ my_licenses_count }}</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#tab-servicios">
+                    <span class="tab-icon">🌐</span>
+                    Servicios
+                    <span class="tab-count">{{ my_services_count }}</span>
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#tab-riesgos">
+                    <span class="tab-icon">⚠️</span>
+                    Riesgos
+                    <span class="tab-count {% if my_risks_count > 0 %}badge-danger{% endif %}">{{ my_risks_count }}</span>
+                </a>
+            </li>
+        </ul>
+
+        <div class="tab-content">
+            <!-- Tab: Equipos -->
+            <div class="tab-pane fade show active" id="tab-equipos">
+                <div class="equipment-grid">
+                    {% for asset in my_assets %}
+                    <div class="equipment-card">
+                        <div class="equipment-image">
+                            <span class="equipment-badge status-{{ asset.status.lower().replace(' ', '-') }}">
+                                {{ asset.status }}
+                            </span>
+                        </div>
+                        <div class="equipment-info">
+                            <h5>{{ asset.name }}</h5>
+                            <p class="text-muted">{{ asset.model or 'Sin modelo' }} • {{ asset.serial_number or 'Sin S/N' }}</p>
+                            <div class="equipment-meta">
+                                <span>📍 {{ asset.location.name if asset.location else 'Sin ubicación' }}</span>
+                            </div>
+
+                            {% if asset.warranty_end_date %}
+                            <div class="warranty-status">
+                                <i class="fas fa-shield-alt"></i>
+                                Garantía:
+                                {% if asset.warranty_end_date < today %}
+                                    <span class="text-danger">Expirada</span>
+                                {% else %}
+                                    <span class="text-success">Hasta {{ asset.warranty_end_date.strftime('%d/%m/%Y') }}</span>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+
+                            <div class="equipment-actions">
+                                <a href="{{ url_for('assets.asset_detail', id=asset.id) }}" class="btn btn-sm btn-outline-primary">
+                                    Ver detalles →
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    {% for peripheral in my_peripherals %}
+                    <div class="equipment-card">
+                        <div class="equipment-image" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                            <span class="equipment-badge">Periférico</span>
+                        </div>
+                        <div class="equipment-info">
+                            <h5>{{ peripheral.name }}</h5>
+                            <p class="text-muted">{{ peripheral.model or 'Sin modelo' }}</p>
+                            <div class="equipment-meta">
+                                <span>📍 {{ peripheral.location.name if peripheral.location else 'Sin ubicación' }}</span>
+                            </div>
+                            <div class="equipment-actions">
+                                <a href="{{ url_for('peripherals.edit_peripheral', id=peripheral.id) }}" class="btn btn-sm btn-outline-primary">
+                                    Ver detalles →
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    {% if my_equipment_count == 0 %}
+                    <div class="empty-state">
+                        <div class="empty-icon">📦</div>
+                        <h4>No tienes equipos asignados</h4>
+                        <p>Contacta con IT si necesitas equipamiento</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Tab: Licencias -->
+            <div class="tab-pane fade" id="tab-licenses">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Licencia</th>
+                                <th>Software</th>
+                                <th>Clave</th>
+                                <th>Expiración</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for license in my_licenses %}
+                            <tr>
+                                <td><strong>{{ license.name }}</strong></td>
+                                <td>{{ license.software.name if license.software else '-' }}</td>
+                                <td>
+                                    {% if license.license_key %}
+                                    <code class="text-muted">{{ license.license_key[:10] }}...</code>
+                                    {% else %}
+                                    -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if license.expiry_date %}
+                                        {% if license.expiry_date < today %}
+                                        <span class="badge bg-danger">Expirada</span>
+                                        {% elif license.expiry_date <= today + timedelta(days=30) %}
+                                        <span class="badge bg-warning text-dark">{{ license.expiry_date.strftime('%d/%m/%Y') }}</span>
+                                        {% else %}
+                                        {{ license.expiry_date.strftime('%d/%m/%Y') }}
+                                        {% endif %}
+                                    {% else %}
+                                    Perpetua
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('licenses.detail', id=license.id) }}" class="btn btn-sm btn-link">
+                                        Ver →
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+
+                    {% if my_licenses_count == 0 %}
+                    <div class="empty-state">
+                        <div class="empty-icon">🔐</div>
+                        <h4>No tienes licencias asignadas</h4>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Tab: Servicios -->
+            <div class="tab-pane fade" id="tab-servicios">
+                <div class="row">
+                    {% for service in my_services %}
+                    <div class="col-md-6 mb-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">{{ service.name }}</h5>
+                                <p class="card-text text-muted">{{ service.description[:100] if service.description else 'Sin descripción' }}</p>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="badge bg-{{ 'success' if service.status == 'Active' else 'secondary' }}">
+                                        {{ service.status }}
+                                    </span>
+                                    <a href="{{ url_for('services.detail', id=service.id) }}" class="btn btn-sm btn-primary">
+                                        Ver detalles →
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    {% if my_services_count == 0 %}
+                    <div class="col-12">
+                        <div class="empty-state">
+                            <div class="empty-icon">🌐</div>
+                            <h4>No tienes servicios asignados</h4>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Tab: Riesgos -->
+            <div class="tab-pane fade" id="tab-riesgos">
+                {% if my_risks_count > 0 %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Riesgo</th>
+                                <th>Severidad</th>
+                                <th>Estado</th>
+                                <th>Estrategia</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for risk in my_risks %}
+                            <tr>
+                                <td><strong>{{ risk.risk_description[:60] }}...</strong></td>
+                                <td>
+                                    {% set risk_score = risk.residual_likelihood * risk.residual_impact %}
+                                    <span class="badge bg-{{ 'danger' if risk_score >= 16 else ('warning' if risk_score >= 8 else 'success') }}">
+                                        {{ risk_score }}
+                                    </span>
+                                </td>
+                                <td>{{ risk.status }}</td>
+                                <td>{{ risk.treatment_strategy }}</td>
+                                <td>
+                                    <a href="{{ url_for('risk.detail', id=risk.id) }}" class="btn btn-sm btn-link">
+                                        Ver →
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <div class="empty-icon">✅</div>
+                    <h4>Sin riesgos asignados</h4>
+                    <p>No eres responsable de ningún riesgo actualmente</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Achievements (Optional) -->
+    {% if False %}
+    <div class="achievements-section">
+        <h3>🎁 Tus Logros</h3>
+        <div class="achievements-grid">
+            <div class="achievement {% if courses_completed >= 5 %}unlocked{% endif %}">
+                <div class="achievement-icon">🏆</div>
+                <div class="achievement-name">Aprendiz Constante</div>
+                <div class="achievement-desc">Completa 5 cursos</div>
+                <div class="achievement-progress">{{ courses_completed }}/5</div>
+            </div>
+
+            <div class="achievement {% if incident_free_days >= 90 %}unlocked{% endif %}">
+                <div class="achievement-icon">⭐</div>
+                <div class="achievement-name">Seguridad Máxima</div>
+                <div class="achievement-desc">90 días sin incidentes</div>
+                <div class="achievement-progress">{{ incident_free_days }}/90 días</div>
+            </div>
+
+            <div class="achievement {% if personal_health_score == 100 %}unlocked{% endif %}">
+                <div class="achievement-icon">✅</div>
+                <div class="achievement-name">Compliance Perfecto</div>
+                <div class="achievement-desc">Mantén 100% de compliance</div>
+                <div class="achievement-progress">{{ personal_health_score }}%</div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

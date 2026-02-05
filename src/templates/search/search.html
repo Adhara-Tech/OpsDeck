@@ -1,0 +1,493 @@
+{% extends "layout.html" %}
+{% block title %}Search - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h2><i class="fas fa-search"></i> Universal Search</h2>
+            <p class="text-muted">Search across assets, users, findings, incidents, and more</p>
+        </div>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="input-group input-group-lg">
+                <input type="text" id="searchQuery" class="form-control"
+                       placeholder="Search for anything..."
+                       autocomplete="off">
+                <button class="btn btn-primary" type="button" onclick="performSearch()">
+                    <i class="fas fa-search"></i> Search
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Filters Sidebar -->
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-filter"></i> Filters</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Entity Type Filter -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Entity Types</label>
+                        <div class="form-check">
+                            <input class="form-check-input entity-type-filter" type="checkbox"
+                                   value="assets" id="filter-assets" checked>
+                            <label class="form-check-label" for="filter-assets">
+                                Assets
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input entity-type-filter" type="checkbox"
+                                   value="users" id="filter-users" checked>
+                            <label class="form-check-label" for="filter-users">
+                                Users
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input entity-type-filter" type="checkbox"
+                                   value="uar_findings" id="filter-uar-findings" checked>
+                            <label class="form-check-label" for="filter-uar-findings">
+                                UAR Findings
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input entity-type-filter" type="checkbox"
+                                   value="security_incidents" id="filter-incidents" checked>
+                            <label class="form-check-label" for="filter-incidents">
+                                Security Incidents
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input entity-type-filter" type="checkbox"
+                                   value="compliance_controls" id="filter-controls">
+                            <label class="form-check-label" for="filter-controls">
+                                Compliance Controls
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input entity-type-filter" type="checkbox"
+                                   value="suppliers" id="filter-suppliers">
+                            <label class="form-check-label" for="filter-suppliers">
+                                Suppliers
+                            </label>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <!-- Date Range Filter -->
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Date Range</label>
+                        <select class="form-select" id="dateRangeFilter" onchange="updateDateRange()">
+                            <option value="">All time</option>
+                            <option value="last_7_days">Last 7 days</option>
+                            <option value="last_30_days">Last 30 days</option>
+                            <option value="last_90_days">Last 90 days</option>
+                            <option value="this_year">This year</option>
+                            <option value="custom">Custom range</option>
+                        </select>
+
+                        <div id="customDateRange" style="display: none;" class="mt-2">
+                            <label class="form-label small">From</label>
+                            <input type="date" class="form-control form-control-sm" id="dateFrom">
+                            <label class="form-label small mt-2">To</label>
+                            <input type="date" class="form-control form-control-sm" id="dateTo">
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <!-- Status Filter -->
+                    <div class="mb-3" id="statusFilterSection">
+                        <label class="form-label fw-bold">Status</label>
+                        <div id="statusFilters">
+                            <!-- Dynamically populated -->
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <!-- Severity Filter -->
+                    <div class="mb-3" id="severityFilterSection">
+                        <label class="form-label fw-bold">Severity</label>
+                        <div id="severityFilters">
+                            <!-- Dynamically populated -->
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <!-- Clear Filters -->
+                    <button type="button" class="btn btn-secondary w-100" onclick="clearFilters()">
+                        <i class="fas fa-times"></i> Clear All Filters
+                    </button>
+
+                    <!-- Save Search -->
+                    <button type="button" class="btn btn-outline-primary w-100 mt-2"
+                            onclick="saveSearch()" id="saveSearchBtn" style="display: none;">
+                        <i class="fas fa-save"></i> Save Search
+                    </button>
+                </div>
+            </div>
+
+            <!-- Saved Searches -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h6><i class="fas fa-star"></i> Saved Searches</h6>
+                </div>
+                <div class="card-body">
+                    <div id="savedSearchesList">
+                        <p class="text-muted small">No saved searches yet</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search Results -->
+        <div class="col-md-9">
+            <!-- Search Stats -->
+            <div id="searchStats" class="alert alert-info" style="display: none;">
+                <i class="fas fa-info-circle"></i>
+                Found <strong id="totalResults">0</strong> results across <strong id="entityCount">0</strong> entity types
+            </div>
+
+            <!-- Loading Indicator -->
+            <div id="loadingIndicator" class="text-center py-5" style="display: none;">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Searching...</span>
+                </div>
+                <p class="mt-2">Searching...</p>
+            </div>
+
+            <!-- Results Container -->
+            <div id="searchResults">
+                <!-- Initial state -->
+                <div class="text-center py-5 text-muted">
+                    <i class="fas fa-search fa-3x mb-3"></i>
+                    <h5>Start searching</h5>
+                    <p>Enter a query above to search across all your data</p>
+                </div>
+            </div>
+
+            <!-- No Results -->
+            <div id="noResults" style="display: none;" class="text-center py-5">
+                <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                <h5>No results found</h5>
+                <p class="text-muted">Try adjusting your search query or filters</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Search state
+let currentQuery = '';
+let currentFilters = {};
+let searchTimeout = null;
+
+// Perform search on Enter key
+document.getElementById('searchQuery').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        performSearch();
+    }
+});
+
+// Auto-search with debounce
+document.getElementById('searchQuery').addEventListener('input', function() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(performSearch, 500);
+});
+
+// Entity type filter change
+document.querySelectorAll('.entity-type-filter').forEach(checkbox => {
+    checkbox.addEventListener('change', performSearch);
+});
+
+function performSearch() {
+    const query = document.getElementById('searchQuery').value.trim();
+    currentQuery = query;
+
+    // Get selected entity types
+    const entityTypes = Array.from(document.querySelectorAll('.entity-type-filter:checked'))
+        .map(cb => cb.value);
+
+    if (entityTypes.length === 0) {
+        alert('Please select at least one entity type');
+        return;
+    }
+
+    // Build filters
+    currentFilters = buildFilters();
+
+    // Show loading
+    document.getElementById('loadingIndicator').style.display = 'block';
+    document.getElementById('searchResults').style.display = 'none';
+    document.getElementById('noResults').style.display = 'none';
+    document.getElementById('searchStats').style.display = 'none';
+
+    // Build query parameters
+    const params = new URLSearchParams({
+        q: query,
+        entity_types: entityTypes.join(',')
+    });
+
+    // Add filters to params
+    for (const [key, value] of Object.entries(currentFilters)) {
+        if (Array.isArray(value)) {
+            value.forEach(v => params.append(key, v));
+        } else if (value) {
+            params.append(key, value);
+        }
+    }
+
+    // Perform search request
+    fetch(`/search/api/search?${params.toString()}`)
+        .then(response => response.json())
+        .then(data => {
+            displayResults(data);
+            updateFacets(data.facets);
+        })
+        .catch(error => {
+            console.error('Search error:', error);
+            alert('Search failed: ' + error.message);
+        })
+        .finally(() => {
+            document.getElementById('loadingIndicator').style.display = 'none';
+        });
+}
+
+function buildFilters() {
+    const filters = {};
+
+    // Date range
+    const dateRange = document.getElementById('dateRangeFilter').value;
+    if (dateRange && dateRange !== '') {
+        if (dateRange === 'custom') {
+            filters.date_from = document.getElementById('dateFrom').value;
+            filters.date_to = document.getElementById('dateTo').value;
+        } else {
+            // Use preset (handled by backend based on value)
+            filters.date_range = dateRange;
+        }
+    }
+
+    // Status
+    const statusCheckboxes = document.querySelectorAll('#statusFilters input:checked');
+    if (statusCheckboxes.length > 0) {
+        filters.status = Array.from(statusCheckboxes).map(cb => cb.value);
+    }
+
+    // Severity
+    const severityCheckboxes = document.querySelectorAll('#severityFilters input:checked');
+    if (severityCheckboxes.length > 0) {
+        filters.severity = Array.from(severityCheckboxes).map(cb => cb.value);
+    }
+
+    return filters;
+}
+
+function displayResults(data) {
+    const resultsContainer = document.getElementById('searchResults');
+    const statsContainer = document.getElementById('searchStats');
+    const noResultsContainer = document.getElementById('noResults');
+
+    if (data.total_count === 0) {
+        resultsContainer.style.display = 'none';
+        statsContainer.style.display = 'none';
+        noResultsContainer.style.display = 'block';
+        return;
+    }
+
+    // Update stats
+    document.getElementById('totalResults').textContent = data.total_count;
+    document.getElementById('entityCount').textContent = Object.keys(data.results).length;
+    statsContainer.style.display = 'block';
+
+    // Show save search button if there are results
+    document.getElementById('saveSearchBtn').style.display = 'block';
+
+    // Build results HTML
+    let html = '';
+    for (const [entityType, results] of Object.entries(data.results)) {
+        if (results.length === 0) continue;
+
+        html += `
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-${getEntityIcon(entityType)}"></i>
+                        ${formatEntityType(entityType)}
+                        <span class="badge bg-primary">${results.length}</span>
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+        `;
+
+        results.forEach(result => {
+            html += `
+                <a href="${result.url}" class="list-group-item list-group-item-action">
+                    <div class="d-flex w-100 justify-content-between">
+                        <div>
+                            ${formatResultFields(result.fields)}
+                        </div>
+                        <small class="text-muted">
+                            <i class="fas fa-arrow-right"></i>
+                        </small>
+                    </div>
+                </a>
+            `;
+        });
+
+        html += `
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    resultsContainer.innerHTML = html;
+    resultsContainer.style.display = 'block';
+    noResultsContainer.style.display = 'none';
+}
+
+function formatResultFields(fields) {
+    let html = '';
+    let count = 0;
+    for (const [key, value] of Object.entries(fields)) {
+        if (count === 0) {
+            html += `<strong>${value}</strong><br>`;
+        } else {
+            html += `<small class="text-muted">${key}: ${value}</small> `;
+        }
+        count++;
+        if (count >= 3) break; // Limit to 3 fields
+    }
+    return html;
+}
+
+function getEntityIcon(entityType) {
+    const icons = {
+        'assets': 'laptop',
+        'users': 'user',
+        'uar_findings': 'exclamation-triangle',
+        'uar_executions': 'tasks',
+        'security_incidents': 'shield-alt',
+        'compliance_controls': 'check-square',
+        'suppliers': 'building',
+        'subscriptions': 'calendar',
+        'business_services': 'server'
+    };
+    return icons[entityType] || 'file';
+}
+
+function formatEntityType(entityType) {
+    return entityType.split('_').map(word =>
+        word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ');
+}
+
+function updateFacets(facets) {
+    // Update status facets
+    if (facets.status && facets.status.length > 0) {
+        const statusHtml = facets.status.map(option => `
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" value="${option.value}"
+                       id="status-${option.value}" onchange="performSearch()">
+                <label class="form-check-label small" for="status-${option.value}">
+                    ${option.label} <span class="badge bg-secondary">${option.count}</span>
+                </label>
+            </div>
+        `).join('');
+        document.getElementById('statusFilters').innerHTML = statusHtml;
+    }
+
+    // Update severity facets
+    if (facets.severity && facets.severity.length > 0) {
+        const severityHtml = facets.severity.map(option => `
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" value="${option.value}"
+                       id="severity-${option.value}" onchange="performSearch()">
+                <label class="form-check-label small" for="severity-${option.value}">
+                    ${option.label} <span class="badge bg-secondary">${option.count}</span>
+                </label>
+            </div>
+        `).join('');
+        document.getElementById('severityFilters').innerHTML = severityHtml;
+    }
+}
+
+function updateDateRange() {
+    const dateRange = document.getElementById('dateRangeFilter').value;
+    const customRange = document.getElementById('customDateRange');
+
+    if (dateRange === 'custom') {
+        customRange.style.display = 'block';
+    } else {
+        customRange.style.display = 'none';
+        performSearch();
+    }
+}
+
+function clearFilters() {
+    // Reset all filters
+    document.getElementById('dateRangeFilter').value = '';
+    document.getElementById('customDateRange').style.display = 'none';
+    document.querySelectorAll('#statusFilters input, #severityFilters input').forEach(cb => {
+        cb.checked = false;
+    });
+
+    performSearch();
+}
+
+function saveSearch() {
+    const name = prompt('Enter a name for this search:');
+    if (!name) return;
+
+    const entityTypes = Array.from(document.querySelectorAll('.entity-type-filter:checked'))
+        .map(cb => cb.value);
+
+    fetch('/search/api/saved-searches', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            name: name,
+            query: currentQuery,
+            entity_types: entityTypes,
+            filters: currentFilters
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            loadSavedSearches();
+        } else {
+            alert('Error saving search: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Error saving search: ' + error.message);
+    });
+}
+
+function loadSavedSearches() {
+    fetch('/search/api/saved-searches')
+        .then(response => response.json())
+        .then(searches => {
+            // TODO: Display saved searches
+        });
+}
+
+// Load saved searches on page load
+document.addEventListener('DOMContentLoaded', loadSavedSearches);
+</script>
+{% endblock %}

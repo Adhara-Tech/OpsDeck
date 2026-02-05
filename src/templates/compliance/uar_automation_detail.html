@@ -1,0 +1,223 @@
+{% extends "layout.html" %}
+{% block title %}{{ comparison.name }} - UAR Automation - {{ super() }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>
+        <i class="fas fa-robot"></i> {{ comparison.name }}
+        {% if comparison.is_enabled %}
+        <span class="badge bg-success">Enabled</span>
+        {% else %}
+        <span class="badge bg-secondary">Disabled</span>
+        {% endif %}
+    </h2>
+    <div>
+        <a href="{{ url_for('compliance.uar_automation_list') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Back to List
+        </a>
+        {% if can_write('compliance') %}
+        <a href="{{ url_for('compliance.uar_automation_form', id=comparison.id) }}" class="btn btn-primary">
+            <i class="fas fa-edit"></i> Edit
+        </a>
+        <form action="{{ url_for('compliance.uar_automation_run', id=comparison.id) }}" method="POST" style="display:inline;">
+            <button type="submit" class="btn btn-success">
+                <i class="fas fa-play"></i> Run Now
+            </button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Overview -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-info-circle"></i> Configuration</h5>
+            </div>
+            <div class="card-body">
+                {% if comparison.description %}
+                <p class="text-muted">{{ comparison.description }}</p>
+                {% endif %}
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Dataset A (Authoritative)</h6>
+                        <ul class="list-unstyled">
+                            <li><strong>Type:</strong> {{ comparison.source_a_type }}</li>
+                            <li><strong>Key Field:</strong> <code>{{ comparison.key_field_a }}</code></li>
+                            {% if comparison.source_a_type == 'Subscription' and comparison.source_a_config %}
+                            <li><strong>Subscription ID:</strong> {{ comparison.source_a_config.get('subscription_id') }}</li>
+                            {% elif comparison.source_a_type == 'Business Service' and comparison.source_a_config %}
+                            <li><strong>Service ID:</strong> {{ comparison.source_a_config.get('service_id') }}</li>
+                            {% elif comparison.source_a_type == 'Database Query' and comparison.source_a_config %}
+                            <li><strong>Query:</strong> <pre class="bg-light p-2 small">{{ comparison.source_a_config.get('query') }}</pre></li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Dataset B (Target)</h6>
+                        <ul class="list-unstyled">
+                            <li><strong>Type:</strong> {{ comparison.source_b_type }}</li>
+                            <li><strong>Key Field:</strong> <code>{{ comparison.key_field_b }}</code></li>
+                            {% if comparison.source_b_type == 'Subscription' and comparison.source_b_config %}
+                            <li><strong>Subscription ID:</strong> {{ comparison.source_b_config.get('subscription_id') }}</li>
+                            {% elif comparison.source_b_type == 'Business Service' and comparison.source_b_config %}
+                            <li><strong>Service ID:</strong> {{ comparison.source_b_config.get('service_id') }}</li>
+                            {% elif comparison.source_b_type == 'Database Query' and comparison.source_b_config %}
+                            <li><strong>Query:</strong> <pre class="bg-light p-2 small">{{ comparison.source_b_config.get('query') }}</pre></li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </div>
+
+                <hr>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Schedule</h6>
+                        <ul class="list-unstyled">
+                            <li><strong>Type:</strong> {{ comparison.schedule_type|title }}</li>
+                            {% if comparison.schedule_type != 'manual' and comparison.schedule_config %}
+                            <li><strong>Time:</strong> {{ comparison.schedule_config.get('hour', 8) }}:00 UTC</li>
+                            {% if comparison.schedule_type == 'weekly' %}
+                            <li><strong>Day:</strong> {{ ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'][comparison.schedule_config.get('day_of_week', 1)] }}</li>
+                            {% elif comparison.schedule_type == 'monthly' %}
+                            <li><strong>Day:</strong> {{ comparison.schedule_config.get('day_of_month', 1) }} of month</li>
+                            {% endif %}
+                            {% endif %}
+                            {% if comparison.next_run_at %}
+                            <li><strong>Next Run:</strong> {{ comparison.next_run_at.strftime('%Y-%m-%d %H:%M UTC') }}</li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Alerts</h6>
+                        <ul class="list-unstyled">
+                            <li><strong>Threshold:</strong> {{ comparison.min_findings_threshold }} finding(s)</li>
+                            <li><strong>Channels:</strong> {{ comparison.notification_channels|join(', ')|title if comparison.notification_channels else 'None' }}</li>
+                            <li><strong>Auto-escalate:</strong> {{ 'Yes' if comparison.auto_create_incidents else 'No' }}</li>
+                            {% if comparison.auto_create_incidents %}
+                            <li><strong>Incident Severity:</strong> {{ comparison.auto_incident_severity }}</li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="fas fa-chart-line"></i> Statistics</h5>
+            </div>
+            <div class="card-body">
+                {% set last_execution = comparison.executions.first() %}
+                {% if last_execution %}
+                <div class="text-center mb-3">
+                    <h1 class="display-4 mb-0">{{ last_execution.findings_count }}</h1>
+                    <small class="text-muted">Last Findings</small>
+                </div>
+                <div class="row text-center">
+                    <div class="col-4">
+                        <h5 class="text-info">{{ last_execution.left_only_count }}</h5>
+                        <small class="text-muted">Left Only</small>
+                    </div>
+                    <div class="col-4">
+                        <h5 class="text-warning">{{ last_execution.right_only_count }}</h5>
+                        <small class="text-muted">Right Only</small>
+                    </div>
+                    <div class="col-4">
+                        <h5 class="text-danger">{{ last_execution.mismatch_count }}</h5>
+                        <small class="text-muted">Mismatches</small>
+                    </div>
+                </div>
+                <hr>
+                <ul class="list-unstyled small">
+                    <li><strong>Last Run:</strong> {{ last_execution.started_at.strftime('%Y-%m-%d %H:%M') }}</li>
+                    <li><strong>Duration:</strong> {{ ((last_execution.completed_at - last_execution.started_at).total_seconds())|int }}s</li>
+                    <li><strong>Status:</strong>
+                        <span class="badge bg-{% if last_execution.status == 'completed' %}success{% elif last_execution.status == 'failed' %}danger{% else %}warning{% endif %}">
+                            {{ last_execution.status|title }}
+                        </span>
+                    </li>
+                </ul>
+                {% else %}
+                <p class="text-muted text-center">No executions yet</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Execution History -->
+<div class="card">
+    <div class="card-header">
+        <h5><i class="fas fa-history"></i> Execution History (Last 20)</h5>
+    </div>
+    <div class="card-body">
+        {% if executions %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Duration</th>
+                        <th>Status</th>
+                        <th>Findings</th>
+                        <th>Left Only</th>
+                        <th>Right Only</th>
+                        <th>Mismatches</th>
+                        <th>Alerts Sent</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for execution in executions %}
+                    <tr>
+                        <td>{{ execution.started_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>
+                            {% if execution.completed_at %}
+                            {{ ((execution.completed_at - execution.started_at).total_seconds())|int }}s
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-{% if execution.status == 'completed' %}success{% elif execution.status == 'failed' %}danger{% else %}warning{% endif %}">
+                                {{ execution.status|title }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge bg-{% if execution.findings_count > 0 %}danger{% else %}success{% endif %}">
+                                {{ execution.findings_count }}
+                            </span>
+                        </td>
+                        <td><span class="badge bg-info">{{ execution.left_only_count }}</span></td>
+                        <td><span class="badge bg-warning">{{ execution.right_only_count }}</span></td>
+                        <td><span class="badge bg-danger">{{ execution.mismatch_count }}</span></td>
+                        <td>
+                            {% if execution.alerts_sent %}
+                            <i class="fas fa-check-circle text-success"></i>
+                            {% else %}
+                            <i class="fas fa-times-circle text-muted"></i>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{{ url_for('compliance.uar_execution_detail', execution_id=execution.id) }}"
+                               class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-eye"></i> View
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted text-center">No execution history yet. Click "Run Now" to execute this comparison.</p>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

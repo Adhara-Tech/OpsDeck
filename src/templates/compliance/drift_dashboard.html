@@ -1,0 +1,419 @@
+{% extends "layout.html" %}
+{% block title %}Compliance Drift Detection - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2><i class="fas fa-chart-line"></i> Compliance Drift Detection</h2>
+            <p class="text-muted">Monitor compliance status changes and detect regressions over time</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <button class="btn btn-primary" onclick="manualDetection()">
+                <i class="fas fa-sync"></i> Detect Drift Now
+            </button>
+            {% if can_write('compliance') %}
+            <button class="btn btn-outline-primary" onclick="createSnapshot()">
+                <i class="fas fa-camera"></i> Create Snapshot
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Framework Selector -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <label class="form-label">Select Framework</label>
+            <select class="form-select" id="frameworkSelect" onchange="loadDriftTimeline()">
+                {% for framework in frameworks %}
+                <option value="{{ framework.id }}">{{ framework.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">Time Period</label>
+            <select class="form-select" id="daysSelect" onchange="loadDriftTimeline()">
+                <option value="7">Last 7 days</option>
+                <option value="30" selected>Last 30 days</option>
+                <option value="90">Last 90 days</option>
+                <option value="180">Last 6 months</option>
+                <option value="365">Last year</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4" id="statsCards">
+        <div class="col-md-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Total Regressions</h6>
+                    <h2 class="mb-0" id="totalRegressions">-</h2>
+                    <small>Controls that degraded</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Total Improvements</h6>
+                    <h2 class="mb-0" id="totalImprovements">-</h2>
+                    <small>Controls that improved</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Net Change</h6>
+                    <h2 class="mb-0" id="netChange">-</h2>
+                    <small>Overall trend</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-secondary text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Snapshots</h6>
+                    <h2 class="mb-0" id="snapshotCount">-</h2>
+                    <small>Data points captured</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div id="loadingIndicator" class="text-center py-5" style="display: none;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2">Loading drift timeline...</p>
+    </div>
+
+    <!-- Drift Timeline -->
+    <div class="card" id="timelineCard">
+        <div class="card-header">
+            <h5><i class="fas fa-clock"></i> Drift Timeline</h5>
+        </div>
+        <div class="card-body">
+            <div id="driftTimeline">
+                <div class="text-center py-5 text-muted">
+                    <i class="fas fa-info-circle fa-2x mb-3"></i>
+                    <p>Select a framework to view drift timeline</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- No Data Message -->
+    <div id="noDataMessage" class="alert alert-info" style="display: none;">
+        <i class="fas fa-info-circle"></i>
+        Not enough snapshots for drift analysis. Snapshots are captured automatically once per day.
+        You can manually create a snapshot using the button above.
+    </div>
+</div>
+
+<!-- Drift Detail Modal -->
+<div class="modal fade" id="driftDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Drift Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="driftDetailContent">
+                <!-- Populated dynamically -->
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentFrameworkId = null;
+let currentDays = 30;
+
+// Load timeline on page load
+document.addEventListener('DOMContentLoaded', function() {
+    const frameworkSelect = document.getElementById('frameworkSelect');
+    if (frameworkSelect.options.length > 0) {
+        currentFrameworkId = parseInt(frameworkSelect.value);
+        loadDriftTimeline();
+    }
+});
+
+function loadDriftTimeline() {
+    const frameworkId = parseInt(document.getElementById('frameworkSelect').value);
+    const days = parseInt(document.getElementById('daysSelect').value);
+
+    currentFrameworkId = frameworkId;
+    currentDays = days;
+
+    // Show loading
+    document.getElementById('loadingIndicator').style.display = 'block';
+    document.getElementById('timelineCard').style.display = 'none';
+    document.getElementById('noDataMessage').style.display = 'none';
+
+    // Fetch timeline data
+    fetch(`/compliance/drift/api/timeline/${frameworkId}?days=${days}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.message) {
+                // Not enough data
+                document.getElementById('noDataMessage').style.display = 'block';
+                document.getElementById('timelineCard').style.display = 'none';
+            } else {
+                displayTimeline(data);
+                updateStatistics(data.statistics);
+                document.getElementById('timelineCard').style.display = 'block';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading timeline:', error);
+            alert('Failed to load drift timeline: ' + error.message);
+        })
+        .finally(() => {
+            document.getElementById('loadingIndicator').style.display = 'none';
+        });
+}
+
+function displayTimeline(data) {
+    const container = document.getElementById('driftTimeline');
+
+    if (!data.timeline || data.timeline.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-5 text-success">
+                <i class="fas fa-check-circle fa-3x mb-3"></i>
+                <h5>No compliance drift detected</h5>
+                <p class="text-muted">All controls maintained their compliance status</p>
+            </div>
+        `;
+        return;
+    }
+
+    // Build timeline HTML
+    let html = '<div class="timeline">';
+
+    data.timeline.forEach((event, index) => {
+        const timestamp = new Date(event.timestamp);
+        const hasRegressions = event.regression_count > 0;
+
+        html += `
+            <div class="timeline-event ${hasRegressions ? 'bg-danger bg-opacity-10' : 'bg-success bg-opacity-10'} p-3 mb-3 rounded border-start border-5 border-${hasRegressions ? 'danger' : 'success'}">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="mb-1">
+                            <i class="fas fa-${hasRegressions ? 'exclamation-triangle text-danger' : 'arrow-up text-success'}"></i>
+                            ${timestamp.toLocaleDateString()} ${timestamp.toLocaleTimeString()}
+                        </h6>
+                        <div class="small text-muted mb-2">
+                            ${event.regression_count} regression(s), ${event.improvement_count} improvement(s)
+                        </div>
+                    </div>
+                    <button class="btn btn-sm btn-outline-primary" onclick="showDriftDetails(${index})">
+                        View Details
+                    </button>
+                </div>
+
+                <!-- Drift Summary -->
+                <div class="mt-2">
+                    ${renderDriftSummary(event.drifts)}
+                </div>
+            </div>
+        `;
+    });
+
+    html += '</div>';
+
+    container.innerHTML = html;
+
+    // Store data for detail view
+    window.timelineData = data.timeline;
+}
+
+function renderDriftSummary(drifts) {
+    const regressions = drifts.filter(d => d.is_regression);
+    const improvements = drifts.filter(d => !d.is_regression);
+
+    let html = '';
+
+    if (regressions.length > 0) {
+        html += '<div class="mb-2"><strong class="text-danger">Regressions:</strong></div>';
+        html += '<ul class="small mb-0">';
+        regressions.slice(0, 3).forEach(drift => {
+            html += `
+                <li>
+                    <strong>${drift.control_name}</strong>:
+                    <span class="badge bg-secondary">${drift.old_status}</span>
+                    →
+                    <span class="badge bg-danger">${drift.new_status}</span>
+                </li>
+            `;
+        });
+        if (regressions.length > 3) {
+            html += `<li class="text-muted">... and ${regressions.length - 3} more</li>`;
+        }
+        html += '</ul>';
+    }
+
+    if (improvements.length > 0 && improvements.length <= 5) {
+        html += '<div class="mt-2"><strong class="text-success">Improvements:</strong></div>';
+        html += '<ul class="small mb-0">';
+        improvements.forEach(drift => {
+            html += `
+                <li>
+                    <strong>${drift.control_name}</strong>:
+                    <span class="badge bg-secondary">${drift.old_status}</span>
+                    →
+                    <span class="badge bg-success">${drift.new_status}</span>
+                </li>
+            `;
+        });
+        html += '</ul>';
+    }
+
+    return html;
+}
+
+function showDriftDetails(eventIndex) {
+    const event = window.timelineData[eventIndex];
+    const modal = new bootstrap.Modal(document.getElementById('driftDetailModal'));
+
+    let html = `
+        <h6>Timestamp: ${new Date(event.timestamp).toLocaleString()}</h6>
+        <hr>
+    `;
+
+    // Group by type
+    const regressions = event.drifts.filter(d => d.is_regression);
+    const improvements = event.drifts.filter(d => !d.is_regression);
+
+    if (regressions.length > 0) {
+        html += '<h6 class="text-danger"><i class="fas fa-arrow-down"></i> Regressions</h6>';
+        html += '<div class="table-responsive"><table class="table table-sm">';
+        html += '<thead><tr><th>Control</th><th>From</th><th>To</th><th>Severity</th></tr></thead><tbody>';
+        regressions.forEach(drift => {
+            html += `
+                <tr>
+                    <td><strong>${drift.control_name}</strong></td>
+                    <td><span class="badge bg-secondary">${drift.old_status}</span></td>
+                    <td><span class="badge bg-danger">${drift.new_status}</span></td>
+                    <td><span class="badge bg-${getSeverityColor(drift.severity)}">${drift.severity}</span></td>
+                </tr>
+            `;
+        });
+        html += '</tbody></table></div>';
+    }
+
+    if (improvements.length > 0) {
+        html += '<h6 class="text-success mt-3"><i class="fas fa-arrow-up"></i> Improvements</h6>';
+        html += '<div class="table-responsive"><table class="table table-sm">';
+        html += '<thead><tr><th>Control</th><th>From</th><th>To</th></tr></thead><tbody>';
+        improvements.forEach(drift => {
+            html += `
+                <tr>
+                    <td><strong>${drift.control_name}</strong></td>
+                    <td><span class="badge bg-secondary">${drift.old_status}</span></td>
+                    <td><span class="badge bg-success">${drift.new_status}</span></td>
+                </tr>
+            `;
+        });
+        html += '</tbody></table></div>';
+    }
+
+    document.getElementById('driftDetailContent').innerHTML = html;
+    modal.show();
+}
+
+function getSeverityColor(severity) {
+    const colors = {
+        'critical': 'danger',
+        'high': 'warning',
+        'medium': 'info',
+        'low': 'secondary'
+    };
+    return colors[severity] || 'secondary';
+}
+
+function updateStatistics(stats) {
+    document.getElementById('totalRegressions').textContent = stats.total_regressions;
+    document.getElementById('totalImprovements').textContent = stats.total_improvements;
+    document.getElementById('netChange').textContent = stats.net_change >= 0 ? `+${stats.net_change}` : stats.net_change;
+    document.getElementById('snapshotCount').textContent = stats.snapshot_count || 0;
+}
+
+function manualDetection() {
+    if (!confirm('Trigger manual drift detection? This will compare current compliance state with the last snapshot.')) {
+        return;
+    }
+
+    const frameworkId = currentFrameworkId;
+
+    fetch('/compliance/drift/api/detect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            framework_id: frameworkId,
+            lookback_hours: 24
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(`Detection complete: ${data.drift_count} changes detected`);
+
+            if (data.alert) {
+                alert(`ALERT: ${data.alert.summary}`);
+            }
+
+            // Reload timeline
+            loadDriftTimeline();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Detection failed: ' + error.message);
+    });
+}
+
+function createSnapshot() {
+    if (!confirm('Create a compliance snapshot for all frameworks? This captures the current compliance state for drift detection.')) {
+        return;
+    }
+
+    fetch('/compliance/drift/api/snapshot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            framework_id: null  // null = all frameworks
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            loadDriftTimeline();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Snapshot creation failed: ' + error.message);
+    });
+}
+</script>
+
+<style>
+.timeline-event {
+    transition: all 0.3s ease;
+}
+
+.timeline-event:hover {
+    transform: translateX(5px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+</style>
+{% endblock %}

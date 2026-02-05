@@ -12,6 +12,8 @@ from ..models.core import Tag
 from ..services.permissions_service import requires_permission, has_write_permission
 from ..utils.communications_context import validate_template_syntax
 from .main import login_required
+from src.utils.timezone_helper import now, today
+
 
 campaigns_bp = Blueprint('campaigns', __name__)
 
@@ -327,7 +329,7 @@ def schedule_campaign(id):
     if campaign.scheduled_at:
         scheduled_date = campaign.scheduled_at.date()
     else:
-        scheduled_date = datetime.utcnow().date()
+        scheduled_date = today()
     
     # Spawn communications
     created_count = 0
@@ -348,7 +350,7 @@ def schedule_campaign(id):
     
     # Update campaign status
     campaign.status = 'scheduled'
-    campaign.processed_at = datetime.utcnow()
+    campaign.processed_at = now()
     
     db.session.commit()
     
@@ -440,7 +442,7 @@ def send_campaign_now(id):
             
             if success:
                 comm.status = 'sent'
-                comm.sent_at = datetime.utcnow()
+                comm.sent_at = now()
                 sent_count += 1
             else:
                 comm.status = 'failed'

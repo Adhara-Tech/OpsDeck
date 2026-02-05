@@ -3,6 +3,7 @@
 Finance-related models for exchange rate management.
 """
 from datetime import datetime
+from src.utils.timezone_helper import now
 from ..extensions import db
 
 
@@ -16,8 +17,8 @@ class FinanceSettings(db.Model):
     api_key = db.Column(db.String(255), nullable=True)  # Some providers require API key
     base_currency = db.Column(db.String(3), default='EUR')
     last_sync_at = db.Column(db.DateTime, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=lambda: now())
+    updated_at = db.Column(db.DateTime, default=lambda: now(), onupdate=lambda: now())
 
     @classmethod
     def get_settings(cls):
@@ -37,7 +38,7 @@ class ExchangeRate(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     currency_code = db.Column(db.String(3), nullable=False, index=True)
     rate = db.Column(db.Float, nullable=False)  # Value relative to base currency (EUR)
-    fetched_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    fetched_at = db.Column(db.DateTime, default=lambda: now(), index=True)
 
     __table_args__ = (
         db.Index('idx_exchange_rate_currency_date', 'currency_code', 'fetched_at'),
