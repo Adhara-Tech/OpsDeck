@@ -7,7 +7,8 @@ from src.models.security import Risk
 from src.models.auth import User
 from src.models.assets import Asset
 from src import create_app
-from datetime import date, timedelta
+from datetime import timedelta
+from src.utils.timezone_helper import today
 
 app = create_app()
 
@@ -46,7 +47,7 @@ with app.app_context():
         residual_impact=2,
         residual_likelihood=3,
         treatment_strategy="Mitigate",
-        next_review_date=date.today() + timedelta(days=30)
+        next_review_date=today() + timedelta(days=30)
     )
     
     # Test Relationships

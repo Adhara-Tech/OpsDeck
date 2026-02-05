@@ -171,7 +171,7 @@ class BusinessService(db.Model):
             elif component.component_type == 'License' and linked_obj:
                 # License has one user
                 if linked_obj.user_id:
-                    user = User.query.get(linked_obj.user_id)
+                    user = db.session.get(User, linked_obj.user_id)
                     if user:
                         access_list.append({
                             'user': user,
@@ -247,6 +247,6 @@ class ServiceComponent(db.Model):
         
         model = model_map.get(self.component_type)
         if model:
-            return model.query.get(self.component_id)
+            return db.session.get(model, self.component_id)
         return None
 

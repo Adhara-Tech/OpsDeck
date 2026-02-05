@@ -351,7 +351,7 @@ def move_candidate():
             
             # 2. Pack Items
             if pack_id:
-                pack = OnboardingPack.query.get(pack_id)
+                pack = db.session.get(OnboardingPack,pack_id)
                 if pack:
                     for p_item in pack.items:
                          # Handle linking logic simplistically here (link IDs, not user yet)
@@ -379,7 +379,7 @@ def move_candidate():
             # 3. Social Logic (Manager/Buddy Tasks)
             if new_onboarding.assigned_manager_id:
                 from ..models import User
-                manager = User.query.get(new_onboarding.assigned_manager_id)
+                manager = db.session.get(User,new_onboarding.assigned_manager_id)
                 if manager:
                      db.session.add(ProcessItem(
                         onboarding_process_id=new_onboarding.id,
@@ -390,7 +390,7 @@ def move_candidate():
             
             if new_onboarding.assigned_buddy_id:
                 from ..models import User
-                buddy = User.query.get(new_onboarding.assigned_buddy_id)
+                buddy = db.session.get(User,new_onboarding.assigned_buddy_id)
                 if buddy:
                     db.session.add(ProcessItem(
                         onboarding_process_id=new_onboarding.id,
@@ -489,7 +489,7 @@ def update_stage_order():
         return jsonify({'status': 'error', 'message': 'No IDs provided'}), 400
         
     for index, stage_id in enumerate(ordered_ids):
-        stage = HiringStage.query.get(stage_id)
+        stage = db.session.get(HiringStage,stage_id)
         if stage:
             stage.order = index
             

@@ -98,19 +98,19 @@ def pack_detail(id):
         
         # Si es software, hacemos la descripción más bonita automáticamente
         if item_type == 'Software' and software_id:
-            soft = Software.query.get(software_id)
+            soft = db.session.get(Software,software_id)
             if not description:
                 description = f"Provisionar acceso a: {soft.name}"
         elif item_type == 'ServiceAccess' and service_id:
-            srv = BusinessService.query.get(service_id)
+            srv = db.session.get(BusinessService,service_id)
             if not description:
                 description = f"Grant user access to {srv.category}: {srv.name}"
         elif item_type == 'Subscription' and subscription_id:
-            sub = Subscription.query.get(subscription_id)
+            sub = db.session.get(Subscription,subscription_id)
             if not description:
                 description = f"Assign user to subscription: {sub.name}"
         elif item_type == 'Course' and course_id:
-            course = Course.query.get(course_id)
+            course = db.session.get(Course,course_id)
             if not description:
                 description = f"Assign user to course: {course.title}"
         
@@ -241,7 +241,7 @@ def new_onboarding():
             
         # 3. Generar Checklist: Items del Pack & Provisioning
         if pack_id:
-            pack = OnboardingPack.query.get(pack_id)
+            pack = db.session.get(OnboardingPack,pack_id)
             for p_item in pack.items:
                 # Handle Service Access Provisioning
                 linked_obj_id = None
@@ -266,7 +266,7 @@ def new_onboarding():
 
         # 4. Social logic (Updated)
         if process.assigned_manager_id:
-            manager = User.query.get(process.assigned_manager_id)
+            manager = db.session.get(User,process.assigned_manager_id)
             if manager:
                 db.session.add(ProcessItem(
                     onboarding_process_id=process.id,
@@ -276,7 +276,7 @@ def new_onboarding():
                 ))
 
         if process.assigned_buddy_id:
-            buddy = User.query.get(process.assigned_buddy_id)
+            buddy = db.session.get(User,process.assigned_buddy_id)
             if buddy:
                 db.session.add(ProcessItem(
                     onboarding_process_id=process.id,
@@ -289,7 +289,7 @@ def new_onboarding():
         
         # Trigger scheduled communications from pack
         if pack_id:
-            pack = OnboardingPack.query.get(pack_id)
+            pack = db.session.get(OnboardingPack,pack_id)
             if pack:
                 comm_count = trigger_workflow_communications(process, pack)
                 if comm_count > 0:
@@ -525,7 +525,7 @@ def toggle_item(id):
     if target_state and item.item_type == 'ServiceAccess' and item.linked_object_id and item.onboarding_process_id:
         process = item.onboarding_process
         if process and process.user: # Requires User to be created/linked first
-            service = BusinessService.query.get(item.linked_object_id)
+            service = db.session.get(BusinessService,item.linked_object_id)
             if service:
                 if process.user not in service.users:
                     service.users.append(process.user)
@@ -593,7 +593,7 @@ def revoke_service_access(process_id, item_id):
         flash('Invalid item type.', 'danger')
         return redirect(url_for('onboarding.onboarding_detail', id=process.id))
 
-    service = BusinessService.query.get(item.linked_object_id)
+    service = db.session.get(BusinessService,item.linked_object_id)
     target_user = process.user
     
     if service and target_user:
@@ -630,7 +630,7 @@ def revoke_subscription_access(process_id, item_id):
         flash('Invalid item type.', 'danger')
         return redirect(url_for('onboarding.offboarding_detail', id=process_id))
 
-    subscription = Subscription.query.get(item.linked_object_id)
+    subscription = db.session.get(Subscription,item.linked_object_id)
     target_user = process.user
     
     if subscription and target_user:
@@ -723,7 +723,7 @@ def add_user_to_service(process_id, item_id):
         flash('Invalid item type.', 'danger')
         return redirect(url_for('onboarding.onboarding_detail', id=process.id))
 
-    service = BusinessService.query.get(item.linked_object_id)
+    service = db.session.get(BusinessService,item.linked_object_id)
     if not service:
         flash('Service not found.', 'danger')
         return redirect(url_for('onboarding.onboarding_detail', id=process.id))
@@ -760,7 +760,7 @@ def add_user_to_subscription(process_id, item_id):
         flash('Invalid item type.', 'danger')
         return redirect(url_for('onboarding.onboarding_detail', id=process.id))
 
-    subscription = Subscription.query.get(item.linked_object_id)
+    subscription = db.session.get(Subscription,item.linked_object_id)
     if not subscription:
         flash('Subscription not found.', 'danger')
         return redirect(url_for('onboarding.onboarding_detail', id=process.id))
@@ -798,7 +798,7 @@ def add_user_to_course(process_id, item_id):
         flash('Invalid item type.', 'danger')
         return redirect(url_for('onboarding.onboarding_detail', id=process.id))
 
-    course = Course.query.get(item.linked_object_id)
+    course = db.session.get(Course,item.linked_object_id)
     if not course:
         flash('Course not found.', 'danger')
         return redirect(url_for('onboarding.onboarding_detail', id=process.id))

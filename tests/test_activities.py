@@ -1,6 +1,6 @@
 from src.models import SecurityActivity, ActivityExecution, ActivityRelatedObject, User, Group, Tag, Asset
 from src import db
-from datetime import date
+from src.utils.timezone_helper import today
 
 # --- Model Tests ---
 
@@ -47,7 +47,7 @@ def test_activity_execution_lifecycle(app, init_database):
         execution = ActivityExecution(
             activity_id=activity.id,
             executor_id=user.id,
-            execution_date=date.today(),
+            execution_date=today(),
             status='success',
             outcome_notes='Everything looks good.'
         )
@@ -188,7 +188,7 @@ def test_link_object_route(auth_client, app):
     assert b'Asset linked successfully' in response.data
     
     with app.app_context():
-        act = SecurityActivity.query.get(activity_id)
+        act = db.session.get(SecurityActivity, activity_id)
         assert len(act.related_object_links) == 1
         assert act.related_object_links[0].related_object_id == asset_id
 
@@ -225,7 +225,7 @@ def test_unlink_object_route(auth_client, app):
     assert b'Object unlinked successfully' in response.data
     
     with app.app_context():
-        assert ActivityRelatedObject.query.get(link_id) is None
+        assert db.session.get(ActivityRelatedObject, link_id) is None
 
 def test_delete_activity_route(auth_client, app):
     """Test deleting an activity delete its execution too."""
@@ -235,7 +235,7 @@ def test_delete_activity_route(auth_client, app):
         db.session.commit()
         activity_id = activity.id
         
-        execution = ActivityExecution(activity_id=activity_id, executor_id=User.query.first().id, status='in_progress', execution_date=date.today())
+        execution = ActivityExecution(activity_id=activity_id, executor_id=User.query.first().id, status='in_progress', execution_date=today())
         db.session.add(execution)
         db.session.commit()
         execution_id = execution.id
@@ -245,5 +245,5 @@ def test_delete_activity_route(auth_client, app):
     assert b'has been deleted' in response.data
     
     with app.app_context():
-        assert SecurityActivity.query.get(activity_id) is None
-        assert ActivityExecution.query.get(execution_id) is None
+        assert db.session.get(SecurityActivity, activity_id) is None
+        assert db.session.get(ActivityExecution, execution_id) is None

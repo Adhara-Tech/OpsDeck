@@ -132,7 +132,7 @@ def new_subscription():
 
         # Validate budget validity period if budget is selected
         if budget_id:
-            budget = Budget.query.get(budget_id)
+            budget = db.session.get(Budget,budget_id)
             if budget and not budget.is_active(renewal_date):
                 flash('Error: This subscription renewal date is outside the selected Budget\'s validity period.', 'danger')
                 return render_template('subscriptions/form.html',
@@ -199,15 +199,15 @@ def new_subscription():
         db.session.add(initial_cost)
 
         for contact_id in request.form.getlist('contact_ids'):
-            contact = Contact.query.get(contact_id)
+            contact = db.session.get(Contact,contact_id)
             if contact: subscription.contacts.append(contact)
 
         for pm_id in request.form.getlist('payment_method_ids'):
-            pm = PaymentMethod.query.get(pm_id)
+            pm = db.session.get(PaymentMethod,pm_id)
             if pm: subscription.payment_methods.append(pm)
 
         for tag_id in request.form.getlist('tag_ids'):
-            tag = Tag.query.get(tag_id)
+            tag = db.session.get(Tag,tag_id)
             if tag: subscription.tags.append(tag)
 
         db.session.add(subscription)
@@ -272,7 +272,7 @@ def edit_subscription(id):
 
         # Validate budget validity period if budget is selected
         if budget_id:
-            budget = Budget.query.get(budget_id)
+            budget = db.session.get(Budget,budget_id)
             if budget and not budget.is_active(renewal_date):
                 flash('Error: This subscription renewal date is outside the selected Budget\'s validity period.', 'danger')
                 return render_template('subscriptions/form.html',
@@ -345,17 +345,17 @@ def edit_subscription(id):
 
         subscription.contacts.clear()
         for contact_id in request.form.getlist('contact_ids'):
-            contact = Contact.query.get(contact_id)
+            contact = db.session.get(Contact,contact_id)
             if contact: subscription.contacts.append(contact)
 
         subscription.payment_methods.clear()
         for pm_id in request.form.getlist('payment_method_ids'):
-            pm = PaymentMethod.query.get(pm_id)
+            pm = db.session.get(PaymentMethod,pm_id)
             if pm: subscription.payment_methods.append(pm)
 
         subscription.tags.clear()
         for tag_id in request.form.getlist('tag_ids'):
-            tag = Tag.query.get(tag_id)
+            tag = db.session.get(Tag,tag_id)
             if tag: subscription.tags.append(tag)
 
         db.session.commit()
@@ -459,7 +459,7 @@ def add_user_access(id):
     user_id = request.form.get('user_id')
     
     if user_id:
-        user = User.query.get(user_id)
+        user = db.session.get(User,user_id)
         if user and user not in subscription.users:
             subscription.users.append(user)
             db.session.commit()

@@ -1,6 +1,7 @@
 
 import pytest
 from src.models import User, Subscription, OnboardingPack, ProcessItem, OnboardingProcess, OffboardingProcess, Supplier
+from src import db
 from datetime import datetime
 
 class TestSubscriptionAccessFlow:
@@ -59,7 +60,7 @@ class TestSubscriptionAccessFlow:
         assert f'User {user.name} added'.encode() in response.data
         
         # Verify DB
-        db_sub = Subscription.query.get(subscription.id)
+        db_sub = db.session.get(Subscription,subscription.id)
         assert user in db_sub.users
 
         # 2. Remove User
@@ -68,7 +69,7 @@ class TestSubscriptionAccessFlow:
         assert f'User {user.name} removed'.encode() in response.data
 
         # Verify DB
-        db_sub = Subscription.query.get(subscription.id)
+        db_sub = db.session.get(Subscription,subscription.id)
         assert user not in db_sub.users
 
     def test_onboarding_integration(self, auth_client, init_database, setup_data):

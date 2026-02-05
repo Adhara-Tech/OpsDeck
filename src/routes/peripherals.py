@@ -171,7 +171,7 @@ def checkout_peripheral(id):
             flash('You must select a user.', 'danger')
             return redirect(url_for('peripherals.checkout_peripheral', id=id))
         
-        user = User.query.get(user_id)
+        user = db.session.get(User,user_id)
         if not user:
             flash('Selected user not found.', 'danger')
             return redirect(url_for('peripherals.checkout_peripheral', id=id))
@@ -206,7 +206,7 @@ def checkin_peripheral(id):
         return redirect(redirect_url or url_for('peripherals.peripheral_detail', id=id))
         
     from ..models import Location
-    target_location = Location.query.get(return_location_id)
+    target_location = db.session.get(Location,return_location_id)
     if not target_location:
          flash('Selected location not found.', 'danger')
          return redirect(redirect_url or url_for('peripherals.peripheral_detail', id=id))

@@ -1,7 +1,8 @@
 import pytest
-from datetime import datetime
+from src.utils.timezone_helper import now
 from src.models import User
 from src.models.onboarding import OnboardingProcess, ProcessItem
+from src import db
 
 def test_onboarding_creates_checklist_item(auth_client, app):
     """
@@ -45,7 +46,7 @@ def test_create_user_action(auth_client, app):
     # 1. Setup Process with CreateUser item
     with app.app_context():
         db = app.extensions['sqlalchemy']
-        process = OnboardingProcess(new_hire_name="Jane Doe", start_date=datetime.now())
+        process = OnboardingProcess(new_hire_name="Jane Doe", start_date=now())
         db.session.add(process)
         db.session.commit()
         
@@ -75,9 +76,9 @@ def test_create_user_action(auth_client, app):
         assert user.name == "Jane Doe"
         
         # Verify Process Linked
-        process = OnboardingProcess.query.get(process_id)
+        process = db.session.get(OnboardingProcess, process_id)
         assert process.user_id == user.id
-        
+
         # Verify Item Completed
-        item = ProcessItem.query.get(item_id)
+        item = db.session.get(ProcessItem, item_id)
         assert item.is_completed

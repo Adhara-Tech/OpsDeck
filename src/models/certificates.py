@@ -43,7 +43,7 @@ class Certificate(db.Model):
     def owner(self):
         """Returns the owner object based on polymorphic relationship"""
         if self.owner_type == 'User' and self.owner_id:
-            return User.query.get(self.owner_id)
+            return db.session.get(User, self.owner_id)
         # Add Group logic if Groups model exists and is required, for MVP User is safest bet to implement first.
         return None
     

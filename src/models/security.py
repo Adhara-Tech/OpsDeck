@@ -75,7 +75,7 @@ class ComplianceLink(db.Model):
         
         model = model_map.get(self.linkable_type)
         if model:
-            return model.query.get(self.linkable_id)
+            return db.session.get(model, self.linkable_id)
         return None
 
 incident_assets = db.Table('incident_assets',
@@ -226,7 +226,7 @@ class RiskAffectedItem(db.Model):
         
         model = model_map.get(self.linkable_type)
         if model:
-            return model.query.get(self.linkable_id)
+            return db.session.get(model, self.linkable_id)
         return None
 
 
@@ -256,7 +256,7 @@ class RiskReference(db.Model):
         
         model = model_map.get(self.linkable_type)
         if model:
-            return model.query.get(self.linkable_id)
+            return db.session.get(model, self.linkable_id)
         return None
 
 

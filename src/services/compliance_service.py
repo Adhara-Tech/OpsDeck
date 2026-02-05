@@ -9,6 +9,7 @@ RiskAssessment, UARExecution) and calculating SLA-based traffic-light status.
 from typing import Dict, List, Any, Optional, Tuple
 from datetime import date, datetime, timedelta
 from src.utils.timezone_helper import now
+from src.extensions import db
 
 
 
@@ -201,7 +202,7 @@ class ComplianceEvaluator:
         """
         from src.models.security import Framework, FrameworkControl
         
-        framework = Framework.query.get(framework_id)
+        framework = db.session.get(Framework, framework_id)
         if not framework:
             return None
         

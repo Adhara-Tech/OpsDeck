@@ -107,7 +107,7 @@ def edit_license(id):
         # --- Check if original or NEW purchase is validated ---
         new_purchase_id_form = request.form.get('purchase_id')
         new_purchase_id = int(new_purchase_id_form) if new_purchase_id_form else None
-        new_purchase = Purchase.query.get(new_purchase_id) if new_purchase_id else None
+        new_purchase = db.session.get(Purchase,new_purchase_id) if new_purchase_id else None
 
         is_validated = False
         validated_purchase_desc = None

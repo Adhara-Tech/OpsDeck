@@ -1,5 +1,5 @@
-from datetime import date
 from src import create_app, db
+from src.utils.timezone_helper import today
 from src.models import User, OnboardingProcess, OnboardingPack, PackCommunication, EmailTemplate, ScheduledCommunication
 from src.utils.communications_manager import trigger_workflow_communications
 
@@ -37,7 +37,7 @@ def test_personal_email_flow():
         process = OnboardingProcess(
             new_hire_name="New Hire",
             personal_email="hire@personal.com",
-            start_date=date.today(),
+            start_date=today(),
             pack_id=pack.id
         )
         db.session.add(process)
@@ -66,7 +66,7 @@ def test_personal_email_flow():
             db.session.add(new_user)
             db.session.commit()
             
-            saved_user = User.query.get(new_user.id)
+            saved_user = db.session.get(User, new_user.id)
             if saved_user.personal_email == "hire@personal.com":
                  print("   SUCCESS: User created with correct personal_email.")
             else:

@@ -362,12 +362,12 @@ class ScheduledCommunication(db.Model):
     def get_target_process(self):
         """Load and return the target process object."""
         from .onboarding import OnboardingProcess, OffboardingProcess
-        
+
         if self.target_type == 'onboarding':
-            return OnboardingProcess.query.get(self.target_id)
+            return db.session.get(OnboardingProcess, self.target_id)
         elif self.target_type == 'offboarding':
-            return OffboardingProcess.query.get(self.target_id)
+            return db.session.get(OffboardingProcess, self.target_id)
         elif self.target_type == 'campaign':
-            return Campaign.query.get(self.target_id)
+            return db.session.get(Campaign, self.target_id)
         return None
 

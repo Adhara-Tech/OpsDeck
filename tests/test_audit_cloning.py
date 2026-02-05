@@ -92,8 +92,8 @@ def test_audit_cloning_logic(auth_client, app):
 
     # --- VERIFICATION ---
     with app.app_context():
-        new_audit = ComplianceAudit.query.get(new_audit_id)
-        source_audit = ComplianceAudit.query.get(source_id)
+        new_audit = db.session.get(ComplianceAudit, new_audit_id)
+        source_audit = db.session.get(ComplianceAudit, source_id)
         
         # 1. Metadata Checks
         assert new_audit.name == 'Renewal 2025: Audit 2024'

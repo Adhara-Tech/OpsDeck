@@ -1,4 +1,5 @@
 from src.models import Contact
+from src import db
 
 def test_contact_lifecycle(auth_client, app):
     """
@@ -22,7 +23,7 @@ def test_contact_lifecycle(auth_client, app):
     
     # Verifica que el contacto está en la BD
     with app.app_context():
-        contact = Contact.query.get(1)
+        contact = db.session.get(Contact,1)
         assert contact is not None
         assert contact.name == 'Test Contact'
         assert contact.supplier_id == 1
@@ -44,5 +45,5 @@ def test_contact_lifecycle(auth_client, app):
 
     # Verifica que el contacto está archivado
     with app.app_context():
-        contact = Contact.query.get(1)
+        contact = db.session.get(Contact,1)
         assert contact.is_archived

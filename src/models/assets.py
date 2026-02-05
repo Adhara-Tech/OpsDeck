@@ -381,9 +381,9 @@ class Software(db.Model):
     @property
     def owner(self):
         if self.owner_type == 'user' and self.owner_id:
-            return User.query.get(self.owner_id)
+            return db.session.get(User, self.owner_id)
         if self.owner_type == 'group' and self.owner_id:
-            return Group.query.get(self.owner_id)
+            return db.session.get(Group, self.owner_id)
         return None
 
     def get_tickets(self):

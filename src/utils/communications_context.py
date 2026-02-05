@@ -5,6 +5,7 @@ Builds context dictionaries for Jinja2 template rendering based on
 the target process type.
 """
 from datetime import datetime
+from ..extensions import db
 from ..models.onboarding import OnboardingProcess, OffboardingProcess
 from src.utils.timezone_helper import now, today
 
@@ -25,7 +26,7 @@ def get_template_context(scheduled_comm):
     }
     
     if scheduled_comm.target_type == 'onboarding':
-        process = OnboardingProcess.query.get(scheduled_comm.target_id)
+        process = db.session.get(OnboardingProcess, scheduled_comm.target_id)
         if process:
             context.update({
                 'new_hire_name': process.new_hire_name,
@@ -65,7 +66,7 @@ def get_template_context(scheduled_comm):
                 context['buddy'] = None
                 
     elif scheduled_comm.target_type == 'offboarding':
-        process = OffboardingProcess.query.get(scheduled_comm.target_id)
+        process = db.session.get(OffboardingProcess, scheduled_comm.target_id)
         if process:
             context.update({
                 'departure_date': process.departure_date,
@@ -125,7 +126,7 @@ def get_template_context(scheduled_comm):
         from ..models.security import ComplianceRule
         from ..services.compliance_service import get_compliance_evaluator
         
-        rule = ComplianceRule.query.get(scheduled_comm.target_id)
+        rule = db.session.get(ComplianceRule, scheduled_comm.target_id)
         if rule:
             evaluator = get_compliance_evaluator()
             result = evaluator.evaluate_rule(rule)
@@ -168,7 +169,7 @@ def get_template_context(scheduled_comm):
         # For license expiry notifications
         from ..models.assets import License
         
-        license = License.query.get(scheduled_comm.target_id)
+        license = db.session.get(License, scheduled_comm.target_id)
         if license:
             days_left = (license.expiry_date - today()).days if license.expiry_date else 0
             context.update({
@@ -182,7 +183,7 @@ def get_template_context(scheduled_comm):
         # For subscription renewal notifications
         from ..models.procurement import Subscription
         
-        subscription = Subscription.query.get(scheduled_comm.target_id)
+        subscription = db.session.get(Subscription, scheduled_comm.target_id)
         if subscription:
             renewal_date = subscription.next_renewal_date
             days_left = (renewal_date - today()).days if renewal_date else 0

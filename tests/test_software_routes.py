@@ -43,13 +43,14 @@ def software_data(app):
         # 4. Get or Create License attached to software
         lic = License.query.filter_by(license_key="ADOBE-CC-2025").first()
         if not lic:
-            from datetime import date, timedelta
+            from datetime import timedelta
+            from src.utils.timezone_helper import today
             lic = License(
                 name="CC User License",
                 license_key="ADOBE-CC-2025",
                 software_id=software.id,
                 user_id=user.id,
-                expiry_date=date.today() + timedelta(days=365),
+                expiry_date=today() + timedelta(days=365),
                 cost=600.0,
                 currency="USD"
             )

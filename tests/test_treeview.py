@@ -3,8 +3,9 @@ Tests for src/routes/treeview.py
 Covers: tree_view with locations, users, suppliers roots
 """
 import pytest
-from datetime import date, timedelta
+from datetime import timedelta
 from src import db
+from src.utils.timezone_helper import today
 from src.models import (
     Location, User, Asset, Peripheral, License, Supplier, Subscription
 )
@@ -83,7 +84,7 @@ def treeview_data(app):
                 subscription_type="SaaS",
                 supplier_id=supplier.id,
                 cost=100.0,
-                renewal_date=date.today() + timedelta(days=30),
+                renewal_date=today() + timedelta(days=30),
                 renewal_period_type="monthly"
             )
             db.session.add(sub)

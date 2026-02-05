@@ -83,21 +83,21 @@ def test_audit_snapshot_isolation(auth_client, app):
 
     # FIRE TEST: Modify the original Framework Control
     with app.app_context():
-        original_control = FrameworkControl.query.get(control_id)
+        original_control = db.session.get(FrameworkControl, control_id)
         original_control.name = 'MODIFIED Control Name'
         original_control.description = 'MODIFIED Description'
         db.session.commit()
 
     # Assertion: AuditControlItem MUST retain the OLD text (Snapshot is immutable)
     with app.app_context():
-        audit_item = AuditControlItem.query.get(item_id)
+        audit_item = db.session.get(AuditControlItem, item_id)
         assert audit_item.control_title == 'Original Control Name', \
             "Snapshot was mutated! Expected 'Original Control Name'"
         assert audit_item.control_description == 'Original Description', \
             "Snapshot was mutated! Expected 'Original Description'"
         
         # Also verify the framework actually changed (to prove the test is valid)
-        original_control = FrameworkControl.query.get(control_id)
+        original_control = db.session.get(FrameworkControl, control_id)
         assert original_control.name == 'MODIFIED Control Name'
 
 
@@ -162,7 +162,7 @@ def test_audit_defense_workflow(auth_client, app):
 
     # Action: Mark one item as Non-Applicable with justification
     with app.app_context():
-        item = AuditControlItem.query.get(na_item_id)
+        item = db.session.get(AuditControlItem, na_item_id)
         item.is_applicable = False
         item.justification = 'Legacy system - control not relevant'
         item.status = 'Compliant'  # N/A items are typically marked compliant
@@ -170,12 +170,12 @@ def test_audit_defense_workflow(auth_client, app):
 
     # Verification: Changes persist and don't affect other items
     with app.app_context():
-        na_item = AuditControlItem.query.get(na_item_id)
+        na_item = db.session.get(AuditControlItem, na_item_id)
         assert na_item.is_applicable is False
         assert na_item.justification == 'Legacy system - control not relevant'
         
         # Other item should remain unchanged
-        applicable_item = AuditControlItem.query.get(applicable_item_id)
+        applicable_item = db.session.get(AuditControlItem, applicable_item_id)
         assert applicable_item.is_applicable is True
         assert applicable_item.justification is None
 
@@ -243,7 +243,7 @@ def test_audit_evidence_management(auth_client, app):
     # Verification: Evidence is associated with Audit, NOT Framework
     with app.app_context():
         # Check Attachment is on AuditControlItem
-        item = AuditControlItem.query.get(item_id)
+        item = db.session.get(AuditControlItem, item_id)
         assert item.attachments.count() == 1
         att = item.attachments.first()
         assert att.filename == 'evidence_document.pdf'
@@ -256,7 +256,7 @@ def test_audit_evidence_management(auth_client, app):
         assert link.linkable_id == asset2_id
         
         # Verify: Original Framework Control has NO links (evidence is audit-only)
-        original_control = FrameworkControl.query.get(control_id)
+        original_control = db.session.get(FrameworkControl, control_id)
         assert original_control.compliance_links.count() == 0, \
             "Evidence was incorrectly added to Framework instead of Audit!"
 
@@ -324,35 +324,35 @@ def test_audit_deletion(auth_client, app):
 
     # Pre-deletion verification
     with app.app_context():
-        assert ComplianceAudit.query.get(audit_id) is not None
-        assert AuditControlItem.query.get(item_id) is not None
-        assert AuditControlLink.query.get(audit_link_id) is not None
-        assert Attachment.query.get(attachment_id) is not None
+        assert db.session.get(ComplianceAudit, audit_id) is not None
+        assert db.session.get(AuditControlItem, item_id) is not None
+        assert db.session.get(AuditControlLink, audit_link_id) is not None
+        assert db.session.get(Attachment, attachment_id) is not None
 
     # Action: Delete the Audit
     with app.app_context():
-        audit = ComplianceAudit.query.get(audit_id)
+        audit = db.session.get(ComplianceAudit, audit_id)
         db.session.delete(audit)
         db.session.commit()
 
     # Verification: Cascade deletion
     with app.app_context():
         # Audit and its children should be deleted
-        assert ComplianceAudit.query.get(audit_id) is None, "Audit was not deleted"
-        assert AuditControlItem.query.get(item_id) is None, "AuditControlItem was not cascade deleted"
-        assert AuditControlLink.query.get(audit_link_id) is None, "AuditControlLink was not cascade deleted"
+        assert db.session.get(ComplianceAudit, audit_id) is None, "Audit was not deleted"
+        assert db.session.get(AuditControlItem, item_id) is None, "AuditControlItem was not cascade deleted"
+        assert db.session.get(AuditControlLink, audit_link_id) is None, "AuditControlLink was not cascade deleted"
         # Note: Attachments cascade depends on model config - checking it was deleted with item
-        assert Attachment.query.get(attachment_id) is None, "Attachment was not cascade deleted"
+        assert db.session.get(Attachment, attachment_id) is None, "Attachment was not cascade deleted"
         
         # Framework and Asset should STILL EXIST
-        fw = Framework.query.get(fw_id)
+        fw = db.session.get(Framework, fw_id)
         assert fw is not None, "Framework was incorrectly deleted!"
         assert fw.name == 'Deletion Test Framework'
         
-        control = FrameworkControl.query.get(control_id)
+        control = db.session.get(FrameworkControl, control_id)
         assert control is not None, "FrameworkControl was incorrectly deleted!"
         
-        asset = Asset.query.get(asset_id)
+        asset = db.session.get(Asset, asset_id)
         assert asset is not None, "Asset was incorrectly deleted!"
         assert asset.name == 'Linked Asset'
 

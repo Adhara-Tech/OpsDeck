@@ -306,7 +306,7 @@ def checkout_asset(id):
             flash('You must select a user.', 'danger')
             return redirect(url_for('assets.checkout_asset', id=id))
         
-        user = User.query.get(user_id)
+        user = db.session.get(User,user_id)
         if not user:
             flash('Selected user not found.', 'danger')
             return redirect(url_for('assets.checkout_asset', id=id))
@@ -355,7 +355,7 @@ def checkin_asset(id):
         flash('You must select a location to return the asset to.', 'danger')
         return redirect(redirect_url or url_for('assets.asset_detail', id=id))
     
-    target_location = Location.query.get(return_location_id)
+    target_location = db.session.get(Location,return_location_id)
     if not target_location:
         flash('Selected location not found.', 'danger')
         return redirect(redirect_url or url_for('assets.asset_detail', id=id))

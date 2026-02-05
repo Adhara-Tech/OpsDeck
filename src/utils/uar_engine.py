@@ -2,6 +2,7 @@ import sqlite3
 import json
 import logging
 from typing import List, Dict, Any, Optional
+from ..extensions import db
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +69,7 @@ class AccessReviewEngine:
         """
         try:
             from opsdeck_enterprise.models.report import Report
-            report = Report.query.get(report_id)
+            report = db.session.get(Report, report_id)
             if not report:
                 raise ValueError(f"Report with ID {report_id} not found.")
             
@@ -114,7 +115,7 @@ class AccessReviewEngine:
         Loads user access data from a specific Subscription.
         """
         from ..models import Subscription
-        sub = Subscription.query.get(subscription_id)
+        sub = db.session.get(Subscription, subscription_id)
         if not sub:
             raise ValueError(f"Subscription {subscription_id} not found")
         
@@ -139,7 +140,7 @@ class AccessReviewEngine:
                 if lic.user_id:
                      # Fetch user eagerly or lazily
                     from ..models import User
-                    u = User.query.get(lic.user_id)
+                    u = db.session.get(User, lic.user_id)
                     if u:
                         rows.append({
                             'user_id': u.id,
@@ -157,7 +158,7 @@ class AccessReviewEngine:
         Loads user access data from a Business Service (using get_effective_users).
         """
         from ..models import BusinessService
-        svc = BusinessService.query.get(service_id)
+        svc = db.session.get(BusinessService, service_id)
         if not svc:
             raise ValueError(f"Service {service_id} not found")
             

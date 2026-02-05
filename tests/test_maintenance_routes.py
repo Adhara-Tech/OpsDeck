@@ -3,8 +3,9 @@ Tests for src/routes/maintenance.py
 Covers: list_logs, log_detail, new_log, edit_log
 """
 import pytest
-from datetime import date, timedelta
+from datetime import timedelta
 from src import db
+from src.utils.timezone_helper import today
 from src.models import MaintenanceLog, Asset, Peripheral, User
 
 
@@ -40,7 +41,7 @@ def maintenance_data(app):
             event_type="Repair",
             description="Replaced power supply",
             status="Completed",
-            event_date=date.today() - timedelta(days=7),
+            event_date=today() - timedelta(days=7),
             ticket_link="https://tickets.example.com/123",
             notes="Replaced with new PSU",
             assigned_to_id=technician.id,
@@ -125,7 +126,7 @@ def test_new_log_post_success(auth_client, maintenance_data, app):
         'event_type': 'Inspection',
         'description': 'Annual hardware inspection',
         'status': 'Completed',
-        'event_date': date.today().strftime('%Y-%m-%d'),
+        'event_date': today().strftime('%Y-%m-%d'),
         'ticket_link': 'https://tickets.example.com/456',
         'notes': 'All hardware checked',
         'assigned_to_id': maintenance_data['technician_id'],
@@ -146,7 +147,7 @@ def test_new_log_for_peripheral(auth_client, maintenance_data, app):
         'event_type': 'Repair',
         'description': 'Fixed network switch port',
         'status': 'In Progress',
-        'event_date': date.today().strftime('%Y-%m-%d'),
+        'event_date': today().strftime('%Y-%m-%d'),
         'peripheral_id': maintenance_data['peripheral_id']
     }
     response = auth_client.post('/maintenance/new', data=data, follow_redirects=True)
@@ -164,7 +165,7 @@ def test_new_log_minimal_data(auth_client, maintenance_data, app):
         'event_type': 'Other',
         'description': 'General maintenance',
         'status': 'Planned',
-        'event_date': date.today().strftime('%Y-%m-%d')
+        'event_date': today().strftime('%Y-%m-%d')
     }
     response = auth_client.post('/maintenance/new', data=data, follow_redirects=True)
     assert response.status_code == 200
@@ -185,7 +186,7 @@ def test_edit_log_post_success(auth_client, maintenance_data, app):
         'event_type': 'Upgrade',
         'description': 'Upgraded to higher wattage PSU',
         'status': 'Completed',
-        'event_date': date.today().strftime('%Y-%m-%d'),
+        'event_date': today().strftime('%Y-%m-%d'),
         'ticket_link': 'https://tickets.example.com/789',
         'notes': 'Upgraded from 500W to 750W',
         'assigned_to_id': maintenance_data['technician_id'],
@@ -210,7 +211,7 @@ def test_edit_log_change_status(auth_client, maintenance_data, app):
         'event_type': 'Repair',
         'description': 'Replaced power supply',
         'status': 'Pending Parts',
-        'event_date': date.today().strftime('%Y-%m-%d')
+        'event_date': today().strftime('%Y-%m-%d')
     }
     response = auth_client.post(
         f'/maintenance/{maintenance_data["log_id"]}/edit',

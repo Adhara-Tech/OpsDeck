@@ -130,5 +130,5 @@ class RiskAssessmentEvidence(db.Model):
         
         model = model_map.get(self.linkable_type)
         if model:
-            return model.query.get(self.linkable_id)
+            return db.session.get(model, self.linkable_id)
         return None

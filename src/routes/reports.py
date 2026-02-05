@@ -257,7 +257,7 @@ def assets_dashboard():
     top_problematic = sorted(maintenance_counts.items(), key=lambda x: x[1], reverse=True)[:5]
     lemons = []
     for asset_id, count in top_problematic:
-        asset = Asset.query.get(asset_id)
+        asset = db.session.get(Asset,asset_id)
         if asset and not asset.is_archived:
             lemons.append({'asset': asset, 'incident_count': count})
     
@@ -421,7 +421,7 @@ def assets_dashboard_pdf():
     top_problematic = sorted(maintenance_counts.items(), key=lambda x: x[1], reverse=True)[:10]
     lemons = []
     for asset_id, count in top_problematic:
-        asset = Asset.query.get(asset_id)
+        asset = db.session.get(Asset,asset_id)
         if asset and not asset.is_archived:
             lemons.append({'asset': asset, 'incident_count': count})
     
@@ -445,7 +445,7 @@ def assets_dashboard_pdf():
         status_counts[status] = status_counts.get(status, 0) + 1
     
     # Metadata
-    user = User.query.get(session.get('user_id'))
+    user = db.session.get(User,session.get('user_id'))
     
     # Render HTML
     html_content = render_template(
@@ -541,7 +541,7 @@ def spend_analysis():
     if user_id:
         user_ids_to_filter.append(user_id)
     if group_id:
-        group = Group.query.get(group_id)
+        group = db.session.get(Group,group_id)
         if group:
             user_ids_to_filter.extend([user.id for user in group.users if not user.is_archived]) # Filter users by group membership
 
@@ -642,7 +642,7 @@ def depreciation_report():
     if user_id:
         user_ids_to_filter.append(user_id)
     if group_id:
-        group = Group.query.get(group_id)
+        group = db.session.get(Group,group_id)
         if group:
             user_ids_to_filter.extend([user.id for user in group.users if not user.is_archived])
 

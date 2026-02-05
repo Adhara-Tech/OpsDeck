@@ -2,8 +2,9 @@
 Tests for Compliance Drift Detection Service
 """
 import pytest
-from datetime import datetime, timedelta
+from datetime import timedelta
 from unittest.mock import patch, MagicMock
+from src.utils.timezone_helper import now
 from src.extensions import db
 from src.models.security import Framework, FrameworkControl
 from src.models.audits import ComplianceAudit
@@ -79,7 +80,7 @@ def test_compliance_drift_initialization():
         framework_name='ISO 27001',
         old_status='compliant',
         new_status='non_compliant',
-        timestamp=datetime.utcnow(),
+        timestamp=now(),
         changes={'test': 'value'}
     )
 
@@ -98,7 +99,7 @@ def test_drift_is_regression():
         framework_name='Test FW',
         old_status='compliant',
         new_status='non_compliant',
-        timestamp=datetime.utcnow(),
+        timestamp=now(),
         changes={}
     )
     assert drift.is_regression is True
@@ -110,7 +111,7 @@ def test_drift_is_regression():
         framework_name='Test FW',
         old_status='non_compliant',
         new_status='compliant',
-        timestamp=datetime.utcnow(),
+        timestamp=now(),
         changes={}
     )
     assert drift2.is_regression is False
@@ -122,7 +123,7 @@ def test_drift_is_regression():
         framework_name='Test FW',
         old_status='compliant',
         new_status='compliant',
-        timestamp=datetime.utcnow(),
+        timestamp=now(),
         changes={}
     )
     assert drift3.is_regression is False
@@ -136,7 +137,7 @@ def test_drift_severity_critical():
         framework_name='Test FW',
         old_status='compliant',
         new_status='non_compliant',
-        timestamp=datetime.utcnow(),
+        timestamp=now(),
         changes={}
     )
     assert drift.severity == 'critical'
@@ -150,7 +151,7 @@ def test_drift_severity_high():
         framework_name='Test FW',
         old_status='compliant',
         new_status='warning',
-        timestamp=datetime.utcnow(),
+        timestamp=now(),
         changes={}
     )
     assert drift.severity == 'high'
@@ -164,7 +165,7 @@ def test_drift_severity_improvement():
         framework_name='Test FW',
         old_status='non_compliant',
         new_status='compliant',
-        timestamp=datetime.utcnow(),
+        timestamp=now(),
         changes={}
     )
     assert drift.severity == 'low'  # Improvements are low severity
@@ -172,7 +173,7 @@ def test_drift_severity_improvement():
 
 def test_drift_to_dict():
     """Test converting drift to dictionary."""
-    timestamp = datetime.utcnow()
+    timestamp = now()
     drift = ComplianceDrift(
         control_id=1,
         control_name='Access Control',
@@ -211,7 +212,7 @@ def test_capture_snapshot(app, drift_detector, sample_framework):
                     'name': 'Access Control Policy',
                     'status': 'compliant',
                     'rules_count': 3,
-                    'oldest_evidence_date': datetime.utcnow()
+                    'oldest_evidence_date': now()
                 }
             ]
         }
@@ -269,7 +270,7 @@ def test_detect_drift_with_changes(app, drift_detector, sample_framework):
     with app.app_context():
         # Create previous snapshot manually
         old_snapshot_data = {
-            'timestamp': (datetime.utcnow() - timedelta(hours=2)).isoformat(),
+            'timestamp': (now() - timedelta(hours=2)).isoformat(),
             'frameworks': {
                 str(framework_id): {
                     'name': 'ISO 27001',
@@ -290,7 +291,7 @@ def test_detect_drift_with_changes(app, drift_detector, sample_framework):
         old_audit = ComplianceAudit(
             audit_type='drift_snapshot',
             snapshot_data=old_snapshot_data,
-            created_at=datetime.utcnow() - timedelta(hours=2)
+            created_at=now() - timedelta(hours=2)
         )
         db.session.add(old_audit)
         db.session.commit()
@@ -416,7 +417,7 @@ def test_get_drift_timeline_with_snapshots(app, drift_detector, sample_framework
                         }
                     }
                 },
-                created_at=datetime.utcnow() - timedelta(days=i)
+                created_at=now() - timedelta(days=i)
             )
             db.session.add(snapshot)
         db.session.commit()
@@ -440,7 +441,7 @@ def test_generate_drift_alert_no_regressions(app, drift_detector):
                 framework_name='Test FW',
                 old_status='non_compliant',
                 new_status='compliant',
-                timestamp=datetime.utcnow(),
+                timestamp=now(),
                 changes={}
             )
         ]
@@ -463,7 +464,7 @@ def test_generate_drift_alert_with_regressions(app, drift_detector):
                 framework_name='ISO 27001',
                 old_status='compliant',
                 new_status='non_compliant',
-                timestamp=datetime.utcnow(),
+                timestamp=now(),
                 changes={}
             ),
             ComplianceDrift(
@@ -472,7 +473,7 @@ def test_generate_drift_alert_with_regressions(app, drift_detector):
                 framework_name='ISO 27001',
                 old_status='compliant',
                 new_status='warning',
-                timestamp=datetime.utcnow(),
+                timestamp=now(),
                 changes={}
             )
         ]

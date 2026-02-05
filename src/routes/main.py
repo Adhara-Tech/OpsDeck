@@ -172,7 +172,7 @@ def mfa_verify():
         
         if code == stored_otp:
             # SUCCESS - Get user and complete login
-            user = User.query.get(user_id)
+            user = db.session.get(User,user_id)
             if user:
                 # Save the new IP to whitelist
                 new_ip = UserKnownIP(
@@ -231,7 +231,7 @@ def logout():
 def impersonate(user_id):
     """Start impersonating another user (break-glass admin only)."""
     # Get current user
-    current_user = User.query.get(session['user_id'])
+    current_user = db.session.get(User,session['user_id'])
     
     # Verify current user is the break-glass admin
     if not is_break_glass_admin(current_user):
@@ -285,8 +285,8 @@ def stop_impersonate():
         return redirect(url_for('main.dashboard'))
     
     # Get both users for logging
-    impersonated_user = User.query.get(session['user_id'])
-    original_user = User.query.get(original_user_id)
+    impersonated_user = db.session.get(User,session['user_id'])
+    original_user = db.session.get(User,original_user_id)
     
     # Restore original user session
     session['user_id'] = original_user_id
@@ -388,7 +388,7 @@ def password_change_required(f):
     def decorated_function(*args, **kwargs):
         user_id = session.get('user_id')
         if user_id:
-            user = User.query.get(user_id)
+            user = db.session.get(User,user_id)
             # Get configured admin credentials from app config
             default_admin_email = current_app.config.get('DEFAULT_ADMIN_EMAIL', 'admin@example.com')
             default_admin_password = current_app.config.get('DEFAULT_ADMIN_INITIAL_PASSWORD', 'admin123')
@@ -658,7 +658,7 @@ def my_dashboard():
     from ..models.security import Risk
 
     user_id = session.get('user_id')
-    user = User.query.get(user_id)
+    user = db.session.get(User,user_id)
     current_date = today()
     current_datetime = now()
 
@@ -1166,7 +1166,7 @@ def search():
 @main_bp.route('/change-password', methods=['GET', 'POST'])
 @login_required
 def change_password():
-    user = User.query.get(session['user_id'])
+    user = db.session.get(User,session['user_id'])
     
     # Detect if this is a forced password change
     default_admin_email = current_app.config.get('DEFAULT_ADMIN_EMAIL', 'admin@example.com')
@@ -1214,7 +1214,7 @@ def my_api_key():
 @login_required
 def generate_my_token():
     """Generate a new API token for the current user."""
-    user = User.query.get(session['user_id'])
+    user = db.session.get(User,session['user_id'])
     user.generate_token()
     db.session.commit()
     

@@ -3,8 +3,9 @@ Tests for src/routes/disposal.py
 Covers: list_disposals, disposal_detail, record_disposal, edit_disposal
 """
 import pytest
-from datetime import date, timedelta
+from datetime import timedelta
 from src import db
+from src.utils.timezone_helper import today
 from src.models import Asset, Peripheral, DisposalRecord
 
 
@@ -41,7 +42,7 @@ def disposal_data(app):
         # Create an existing disposal record for the first asset
         disposal = DisposalRecord(
             asset_id=asset_with_disposal.id,
-            disposal_date=date.today() - timedelta(days=30),
+            disposal_date=today() - timedelta(days=30),
             disposal_method="Recycled",
             disposal_partner="E-Waste Co",
             notes="Recycled properly"
@@ -118,7 +119,7 @@ def test_record_disposal_no_item_returns_error(auth_client, disposal_data):
 def test_record_disposal_post_asset(auth_client, disposal_data, app):
     """Test recording disposal for an asset via POST."""
     data = {
-        'disposal_date': date.today().strftime('%Y-%m-%d'),
+        'disposal_date': today().strftime('%Y-%m-%d'),
         'disposal_method': 'Donated',
         'disposal_partner': 'Charity Org',
         'notes': 'Donated to school'
@@ -139,7 +140,7 @@ def test_record_disposal_post_asset(auth_client, disposal_data, app):
 def test_record_disposal_post_peripheral(auth_client, disposal_data, app):
     """Test recording disposal for a peripheral via POST."""
     data = {
-        'disposal_date': date.today().strftime('%Y-%m-%d'),
+        'disposal_date': today().strftime('%Y-%m-%d'),
         'disposal_method': 'Destroyed',
         'disposal_partner': 'Secure Disposal Inc',
         'notes': 'Securely destroyed'
@@ -169,7 +170,7 @@ def test_edit_disposal_form_loads(auth_client, disposal_data):
 def test_edit_disposal_post_success(auth_client, disposal_data, app):
     """Test updating disposal record via POST."""
     data = {
-        'disposal_date': date.today().strftime('%Y-%m-%d'),
+        'disposal_date': today().strftime('%Y-%m-%d'),
         'disposal_method': 'Resold',
         'disposal_partner': 'Refurb Shop',
         'notes': 'Updated notes',
@@ -190,7 +191,7 @@ def test_edit_disposal_post_success(auth_client, disposal_data, app):
 def test_edit_disposal_requires_reason(auth_client, disposal_data):
     """Test that edit disposal requires a reason."""
     data = {
-        'disposal_date': date.today().strftime('%Y-%m-%d'),
+        'disposal_date': today().strftime('%Y-%m-%d'),
         'disposal_method': 'Resold',
         'disposal_partner': 'Refurb Shop'
         # Missing 'reason'

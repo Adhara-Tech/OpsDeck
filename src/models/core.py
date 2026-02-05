@@ -76,9 +76,9 @@ class Link(db.Model):
         """Devuelve el objeto User o Group basado en owner_type y owner_id."""
         from .auth import User, Group
         if self.owner_type == 'User' and self.owner_id:
-            return User.query.get(self.owner_id)
+            return db.session.get(User, self.owner_id)
         if self.owner_type == 'Group' and self.owner_id:
-            return Group.query.get(self.owner_id)
+            return db.session.get(Group, self.owner_id)
         return None
 
 documentation_tags = db.Table('documentation_tags',
@@ -125,9 +125,9 @@ class Documentation(db.Model):
         """Devuelve el objeto User o Group basado en owner_type y owner_id."""
         from .auth import User, Group
         if self.owner_type == 'User' and self.owner_id:
-            return User.query.get(self.owner_id)
+            return db.session.get(User, self.owner_id)
         if self.owner_type == 'Group' and self.owner_id:
-            return Group.query.get(self.owner_id)
+            return db.session.get(Group, self.owner_id)
         return None
 
 

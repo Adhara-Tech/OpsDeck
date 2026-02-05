@@ -110,7 +110,7 @@ def lock_assessment(id):
         for item in assessment.items:
             # Only update if there's a linked original risk
             if item.original_risk_id:
-                live_risk = Risk.query.get(item.original_risk_id)
+                live_risk = db.session.get(Risk,item.original_risk_id)
                 if live_risk:
                     # Update residual scores from assessment
                     live_risk.residual_impact = item.residual_impact

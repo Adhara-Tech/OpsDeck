@@ -80,14 +80,14 @@ class ContractItem(db.Model):
         # Local imports to prevent circular dependency
         if self.item_type == 'Asset':
             from .assets import Asset
-            return Asset.query.get(self.item_id)
+            return db.session.get(Asset, self.item_id)
         elif self.item_type == 'Subscription':
             from .procurement import Subscription
-            return Subscription.query.get(self.item_id)
+            return db.session.get(Subscription, self.item_id)
         elif self.item_type == 'License':
             from .assets import License
-            return License.query.get(self.item_id)
+            return db.session.get(License, self.item_id)
         elif self.item_type == 'BusinessService':
             from .services import BusinessService
-            return BusinessService.query.get(self.item_id)
+            return db.session.get(BusinessService, self.item_id)
         return None

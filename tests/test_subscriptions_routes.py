@@ -3,8 +3,9 @@ Tests for src/routes/subscriptions.py
 Covers: list_subscriptions, detail, new, edit, delete, archive/unarchive, calendar
 """
 import pytest
-from datetime import date, timedelta
+from datetime import timedelta
 from src import db
+from src.utils.timezone_helper import today
 from src.models import (
     Subscription, Supplier, PaymentMethod, Contact, 
     Budget, Software
@@ -41,8 +42,8 @@ def subscriptions_data(app):
             budget = Budget(
                 name="Sub Budget",
                 amount=20000.0,
-                valid_from=date.today().replace(month=1, day=1),
-                valid_until=date.today().replace(month=12, day=31)
+                valid_from=today().replace(month=1, day=1),
+                valid_until=today().replace(month=12, day=31)
             )
             db.session.add(budget)
             db.session.commit()
@@ -67,7 +68,7 @@ def subscriptions_data(app):
                 supplier_id=supplier.id,
                 cost=500.0,
                 currency="EUR",
-                renewal_date=date.today() + timedelta(days=90),
+                renewal_date=today() + timedelta(days=90),
                 renewal_period_type="monthly",
                 renewal_period_value=1,
                 monthly_renewal_day="1",
@@ -86,7 +87,7 @@ def subscriptions_data(app):
                 subscription_type="Support",
                 supplier_id=supplier.id,
                 cost=100.0,
-                renewal_date=date.today(),
+                renewal_date=today(),
                 renewal_period_type="yearly",
                 is_archived=True
             )
@@ -137,7 +138,7 @@ def test_new_subscription_post_success(auth_client, subscriptions_data, app):
         'supplier_id': subscriptions_data['supplier_id'],
         'cost': '150',
         'currency': 'USD',
-        'renewal_date': (date.today() + timedelta(days=30)).strftime('%Y-%m-%d'),
+        'renewal_date': (today() + timedelta(days=30)).strftime('%Y-%m-%d'),
         'renewal_period_type': 'yearly',
         'renewal_period_value': '1'
     }, follow_redirects=True)
@@ -153,7 +154,7 @@ def test_edit_subscription_post_success(auth_client, subscriptions_data, app):
         'supplier_id': subscriptions_data['supplier_id'],
         'cost': '550',
         'currency': 'EUR',
-        'renewal_date': (date.today() + timedelta(days=90)).strftime('%Y-%m-%d'),
+        'renewal_date': (today() + timedelta(days=90)).strftime('%Y-%m-%d'),
         'renewal_period_type': 'monthly',
         'renewal_period_value': '1'
     }, follow_redirects=True)

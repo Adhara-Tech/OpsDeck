@@ -7,6 +7,7 @@ from datetime import datetime
 from smtplib import SMTPException, SMTPAuthenticationError, SMTPConnectError, SMTPRecipientsRefused
 
 # Import the models needed for the notification logic
+from .extensions import db
 from .models import Subscription, NotificationSetting
 from .models.credentials import Credential, CredentialSecret
 from .models.certificates import Certificate, CertificateVersion
@@ -121,7 +122,7 @@ def check_upcoming_renewals(app):
             
             for license in expiring_licenses:
                 # Get the owner (assigned user) for the notification
-                owner = User.query.get(license.user_id) if license.user_id else None
+                owner = db.session.get(User, license.user_id) if license.user_id else None
                 if not owner or not owner.email:
                     app.logger.warning(f"License {license.id} has no owner email, skipping notification.")
                     continue
@@ -596,7 +597,7 @@ def process_communications_queue(app):
             # Determine the template source based on target type
             if comm.target_type == 'campaign':
                 # For campaigns, load the Campaign object which has inline subject/body
-                template_source = Campaign.query.get(comm.target_id)
+                template_source = db.session.get(Campaign, comm.target_id)
                 if not template_source:
                     app.logger.warning(f"Communication {comm.id}: Campaign not found, skipping.")
                     continue

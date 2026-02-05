@@ -1,4 +1,5 @@
 from src.models import User
+from src import db
 
 def test_user_lifecycle(auth_client, app):
     """
@@ -27,7 +28,7 @@ def test_user_lifecycle(auth_client, app):
     # Verifica que el usuario existe en la BD
     with app.app_context():
         # El ID 1 es el admin, el nuevo usuario debe ser el ID 2
-        user = User.query.get(2)
+        user = db.session.get(User, 2)
         assert user is not None
         assert user.name == 'Test User'
         assert user.department == 'Testing'
@@ -46,7 +47,7 @@ def test_user_lifecycle(auth_client, app):
 
     # Verifica que los cambios están en la BD
     with app.app_context():
-        user = User.query.get(2)
+        user = db.session.get(User, 2)
         assert user.name == 'Test User (Edited)'
         assert user.department == 'Testing-Edited'
 
@@ -57,7 +58,7 @@ def test_user_lifecycle(auth_client, app):
     
     # Verifica que el usuario está archivado en la BD
     with app.app_context():
-        user = User.query.get(2)
+        user = db.session.get(User, 2)
         assert user.is_archived
         
     # Verifica que ya no aparece en la lista principal

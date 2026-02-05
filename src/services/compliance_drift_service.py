@@ -102,7 +102,7 @@ class ComplianceDriftDetector:
             ComplianceAudit instance
         """
         if framework_id:
-            frameworks = [Framework.query.get(framework_id)]
+            frameworks = [db.session.get(Framework, framework_id)]
             if not frameworks[0]:
                 raise ValueError(f"Framework {framework_id} not found")
         else:

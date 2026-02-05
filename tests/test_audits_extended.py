@@ -14,7 +14,7 @@ from src.models import db
 from src.models.audits import ComplianceAudit, AuditControlItem
 from src.models.security import Framework, FrameworkControl
 from src.models.auth import User
-from datetime import datetime
+from src.utils.timezone_helper import now
 
 
 def test_lock_audit(auth_client, app):
@@ -46,7 +46,7 @@ def test_lock_audit(auth_client, app):
     assert b'Audit has been locked' in response.data
     
     with app.app_context():
-        audit = ComplianceAudit.query.get(audit_id)
+        audit = db.session.get(ComplianceAudit, audit_id)
         assert audit.is_locked is True
         assert audit.locked_at is not None
 
@@ -67,7 +67,7 @@ def test_unlock_audit(auth_client, app):
             internal_lead_id=lead.id,
             copy_links=False
         )
-        audit.locked_at = datetime.utcnow()
+        audit.locked_at = now()
         db.session.commit()
         audit_id = audit.id
         
@@ -82,7 +82,7 @@ def test_unlock_audit(auth_client, app):
     assert b'Audit has been unlocked' in response.data
     
     with app.app_context():
-        audit = ComplianceAudit.query.get(audit_id)
+        audit = db.session.get(ComplianceAudit, audit_id)
         assert audit.is_locked is False
         assert audit.locked_at is None
 
@@ -105,7 +105,7 @@ def test_locked_audit_prevents_modification(auth_client, app):
             internal_lead_id=lead.id,
             copy_links=False
         )
-        audit.locked_at = datetime.utcnow()
+        audit.locked_at = now()
         db.session.commit()
         audit_id = audit.id
         item = audit.audit_items.first()
@@ -128,7 +128,7 @@ def test_locked_audit_prevents_modification(auth_client, app):
     
     # Verify item wasn't changed
     with app.app_context():
-        item = AuditControlItem.query.get(item_id)
+        item = db.session.get(AuditControlItem, item_id)
         assert item.status == 'Pending'  # Should still be default
 
 
@@ -207,7 +207,7 @@ def test_add_participant(auth_client, app):
     assert b'added to the team' in response.data
     
     with app.app_context():
-        audit = ComplianceAudit.query.get(audit_id)
+        audit = db.session.get(ComplianceAudit, audit_id)
         assert len(audit.participants) == 1
         assert audit.participants[0].id == participant_id
 
@@ -254,7 +254,7 @@ def test_remove_participant(auth_client, app):
     assert b'removed from the team' in response.data
     
     with app.app_context():
-        audit = ComplianceAudit.query.get(audit_id)
+        audit = db.session.get(ComplianceAudit, audit_id)
         assert len(audit.participants) == 0
 
 
@@ -274,7 +274,7 @@ def test_participant_lock_check(auth_client, app):
             internal_lead_id=lead.id,
             copy_links=False
         )
-        audit.locked_at = datetime.utcnow()
+        audit.locked_at = now()
         db.session.commit()
         
         participant = User(name='Locked Test User', email='locked@test.com', role='user')
@@ -298,7 +298,7 @@ def test_participant_lock_check(auth_client, app):
     assert b'locked' in response.data.lower()
     
     with app.app_context():
-        audit = ComplianceAudit.query.get(audit_id)
+        audit = db.session.get(ComplianceAudit, audit_id)
         assert len(audit.participants) == 0
 
 
@@ -336,7 +336,7 @@ def test_upload_audit_attachment(auth_client, app):
     assert b'uploaded successfully' in response.data
     
     with app.app_context():
-        audit = ComplianceAudit.query.get(audit_id)
+        audit = db.session.get(ComplianceAudit, audit_id)
         assert audit.attachments.count() > 0
         attachment = audit.attachments.first()
         assert attachment.linkable_type == 'ComplianceAudit'
@@ -381,7 +381,7 @@ def test_upload_item_attachment(auth_client, app):
     assert b'Evidence uploaded' in response.data or b'uploaded' in response.data
     
     with app.app_context():
-        item = AuditControlItem.query.get(item_id)
+        item = db.session.get(AuditControlItem, item_id)
         assert item.attachments.count() > 0
         attachment = item.attachments.first()
         assert attachment.linkable_type == 'AuditControlItem'
@@ -404,7 +404,7 @@ def test_attachment_lock_check(auth_client, app):
             internal_lead_id=lead.id,
             copy_links=False
         )
-        audit.locked_at = datetime.utcnow()
+        audit.locked_at = now()
         db.session.commit()
         audit_id = audit.id
     
@@ -424,7 +424,7 @@ def test_attachment_lock_check(auth_client, app):
     assert b'locked' in response.data.lower()
     
     with app.app_context():
-        audit = ComplianceAudit.query.get(audit_id)
+        audit = db.session.get(ComplianceAudit, audit_id)
         assert audit.attachments.count() == 0
 
 
@@ -466,7 +466,7 @@ def test_api_update_control_status(auth_client, app):
     assert json_data['new_status'] == 'Compliant'
     
     with app.app_context():
-        item = AuditControlItem.query.get(item_id)
+        item = db.session.get(AuditControlItem, item_id)
         assert item.status == 'Compliant'
 
 
@@ -488,7 +488,7 @@ def test_api_status_lock_check(auth_client, app):
             internal_lead_id=lead.id,
             copy_links=False
         )
-        audit.locked_at = datetime.utcnow()
+        audit.locked_at = now()
         db.session.commit()
         
         item = audit.audit_items.first()
@@ -543,5 +543,5 @@ def test_update_audit_header(auth_client, app):
     assert b'updated' in response.data.lower()
     
     with app.app_context():
-        audit = ComplianceAudit.query.get(audit_id)
+        audit = db.session.get(ComplianceAudit, audit_id)
         assert audit.status == 'In Progress'

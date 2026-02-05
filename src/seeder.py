@@ -663,7 +663,7 @@ def seed_data(app=None):
             if not framework_status:
                 return None
 
-            framework = Framework.query.get(framework_id)
+            framework = db.session.get(Framework, framework_id)
 
             # Build snapshot data
             snapshot_data = {

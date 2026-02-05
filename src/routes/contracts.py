@@ -167,7 +167,7 @@ def link_item(id):
         flash('Invalid item type.', 'danger')
         return redirect(url_for('contracts.contract_detail', id=id))
         
-    obj = item_class.query.get(item_id)
+    obj = db.session.get(item_class,item_id)
     if not obj:
         flash(f'{item_type} with ID {item_id} not found.', 'danger')
         return redirect(url_for('contracts.contract_detail', id=id))
