@@ -65,6 +65,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated CSS architecture with better organization and comments
 - Improved z-index hierarchy for proper layering
 - Enhanced mobile responsive breakpoint handling (768px)
+- **Sidebar Toggle Redesign**: Replaced floating button with integrated handlebar
+  - Handlebar attached to sidebar edge (moves with sidebar)
+  - 15px wide × 60px tall vertical bar with visible grip dots
+  - Smooth hover animation (expands to 18px)
+  - Grip dots with 0.7 opacity for better visibility
+  - Hidden on mobile (uses navbar hamburger button instead)
+  - Better visual integration and professional appearance
+
+### Fixed
+- **Timezone Variable Shadowing**: Fixed UnboundLocalError in message queue processing
+  - Fixed variable shadowing in `src/notifications.py` (lines 450, 560)
+  - Fixed variable shadowing in `src/services/search_service.py` (line 398)
+  - Fixed variable shadowing in `src/services/compliance_drift_service.py` (line 427)
+  - Renamed local `now` variables to `current_time` to avoid conflicts with timezone helper function
+- **MaintenanceLog Timezone Inconsistency**: Fixed mixed timezone handling in MaintenanceLog.updated_at
+  - Fixed `onupdate=datetime.utcnow` to use `onupdate=lambda: now()` for consistency
+  - Ensures all datetime updates use timezone-aware helpers (src/models/assets.py:430)
+- **Collapsible Sidebar Issues**: Fixed sidebar toggle button and hover reveal
+  - Toggle button now positioned below navbar (top: 70px) with correct z-index (1021)
+  - Implemented JavaScript-based hover reveal when mouse is near left edge (0-10px)
+  - Sidebar smoothly reveals on edge hover and hides after 300ms delay when mouse leaves
+- **Personal Dashboard Language**: Translated personal dashboard from Spanish to English
+  - All labels, messages, and empty states now in English
+  - Consistent with rest of application language
+- **Dashboard CSS Loading**: Fixed personal dashboard not loading CSS (incorrect block name)
+- **Enterprise Plugin Permissions**: Fixed unauthorized access to enterprise plugin menu
+- **None Value Handling**: Fixed TypeError when subscriptions have no renewal date
+  - Fixed in organizational health dashboard (line 570)
+  - Fixed in ops & finance dashboard (line 971)
+  - Added None checks before date comparisons
+- **Credentials Timezone Awareness**: Fixed TypeError in credentials expiry calculations
+  - Fixed naive/aware datetime comparison in `is_expired` property (line 185)
+  - Fixed naive/aware datetime subtraction in `days_until_expiry` property (line 194)
+  - Added `to_utc()` conversion for database datetime fields before comparison with `now()`
 
 ### Technical
 - New file: `src/static/js/toast.js` - Complete toast notification system (190 lines)

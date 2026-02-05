@@ -424,9 +424,9 @@ class ComplianceDriftDetector:
             return
 
         # Calculate next scan time (daily at 9:00 AM UTC)
-        now = now()
-        next_scan = now.replace(hour=9, minute=0, second=0, microsecond=0)
-        if next_scan <= now:
+        current_time = now()
+        next_scan = current_time.replace(hour=9, minute=0, second=0, microsecond=0)
+        if next_scan <= current_time:
             next_scan += timedelta(days=1)
 
         # Prepare context for email template

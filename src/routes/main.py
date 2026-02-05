@@ -567,7 +567,7 @@ def organizational_health():
     subscriptions = Subscription.query.filter_by(is_archived=False).all()
     for sub in subscriptions:
         next_renewal = sub.next_renewal_date
-        if today() <= next_renewal <= ninety_days:
+        if next_renewal and today() <= next_renewal <= ninety_days:
             days = (next_renewal - today()).days
             expirations['legal'].append({
                 'name': sub.name,
@@ -968,12 +968,14 @@ def ops_finance_dashboard():
 
     for subscription in all_active_subscriptions:
         next_renewal = subscription.next_renewal_date
-        while next_renewal <= end_date:
+        if next_renewal is None:
+            continue
+        while next_renewal and next_renewal <= end_date:
             if next_renewal >= start_date:
                 upcoming_renewals.append((next_renewal, subscription))
                 total_cost += subscription.cost_eur
             next_renewal = subscription.get_renewal_date_after(next_renewal)
-            
+
     upcoming_renewals.sort(key=lambda x: x[0])
 
     # --- Forecast Chart Logic ---

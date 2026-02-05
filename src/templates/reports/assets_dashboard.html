@@ -223,9 +223,9 @@
     // Pass data to external JS file
     window.assetsDashboardData = {
         statusLabels: {{ status_labels | tojson }},
-    statusData: { { status_data | tojson } },
-    brandLabels: { { brand_labels | tojson } },
-    brandBreakdownRates: { { brand_breakdown_rates | tojson } }
+        statusData: {{ status_data | tojson }},
+        brandLabels: {{ brand_labels | tojson }},
+        brandBreakdownRates: {{ brand_breakdown_rates | tojson }}
     };
 </script>
 {% endblock %}

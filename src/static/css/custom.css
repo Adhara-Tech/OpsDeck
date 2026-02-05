@@ -62,6 +62,19 @@
     color: #764ba2;
 }
 
+/* Global Search Input */
+#global-search-input {
+    color: #212529 !important;
+}
+
+#global-search-input::placeholder {
+    color: #6c757d !important;
+}
+
+#global-search-input:focus {
+    color: #212529 !important;
+}
+
 /* Table Enhancements */
 .table-hover tbody tr:hover {
     background-color: rgba(0, 0, 0, 0.02);
@@ -211,38 +224,47 @@
    Collapsible Sidebar with Hover
    ======================================== */
 
-/* Sidebar toggle button */
+/* Sidebar toggle handlebar - integrated into sidebar edge */
 .sidebar-toggle {
-    position: fixed;
-    top: 10px;
-    left: 10px;
-    z-index: 1001;
+    position: absolute;
+    top: 50%;
+    right: -15px;
+    transform: translateY(-50%);
+    z-index: 1;
     background: #343a40;
-    color: white;
+    color: rgba(255, 255, 255, 0.7);
     border: none;
-    border-radius: 8px;
-    width: 40px;
-    height: 40px;
+    border-radius: 0 6px 6px 0;
+    width: 15px;
+    height: 60px;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all 0.3s ease;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 2px 0 6px rgba(0, 0, 0, 0.15);
+    gap: 2px;
 }
 
 .sidebar-toggle:hover {
     background: #495057;
-    transform: scale(1.05);
+    width: 18px;
+    color: white;
+    box-shadow: 3px 0 10px rgba(0, 0, 0, 0.25);
 }
 
+/* Grip dots for visual affordance */
+.sidebar-toggle::after {
+    content: '⋮';
+    font-size: 12px;
+    opacity: 0.7;
+    line-height: 1;
+}
+
+/* Hide original icon */
 .sidebar-toggle i {
-    font-size: 18px;
-    transition: transform 0.3s ease;
-}
-
-.sidebar.collapsed ~ .sidebar-toggle i {
-    transform: rotate(180deg);
+    display: none;
 }
 
 /* Overlay for mobile */
@@ -274,26 +296,12 @@
         transform: translateX(-250px);
     }
 
-    .sidebar.collapsed:hover {
-        transform: translateX(0);
-        box-shadow: 4px 0 12px rgba(0, 0, 0, 0.15);
-    }
-
     .main-content {
         transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
     .sidebar.collapsed ~ .main-content {
         margin-left: 0;
-    }
-
-    /* Keep toggle button visible when sidebar is collapsed */
-    .sidebar.collapsed ~ .sidebar-toggle {
-        left: 10px;
-    }
-
-    .sidebar:not(.collapsed) ~ .sidebar-toggle {
-        left: 260px;
     }
 }
 
@@ -312,12 +320,9 @@
         margin-left: 0 !important;
     }
 
+    /* Hide handlebar on mobile, use overlay toggle instead */
     .sidebar-toggle {
-        left: 10px;
-    }
-
-    .sidebar.show ~ .sidebar-toggle {
-        left: 260px;
+        display: none;
     }
 }
 

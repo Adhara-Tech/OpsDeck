@@ -3,7 +3,7 @@ from sqlalchemy import and_
 from sqlalchemy.orm import foreign
 from ..extensions import db
 from .auth import User
-from src.utils.timezone_helper import now
+from src.utils.timezone_helper import now, to_utc
 
 
 # Association table for Credential <-> BusinessService
@@ -180,14 +180,18 @@ class CredentialSecret(db.Model):
         """Check if this secret has expired"""
         if not self.expires_at:
             return False
-        return now() > self.expires_at
+        # Convert naive expires_at to timezone-aware before comparison
+        expires_at_aware = to_utc(self.expires_at)
+        return now() > expires_at_aware
     
     @property
     def days_until_expiry(self):
         """Calculate days until expiration (negative if expired)"""
         if not self.expires_at:
             return None
-        delta = self.expires_at - now()
+        # Convert naive expires_at to timezone-aware before subtraction
+        expires_at_aware = to_utc(self.expires_at)
+        delta = expires_at_aware - now()
         return delta.days
     
     @property

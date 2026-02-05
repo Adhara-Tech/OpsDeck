@@ -447,7 +447,7 @@ def check_compliance_breaches(app):
     
     with app.app_context():
         today = today()
-        now = now()
+        current_time = now()
         queued_count = 0
         
         # Find the compliance breach event
@@ -482,7 +482,7 @@ def check_compliance_breaches(app):
                     continue
                 
                 # Deduplication: Check if we already sent an alert in the last 24 hours
-                cutoff_time = now - timedelta(hours=24)
+                cutoff_time = current_time - timedelta(hours=24)
                 existing_alert = ScheduledCommunication.query.filter(
                     ScheduledCommunication.target_type == 'compliance_rule',
                     ScheduledCommunication.target_id == rule.id,
@@ -557,8 +557,8 @@ def process_communications_queue(app):
     BATCH_SIZE = 50
     
     with app.app_context():
-        now = now()
-        today = now.date()
+        current_time = now()
+        today = current_time.date()
         
         # Query pending communications that are due (scheduled_date <= today)
         # Also respect exponential backoff: only pick up if next_retry_at is null or has passed
@@ -571,7 +571,7 @@ def process_communications_queue(app):
             ScheduledCommunication.scheduled_date <= today,
             or_(
                 ScheduledCommunication.next_retry_at.is_(None),
-                ScheduledCommunication.next_retry_at <= now
+                ScheduledCommunication.next_retry_at <= current_time
             )
         ).with_for_update(skip_locked=True).limit(BATCH_SIZE).all()
         
