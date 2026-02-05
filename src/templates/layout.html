@@ -142,8 +142,18 @@
 </head>
 
 <body>
+    {# Skip to main content link for accessibility #}
+    <a href="#main-content" class="skip-link">Skip to main content</a>
 
-    <nav class="sidebar">
+    {# Sidebar overlay for mobile #}
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    {# Sidebar toggle button #}
+    <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar" title="Toggle sidebar">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <nav class="sidebar" id="mainSidebar">
         <div class="container-fluid"><a class="navbar-brand text-white mb-3 d-block text-center"
                 href="{{ url_for('main.dashboard') }}"><i class="fas fa-sync-alt"></i> OpsDeck</a></div>
 
@@ -597,7 +607,7 @@
         </div>
     </nav>
 
-    <main class="main-content">
+    <main class="main-content" id="mainContent">
         <nav class="navbar navbar-expand-lg navbar-dark border-bottom border-secondary sticky-top px-4"
             style="background-color: #343a40; padding-top: 0.375rem; padding-bottom: 0.375rem;">
             <div class="container-fluid px-0 d-flex align-items-center position-relative">
@@ -739,10 +749,79 @@
                     bsCollapse.show();
                 }
             }
+
+            // Sidebar toggle functionality
+            const sidebar = document.getElementById('mainSidebar');
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            const sidebarOverlay = document.getElementById('sidebarOverlay');
+            const mainContent = document.getElementById('mainContent');
+
+            // Check if we're on mobile or desktop
+            function isMobile() {
+                return window.innerWidth <= 768;
+            }
+
+            // Load saved sidebar state (desktop only)
+            const savedState = localStorage.getItem('sidebarCollapsed');
+            if (!isMobile() && savedState === 'true') {
+                sidebar.classList.add('collapsed');
+            }
+
+            // Toggle sidebar
+            sidebarToggle.addEventListener('click', function() {
+                if (isMobile()) {
+                    // Mobile: toggle show class and overlay
+                    sidebar.classList.toggle('show');
+                    sidebarOverlay.classList.toggle('show');
+                } else {
+                    // Desktop: toggle collapsed class
+                    sidebar.classList.toggle('collapsed');
+                    // Save state
+                    localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+                }
+            });
+
+            // Close sidebar when clicking overlay (mobile)
+            sidebarOverlay.addEventListener('click', function() {
+                sidebar.classList.remove('show');
+                sidebarOverlay.classList.remove('show');
+            });
+
+            // Close sidebar when pressing Escape (mobile)
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && isMobile() && sidebar.classList.contains('show')) {
+                    sidebar.classList.remove('show');
+                    sidebarOverlay.classList.remove('show');
+                }
+            });
+
+            // Handle window resize
+            let resizeTimer;
+            window.addEventListener('resize', function() {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(function() {
+                    if (isMobile()) {
+                        // On mobile, remove collapsed class and hide sidebar
+                        sidebar.classList.remove('collapsed');
+                        sidebar.classList.remove('show');
+                        sidebarOverlay.classList.remove('show');
+                    } else {
+                        // On desktop, restore saved state
+                        sidebarOverlay.classList.remove('show');
+                        const savedState = localStorage.getItem('sidebarCollapsed');
+                        if (savedState === 'true') {
+                            sidebar.classList.add('collapsed');
+                        }
+                    }
+                }, 250);
+            });
         });
     </script>
     <script src="{{ url_for('static', filename='js/search.js') }}"></script>
     <script src="{{ url_for('static', filename='js/export.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/toast.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/button-effects.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/skeleton.js') }}"></script>
     <script src="{{ url_for('static', filename='vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
     <script src="{{ url_for('static', filename='vendor/simple-datatables/umd/simple-datatables.js') }}"></script>
     <script src="{{ url_for('static', filename='vendor/tom-select/js/tom-select.complete.min.js') }}"></script>

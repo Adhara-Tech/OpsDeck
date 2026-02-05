@@ -1,0 +1,45 @@
+{#
+    Skeleton List Loader
+
+    A loading skeleton for list views with avatars and text.
+
+    Parameters:
+    - items: Number of skeleton items to display (default: 5)
+    - has_avatar: Whether items have avatars (default: true)
+    - has_badge: Whether items have badges (default: true)
+    - has_actions: Whether items have action buttons (default: true)
+
+    Usage:
+    {% include 'components/skeleton_list.html' with items=8, has_avatar=true %}
+#}
+
+{% set items = items | default(5) %}
+{% set has_avatar = has_avatar | default(true) %}
+{% set has_badge = has_badge | default(true) %}
+{% set has_actions = has_actions | default(true) %}
+
+<div class="list-group" id="skeleton-list-loader">
+    {% for i in range(items) %}
+    <div class="skeleton-list-item list-group-item">
+        {% if has_avatar %}
+        <div class="skeleton skeleton-avatar"></div>
+        {% endif %}
+
+        <div class="flex-grow-1">
+            <div class="d-flex align-items-center mb-2">
+                <div class="skeleton skeleton-text" style="width: 200px; margin-bottom: 0;"></div>
+                {% if has_badge %}
+                <div class="skeleton skeleton-badge ms-2"></div>
+                {% endif %}
+            </div>
+            <div class="skeleton skeleton-text-sm" style="width: 60%;"></div>
+        </div>
+
+        {% if has_actions %}
+        <div class="d-flex gap-2">
+            <div class="skeleton skeleton-button-sm"></div>
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>

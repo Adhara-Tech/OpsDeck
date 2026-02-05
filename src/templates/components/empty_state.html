@@ -1,0 +1,54 @@
+{#
+    Empty State Component
+
+    A reusable component for displaying friendly empty states when no data is available.
+
+    Usage:
+    {% include 'components/empty_state.html' with context %}
+
+    Parameters:
+    - icon: Font Awesome icon name (without fa- prefix, e.g., "inbox", "users", "folder-open")
+    - title: Main heading text
+    - message: Descriptive message explaining the empty state
+    - action_url: Optional URL for the primary action button
+    - action_text: Text for the primary action button (default: "Add New")
+    - action_icon: Optional icon for the action button (default: "plus")
+    - secondary_url: Optional URL for a secondary action
+    - secondary_text: Text for secondary action button
+    - secondary_icon: Optional icon for secondary action
+
+    Example:
+    {% include 'components/empty_state.html' with context
+        icon="laptop"
+        title="No assets found"
+        message="Get started by adding your first asset to the inventory."
+        action_url=url_for('assets.new_asset')
+        action_text="Add Asset"
+    %}
+#}
+
+<div class="empty-state">
+    <div class="empty-state-icon">
+        <i class="fas fa-{{ icon | default('inbox') }}"></i>
+    </div>
+    <h3 class="empty-state-title">{{ title | default('No items found') }}</h3>
+    <p class="empty-state-message">{{ message | default('There are no items to display at the moment.') }}</p>
+
+    {% if action_url %}
+    <div class="empty-state-actions">
+        <a href="{{ action_url }}" class="btn btn-primary btn-with-icon">
+            <i class="fas fa-{{ action_icon | default('plus') }}"></i>
+            <span>{{ action_text | default('Add New') }}</span>
+        </a>
+
+        {% if secondary_url %}
+        <a href="{{ secondary_url }}" class="btn btn-outline-secondary btn-with-icon">
+            {% if secondary_icon %}
+            <i class="fas fa-{{ secondary_icon }}"></i>
+            {% endif %}
+            <span>{{ secondary_text }}</span>
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>

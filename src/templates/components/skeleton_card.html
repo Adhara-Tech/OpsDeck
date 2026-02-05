@@ -1,0 +1,40 @@
+{#
+    Skeleton Card Loader
+
+    A loading skeleton for card views.
+
+    Parameters:
+    - count: Number of skeleton cards to display (default: 3)
+    - has_image: Whether cards have images (default: true)
+    - has_actions: Whether cards have action buttons (default: true)
+
+    Usage:
+    {% include 'components/skeleton_card.html' with count=4, has_image=false %}
+#}
+
+{% set count = count | default(3) %}
+{% set has_image = has_image | default(true) %}
+{% set has_actions = has_actions | default(true) %}
+
+<div class="skeleton-grid" id="skeleton-card-loader">
+    {% for i in range(count) %}
+    <div class="card">
+        {% if has_image %}
+        <div class="skeleton skeleton-card-header"></div>
+        {% endif %}
+        <div class="skeleton-card-body">
+            <div class="skeleton skeleton-title"></div>
+            <div class="skeleton skeleton-text" style="width: 90%;"></div>
+            <div class="skeleton skeleton-text" style="width: 80%;"></div>
+            <div class="skeleton skeleton-text" style="width: 75%;"></div>
+
+            {% if has_actions %}
+            <div class="d-flex gap-2 mt-3">
+                <div class="skeleton skeleton-button"></div>
+                <div class="skeleton skeleton-button"></div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>

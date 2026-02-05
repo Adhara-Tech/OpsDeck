@@ -1,0 +1,226 @@
+# Changelog
+
+All notable changes to OpsDeck will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+## [0.6.6] - 2026-02-05
+
+### Added
+- **Toast Notification System**: Modern toast notifications with smooth animations
+  - Auto-converts Flask flash messages to toasts
+  - 5 notification types: success, error, warning, info, danger
+  - Auto-dismiss after 4 seconds (configurable)
+  - Responsive design for desktop and mobile
+  - Maximum 5 simultaneous toasts
+  - Close button and keyboard support
+- **Empty State Component**: Reusable empty state component for better UX
+  - Friendly messages when no data is available
+  - Customizable icon, title, message, and action buttons
+  - Fade-in animations for smooth appearance
+  - Fully responsive with mobile optimizations
+  - Example implementation in Assets list view
+- **Skeleton Loaders**: Content placeholders during data loading
+  - Multiple skeleton types: table, card, list, dashboard, and custom
+  - Smooth shimmer animation with gradient effect
+  - Alternative animations: pulse and wave effects
+  - Reusable template components for common use cases
+  - JavaScript utilities for easy integration
+  - `Skeleton.show()` and `Skeleton.hide()` for manual control
+  - `Skeleton.wrap()` for automatic loading state management
+  - Responsive adjustments for mobile devices
+  - Dark mode support
+- **Collapsible Sidebar**: Intelligent sidebar with hover reveal on desktop
+  - Toggle button to collapse/expand sidebar
+  - Hover reveal when collapsed (desktop only)
+  - Persistent state saved in localStorage
+  - Smooth CSS transitions with cubic-bezier animations
+  - Main content expands when sidebar is collapsed
+- **Mobile Sidebar**: Full responsive behavior for mobile devices
+  - Overlay with semi-transparent background
+  - Tap outside or press ESC to close
+  - Smooth slide-in/slide-out animations
+- **Accessibility Improvements**:
+  - Skip to main content link for keyboard navigation
+  - Focus visible states with purple outline
+  - ARIA labels on interactive elements
+  - Keyboard support (ESC to close modals/sidebar)
+- **Button Microinteractions**: Enhanced button feedback and animations
+  - **Ripple Effect**: Material Design-inspired ripple animation on click
+  - Hover effects with subtle elevation and color-specific shadows
+  - Active state feedback with reduced elevation
+  - Loading state with spinner animation
+  - Shake animation for error states (e.g., form validation)
+  - Pulse animation for important CTAs
+  - Smooth color transitions (0.15s)
+  - Icon scaling and rotation on hover
+  - Disabled state handling
+  - Automatic initialization for dynamically added buttons
+  - Global utility functions: `ButtonEffects.shake()`, `ButtonEffects.pulse()`, `ButtonEffects.setLoading()`
+
+### Changed
+- Updated CSS architecture with better organization and comments
+- Improved z-index hierarchy for proper layering
+- Enhanced mobile responsive breakpoint handling (768px)
+
+### Technical
+- New file: `src/static/js/toast.js` - Complete toast notification system (190 lines)
+- New file: `src/static/js/button-effects.js` - Button microinteractions and ripple effects (150 lines)
+- New file: `src/static/js/skeleton.js` - Skeleton loader utilities (250 lines)
+- New file: `src/templates/components/empty_state.html` - Reusable empty state component
+- New file: `src/templates/components/skeleton_table.html` - Table skeleton loader
+- New file: `src/templates/components/skeleton_card.html` - Card skeleton loader
+- New file: `src/templates/components/skeleton_list.html` - List skeleton loader
+- New file: `src/templates/components/skeleton_dashboard.html` - Dashboard skeleton loader
+- Updated: `src/static/css/custom.css` - +680 lines of new styles (skeletons, empty states, buttons, animations)
+- Updated: `src/templates/layout.html` - Integration of all new JS modules
+- Updated: `src/templates/assets/list.html` - Example empty state implementation
+- New documentation: `docs/FRONTEND_IMPROVEMENTS.md`
+
+## [0.6.5] - 2026-02-04
+
+### Added
+- **Timezone Helper Module**: Complete timezone-aware datetime implementation
+  - New `src/utils/timezone_helper.py` with `now()`, `today()`, `to_local()`, `to_utc()` helpers
+  - Configurable timezone via `TIMEZONE` environment variable (default: 'Europe/Madrid')
+  - All datetime operations now DST-aware using pytz
+  - 18 comprehensive tests verifying winter/summer time transitions
+- **Automated UAR (User Access Review)**: Schedule and automate access reviews
+  - Email notifications when findings exceed configured thresholds
+  - "UAR Alert - Findings Detected" email template
+  - Per-comparison recipient configuration
+  - New dashboard at `/compliance/uar/automation`
+- **Compliance Drift Detection**: Automated compliance regression monitoring
+  - Daily snapshots at 9:00 AM UTC via APScheduler
+  - Email alerts to admins when compliance regressions detected
+  - "Compliance Drift Alert" email template
+  - New dashboard at `/compliance/drift/dashboard`
+  - ComplianceAudit model extended with drift tracking
+
+### Changed
+- Migrated ALL 141 datetime/date calls across 37 files to use timezone helpers
+- Menu updates: Added "UAR Automation" and "Drift Detection" to Compliance menu
+- Email template system enhanced for automated notifications
+
+### Fixed
+- **Critical DST Bug**: App now works correctly year-round instead of only 6 months
+- Date/Time handling issues (bugs medio 1, 4, 5)
+- Subscription renewal date calculation optimized with mathematical approach
+- Budget validity checks clarified with inclusive date semantics
+- Negative amount validation in Budget and Subscription models
+
+### Technical
+- Added `pytz` dependency for timezone support
+- Documentation: `docs/TIMEZONE_USAGE.md`
+- Database migration: Extended ComplianceAudit table
+  - Added `audit_type` field ('manual' | 'drift_snapshot')
+  - Added `snapshot_data` JSON field
+  - Made `name` and `framework_id` nullable for drift snapshots
+
+## [0.6.4] - 2025-XX-XX
+
+### Fixed
+- Permissions cache test issues
+- Unit test stability improvements
+
+### Changed
+- Updated WeasyPrint dependency for PDF generation
+- Visual standardization across templates
+
+## [0.6.3-4] - 2025-XX-XX
+
+### Changed
+- Better error handling for data import operations
+- Enhanced logging in permissions service
+
+## [0.6.3-3] - 2025-XX-XX
+
+### Fixed
+- Simple Datatables JavaScript file paths
+
+## [0.6.3-2] - 2025-XX-XX
+
+### Fixed
+- OAuth scopes configuration
+
+### Added
+- Filebeat sidecar container for log aggregation
+
+## [0.6.3-1] - 2025-XX-XX
+
+### Fixed
+- Simple Datatables vendor files path resolution
+
+## [0.6.3] - 2025-XX-XX
+
+### Fixed
+- SSO login flow issues
+
+### Changed
+- Automatic permissions cache refresh on login
+
+## [0.6.2] - 2025-XX-XX
+
+### Fixed
+- Permissions caching issues
+
+## [0.6.1] - 2025-XX-XX
+
+### Fixed
+- Database table name quoting for PostgreSQL compatibility
+- Database environment variable naming
+
+## [0.6.0] - 2025-XX-XX
+
+### Added
+- Major feature release (details from git history)
+
+---
+
+For changes in versions prior to 0.6.0, please refer to the git commit history.
+
+---
+
+## Release Process
+
+1. Update this CHANGELOG.md with new version and date
+2. Update version in relevant files (if applicable)
+3. Commit changes: `git commit -m "chore: release vX.Y.Z"`
+4. Create git tag: `git tag -a vX.Y.Z -m "Release vX.Y.Z"`
+5. Push changes and tags: `git push && git push --tags`
+6. Create GitHub release with changelog excerpt
+
+## Version Numbering
+
+We follow [Semantic Versioning](https://semver.org/):
+- **MAJOR** version: Incompatible API changes
+- **MINOR** version: New functionality (backwards compatible)
+- **PATCH** version: Bug fixes (backwards compatible)
+
+## Categories
+
+- **Added**: New features
+- **Changed**: Changes to existing functionality
+- **Deprecated**: Soon-to-be removed features
+- **Removed**: Removed features
+- **Fixed**: Bug fixes
+- **Security**: Security vulnerability fixes
+- **Technical**: Infrastructure, dependencies, or developer-facing changes
+
+---
+
+[Unreleased]: https://github.com/pixelotes/opsdeck/compare/v0.6.5...HEAD
+[0.6.6]: https://github.com/pixelotes/opsdeck/compare/v0.6.5...v0.6.6
+[0.6.5]: https://github.com/pixelotes/opsdeck/compare/v0.6.4...v0.6.5
+[0.6.4]: https://github.com/pixelotes/opsdeck/compare/v0.6.3-4...v0.6.4
+[0.6.3-4]: https://github.com/pixelotes/opsdeck/compare/v0.6.3-3...v0.6.3-4
+[0.6.3-3]: https://github.com/pixelotes/opsdeck/compare/v0.6.3-2...v0.6.3-3
+[0.6.3-2]: https://github.com/pixelotes/opsdeck/compare/v0.6.3-1...v0.6.3-2
+[0.6.3-1]: https://github.com/pixelotes/opsdeck/compare/v0.6.3...v0.6.3-1
+[0.6.3]: https://github.com/pixelotes/opsdeck/compare/v0.6.2...v0.6.3
+[0.6.2]: https://github.com/pixelotes/opsdeck/compare/v0.6.1...v0.6.2
+[0.6.1]: https://github.com/pixelotes/opsdeck/compare/v0.6.0...v0.6.1
+[0.6.0]: https://github.com/pixelotes/opsdeck/releases/tag/v0.6.0
