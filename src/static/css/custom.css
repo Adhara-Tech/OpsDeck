@@ -134,10 +134,10 @@
 .custom-toast {
     min-width: 320px;
     max-width: 420px;
-    background: white;
+    background: var(--od-toast-bg);
     border-radius: 12px;
     padding: 16px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    box-shadow: var(--od-toast-shadow);
     display: flex;
     align-items: flex-start;
     gap: 12px;
@@ -170,7 +170,7 @@
 }
 
 .toast-message {
-    color: #374151;
+    color: var(--od-toast-text);
     font-size: 0.95rem;
     line-height: 1.5;
     word-wrap: break-word;
@@ -231,8 +231,8 @@
     right: -15px;
     transform: translateY(-50%);
     z-index: 1;
-    background: #343a40;
-    color: rgba(255, 255, 255, 0.7);
+    background: var(--od-sidebar-bg);
+    color: var(--od-sidebar-text-muted);
     border: none;
     border-radius: 0 6px 6px 0;
     width: 15px;
@@ -248,9 +248,9 @@
 }
 
 .sidebar-toggle:hover {
-    background: #495057;
+    background: var(--od-sidebar-hover);
     width: 18px;
-    color: white;
+    color: var(--od-sidebar-text);
     box-shadow: 3px 0 10px rgba(0, 0, 0, 0.25);
 }
 
@@ -369,7 +369,7 @@
 
 /* Focus visible for accessibility */
 *:focus-visible {
-    outline: 2px solid #667eea;
+    outline: 2px solid var(--od-focus-ring);
     outline-offset: 2px;
 }
 
@@ -411,21 +411,21 @@
 
 .empty-state-icon i {
     font-size: 5rem;
-    color: #cbd5e1;
+    color: var(--od-empty-icon);
     opacity: 0.5;
 }
 
 .empty-state-title {
     font-size: 1.5rem;
     font-weight: 600;
-    color: #374151;
+    color: var(--od-empty-title);
     margin-bottom: 0.75rem;
     animation: empty-state-fade-in 0.6s ease-out 0.1s backwards;
 }
 
 .empty-state-message {
     font-size: 1rem;
-    color: #6b7280;
+    color: var(--od-empty-text);
     margin-bottom: 2rem;
     line-height: 1.6;
     animation: empty-state-fade-in 0.6s ease-out 0.2s backwards;
@@ -662,10 +662,10 @@
 .skeleton {
     background: linear-gradient(
         90deg,
-        #f0f0f0 0%,
-        #f8f8f8 20%,
-        #f0f0f0 40%,
-        #f0f0f0 100%
+        var(--od-skeleton-base) 0%,
+        var(--od-skeleton-shine) 20%,
+        var(--od-skeleton-base) 40%,
+        var(--od-skeleton-base) 100%
     );
     background-size: 200% 100%;
     animation: skeleton-loading 1.5s ease-in-out infinite;
@@ -846,7 +846,7 @@
 .skeleton-wave {
     position: relative;
     overflow: hidden;
-    background: #f0f0f0;
+    background: var(--od-skeleton-base);
 }
 
 .skeleton-wave::after {
@@ -873,20 +873,9 @@
     }
 }
 
-/* Dark mode skeleton (optional) */
-[data-theme="dark"] .skeleton {
-    background: linear-gradient(
-        90deg,
-        #2d2d2d 0%,
-        #3a3a3a 20%,
-        #2d2d2d 40%,
-        #2d2d2d 100%
-    );
-}
-
-[data-theme="dark"] .skeleton-wave {
-    background: #2d2d2d;
-}
+/* Dark mode skeleton - handled by CSS variables in theme.css */
+/* These use var(--od-skeleton-base) and var(--od-skeleton-shine) which
+   automatically adjust based on data-bs-theme attribute */
 
 /* Responsive adjustments */
 @media (max-width: 768px) {

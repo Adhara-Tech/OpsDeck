@@ -16,7 +16,7 @@
         height: 100%;
         border-radius: 50%;
         background: conic-gradient(var(--gauge-color, #198754) calc(var(--gauge-value, 0) * 3.6deg),
-                #e9ecef calc(var(--gauge-value, 0) * 3.6deg));
+                var(--bs-secondary-bg) calc(var(--gauge-value, 0) * 3.6deg));
         display: flex;
         align-items: center;
         justify-content: center;
@@ -26,7 +26,7 @@
         width: 110px;
         height: 110px;
         border-radius: 50%;
-        background: white;
+        background: var(--bs-body-bg);
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -37,11 +37,12 @@
         font-size: 2.5rem;
         font-weight: 700;
         line-height: 1;
+        color: var(--bs-body-color);
     }
 
     .health-gauge-label {
         font-size: 0.75rem;
-        color: #6c757d;
+        color: var(--bs-secondary-color);
     }
 
     /* Global Status Badge */
@@ -101,12 +102,13 @@
     /* Horizon Tabs */
     .horizon-tabs .nav-link {
         border-radius: 0.5rem 0.5rem 0 0;
+        color: var(--bs-body-color);
     }
 
     .horizon-tabs .nav-link.active {
-        background: #fff3cd;
-        border-color: #ffc107;
-        color: #856404;
+        background: var(--bs-warning-bg-subtle);
+        border-color: var(--bs-warning);
+        color: var(--bs-warning-text-emphasis);
     }
 
     /* Expiry Progress Bar */
