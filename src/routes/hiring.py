@@ -8,7 +8,7 @@ from ..models.hiring import HiringStage, Candidate
 from ..models.onboarding import OnboardingProcess
 from .main import login_required
 from ..services.permissions_service import requires_permission, has_write_permission
-from src.utils.timezone_helper import now, today
+from src.utils.timezone_helper import now, today, to_utc
 
 
 hiring_bp = Blueprint('hiring', __name__)
@@ -23,15 +23,16 @@ hiring_bp = Blueprint('hiring', __name__)
 def board():
     """Main Kanban board view for hiring pipeline."""
     stages = HiringStage.query.order_by(HiringStage.order).all()
-    
+
     # Filter 'Hired' and 'Rejected' candidates > 15 days
     from datetime import datetime, timedelta
     cutoff_date = now() - timedelta(days=15)
-    
+
     for stage in stages:
         if stage.name in ['Hired', 'Rejected']:
             # Filter logic: Keep if updated recently AND not archived
-            stage.display_candidates = [c for c in stage.candidates if not c.is_archived and c.updated_at and c.updated_at >= cutoff_date]
+            # Convert naive updated_at to timezone-aware before comparison
+            stage.display_candidates = [c for c in stage.candidates if not c.is_archived and c.updated_at and to_utc(c.updated_at) >= cutoff_date]
         else:
             # Filter archived
             stage.display_candidates = [c for c in stage.candidates if not c.is_archived]

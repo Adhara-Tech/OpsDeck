@@ -57,6 +57,7 @@
 </div>
 <div class="card">
     <div class="card-body">
+        {% if subscriptions %}
         <div class="table-responsive">
             <table class="table table-striped datatable" id="subscriptions-table">
                 <thead>
@@ -111,14 +112,18 @@
                             {% endif %}
                         </td>
                     </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="7" class="text-center">No subscriptions found for the selected filter.</td>
-                    </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+        {% else %}
+        {% set icon = '🔄' %}
+        {% set title = 'No Subscriptions Found' %}
+        {% set message = 'Track recurring subscriptions and manage renewal dates.' %}
+        {% set action_url = url_for('subscriptions.new_subscription') if can_write('access_control') else none %}
+        {% set action_text = 'Add First Subscription' %}
+        {% include 'components/empty_state.html' %}
+        {% endif %}
     </div>
 </div>
 <div class="card mt-4">

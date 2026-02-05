@@ -3,6 +3,14 @@
 {% block title %}Compliance Dashboard - {{ super() }}{% endblock %}
 
 {% block content %}
+<!-- Skeleton Loader -->
+<div id="compliance-skeleton">
+    {% set cards = 8 %}
+    {% include 'components/skeleton_dashboard.html' %}
+</div>
+
+<!-- Actual Content -->
+<div id="compliance-content" style="display: none;">
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="fas fa-shield-alt"></i> Compliance Dashboard</h2>
     <div class="btn-toolbar mb-2 mb-md-0">
@@ -202,8 +210,7 @@
                                 </td>
                                 <td class="text-center">
                                     {% if ctrl.oldest_evidence_date %}
-                                    {% set days_ago = (now() - ctrl.oldest_evidence_date).days if
-                                    ctrl.oldest_evidence_date else -1 %}
+                                    {% set days_ago = (now() - ctrl.oldest_evidence_date).days if ctrl.oldest_evidence_date else -1 %}
                                     <span
                                         class="{{ 'text-danger fw-bold' if ctrl.status in ['warning', 'non_compliant'] else '' }}">
                                         {{ ctrl.oldest_evidence_date.strftime('%Y-%m-%d') }}
@@ -262,11 +269,22 @@
     </div>
 </div>
 {% endif %}
-
+</div> <!-- End compliance-content -->
 {% endblock %}
 
 {% block scripts_extra %}
 <script>
+    // Hide skeleton and show content when page is loaded
+    document.addEventListener('DOMContentLoaded', function () {
+        const skeleton = document.getElementById('compliance-skeleton');
+        const content = document.getElementById('compliance-content');
+
+        setTimeout(function() {
+            if (skeleton) skeleton.style.display = 'none';
+            if (content) content.style.display = 'block';
+        }, 300);
+    });
+
     document.addEventListener('DOMContentLoaded', function () {
         // Control search functionality for each framework tab
         document.querySelectorAll('.control-search').forEach(input => {

@@ -29,7 +29,13 @@
 
 <div class="empty-state">
     <div class="empty-state-icon">
+        {% if icon and icon[0] in ['🔑', '🔒', '🔄', '💰', '📦', '🌐', '⚠️', '✅', '🎉', '💻', '🎓', '📋', '📚', '💼'] or (icon and icon|length <= 2) %}
+        {# Emoji icon #}
+        <span style="font-size: 3rem;">{{ icon | default('📦') }}</span>
+        {% else %}
+        {# Font Awesome icon #}
         <i class="fas fa-{{ icon | default('inbox') }}"></i>
+        {% endif %}
     </div>
     <h3 class="empty-state-title">{{ title | default('No items found') }}</h3>
     <p class="empty-state-message">{{ message | default('There are no items to display at the moment.') }}</p>

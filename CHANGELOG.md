@@ -72,6 +72,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Grip dots with 0.7 opacity for better visibility
   - Hidden on mobile (uses navbar hamburger button instead)
   - Better visual integration and professional appearance
+- **Frontend Consistency Improvements**: Applied new components globally
+  - Empty state component now used in Credentials, Certificates, Subscriptions, and Budgets lists
+  - Skeleton loaders added to Ops & Finance Dashboard and Compliance Dashboard
+  - Global form submission loading states with automatic button spinners
+  - Toast notifications already auto-convert all Flask flash messages
 
 ### Fixed
 - **Timezone Variable Shadowing**: Fixed UnboundLocalError in message queue processing

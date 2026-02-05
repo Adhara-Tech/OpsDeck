@@ -893,6 +893,49 @@
     <script src="{{ url_for('static', filename='js/button-effects.js') }}"></script>
     <script src="{{ url_for('static', filename='js/skeleton.js') }}"></script>
     <script src="{{ url_for('static', filename='vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
+
+    <!-- Global Form Submit Loading States -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add loading state to all form submit buttons
+            document.querySelectorAll('form').forEach(function(form) {
+                form.addEventListener('submit', function(e) {
+                    // Find submit button in this form
+                    const submitBtn = form.querySelector('button[type="submit"], input[type="submit"]');
+
+                    if (submitBtn && !form.dataset.noLoading) {
+                        // Set loading state
+                        if (window.ButtonEffects && window.ButtonEffects.setLoading) {
+                            window.ButtonEffects.setLoading(submitBtn, true);
+                        } else {
+                            // Fallback if ButtonEffects not available
+                            submitBtn.disabled = true;
+                            const originalText = submitBtn.innerHTML;
+                            submitBtn.dataset.originalText = originalText;
+                            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
+                        }
+                    }
+                });
+            });
+
+            // Re-enable buttons if form validation fails (HTML5 validation)
+            document.querySelectorAll('form').forEach(function(form) {
+                form.addEventListener('invalid', function(e) {
+                    const submitBtn = form.querySelector('button[type="submit"], input[type="submit"]');
+                    if (submitBtn) {
+                        if (window.ButtonEffects && window.ButtonEffects.setLoading) {
+                            window.ButtonEffects.setLoading(submitBtn, false);
+                        } else {
+                            submitBtn.disabled = false;
+                            if (submitBtn.dataset.originalText) {
+                                submitBtn.innerHTML = submitBtn.dataset.originalText;
+                            }
+                        }
+                    }
+                }, true);
+            });
+        });
+    </script>
     <script src="{{ url_for('static', filename='vendor/simple-datatables/umd/simple-datatables.js') }}"></script>
     <script src="{{ url_for('static', filename='vendor/tom-select/js/tom-select.complete.min.js') }}"></script>
 
