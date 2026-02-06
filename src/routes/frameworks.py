@@ -325,7 +325,7 @@ def map_control(id):
         flash('Please select a target control.', 'warning')
         return redirect(url_for('frameworks.control_detail', id=id))
     
-    target_control = FrameworkControl.query.get(target_control_id)
+    target_control = db.session.get(FrameworkControl,target_control_id)
     if not target_control:
         flash('Target control not found.', 'danger')
         return redirect(url_for('frameworks.control_detail', id=id))

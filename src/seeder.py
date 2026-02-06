@@ -646,6 +646,133 @@ def seed_data(app=None):
         audit.status = "Prep"
         db.session.commit()
 
+        # 13b. Compliance Drift Snapshots
+        print("Creating compliance drift snapshots...")
+        from .services.compliance_service import get_compliance_evaluator
+
+        evaluator = get_compliance_evaluator()
+
+        # Helper function to create a drift snapshot with modified data
+        def create_drift_snapshot(days_ago, framework_id, status_overrides=None):
+            """Create a historical drift snapshot with optional status overrides."""
+            snapshot_time = now() - timedelta(days=days_ago)
+
+            # Get current framework status
+            framework_status = evaluator.get_framework_status(framework_id)
+
+            if not framework_status:
+                return None
+
+            framework = db.session.get(Framework, framework_id)
+
+            # Build snapshot data
+            snapshot_data = {
+                'timestamp': snapshot_time.isoformat(),
+                'frameworks': {
+                    framework_id: {
+                        'name': framework.name,
+                        'stats': framework_status['stats'].copy(),
+                        'controls': {}
+                    }
+                }
+            }
+
+            # Apply status overrides if provided
+            if status_overrides:
+                for status, count in status_overrides.items():
+                    if status in snapshot_data['frameworks'][framework_id]['stats']:
+                        snapshot_data['frameworks'][framework_id]['stats'][status] = count
+
+            # Store individual control statuses
+            control_idx = 0
+            for control in framework_status['controls']:
+                # Apply status override if we're modifying specific controls
+                control_status = control['status']
+                if status_overrides and control_idx < len(status_overrides.get('_control_overrides', [])):
+                    control_status = status_overrides['_control_overrides'][control_idx]
+
+                snapshot_data['frameworks'][framework_id]['controls'][control['id']] = {
+                    'control_id': control['control_id'],
+                    'name': control['name'],
+                    'status': control_status,
+                    'rules_count': control['rules_count'],
+                    'oldest_evidence_date': control['oldest_evidence_date'].isoformat()
+                    if control['oldest_evidence_date'] else None
+                }
+                control_idx += 1
+
+            # Create ComplianceAudit record
+            drift_snapshot = ComplianceAudit(
+                audit_type='drift_snapshot',
+                snapshot_data=snapshot_data,
+                created_at=snapshot_time
+            )
+
+            return drift_snapshot
+
+        # Create snapshots at different time points to show drift
+        snapshots = []
+
+        # Snapshot 1: 30 days ago - Good compliance (better than current)
+        snapshot1 = create_drift_snapshot(
+            days_ago=30,
+            framework_id=fake_framework.id,
+            status_overrides={
+                'compliant': 8,
+                'manual': 2,
+                'warning': 1,
+                'non_compliant': 0,
+                'uncovered': 1,
+                '_control_overrides': ['compliant'] * 12  # Override first 12 controls to compliant
+            }
+        )
+        if snapshot1:
+            snapshots.append(snapshot1)
+
+        # Snapshot 2: 15 days ago - Drift detected (regression)
+        snapshot2 = create_drift_snapshot(
+            days_ago=15,
+            framework_id=fake_framework.id,
+            status_overrides={
+                'compliant': 6,
+                'manual': 2,
+                'warning': 3,
+                'non_compliant': 1,
+                'uncovered': 2,
+                '_control_overrides': ['compliant', 'compliant', 'warning', 'compliant', 'non_compliant', 'warning']
+            }
+        )
+        if snapshot2:
+            snapshots.append(snapshot2)
+
+        # Snapshot 3: 7 days ago - Partial recovery
+        snapshot3 = create_drift_snapshot(
+            days_ago=7,
+            framework_id=fake_framework.id,
+            status_overrides={
+                'compliant': 7,
+                'manual': 2,
+                'warning': 2,
+                'non_compliant': 0,
+                'uncovered': 1,
+                '_control_overrides': ['compliant', 'compliant', 'manual', 'compliant', 'warning', 'compliant']
+            }
+        )
+        if snapshot3:
+            snapshots.append(snapshot3)
+
+        # Snapshot 4: 1 day ago - Current-ish state
+        snapshot4 = create_drift_snapshot(
+            days_ago=1,
+            framework_id=fake_framework.id
+        )
+        if snapshot4:
+            snapshots.append(snapshot4)
+
+        db.session.add_all(snapshots)
+        db.session.commit()
+        print(f"  Created {len(snapshots)} drift snapshots")
+
         # 14. Historical Risk Assessments with Items
         print("Creating historical risk assessments with items...")
         from .models import RiskAssessmentItem, RiskAssessmentEvidence

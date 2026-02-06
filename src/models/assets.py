@@ -381,9 +381,9 @@ class Software(db.Model):
     @property
     def owner(self):
         if self.owner_type == 'user' and self.owner_id:
-            return User.query.get(self.owner_id)
+            return db.session.get(User, self.owner_id)
         if self.owner_type == 'group' and self.owner_id:
-            return Group.query.get(self.owner_id)
+            return db.session.get(Group, self.owner_id)
         return None
 
     def get_tickets(self):
@@ -427,7 +427,7 @@ class MaintenanceLog(db.Model):
     ticket_link = db.Column(db.String(512))
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: now())
-    updated_at = db.Column(db.DateTime, nullable=False, default=lambda: now(), onupdate=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=lambda: now(), onupdate=lambda: now())
     
     # Relationships
     assigned_to_id = db.Column(db.Integer, db.ForeignKey('user.id'))

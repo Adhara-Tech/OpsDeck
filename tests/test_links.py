@@ -72,7 +72,7 @@ def test_edit_link(auth_client, app):
 
     # Verify in DB
     with app.app_context():
-        link = Link.query.get(link_id)
+        link = db.session.get(Link,link_id)
         assert link.name == 'Updated Name'
         assert link.url == 'https://updated.com'
         assert link.owner_id is None
@@ -92,5 +92,5 @@ def test_delete_link(auth_client, app):
 
     # Verify in DB
     with app.app_context():
-        link = Link.query.get(link_id)
+        link = db.session.get(Link,link_id)
         assert link is None

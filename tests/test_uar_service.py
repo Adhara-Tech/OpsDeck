@@ -2,8 +2,9 @@
 Tests for UAR Automation Service
 """
 import pytest
-from datetime import datetime, timedelta
+from datetime import timedelta
 from unittest.mock import patch
+from src.utils.timezone_helper import now
 from src.extensions import db
 from src.models.uar import UARComparison, UARExecution, UARFinding
 from src.models.auth import User
@@ -415,7 +416,7 @@ def test_run_scheduled_comparisons(app, email_template, sample_users):
     """Test running scheduled UAR comparisons."""
     with app.app_context():
         # Create a comparison that is due to run
-        now = datetime.utcnow()
+        current_time = now()
         comparison = UARComparison(
             name='Scheduled Test',
             source_a_type='Active Users',
@@ -429,7 +430,7 @@ def test_run_scheduled_comparisons(app, email_template, sample_users):
             field_mappings=[{'field_a': 'role', 'field_b': 'role'}],
             is_enabled=True,
             schedule_type='daily',
-            next_run_at=now - timedelta(hours=1),  # Due 1 hour ago
+            next_run_at=current_time - timedelta(hours=1),  # Due 1 hour ago
             min_findings_threshold=0
         )
         db.session.add(comparison)
@@ -446,13 +447,15 @@ def test_run_scheduled_comparisons(app, email_template, sample_users):
         # Verify comparison was updated
         db.session.refresh(comparison)
         assert comparison.last_run_at is not None
-        assert comparison.next_run_at > now
+        # Compare naive datetimes (DB stores naive UTC)
+        current_time_naive = current_time.replace(tzinfo=None)
+        assert comparison.next_run_at > current_time_naive
 
 
 def test_run_scheduled_comparisons_disabled(app, init_database, email_template):
     """Test that disabled comparisons are not executed."""
     with app.app_context():
-        now = datetime.utcnow()
+        current_time = now()
         comparison = UARComparison(
             name='Disabled Test',
             source_a_type='JSON',
@@ -463,7 +466,7 @@ def test_run_scheduled_comparisons_disabled(app, init_database, email_template):
             key_field_b='email',
             is_enabled=False,  # Disabled
             schedule_type='daily',
-            next_run_at=now - timedelta(hours=1)
+            next_run_at=current_time - timedelta(hours=1)
         )
         db.session.add(comparison)
         db.session.commit()
@@ -528,5 +531,5 @@ def test_affected_entity_linkage(app, uar_service, sample_users, email_template)
         assert finding.affected_entity_id is not None
 
         # Verify it's linked to the correct user
-        user = User.query.get(finding.affected_entity_id)
+        user = db.session.get(User,finding.affected_entity_id)
         assert user.email == 'alice@example.com'

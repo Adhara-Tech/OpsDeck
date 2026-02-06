@@ -1,6 +1,7 @@
-from datetime import datetime
+from src.utils.timezone_helper import now, today
 from src.models.onboarding import OnboardingProcess, OffboardingProcess, OnboardingPack, ProcessItem, ProcessTemplate
 from src.models import User, Software
+from src import db
 
 def test_onboarding_packs_crud(auth_client, app):
     """
@@ -35,7 +36,7 @@ def test_onboarding_packs_crud(auth_client, app):
     assert response.status_code == 200
     
     with app.app_context():
-        pack = OnboardingPack.query.get(pack_id)
+        pack = db.session.get(OnboardingPack, pack_id)
         assert len(pack.items) == 1
         assert pack.items[0].item_type == 'Software'
         assert "Provisionar acceso a: VS Code" in pack.items[0].description
@@ -68,7 +69,7 @@ def test_onboarding_process_flow(auth_client, app):
         buddy_id = buddy.id
 
     # 1. Start Onboarding
-    start_date = datetime.now().strftime('%Y-%m-%d')
+    start_date = now().strftime('%Y-%m-%d')
     response = auth_client.post('/onboarding/new', data={
         'new_hire_name': 'New Guy',
         'start_date': start_date,
@@ -99,7 +100,7 @@ def test_onboarding_process_flow(auth_client, app):
     assert response.status_code == 200
     
     with app.app_context():
-        item = ProcessItem.query.get(item_id)
+        item = db.session.get(ProcessItem, item_id)
         assert item.is_completed
 
     # 4. Complete Process
@@ -108,7 +109,7 @@ def test_onboarding_process_flow(auth_client, app):
     assert b'completado' in response.data
     
     with app.app_context():
-        process = OnboardingProcess.query.get(process_id)
+        process = db.session.get(OnboardingProcess, process_id)
         assert process.status == 'Completed'
 
 def test_offboarding_process_flow(auth_client, app):
@@ -140,7 +141,7 @@ def test_offboarding_process_flow(auth_client, app):
         user_id = user.id
 
     # 1. Start Offboarding
-    dept_date = datetime.now().strftime('%Y-%m-%d')
+    dept_date = now().strftime('%Y-%m-%d')
     response = auth_client.post('/onboarding/offboarding/new', data={
         'user_id': user_id,
         'departure_date': dept_date
@@ -166,9 +167,9 @@ def test_offboarding_process_flow(auth_client, app):
     assert response.status_code == 200
     
     with app.app_context():
-        process = OffboardingProcess.query.get(process_id)
+        process = db.session.get(OffboardingProcess, process_id)
         assert process.status == 'Completed'
-        
+
         # Verify User Archived
-        user = User.query.get(user_id)
+        user = db.session.get(User, user_id)
         assert user.is_archived

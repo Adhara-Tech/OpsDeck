@@ -199,7 +199,7 @@ def dashboard_pdf():
     )
 
     # 5. Metadata
-    user = User.query.get(session.get('user_id'))
+    user = db.session.get(User,session.get('user_id'))
 
     # Render HTML
     html_content = render_template(
@@ -293,7 +293,7 @@ def new_risk():
         if asset_ids:
             for asset_id in asset_ids:
                 # Verify asset exists
-                if Asset.query.get(asset_id):
+                if db.session.get(Asset,asset_id):
                     item = RiskAffectedItem(linkable_type='Asset', linkable_id=asset_id)
                     risk.affected_items.append(item)
         
@@ -309,7 +309,7 @@ def new_risk():
         # Handle Mitigation Activities
         activity_ids = request.form.getlist('mitigation_activity_ids')
         for activity_id in activity_ids:
-            activity = SecurityActivity.query.get(activity_id)
+            activity = db.session.get(SecurityActivity,activity_id)
             if activity:
                 risk.mitigation_activities.append(activity)
 
@@ -341,7 +341,7 @@ def new_risk():
     pre_filled_risk = None
     import_id = request.args.get('import_id')
     if import_id:
-        catalog_risk = CatalogRisk.query.get(import_id)
+        catalog_risk = db.session.get(CatalogRisk,import_id)
         if catalog_risk:
             # Create transient object for pre-filling form
             pre_filled_risk = Risk(
@@ -412,7 +412,7 @@ def edit_risk(id):
         risk.mitigation_activities = []
         activity_ids = request.form.getlist('mitigation_activity_ids')
         for activity_id in activity_ids:
-            activity = SecurityActivity.query.get(activity_id)
+            activity = db.session.get(SecurityActivity,activity_id)
             if activity:
                 risk.mitigation_activities.append(activity)
 
@@ -475,7 +475,7 @@ def add_affected_item(id):
         flash(f'Unsupported item type: {linkable_type}', 'danger')
         return redirect(url_for('risk.detail', id=id))
         
-    target = model.query.get(linkable_id)
+    target = db.session.get(model,linkable_id)
     if not target:
         flash('Target item not found.', 'danger')
         return redirect(url_for('risk.detail', id=id))
@@ -599,7 +599,7 @@ def add_reference(id):
         flash(f'Unsupported reference type: {linkable_type}', 'danger')
         return redirect(url_for('risk.detail', id=id))
         
-    target = model.query.get(linkable_id)
+    target = db.session.get(model,linkable_id)
     if not target:
         flash('Target reference not found.', 'danger')
         return redirect(url_for('risk.detail', id=id))

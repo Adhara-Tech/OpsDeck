@@ -66,7 +66,7 @@ class ActivityRelatedObject(db.Model):
         
         model = model_map.get(self.related_object_type)
         if model:
-            return model.query.get(self.related_object_id)
+            return db.session.get(model, self.related_object_id)
         return None
 
 class SecurityActivity(db.Model):
@@ -120,9 +120,9 @@ class SecurityActivity(db.Model):
         """Returns the User or Group object based on owner_type and owner_id."""
         from .auth import User, Group
         if self.owner_type == 'User' and self.owner_id:
-            return User.query.get(self.owner_id)
+            return db.session.get(User, self.owner_id)
         if self.owner_type == 'Group' and self.owner_id:
-            return Group.query.get(self.owner_id)
+            return db.session.get(Group, self.owner_id)
         return None
 
 class ActivityExecution(db.Model):

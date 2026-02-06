@@ -6,7 +6,8 @@ from src.models import (
     Course, CourseAssignment, CourseCompletion, Attachment
 )
 from flask import session
-from datetime import datetime, timedelta
+from datetime import timedelta
+from src.utils.timezone_helper import now, today
 
 # --- Tests 5, 6: Policies ---
 
@@ -37,7 +38,7 @@ def test_policy_acknowledgement_flow(client, app):
             version_number='1.0',
             status='Active',
             content='Debes aceptar esto.',
-            effective_date=datetime.utcnow().date()
+            effective_date=now().date()
         )
         # Asignar la política al usuario
         policy_version.users_to_acknowledge.append(test_user)
@@ -116,7 +117,7 @@ def test_policy_report_shows_unacknowledged(auth_client, app):
             version_number='1.0',
             status='Active',
             content='...',
-            effective_date=datetime.utcnow().date()
+            effective_date=now().date()
         )
         # Asignar a 'Test User'
         policy_version.users_to_acknowledge.append(test_user)
@@ -160,7 +161,7 @@ def test_user_completes_training(client, app):
         assignment = CourseAssignment(
             course=course,
             user=test_user,
-            due_date=(datetime.utcnow() + timedelta(days=30)).date()
+            due_date=(now() + timedelta(days=30)).date()
         )
         
         db.session.add_all([admin, test_user, course, assignment])

@@ -14,6 +14,7 @@
 
 <div class="card mb-4">
     <div class="card-body">
+        {% if audits %}
         <div class="table-responsive">
             <table class="table table-striped datatable">
                 <thead>
@@ -64,6 +65,14 @@
                 </tbody>
             </table>
         </div>
+        {% else %}
+        {% set icon = '📋' %}
+        {% set title = 'No Audits Found' %}
+        {% set message = 'Create compliance audits to track assessment progress and findings.' %}
+        {% set action_url = url_for('audits.new_audit') %}
+        {% set action_text = 'Create First Audit' %}
+        {% include 'components/empty_state.html' %}
+        {% endif %}
     </div>
 </div>
 {% endblock %}

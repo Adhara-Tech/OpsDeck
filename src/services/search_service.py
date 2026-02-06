@@ -395,32 +395,32 @@ class SearchService:
 
     def _get_date_range_presets(self) -> List[Dict[str, Any]]:
         """Get preset date range options."""
-        now = now()
+        current_time = now()
 
         return [
             {
                 'label': 'Last 7 days',
                 'value': 'last_7_days',
-                'date_from': (now - timedelta(days=7)).isoformat(),
-                'date_to': now.isoformat()
+                'date_from': (current_time - timedelta(days=7)).isoformat(),
+                'date_to': current_time.isoformat()
             },
             {
                 'label': 'Last 30 days',
                 'value': 'last_30_days',
-                'date_from': (now - timedelta(days=30)).isoformat(),
-                'date_to': now.isoformat()
+                'date_from': (current_time - timedelta(days=30)).isoformat(),
+                'date_to': current_time.isoformat()
             },
             {
                 'label': 'Last 90 days',
                 'value': 'last_90_days',
-                'date_from': (now - timedelta(days=90)).isoformat(),
-                'date_to': now.isoformat()
+                'date_from': (current_time - timedelta(days=90)).isoformat(),
+                'date_to': current_time.isoformat()
             },
             {
                 'label': 'This year',
                 'value': 'this_year',
-                'date_from': now.replace(month=1, day=1, hour=0, minute=0).isoformat(),
-                'date_to': now.isoformat()
+                'date_from': current_time.replace(month=1, day=1, hour=0, minute=0).isoformat(),
+                'date_to': current_time.isoformat()
             }
         ]
 

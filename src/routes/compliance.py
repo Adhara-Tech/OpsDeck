@@ -638,7 +638,7 @@ def my_policies():
     """Shows policies assigned to the current user."""
     active_versions = PolicyVersion.query.filter_by(status='Active').all()
     user_id = session.get('user_id')
-    current_user_obj = User.query.get(user_id)
+    current_user_obj = db.session.get(User,user_id)
     
     my_policy_list = []
     
@@ -1177,7 +1177,7 @@ def export_pir_pdf(id):
     
     # Get organization settings for logo
     org_settings = OrganizationSettings.query.first()
-    user = User.query.get(session.get('user_id'))
+    user = db.session.get(User,session.get('user_id'))
     
     # Sort timeline by event_time
     sorted_timeline = sorted(review.timeline_events, key=lambda e: e.event_time)
@@ -1270,7 +1270,7 @@ def create_compliance_link():
         return jsonify({'error': 'Missing required fields'}), 400
 
     # Validate control exists
-    control = FrameworkControl.query.get(framework_control_id)
+    control = db.session.get(FrameworkControl,framework_control_id)
     if not control:
         return jsonify({'error': 'Control not found'}), 404
         
@@ -1339,7 +1339,7 @@ def create_manual_link():
         return redirect(request.referrer or url_for('frameworks.list'))
 
     # Validate control exists
-    control = FrameworkControl.query.get(framework_control_id)
+    control = db.session.get(FrameworkControl,framework_control_id)
     if not control:
         flash('Control not found.', 'error')
         return redirect(request.referrer or url_for('frameworks.list'))
@@ -1463,7 +1463,7 @@ def export_dashboard_pdf():
         if framework_status:
             dashboard_data.append(framework_status)
     
-    user = User.query.get(session.get('user_id'))
+    user = db.session.get(User,session.get('user_id'))
     
     html_content = render_template(
         'compliance/dashboard_pdf.html', 
@@ -1505,7 +1505,7 @@ def create_rule():
         return redirect(request.referrer or url_for('compliance.dashboard'))
     
     # Validate control exists
-    control = FrameworkControl.query.get(framework_control_id)
+    control = db.session.get(FrameworkControl,framework_control_id)
     if not control:
         flash('Control not found.', 'error')
         return redirect(request.referrer or url_for('compliance.dashboard'))
@@ -1962,7 +1962,7 @@ def uar_findings_bulk_action():
             if not user_id:
                 return jsonify({'error': 'User ID required for assignment'}), 400
 
-            user = User.query.get(user_id)
+            user = db.session.get(User,user_id)
             if not user:
                 return jsonify({'error': 'User not found'}), 404
 

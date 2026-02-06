@@ -44,7 +44,7 @@ def test_edit_documentation(auth_client, app):
     assert b'Entrada de documentaci\xc3\xb3n actualizada.' in response.data
     
     with app.app_context():
-        doc = Documentation.query.get(doc_id)
+        doc = db.session.get(Documentation, doc_id)
         assert doc.name == 'Updated Name'
         assert doc.description == 'Updated Desc'
 
@@ -61,5 +61,5 @@ def test_delete_documentation(auth_client, app):
     assert b'Entrada de documentaci\xc3\xb3n eliminada.' in response.data
     
     with app.app_context():
-        doc = Documentation.query.get(doc_id)
+        doc = db.session.get(Documentation, doc_id)
         assert doc is None

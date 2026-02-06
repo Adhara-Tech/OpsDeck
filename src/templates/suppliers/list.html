@@ -22,6 +22,7 @@
 
 <div class="card">
     <div class="card-body">
+        {% if suppliers %}
         <div class="table-responsive">
             <table class="table table-striped datatable" id="suppliers-table">
                 <thead>
@@ -65,11 +66,18 @@
                             {% endif %}
                         </td>
                     </tr>
-                    {% else %}
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+        {% else %}
+        {% set icon = '🏢' %}
+        {% set title = 'No Suppliers Found' %}
+        {% set message = 'Add suppliers to manage vendor relationships and subscriptions.' %}
+        {% set action_url = url_for('suppliers.new_supplier') if can_write('business_ops') else none %}
+        {% set action_text = 'Add First Supplier' %}
+        {% include 'components/empty_state.html' %}
+        {% endif %}
     </div>
 </div>
 {% endblock %}

@@ -3,7 +3,7 @@ from sqlalchemy import and_
 from sqlalchemy.orm import foreign
 from ..extensions import db
 from .auth import User
-from src.utils.timezone_helper import now
+from src.utils.timezone_helper import now, to_utc
 
 
 # Association table for Credential <-> BusinessService
@@ -84,7 +84,7 @@ class Credential(db.Model):
     def owner(self):
         """Returns the owner object based on polymorphic relationship"""
         if self.owner_type == 'User':
-            return User.query.get(self.owner_id)
+            return db.session.get(User, self.owner_id)
         # Add other owner types as needed (Group, etc.)
         return None
     
@@ -102,15 +102,15 @@ class Credential(db.Model):
         # Fallback to other relations
         if self.software_id:
             from .assets import Software
-            software = Software.query.get(self.software_id)
+            software = db.session.get(Software, self.software_id)
             return software.name if software else f"Software #{self.software_id}"
         elif self.license_id:
             from .assets import License
-            license = License.query.get(self.license_id)
+            license = db.session.get(License, self.license_id)
             return license.name if license else f"License #{self.license_id}"
         elif self.asset_id:
             from .assets import Asset
-            asset = Asset.query.get(self.asset_id)
+            asset = db.session.get(Asset, self.asset_id)
             return asset.name if asset else f"Asset #{self.asset_id}"
         return "N/A"
     
@@ -180,14 +180,18 @@ class CredentialSecret(db.Model):
         """Check if this secret has expired"""
         if not self.expires_at:
             return False
-        return now() > self.expires_at
+        # Convert naive expires_at to timezone-aware before comparison
+        expires_at_aware = to_utc(self.expires_at)
+        return now() > expires_at_aware
     
     @property
     def days_until_expiry(self):
         """Calculate days until expiration (negative if expired)"""
         if not self.expires_at:
             return None
-        delta = self.expires_at - now()
+        # Convert naive expires_at to timezone-aware before subtraction
+        expires_at_aware = to_utc(self.expires_at)
+        delta = expires_at_aware - now()
         return delta.days
     
     @property

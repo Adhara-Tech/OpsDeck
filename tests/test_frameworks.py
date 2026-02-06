@@ -128,7 +128,7 @@ def test_edit_framework(auth_client, app):
     
     # Comprobar en BBDD que se activó
     with app.app_context():
-        fw_iso_updated = Framework.query.get(fw_iso_id)
+        fw_iso_updated = db.session.get(Framework,fw_iso_id)
         assert fw_iso_updated.name == 'ISO27001:2022' # No cambió
         assert fw_iso_updated.is_active is True # SÍ cambió
 
@@ -150,7 +150,7 @@ def test_edit_framework(auth_client, app):
     assert b"Framework actualizado" in response.data
     
     with app.app_context():
-        fw_custom_updated = Framework.query.get(fw_custom_id)
+        fw_custom_updated = db.session.get(Framework,fw_custom_id)
         assert fw_custom_updated.name == 'Custom Modificado'
         assert fw_custom_updated.description == 'Nueva descripción'
 
@@ -183,7 +183,7 @@ def test_add_control_to_custom_framework(auth_client, app):
     
     # Comprueba la BBDD
     with app.app_context():
-        fw = Framework.query.get(fw_id)
+        fw = db.session.get(Framework,fw_id)
         assert fw.framework_controls.count() == 1
         control = fw.framework_controls.first()
         assert control.name == 'Mi Nuevo Control'
@@ -215,7 +215,7 @@ def test_add_control_fail_on_builtin(auth_client, app):
     
     # Comprueba que no se añadió nada
     with app.app_context():
-        fw_iso = Framework.query.get(fw_iso_id)
+        fw_iso = db.session.get(Framework,fw_iso_id)
         assert fw_iso.framework_controls.count() == iso_control_count
 
 def test_delete_control_from_custom_framework(auth_client, app):
@@ -231,7 +231,7 @@ def test_delete_control_from_custom_framework(auth_client, app):
         db.session.add(fw)
         db.session.commit()
         control_id = control.id
-        assert FrameworkControl.query.get(control_id) is not None
+        assert db.session.get(FrameworkControl,control_id) is not None
     
     # Simula la llamada AJAX (fetch)
     response = auth_client.post(f'/frameworks/control/{control_id}/delete')
@@ -244,7 +244,7 @@ def test_delete_control_from_custom_framework(auth_client, app):
     
     # Comprueba la BBDD
     with app.app_context():
-        assert FrameworkControl.query.get(control_id) is None
+        assert db.session.get(FrameworkControl,control_id) is None
 
 def test_delete_control_fail_on_builtin(auth_client, app):
     """
@@ -269,7 +269,7 @@ def test_delete_control_fail_on_builtin(auth_client, app):
     
     # Comprueba que el control sigue en la BBDD
     with app.app_context():
-        assert FrameworkControl.query.get(control_id) is not None
+        assert db.session.get(FrameworkControl,control_id) is not None
 
 def test_delete_custom_framework(auth_client, app):
     """
@@ -283,7 +283,7 @@ def test_delete_custom_framework(auth_client, app):
         db.session.add(fw)
         db.session.commit()
         fw_id = fw.id
-        assert Framework.query.get(fw_id) is not None
+        assert db.session.get(Framework,fw_id) is not None
         assert FrameworkControl.query.count() > 0
     
     # Simula la llamada AJAX (fetch)
@@ -301,7 +301,7 @@ def test_delete_custom_framework(auth_client, app):
     
     # Comprueba la BBDD
     with app.app_context():
-        assert Framework.query.get(fw_id) is None
+        assert db.session.get(Framework,fw_id) is None
         # Comprueba que los controles se borraron en cascada
         assert FrameworkControl.query.count() == 0
 
@@ -327,4 +327,4 @@ def test_delete_framework_fail_on_builtin(auth_client, app):
     
     # Comprueba que sigue en la BBDD
     with app.app_context():
-        assert Framework.query.get(fw_iso_id) is not None
+        assert db.session.get(Framework,fw_iso_id) is not None

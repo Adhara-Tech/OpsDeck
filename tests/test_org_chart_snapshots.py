@@ -1,5 +1,6 @@
 import pytest
 from src.models import OrgChartSnapshot, User, db
+from src.models.audits import AuditControlLink
 
 @pytest.fixture
 def snapshot_user(app):
@@ -114,7 +115,7 @@ def test_link_snapshot_to_audit(auth_client, app):
 
     # 4. Verify Link Retrieval
     with app.app_context():
-        link = AuditControlLink.query.get(link_id)
+        link = db.session.get(AuditControlLink, link_id)
         assert link is not None
         assert link.linkable_type == 'OrgChartSnapshot'
         assert link.linked_object.id == snapshot_id

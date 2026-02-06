@@ -1,0 +1,385 @@
+/* ========================================
+   OpsDeck Theme System
+   CSS Variables for Light/Dark Mode
+   ======================================== */
+
+/* Light Theme (Default) */
+:root,
+[data-bs-theme="light"] {
+    /* Brand Colors */
+    --od-brand-primary: #667eea;
+    --od-brand-secondary: #764ba2;
+    --od-brand-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+
+    /* Sidebar */
+    --od-sidebar-bg: #343a40;
+    --od-sidebar-text: #ffffff;
+    --od-sidebar-text-muted: #adb5bd;
+    --od-sidebar-hover: #495057;
+    --od-sidebar-active: #495057;
+    --od-sidebar-border: rgba(255, 255, 255, 0.1);
+
+    /* Navbar */
+    --od-navbar-bg: #343a40;
+    --od-navbar-text: #ffffff;
+    --od-navbar-text-muted: rgba(255, 255, 255, 0.7);
+
+    /* Cards */
+    --od-card-bg: #ffffff;
+    --od-card-border: rgba(0, 0, 0, 0.125);
+    --od-card-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+
+    /* Toast Notifications */
+    --od-toast-bg: #ffffff;
+    --od-toast-text: #374151;
+    --od-toast-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+
+    /* Skeleton Loaders */
+    --od-skeleton-base: #f0f0f0;
+    --od-skeleton-shine: #f8f8f8;
+
+    /* Table */
+    --od-table-hover: rgba(0, 0, 0, 0.02);
+
+    /* Empty States */
+    --od-empty-icon: #cbd5e1;
+    --od-empty-title: #374151;
+    --od-empty-text: #6b7280;
+
+    /* Search */
+    --od-search-bg: #ffffff;
+    --od-search-border: rgba(0, 0, 0, 0.125);
+    --od-search-placeholder: #9ca3af;
+
+    /* Focus */
+    --od-focus-ring: #667eea;
+}
+
+/* Dark Theme */
+[data-bs-theme="dark"] {
+    /* Brand Colors - Slightly brighter for dark bg */
+    --od-brand-primary: #8099f0;
+    --od-brand-secondary: #9b6fc0;
+    --od-brand-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+
+    /* Sidebar - Darker to contrast with body */
+    --od-sidebar-bg: #1a1d21;
+    --od-sidebar-text: #e9ecef;
+    --od-sidebar-text-muted: #adb5bd;
+    --od-sidebar-hover: #2c3035;
+    --od-sidebar-active: #2c3035;
+    --od-sidebar-border: rgba(255, 255, 255, 0.05);
+
+    /* Navbar */
+    --od-navbar-bg: #1a1d21;
+    --od-navbar-text: #e9ecef;
+    --od-navbar-text-muted: rgba(255, 255, 255, 0.7);
+
+    /* Cards - Lighter than body (#212529) for better separation */
+    --od-card-bg: #2d3237;
+    --od-card-border: rgba(255, 255, 255, 0.08);
+    --od-card-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.3);
+
+    /* Toast Notifications */
+    --od-toast-bg: #2d3237;
+    --od-toast-text: #dee2e6;
+    --od-toast-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+
+    /* Skeleton Loaders */
+    --od-skeleton-base: #2d2d2d;
+    --od-skeleton-shine: #3a3a3a;
+
+    /* Table */
+    --od-table-hover: rgba(255, 255, 255, 0.05);
+
+    /* Empty States */
+    --od-empty-icon: #495057;
+    --od-empty-title: #e9ecef;
+    --od-empty-text: #adb5bd;
+
+    /* Search */
+    --od-search-bg: #2d3237;
+    --od-search-border: rgba(255, 255, 255, 0.1);
+    --od-search-placeholder: #6c757d;
+
+    /* Focus */
+    --od-focus-ring: #8099f0;
+}
+
+/* ========================================
+   Theme Transitions
+   ======================================== */
+html {
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html,
+    body,
+    .sidebar,
+    .navbar,
+    .card,
+    .modal-content,
+    .dropdown-menu,
+    .toast,
+    .custom-toast {
+        transition: none !important;
+    }
+}
+
+body,
+.sidebar,
+.navbar,
+.card,
+.modal-content,
+.dropdown-menu,
+.toast,
+.custom-toast {
+    transition: background-color 0.3s ease,
+                border-color 0.3s ease,
+                box-shadow 0.3s ease,
+                color 0.3s ease;
+}
+
+/* ========================================
+   Theme Toggle Button
+   ======================================== */
+#themeToggle {
+    border: none;
+    background: transparent;
+    font-size: 1.1rem;
+    opacity: 0.8;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    padding: 0.25rem 0.5rem;
+}
+
+#themeToggle:hover {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+#themeToggle:focus {
+    box-shadow: none;
+    outline: 2px solid var(--od-focus-ring);
+    outline-offset: 2px;
+}
+
+/* ========================================
+   Dark Mode Specific Overrides
+   ======================================== */
+
+/* Cards with better contrast */
+[data-bs-theme="dark"] .card {
+    --bs-card-bg: var(--od-card-bg);
+    --bs-card-border-color: var(--od-card-border);
+    background-color: var(--od-card-bg);
+    border-color: var(--od-card-border);
+}
+
+/* Modals and dropdowns also lighter */
+[data-bs-theme="dark"] .modal-content {
+    background-color: var(--od-card-bg);
+}
+
+[data-bs-theme="dark"] .dropdown-menu {
+    background-color: var(--od-card-bg);
+}
+
+/* DataTables in dark mode */
+[data-bs-theme="dark"] .dataTable-table {
+    --bs-table-bg: var(--bs-body-bg);
+    --bs-table-striped-bg: var(--bs-tertiary-bg);
+}
+
+[data-bs-theme="dark"] .dataTable-input,
+[data-bs-theme="dark"] .dataTable-selector {
+    background-color: var(--bs-body-bg);
+    border-color: var(--bs-border-color);
+    color: var(--bs-body-color);
+}
+
+/* Navbar search input - navbar is always dark so text should always be light */
+#global-search-input,
+#global-search-input:focus {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+    color: #ffffff !important;
+}
+
+#global-search-input::placeholder {
+    color: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* Tom Select in dark mode */
+[data-bs-theme="dark"] .ts-wrapper .ts-control {
+    background-color: var(--bs-body-bg);
+    border-color: var(--bs-border-color);
+    color: var(--bs-body-color);
+}
+
+[data-bs-theme="dark"] .ts-wrapper .ts-dropdown {
+    background-color: var(--bs-body-bg);
+    border-color: var(--bs-border-color);
+}
+
+[data-bs-theme="dark"] .ts-wrapper .ts-dropdown .option:hover,
+[data-bs-theme="dark"] .ts-wrapper .ts-dropdown .active {
+    background-color: var(--bs-tertiary-bg);
+}
+
+/* EasyMDE in dark mode */
+[data-bs-theme="dark"] .EasyMDEContainer .CodeMirror {
+    background-color: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    border-color: var(--bs-border-color);
+}
+
+[data-bs-theme="dark"] .EasyMDEContainer .editor-toolbar {
+    background-color: var(--bs-tertiary-bg);
+    border-color: var(--bs-border-color);
+}
+
+[data-bs-theme="dark"] .EasyMDEContainer .editor-toolbar button {
+    color: var(--bs-body-color);
+}
+
+/* Code/Pre elements */
+[data-bs-theme="dark"] pre,
+[data-bs-theme="dark"] code {
+    background-color: var(--bs-tertiary-bg);
+}
+
+/* Table headers - .table-light and .table-secondary should respect dark mode */
+[data-bs-theme="dark"] .table-light,
+[data-bs-theme="dark"] thead.table-light tr,
+[data-bs-theme="dark"] .table-light th,
+[data-bs-theme="dark"] .table-light td,
+[data-bs-theme="dark"] .table-secondary,
+[data-bs-theme="dark"] tr.table-secondary,
+[data-bs-theme="dark"] .table-secondary th,
+[data-bs-theme="dark"] .table-secondary td {
+    --bs-table-bg: var(--bs-tertiary-bg);
+    --bs-table-color: var(--bs-body-color);
+    background-color: var(--bs-tertiary-bg) !important;
+    color: var(--bs-body-color);
+}
+
+/* .bg-light class should respect dark mode */
+[data-bs-theme="dark"] .bg-light {
+    --bs-bg-opacity: 1;
+    background-color: var(--bs-tertiary-bg) !important;
+    color: var(--bs-body-color);
+}
+
+/* Cards with bg-light (like kanban columns) */
+[data-bs-theme="dark"] .card.bg-light {
+    --bs-card-bg: var(--bs-tertiary-bg);
+    background-color: var(--bs-tertiary-bg) !important;
+}
+
+[data-bs-theme="dark"] .card.bg-light .card-header {
+    background-color: rgba(0, 0, 0, 0.1);
+    border-color: var(--bs-border-color);
+}
+
+[data-bs-theme="dark"] .card.bg-light .card-body {
+    background-color: transparent;
+}
+
+/* .bg-white class should respect dark mode */
+[data-bs-theme="dark"] .bg-white {
+    background-color: var(--bs-body-bg) !important;
+}
+
+/* Card body should use card background explicitly */
+[data-bs-theme="dark"] .card .card-body,
+[data-bs-theme="dark"] .card .card-footer {
+    background-color: var(--od-card-bg);
+}
+
+/* For cards with bg-light, use tertiary background */
+[data-bs-theme="dark"] .card.bg-light .card-body,
+[data-bs-theme="dark"] .card.bg-light .card-footer {
+    background-color: var(--bs-tertiary-bg);
+}
+
+/* Border colors in dark mode */
+[data-bs-theme="dark"] .border-top,
+[data-bs-theme="dark"] .border-bottom,
+[data-bs-theme="dark"] .border-start,
+[data-bs-theme="dark"] .border-end,
+[data-bs-theme="dark"] .border {
+    border-color: var(--bs-border-color) !important;
+}
+
+/* btn-outline-dark needs inversion in dark mode */
+[data-bs-theme="dark"] .btn-outline-dark {
+    --bs-btn-color: var(--bs-light);
+    --bs-btn-border-color: var(--bs-light);
+    --bs-btn-hover-color: var(--bs-dark);
+    --bs-btn-hover-bg: var(--bs-light);
+    --bs-btn-hover-border-color: var(--bs-light);
+}
+
+/* List group items in dark mode */
+[data-bs-theme="dark"] .list-group-item {
+    background-color: var(--od-card-bg);
+    border-color: var(--bs-border-color);
+    color: var(--bs-body-color);
+}
+
+[data-bs-theme="dark"] .list-group-item-action:hover,
+[data-bs-theme="dark"] .list-group-item-action:focus {
+    background-color: var(--bs-tertiary-bg);
+    color: var(--bs-body-color);
+}
+
+/* Mermaid diagrams - styles for both light and dark modes */
+.mermaid .edgePath path,
+.mermaid .flowchart-link {
+    stroke: #64748b !important;
+    stroke-width: 2px;
+}
+
+.mermaid marker path {
+    fill: #64748b !important;
+    stroke: #64748b !important;
+}
+
+.mermaid .node foreignObject div {
+    color: #1f2937 !important;
+}
+
+[data-bs-theme="dark"] .mermaid .edgeLabel {
+    background-color: var(--od-card-bg);
+}
+
+/* Generic chat interface styles for enterprise plugin */
+[data-bs-theme="dark"] .chat-container,
+[data-bs-theme="dark"] .chat-messages,
+[data-bs-theme="dark"] .chat-box,
+[data-bs-theme="dark"] .ai-chat,
+[data-bs-theme="dark"] .query-container {
+    background-color: var(--bs-body-bg) !important;
+    color: var(--bs-body-color);
+}
+
+[data-bs-theme="dark"] .chat-input,
+[data-bs-theme="dark"] .query-input {
+    background-color: var(--bs-tertiary-bg);
+    border-color: var(--bs-border-color);
+    color: var(--bs-body-color);
+}
+
+[data-bs-theme="dark"] .message-user,
+[data-bs-theme="dark"] .user-message {
+    background-color: var(--bs-primary);
+    color: white;
+}
+
+[data-bs-theme="dark"] .message-assistant,
+[data-bs-theme="dark"] .assistant-message,
+[data-bs-theme="dark"] .ai-message {
+    background-color: var(--bs-tertiary-bg);
+    color: var(--bs-body-color);
+}

@@ -104,7 +104,7 @@ class ComplianceAudit(db.Model):
             sample_size: Optional limit on evidence items per control (random sample)
         """
         # 1. Get the source Framework
-        framework = Framework.query.get(framework_id)
+        framework = db.session.get(Framework, framework_id)
         if not framework:
             raise ValueError(f"Framework with id {framework_id} not found")
 
@@ -281,7 +281,7 @@ class ComplianceAudit(db.Model):
             - Status (Compliant/Gap -> Pending)
             - Dates, Auditor
         """
-        source = cls.query.get(source_id)
+        source = db.session.get(cls, source_id)
         if not source:
              raise ValueError(f"Source audit with id {source_id} not found")
 
@@ -570,7 +570,7 @@ class AuditControlLink(db.Model):
 
         model = model_map.get(self.linkable_type)
         if model:
-            return model.query.get(self.linkable_id)
+            return db.session.get(model, self.linkable_id)
         return None
 
     def is_orphaned(self):

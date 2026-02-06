@@ -6,11 +6,12 @@ Tests for features not covered in test_activities.py:
 - Compliance links on SecurityActivity
 """
 import io
+from datetime import date
 from src.models import (
     SecurityActivity, ActivityExecution, User, Framework, FrameworkControl
 )
 from src import db
-from datetime import date
+from src.utils.timezone_helper import today
 
 
 def test_execution_detail_route(auth_client, app):
@@ -25,7 +26,7 @@ def test_execution_detail_route(auth_client, app):
         execution = ActivityExecution(
             activity_id=activity.id,
             executor_id=user.id,
-            execution_date=date.today(),
+            execution_date=today(),
             status='success',
             outcome_notes='Test execution notes'
         )
@@ -84,7 +85,7 @@ def test_edit_execution_route(auth_client, app):
     
     # Verify database changes
     with app.app_context():
-        updated = ActivityExecution.query.get(execution_id)
+        updated = db.session.get(ActivityExecution,execution_id)
         assert updated.status == 'success'
         assert updated.execution_date == date(2023, 6, 15)
         assert updated.outcome_notes == 'Updated notes after completion'
@@ -102,7 +103,7 @@ def test_execution_attachments(auth_client, app):
         execution = ActivityExecution(
             activity_id=activity.id,
             executor_id=user.id,
-            execution_date=date.today(),
+            execution_date=today(),
             status='success'
         )
         db.session.add(execution)
@@ -113,7 +114,7 @@ def test_execution_attachments(auth_client, app):
     # Action: Upload file via edit route
     data = {
         'executor_id': user_id,
-        'execution_date': date.today().strftime('%Y-%m-%d'),
+        'execution_date': today().strftime('%Y-%m-%d'),
         'status': 'success',
         'outcome_notes': 'Completed with evidence'
     }
@@ -134,7 +135,7 @@ def test_execution_attachments(auth_client, app):
     
     # Verify attachment was created
     with app.app_context():
-        execution = ActivityExecution.query.get(execution_id)
+        execution = db.session.get(ActivityExecution,execution_id)
         attachments_list = list(execution.attachments)
         assert len(attachments_list) > 0
         attachment = attachments_list[0]
@@ -185,7 +186,7 @@ def test_activity_compliance_links(auth_client, app):
     
     # Verify: Activity has compliance links
     with app.app_context():
-        activity = SecurityActivity.query.get(activity_id)
+        activity = db.session.get(SecurityActivity,activity_id)
         assert activity.compliance_links.count() == 1
         
         link = activity.compliance_links.first()

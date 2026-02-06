@@ -11,9 +11,10 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from src import create_app
 from src.models import db, User
 from src.models.credentials import Credential, CredentialSecret
-from datetime import datetime, timedelta
+from datetime import timedelta
+from src.utils.timezone_helper import now, today
 
-def test_credentials():
+def run_credentials_test():
     """Test the credentials functionality"""
     app = create_app()
     
@@ -66,7 +67,7 @@ def test_credentials():
             # Create secret
             secret = CredentialSecret(
                 credential_id=new_cred.id,
-                expires_at=datetime.utcnow() + timedelta(days=15),  # Expires in 15 days
+                expires_at=now() + timedelta(days=15),  # Expires in 15 days
                 is_active=True
             )
             secret.set_secret('mySecretAPIKey1234567890')
@@ -107,7 +108,7 @@ def test_credentials():
             # Create new secret
             new_secret = CredentialSecret(
                 credential_id=new_cred.id,
-                expires_at=datetime.utcnow() + timedelta(days=30),
+                expires_at=now() + timedelta(days=30),
                 is_active=True
             )
             new_secret.set_secret('newRotatedKey9876543210')
@@ -161,7 +162,7 @@ def test_credentials():
             
             expiring_secret = CredentialSecret(
                 credential_id=expiring_cred.id,
-                expires_at=datetime.utcnow() + timedelta(days=7),
+                expires_at=now() + timedelta(days=7),
                 is_active=True
             )
             expiring_secret.set_secret('expiringPassword123')
@@ -169,7 +170,7 @@ def test_credentials():
             db.session.commit()
             
             # Query expiring credentials
-            today = datetime.utcnow().date()
+            today = now().date()
             active_secrets = CredentialSecret.query.filter(
                 CredentialSecret.is_active == True,
                 CredentialSecret.expires_at.isnot(None)
@@ -210,5 +211,5 @@ def test_credentials():
         return True
 
 if __name__ == '__main__':
-    success = test_credentials()
+    success = run_credentials_test()
     sys.exit(0 if success else 1)

@@ -1,0 +1,37 @@
+{#
+    Skeleton Table Loader
+
+    A loading skeleton for table views while data is being fetched.
+
+    Parameters:
+    - rows: Number of skeleton rows to display (default: 5)
+    - columns: Number of columns (default: 5)
+    - show_actions: Whether to show actions column (default: true)
+
+    Usage:
+    {% include 'components/skeleton_table.html' with rows=8, columns=6 %}
+#}
+
+{% set rows = rows | default(5) %}
+{% set columns = columns | default(5) %}
+{% set show_actions = show_actions | default(true) %}
+
+<div class="skeleton-table" id="skeleton-table-loader">
+    {% for i in range(rows) %}
+    <div class="skeleton-table-row">
+        {% for j in range(columns) %}
+        <div class="skeleton-table-cell">
+            <div class="skeleton skeleton-text"></div>
+        </div>
+        {% endfor %}
+        {% if show_actions %}
+        <div class="skeleton-table-cell" style="flex: 0 0 120px;">
+            <div class="d-flex gap-2">
+                <div class="skeleton skeleton-button-sm"></div>
+                <div class="skeleton skeleton-button-sm"></div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>

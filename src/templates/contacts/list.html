@@ -22,6 +22,7 @@
 
 <div class="card">
     <div class="card-body">
+        {% if contacts %}
         <div class="table-responsive">
             <table class="table table-striped datatable" id="contacts-table">
                 <thead>
@@ -68,11 +69,18 @@
                             {% endif %}
                         </td>
                     </tr>
-                    {% else %}
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+        {% else %}
+        {% set icon = '📇' %}
+        {% set title = 'No Contacts Found' %}
+        {% set message = 'Add contacts from your suppliers to maintain communication channels.' %}
+        {% set action_url = url_for('contacts.new_contact') if can_write('business_ops') else none %}
+        {% set action_text = 'Add First Contact' %}
+        {% include 'components/empty_state.html' %}
+        {% endif %}
     </div>
 </div>
 {% endblock %}

@@ -195,7 +195,7 @@ def execute_activity(id):
     
     # GET request - render form
     users = User.query.filter_by(is_archived=False).order_by(User.name).all()
-    current_user = User.query.get(session.get('user_id'))
+    current_user = db.session.get(User,session.get('user_id'))
     today_date = today().strftime('%Y-%m-%d')
     
     return render_template('activities/execution_form.html', 

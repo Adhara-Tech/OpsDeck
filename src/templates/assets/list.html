@@ -103,7 +103,17 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="9" class="text-center">No assets found.</td>
+                        <td colspan="9" class="p-0">
+                            {% set icon = 'laptop' %}
+                            {% set title = 'No assets found' %}
+                            {% set message = 'Get started by adding your first asset to the inventory. Track hardware lifecycle, assignments, and maintenance history.' %}
+                            {% if can_write('core_inventory') %}
+                                {% set action_url = url_for('assets.new_asset') %}
+                                {% set action_text = 'Add Your First Asset' %}
+                                {% set action_icon = 'plus' %}
+                            {% endif %}
+                            {% include 'components/empty_state.html' %}
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>

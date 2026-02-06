@@ -225,7 +225,7 @@ def add_dependency(id):
         flash('Please select a service.', 'warning')
         return redirect(url_for('services.detail', id=id))
         
-    target_service = BusinessService.query.get(target_service_id)
+    target_service = db.session.get(BusinessService,target_service_id)
     if not target_service:
         flash('Target service not found.', 'danger')
         return redirect(url_for('services.detail', id=id))
@@ -380,7 +380,7 @@ def link_document(id):
     service = BusinessService.query.get_or_404(id)
     doc_id = request.form.get('document_id')
     if doc_id:
-        doc = Documentation.query.get(doc_id)
+        doc = db.session.get(Documentation,doc_id)
         if doc and doc not in service.documents:
             service.documents.append(doc)
             db.session.commit()
@@ -393,7 +393,7 @@ def link_document(id):
 @requires_permission('core_inventory', access_level='WRITE')
 def unlink_document(id, doc_id):
     service = BusinessService.query.get_or_404(id)
-    doc = Documentation.query.get(doc_id)
+    doc = db.session.get(Documentation,doc_id)
     if doc and doc in service.documents:
         service.documents.remove(doc)
         db.session.commit()
@@ -408,7 +408,7 @@ def link_policy(id):
     service = BusinessService.query.get_or_404(id)
     policy_id = request.form.get('policy_id')
     if policy_id:
-        policy = Policy.query.get(policy_id)
+        policy = db.session.get(Policy,policy_id)
         if policy and policy not in service.policies:
             service.policies.append(policy)
             db.session.commit()
@@ -421,7 +421,7 @@ def link_policy(id):
 @requires_permission('core_inventory', access_level='WRITE')
 def unlink_policy(id, policy_id):
     service = BusinessService.query.get_or_404(id)
-    policy = Policy.query.get(policy_id)
+    policy = db.session.get(Policy,policy_id)
     if policy and policy in service.policies:
         service.policies.remove(policy)
         db.session.commit()
@@ -436,7 +436,7 @@ def link_activity(id):
     service = BusinessService.query.get_or_404(id)
     activity_id = request.form.get('activity_id')
     if activity_id:
-        activity = SecurityActivity.query.get(activity_id)
+        activity = db.session.get(SecurityActivity,activity_id)
         if activity and activity not in service.activities:
             service.activities.append(activity)
             db.session.commit()
@@ -449,7 +449,7 @@ def link_activity(id):
 @requires_permission('core_inventory', access_level='WRITE')
 def unlink_activity(id, activity_id):
     service = BusinessService.query.get_or_404(id)
-    activity = SecurityActivity.query.get(activity_id)
+    activity = db.session.get(SecurityActivity,activity_id)
     if activity and activity in service.activities:
         service.activities.remove(activity)
         db.session.commit()
@@ -561,7 +561,7 @@ def add_user_access(id):
     user_id = request.form.get('user_id')
     
     if user_id:
-        user = User.query.get(user_id)
+        user = db.session.get(User,user_id)
         if user and user not in service.users:
             service.users.append(user)
             db.session.commit()
@@ -622,7 +622,7 @@ def link_certificate(id):
     cert_id = request.form.get('certificate_id')
     
     if cert_id:
-        cert = Certificate.query.get(cert_id)
+        cert = db.session.get(Certificate,cert_id)
         if cert and cert not in service.certificates:
             service.certificates.append(cert)
             # Log audit
@@ -676,7 +676,7 @@ def link_credential(id):
     cred_id = request.form.get('credential_id')
     
     if cred_id:
-        cred = Credential.query.get(cred_id)
+        cred = db.session.get(Credential,cred_id)
         if cred and cred not in service.credentials:
             service.credentials.append(cred)
             # Log audit

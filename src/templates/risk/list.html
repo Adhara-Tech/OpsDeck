@@ -24,6 +24,7 @@
 
 <div class="card">
     <div class="card-body">
+        {% if risks %}
         <div class="table-responsive">
             <table class="table table-striped datatable" id="risk-table">
                 <thead>
@@ -80,14 +81,18 @@
                             {% endif %}
                         </td>
                     </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="7" class="text-center">No risks logged yet.</td>
-                    </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+        {% else %}
+        {% set icon = '⚠️' %}
+        {% set title = 'No Risks Registered' %}
+        {% set message = 'Start tracking organizational risks to manage and mitigate threats.' %}
+        {% set action_url = url_for('risk.new_risk') if can_write('risk_governance') else none %}
+        {% set action_text = 'Register First Risk' %}
+        {% include 'components/empty_state.html' %}
+        {% endif %}
     </div>
 </div>
 {% endblock %}

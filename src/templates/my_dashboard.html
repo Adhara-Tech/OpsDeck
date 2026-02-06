@@ -1,8 +1,8 @@
 {% extends "layout.html" %}
 
-{% block title %}Mi Escritorio - OpsDeck{% endblock %}
+{% block title %}My Dashboard - OpsDeck{% endblock %}
 
-{% block head %}
+{% block head_extra %}
 <style>
 /* Personal Dashboard Styles */
 .dashboard-header {
@@ -652,11 +652,11 @@
     <!-- Header -->
     <div class="dashboard-header">
         <div class="greeting">
-            <h1>👋 Hola, {{ user.name.split()[0] }}</h1>
+            <h1>👋 Hello, {{ user.name.split()[0] }}</h1>
             <p class="text-muted">{{ greeting_time }} • {{ current_date_pretty }}</p>
         </div>
         <div class="header-actions">
-            <div class="notification-bell" title="Notificaciones">
+            <div class="notification-bell" title="Notifications">
                 <i class="fas fa-bell"></i>
                 {% if notification_count > 0 %}
                 <span class="badge">{{ notification_count }}</span>
@@ -670,7 +670,7 @@
     <div class="alert-banner alert-danger">
         <div class="alert-icon">⚠️</div>
         <div class="alert-content">
-            <h5>ACCIÓN REQUERIDA</h5>
+            <h5>ACTION REQUIRED</h5>
             <ul class="alert-list">
                 {% for alert in critical_alerts[:3] %}
                 <li>
@@ -679,7 +679,7 @@
                 </li>
                 {% endfor %}
                 {% if critical_alerts|length > 3 %}
-                <li class="text-muted">... y {{ critical_alerts|length - 3 }} más</li>
+                <li class="text-muted">... and {{ critical_alerts|length - 3 }} more</li>
                 {% endif %}
             </ul>
         </div>
@@ -689,21 +689,21 @@
 
     <!-- Quick Actions Hero -->
     <div class="quick-actions-hero">
-        <h3>🎯 Acciones Rápidas</h3>
+        <h3>🎯 Quick Actions</h3>
         <div class="action-grid">
             <a href="{{ url_for('compliance.new_incident') }}" class="action-card primary">
                 <div class="action-icon">🎫</div>
-                <div class="action-label">Reportar<br>Incidente</div>
+                <div class="action-label">Report<br>Incident</div>
             </a>
 
             <a href="{{ url_for('changes.new_change') }}" class="action-card secondary">
                 <div class="action-icon">🔄</div>
-                <div class="action-label">Solicitar<br>Cambio</div>
+                <div class="action-label">Request<br>Change</div>
             </a>
 
             <a href="#tareas" class="action-card">
                 <div class="action-icon">📋</div>
-                <div class="action-label">Mis<br>Tareas</div>
+                <div class="action-label">My<br>Tasks</div>
                 {% if pending_tasks > 0 %}
                 <div class="action-counter">{{ pending_tasks }}</div>
                 {% endif %}
@@ -711,7 +711,7 @@
 
             <a href="{{ url_for('training.my_training') }}" class="action-card">
                 <div class="action-icon">📚</div>
-                <div class="action-label">Mis<br>Cursos</div>
+                <div class="action-label">My<br>Courses</div>
                 {% if courses_pending > 0 %}
                 <div class="action-counter warning">{{ courses_pending }}</div>
                 {% endif %}
@@ -719,53 +719,53 @@
 
             <a href="#recursos" class="action-card">
                 <div class="action-icon">💼</div>
-                <div class="action-label">Mis<br>Recursos</div>
+                <div class="action-label">My<br>Resources</div>
             </a>
         </div>
     </div>
 
     <!-- Stats Section -->
     <div class="stats-section">
-        <h3>📊 Tu Dashboard en Números</h3>
+        <h3>📊 Your Dashboard in Numbers</h3>
         <div class="stats-grid">
-            <!-- Equipos -->
+            <!-- Equipment -->
             <div class="stat-card">
                 <div class="stat-icon bg-blue">💻</div>
                 <div class="stat-value">{{ my_equipment_count }}</div>
-                <div class="stat-label">Equipos Asignados</div>
-                <a href="#tab-equipos" class="stat-link">Ver detalles →</a>
+                <div class="stat-label">Assigned Equipment</div>
+                <a href="#tab-equipos" class="stat-link">View details →</a>
             </div>
 
-            <!-- Cursos -->
+            <!-- Courses -->
             <div class="stat-card">
                 <div class="stat-icon bg-purple">🎓</div>
                 <div class="stat-value">{{ courses_completed }}/{{ courses_total }}</div>
-                <div class="stat-label">Cursos Completados</div>
+                <div class="stat-label">Courses Completed</div>
                 <div class="progress-bar">
                     <div class="progress-fill" style="width: {{ course_completion_pct }}%"></div>
                 </div>
                 <a href="{{ url_for('training.my_training') }}" class="stat-link">
-                    Continuar aprendiendo →
+                    Continue learning →
                 </a>
             </div>
 
-            <!-- Licencias -->
+            <!-- Licenses -->
             <div class="stat-card">
                 <div class="stat-icon bg-green">🔐</div>
                 <div class="stat-value">{{ my_licenses_count }}</div>
-                <div class="stat-label">Licencias Activas</div>
+                <div class="stat-label">Active Licenses</div>
                 {% if licenses_expiring_soon > 0 %}
-                <div class="stat-alert">⚠️ {{ licenses_expiring_soon }} por vencer</div>
+                <div class="stat-alert">⚠️ {{ licenses_expiring_soon }} expiring soon</div>
                 {% endif %}
             </div>
 
-            <!-- Riesgos -->
+            <!-- Risks -->
             <div class="stat-card {% if my_risks_count > 0 %}stat-warning{% endif %}">
                 <div class="stat-icon bg-orange">⚠️</div>
                 <div class="stat-value">{{ my_risks_count }}</div>
-                <div class="stat-label">Riesgos Bajo Tu Responsabilidad</div>
+                <div class="stat-label">Risks Under Your Responsibility</div>
                 {% if my_risks_count > 0 %}
-                <a href="#tab-riesgos" class="stat-link">Revisar riesgos →</a>
+                <a href="#tab-riesgos" class="stat-link">Review risks →</a>
                 {% endif %}
             </div>
 
@@ -773,7 +773,7 @@
             <div class="stat-card">
                 <div class="stat-icon bg-gradient">✨</div>
                 <div class="stat-value">{{ personal_health_score }}%</div>
-                <div class="stat-label">Tu Score de Compliance</div>
+                <div class="stat-label">Your Compliance Score</div>
                 <div class="progress-bar">
                     <div class="progress-fill" style="width: {{ personal_health_score }}%"></div>
                 </div>
@@ -784,7 +784,7 @@
     <!-- Task Timeline -->
     <div class="task-timeline" id="tareas">
         <div class="timeline-header">
-            <h3>✅ Tus Tareas Pendientes</h3>
+            <h3>✅ Your Pending Tasks</h3>
         </div>
 
         <div class="timeline-list">
@@ -812,8 +812,8 @@
             {% else %}
             <div class="empty-state">
                 <div class="empty-icon">🎉</div>
-                <h4>¡Todo listo!</h4>
-                <p>No tienes tareas pendientes ahora mismo.</p>
+                <h4>All done!</h4>
+                <p>You have no pending tasks right now.</p>
             </div>
             {% endif %}
         </div>
@@ -821,34 +821,34 @@
 
     <!-- Resources Section with Tabs -->
     <div class="resources-section" id="recursos">
-        <h3>💼 Mis Recursos</h3>
+        <h3>💼 My Resources</h3>
 
         <ul class="nav nav-tabs custom-tabs" role="tablist">
             <li class="nav-item">
                 <a class="nav-link active" data-bs-toggle="tab" href="#tab-equipos">
                     <span class="tab-icon">💻</span>
-                    Equipos
+                    Equipment
                     <span class="tab-count">{{ my_equipment_count }}</span>
                 </a>
             </li>
             <li class="nav-item">
                 <a class="nav-link" data-bs-toggle="tab" href="#tab-licenses">
                     <span class="tab-icon">🔐</span>
-                    Licencias
+                    Licenses
                     <span class="tab-count">{{ my_licenses_count }}</span>
                 </a>
             </li>
             <li class="nav-item">
                 <a class="nav-link" data-bs-toggle="tab" href="#tab-servicios">
                     <span class="tab-icon">🌐</span>
-                    Servicios
+                    Services
                     <span class="tab-count">{{ my_services_count }}</span>
                 </a>
             </li>
             <li class="nav-item">
                 <a class="nav-link" data-bs-toggle="tab" href="#tab-riesgos">
                     <span class="tab-icon">⚠️</span>
-                    Riesgos
+                    Risks
                     <span class="tab-count {% if my_risks_count > 0 %}badge-danger{% endif %}">{{ my_risks_count }}</span>
                 </a>
             </li>
@@ -867,26 +867,26 @@
                         </div>
                         <div class="equipment-info">
                             <h5>{{ asset.name }}</h5>
-                            <p class="text-muted">{{ asset.model or 'Sin modelo' }} • {{ asset.serial_number or 'Sin S/N' }}</p>
+                            <p class="text-muted">{{ asset.model or 'No model' }} • {{ asset.serial_number or 'No S/N' }}</p>
                             <div class="equipment-meta">
-                                <span>📍 {{ asset.location.name if asset.location else 'Sin ubicación' }}</span>
+                                <span>📍 {{ asset.location.name if asset.location else 'No location' }}</span>
                             </div>
 
                             {% if asset.warranty_end_date %}
                             <div class="warranty-status">
                                 <i class="fas fa-shield-alt"></i>
-                                Garantía:
+                                Warranty:
                                 {% if asset.warranty_end_date < today %}
-                                    <span class="text-danger">Expirada</span>
+                                    <span class="text-danger">Expired</span>
                                 {% else %}
-                                    <span class="text-success">Hasta {{ asset.warranty_end_date.strftime('%d/%m/%Y') }}</span>
+                                    <span class="text-success">Until {{ asset.warranty_end_date.strftime('%d/%m/%Y') }}</span>
                                 {% endif %}
                             </div>
                             {% endif %}
 
                             <div class="equipment-actions">
                                 <a href="{{ url_for('assets.asset_detail', id=asset.id) }}" class="btn btn-sm btn-outline-primary">
-                                    Ver detalles →
+                                    View details →
                                 </a>
                             </div>
                         </div>
@@ -896,17 +896,17 @@
                     {% for peripheral in my_peripherals %}
                     <div class="equipment-card">
                         <div class="equipment-image" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-                            <span class="equipment-badge">Periférico</span>
+                            <span class="equipment-badge">Peripheral</span>
                         </div>
                         <div class="equipment-info">
                             <h5>{{ peripheral.name }}</h5>
-                            <p class="text-muted">{{ peripheral.model or 'Sin modelo' }}</p>
+                            <p class="text-muted">{{ peripheral.model or 'No model' }}</p>
                             <div class="equipment-meta">
-                                <span>📍 {{ peripheral.location.name if peripheral.location else 'Sin ubicación' }}</span>
+                                <span>📍 {{ peripheral.location.name if peripheral.location else 'No location' }}</span>
                             </div>
                             <div class="equipment-actions">
                                 <a href="{{ url_for('peripherals.edit_peripheral', id=peripheral.id) }}" class="btn btn-sm btn-outline-primary">
-                                    Ver detalles →
+                                    View details →
                                 </a>
                             </div>
                         </div>
@@ -916,24 +916,24 @@
                     {% if my_equipment_count == 0 %}
                     <div class="empty-state">
                         <div class="empty-icon">📦</div>
-                        <h4>No tienes equipos asignados</h4>
-                        <p>Contacta con IT si necesitas equipamiento</p>
+                        <h4>No equipment assigned</h4>
+                        <p>Contact IT if you need equipment</p>
                     </div>
                     {% endif %}
                 </div>
             </div>
 
-            <!-- Tab: Licencias -->
+            <!-- Tab: Licenses -->
             <div class="tab-pane fade" id="tab-licenses">
                 <div class="table-responsive">
                     <table class="table table-hover">
                         <thead>
                             <tr>
-                                <th>Licencia</th>
+                                <th>License</th>
                                 <th>Software</th>
-                                <th>Clave</th>
-                                <th>Expiración</th>
-                                <th>Acciones</th>
+                                <th>Key</th>
+                                <th>Expiration</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -951,19 +951,19 @@
                                 <td>
                                     {% if license.expiry_date %}
                                         {% if license.expiry_date < today %}
-                                        <span class="badge bg-danger">Expirada</span>
+                                        <span class="badge bg-danger">Expired</span>
                                         {% elif license.expiry_date <= today + timedelta(days=30) %}
                                         <span class="badge bg-warning text-dark">{{ license.expiry_date.strftime('%d/%m/%Y') }}</span>
                                         {% else %}
                                         {{ license.expiry_date.strftime('%d/%m/%Y') }}
                                         {% endif %}
                                     {% else %}
-                                    Perpetua
+                                    Perpetual
                                     {% endif %}
                                 </td>
                                 <td>
                                     <a href="{{ url_for('licenses.detail', id=license.id) }}" class="btn btn-sm btn-link">
-                                        Ver →
+                                        View →
                                     </a>
                                 </td>
                             </tr>
@@ -974,13 +974,13 @@
                     {% if my_licenses_count == 0 %}
                     <div class="empty-state">
                         <div class="empty-icon">🔐</div>
-                        <h4>No tienes licencias asignadas</h4>
+                        <h4>No licenses assigned</h4>
                     </div>
                     {% endif %}
                 </div>
             </div>
 
-            <!-- Tab: Servicios -->
+            <!-- Tab: Services -->
             <div class="tab-pane fade" id="tab-servicios">
                 <div class="row">
                     {% for service in my_services %}
@@ -988,13 +988,13 @@
                         <div class="card">
                             <div class="card-body">
                                 <h5 class="card-title">{{ service.name }}</h5>
-                                <p class="card-text text-muted">{{ service.description[:100] if service.description else 'Sin descripción' }}</p>
+                                <p class="card-text text-muted">{{ service.description[:100] if service.description else 'No description' }}</p>
                                 <div class="d-flex justify-content-between align-items-center">
                                     <span class="badge bg-{{ 'success' if service.status == 'Active' else 'secondary' }}">
                                         {{ service.status }}
                                     </span>
                                     <a href="{{ url_for('services.detail', id=service.id) }}" class="btn btn-sm btn-primary">
-                                        Ver detalles →
+                                        View details →
                                     </a>
                                 </div>
                             </div>
@@ -1006,25 +1006,25 @@
                     <div class="col-12">
                         <div class="empty-state">
                             <div class="empty-icon">🌐</div>
-                            <h4>No tienes servicios asignados</h4>
+                            <h4>No services assigned</h4>
                         </div>
                     </div>
                     {% endif %}
                 </div>
             </div>
 
-            <!-- Tab: Riesgos -->
+            <!-- Tab: Risks -->
             <div class="tab-pane fade" id="tab-riesgos">
                 {% if my_risks_count > 0 %}
                 <div class="table-responsive">
                     <table class="table table-hover">
                         <thead>
                             <tr>
-                                <th>Riesgo</th>
-                                <th>Severidad</th>
-                                <th>Estado</th>
-                                <th>Estrategia</th>
-                                <th>Acciones</th>
+                                <th>Risk</th>
+                                <th>Severity</th>
+                                <th>Status</th>
+                                <th>Strategy</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1041,7 +1041,7 @@
                                 <td>{{ risk.treatment_strategy }}</td>
                                 <td>
                                     <a href="{{ url_for('risk.detail', id=risk.id) }}" class="btn btn-sm btn-link">
-                                        Ver →
+                                        View →
                                     </a>
                                 </td>
                             </tr>
@@ -1052,8 +1052,8 @@
                 {% else %}
                 <div class="empty-state">
                     <div class="empty-icon">✅</div>
-                    <h4>Sin riesgos asignados</h4>
-                    <p>No eres responsable de ningún riesgo actualmente</p>
+                    <h4>No assigned risks</h4>
+                    <p>You are not responsible for any risk currently</p>
                 </div>
                 {% endif %}
             </div>
@@ -1063,26 +1063,26 @@
     <!-- Achievements (Optional) -->
     {% if False %}
     <div class="achievements-section">
-        <h3>🎁 Tus Logros</h3>
+        <h3>🎁 Your Achievements</h3>
         <div class="achievements-grid">
             <div class="achievement {% if courses_completed >= 5 %}unlocked{% endif %}">
                 <div class="achievement-icon">🏆</div>
-                <div class="achievement-name">Aprendiz Constante</div>
-                <div class="achievement-desc">Completa 5 cursos</div>
+                <div class="achievement-name">Constant Learner</div>
+                <div class="achievement-desc">Complete 5 courses</div>
                 <div class="achievement-progress">{{ courses_completed }}/5</div>
             </div>
 
             <div class="achievement {% if incident_free_days >= 90 %}unlocked{% endif %}">
                 <div class="achievement-icon">⭐</div>
-                <div class="achievement-name">Seguridad Máxima</div>
-                <div class="achievement-desc">90 días sin incidentes</div>
-                <div class="achievement-progress">{{ incident_free_days }}/90 días</div>
+                <div class="achievement-name">Maximum Security</div>
+                <div class="achievement-desc">90 days without incidents</div>
+                <div class="achievement-progress">{{ incident_free_days }}/90 days</div>
             </div>
 
             <div class="achievement {% if personal_health_score == 100 %}unlocked{% endif %}">
                 <div class="achievement-icon">✅</div>
-                <div class="achievement-name">Compliance Perfecto</div>
-                <div class="achievement-desc">Mantén 100% de compliance</div>
+                <div class="achievement-name">Perfect Compliance</div>
+                <div class="achievement-desc">Maintain 100% compliance</div>
                 <div class="achievement-progress">{{ personal_health_score }}%</div>
             </div>
         </div>

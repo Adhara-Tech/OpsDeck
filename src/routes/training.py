@@ -20,7 +20,7 @@ training_bp = Blueprint('training', __name__)
 def my_training():
     """Shows the logged-in user their assigned courses."""
     user_id = session.get('user_id')
-    user = User.query.get(user_id) # Directly get the user from the session
+    user = db.session.get(User,user_id) # Directly get the user from the session
 
     if not user:
         flash("Could not find your user profile to display training.", "warning")

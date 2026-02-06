@@ -232,7 +232,7 @@ def activate_version(id):
 def view_version(id):
     version = PolicyVersion.query.get_or_404(id)
     user_id = session.get('user_id')
-    user = User.query.get(user_id)
+    user = db.session.get(User,user_id)
     return render_template('policies/view_version.html', version=version, current_user=user)
 
 @policies_bp.route('/version/<int:id>/acknowledge', methods=['POST'])
@@ -242,7 +242,7 @@ def acknowledge_version(id):
     version = PolicyVersion.query.get_or_404(id)
     user_id = session.get('user_id')
     
-    user = User.query.get(user_id)
+    user = db.session.get(User,user_id)
 
     if not user:
         flash('Could not find a matching business user to log acknowledgement.', 'danger')

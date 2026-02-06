@@ -3,8 +3,9 @@ Tests for src/routes/reports.py
 Covers: subscription_reports, asset_reports, spend_analysis, depreciation_report
 """
 import pytest
-from datetime import date, timedelta
+from datetime import timedelta
 from src import db
+from src.utils.timezone_helper import today
 from src.models import (
     Subscription, Supplier, Asset, User, Group, Peripheral, Location, License, Purchase
 )
@@ -43,7 +44,7 @@ def reports_data(app):
             supplier_id=supplier.id,
             cost=100.0,
             currency="EUR",
-            renewal_date=date.today() + timedelta(days=30),
+            renewal_date=today() + timedelta(days=30),
             renewal_period_type="monthly",
             renewal_period_value=1
         )
@@ -59,7 +60,7 @@ def reports_data(app):
             location_id=location.id,
             cost=1500.0,
             currency="EUR",
-            purchase_date=date.today() - timedelta(days=365),
+            purchase_date=today() - timedelta(days=365),
             warranty_length=24
         )
         asset2 = Asset(
@@ -68,7 +69,7 @@ def reports_data(app):
             status="Available",
             cost=1200.0,
             currency="USD",
-            purchase_date=date.today() - timedelta(days=730)
+            purchase_date=today() - timedelta(days=730)
         )
         db.session.add_all([asset1, asset2])
         db.session.commit()
@@ -81,7 +82,7 @@ def reports_data(app):
             user_id=user.id,
             cost=300.0,
             currency="EUR",
-            purchase_date=date.today() - timedelta(days=180)
+            purchase_date=today() - timedelta(days=180)
         )
         db.session.add(peripheral)
         db.session.commit()
@@ -90,7 +91,7 @@ def reports_data(app):
         purchase = Purchase(
             description="Software Licenses",
             supplier_id=supplier.id,
-            purchase_date=date.today() - timedelta(days=60)
+            purchase_date=today() - timedelta(days=60)
         )
         purchase.users.append(user)
         db.session.add(purchase)
@@ -101,7 +102,7 @@ def reports_data(app):
             license_key="XXX-YYY-ZZZ",
             cost=200.0,
             currency="EUR",
-            purchase_date=date.today() - timedelta(days=60),
+            purchase_date=today() - timedelta(days=60),
             user_id=user.id,
             purchase_id=purchase.id
         )
@@ -127,14 +128,14 @@ def test_subscription_reports_loads(auth_client, reports_data):
 
 def test_subscription_reports_with_year_filter(auth_client, reports_data):
     """Test subscription reports with a specific year filter."""
-    current_year = date.today().year
+    current_year = today().year
     response = auth_client.get(f'/reports/subscription-reports?year={current_year}')
     assert response.status_code == 200
 
 
 def test_subscription_reports_previous_year(auth_client, reports_data):
     """Test subscription reports for a previous year."""
-    previous_year = date.today().year - 1
+    previous_year = today().year - 1
     response = auth_client.get(f'/reports/subscription-reports?year={previous_year}')
     assert response.status_code == 200
 
@@ -267,8 +268,8 @@ def test_spend_analysis_filter_by_location(auth_client, reports_data):
 
 def test_spend_analysis_filter_by_date_range(auth_client, reports_data):
     """Test spend analysis filtered by date range."""
-    start = (date.today() - timedelta(days=400)).strftime('%Y-%m-%d')
-    end = date.today().strftime('%Y-%m-%d')
+    start = (today() - timedelta(days=400)).strftime('%Y-%m-%d')
+    end = today().strftime('%Y-%m-%d')
     response = auth_client.get(f'/reports/spend-analysis?start_date={start}&end_date={end}')
     assert response.status_code == 200
 
@@ -351,8 +352,8 @@ def test_depreciation_report_filter_by_group(auth_client, reports_data):
 
 def test_depreciation_report_date_range(auth_client, reports_data):
     """Test depreciation with date range filter."""
-    start = (date.today() - timedelta(days=800)).strftime('%Y-%m-%d')
-    end = date.today().strftime('%Y-%m-%d')
+    start = (today() - timedelta(days=800)).strftime('%Y-%m-%d')
+    end = today().strftime('%Y-%m-%d')
     response = auth_client.get(f'/reports/depreciation?start_date={start}&end_date={end}')
     assert response.status_code == 200
 

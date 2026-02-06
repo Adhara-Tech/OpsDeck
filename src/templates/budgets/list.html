@@ -19,6 +19,7 @@
 
 <div class="card">
     <div class="card-body">
+        {% if budgets %}
         <div class="table-responsive">
             <table class="table table-striped datatable" id="budgets-table">
                 <thead>
@@ -48,14 +49,18 @@
                             {% endif %}
                         </td>
                     </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="6" class="text-center">No budgets found.</td>
-                    </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+        {% else %}
+        {% set icon = '💰' %}
+        {% set title = 'No Budgets Found' %}
+        {% set message = 'Create budgets to track spending and manage financial resources.' %}
+        {% set action_url = url_for('budgets.new_budget') if can_write('business_ops') else none %}
+        {% set action_text = 'Create First Budget' %}
+        {% include 'components/empty_state.html' %}
+        {% endif %}
     </div>
 </div>
 {% endblock %}

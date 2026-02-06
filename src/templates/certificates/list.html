@@ -16,6 +16,7 @@
 
 <div class="card mb-4">
     <div class="card-body">
+        {% if certificates %}
         <div class="table-responsive">
             <table class="table table-striped datatable" id="certificates-table">
                 <thead>
@@ -76,14 +77,18 @@
                             {% endif %}
                         </td>
                     </tr>
-                    {% else %}
-                    <tr>
-                        <td colspan="7" class="text-center text-muted">No certificates found.</td>
-                    </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+        {% else %}
+        {% set icon = '🔒' %}
+        {% set title = 'No Certificates Found' %}
+        {% set message = 'Manage SSL/TLS certificates and track expiration dates.' %}
+        {% set action_url = url_for('certificates.create_certificate') if can_write('access_control') else none %}
+        {% set action_text = 'Add First Certificate' %}
+        {% include 'components/empty_state.html' %}
+        {% endif %}
     </div>
 </div>
 {% endblock %}

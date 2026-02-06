@@ -97,7 +97,7 @@ def new_change():
         # Handle Tags
         tag_ids = request.form.getlist('tag_ids')
         for tag_id in tag_ids:
-            tag = Tag.query.get(tag_id)
+            tag = db.session.get(Tag,tag_id)
             if tag:
                 change.tags.append(tag)
                 
@@ -204,7 +204,7 @@ def edit_change(id):
         tag_ids = request.form.getlist('tag_ids')
         change.tags = [] # Reset tags
         for tag_id in tag_ids:
-            tag = Tag.query.get(tag_id)
+            tag = db.session.get(Tag,tag_id)
             if tag:
                 change.tags.append(tag)
                 
@@ -243,7 +243,7 @@ def approve_change(id):
         return redirect(url_for('changes.detail_change', id=id))
     change = Change.query.get_or_404(id)
     user_id = session.get('user_id')
-    user = User.query.get(user_id)
+    user = db.session.get(User,user_id)
     
     # SEGREGATION OF DUTIES:
     # Requester cannot approve their own change unless they are admin

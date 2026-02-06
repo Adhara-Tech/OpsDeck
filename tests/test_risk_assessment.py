@@ -158,7 +158,7 @@ def test_lock_assessment_with_sync(auth_client, app, admin_user_id):
         assert b"1 live risk(s) updated" in response.data
         
         # Verify live risk was updated
-        updated_risk = Risk.query.get(live_risk_id)
+        updated_risk = db.session.get(Risk, live_risk_id)
         assert updated_risk.residual_impact == 2
         assert updated_risk.residual_likelihood == 2
         assert updated_risk.residual_score == 4
@@ -206,7 +206,7 @@ def test_lock_assessment_without_sync(auth_client, app, admin_user_id):
         assert b"updated" not in response.data.lower()
         
         # Verify live risk was NOT updated
-        unchanged_risk = Risk.query.get(live_risk_id)
+        unchanged_risk = db.session.get(Risk, live_risk_id)
         assert unchanged_risk.residual_impact == 5
         assert unchanged_risk.residual_likelihood == 5
         assert unchanged_risk.residual_score == 25
@@ -276,10 +276,10 @@ def test_status_change_on_sync(auth_client, app, admin_user_id):
         assert response.status_code == 200
         
         # Verify statuses were updated
-        mitigated = Risk.query.get(mitigate_id)
+        mitigated = db.session.get(Risk, mitigate_id)
         assert mitigated.status == 'Mitigated'
         
-        in_treatment = Risk.query.get(treatment_id)
+        in_treatment = db.session.get(Risk, treatment_id)
         assert in_treatment.status == 'In Treatment'
 
 

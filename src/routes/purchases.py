@@ -38,7 +38,7 @@ def new_purchase():
         
         # Validate budget validity period if budget is selected
         if budget_id:
-            budget = Budget.query.get(budget_id)
+            budget = db.session.get(Budget,budget_id)
             if budget and not budget.is_active(purchase_date):
                 flash('Error: This purchase date is outside the selected Budget\'s validity period.', 'danger')
                 return render_template('purchases/form.html',
@@ -85,7 +85,7 @@ def edit_purchase(id):
         
         # Validate budget validity period if budget is selected
         if budget_id:
-            budget = Budget.query.get(budget_id)
+            budget = db.session.get(Budget,budget_id)
             if budget and not budget.is_active(purchase_date):
                 flash('Error: This purchase date is outside the selected Budget\'s validity period.', 'danger')
                 return render_template('purchases/form.html',

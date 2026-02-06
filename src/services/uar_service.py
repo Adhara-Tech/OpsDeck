@@ -153,7 +153,7 @@ class UARAutomationService:
             subscription_id = source_config.get('subscription_id')
             if not subscription_id:
                 raise ValueError("subscription_id is required for Subscription source")
-            subscription = Subscription.query.get(subscription_id)
+            subscription = db.session.get(Subscription, subscription_id)
             if not subscription:
                 raise ValueError(f"Subscription {subscription_id} not found")
 
@@ -172,7 +172,7 @@ class UARAutomationService:
             service_id = source_config.get('service_id')
             if not service_id:
                 raise ValueError("service_id is required for Business Service source")
-            service = BusinessService.query.get(service_id)
+            service = db.session.get(BusinessService, service_id)
             if not service:
                 raise ValueError(f"Business Service {service_id} not found")
 
@@ -205,7 +205,7 @@ class UARAutomationService:
             # Import here to avoid circular dependency
             try:
                 from opsdeck_enterprise.models.report import Report
-                report = Report.query.get(report_id)
+                report = db.session.get(Report, report_id)
                 if not report:
                     raise ValueError(f"Enterprise Report {report_id} not found")
                 engine.load_from_report(report)

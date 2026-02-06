@@ -240,7 +240,7 @@ def add_participant(id):
     user_id = request.form.get('user_id')
     
     if user_id:
-        user = User.query.get(int(user_id))
+        user = db.session.get(User,int(user_id))
         if user and user not in audit.participants:
             audit.participants.append(user)
             db.session.commit()
@@ -448,13 +448,13 @@ def link_evidence(id):
         return redirect(url_for('audits.view_audit', id=id))
 
     if ev_type == 'onboarding':
-        proc = OnboardingProcess.query.get(ev_id)
+        proc = db.session.get(OnboardingProcess,ev_id)
         if proc and proc not in audit.onboardings:
             audit.onboardings.append(proc)
             db.session.commit()
             flash('Onboarding evidence linked.', 'success')
     elif ev_type == 'offboarding':
-        proc = OffboardingProcess.query.get(ev_id)
+        proc = db.session.get(OffboardingProcess,ev_id)
         if proc and proc not in audit.offboardings:
             audit.offboardings.append(proc)
             db.session.commit()
@@ -479,13 +479,13 @@ def unlink_evidence(id):
     ev_id = request.form.get('process_id')
     
     if ev_type == 'onboarding':
-        proc = OnboardingProcess.query.get(ev_id)
+        proc = db.session.get(OnboardingProcess,ev_id)
         if proc and proc in audit.onboardings:
             audit.onboardings.remove(proc)
             db.session.commit()
             flash('Onboarding evidence removed.', 'success')
     elif ev_type == 'offboarding':
-        proc = OffboardingProcess.query.get(ev_id)
+        proc = db.session.get(OffboardingProcess,ev_id)
         if proc and proc in audit.offboardings:
             audit.offboardings.remove(proc)
             db.session.commit()

@@ -1,6 +1,6 @@
 import pytest
 from src.models import User, Policy, PolicyVersion, db, PolicyAcknowledgement
-from datetime import date
+from src.utils.timezone_helper import today
 
 def test_my_policies_flow(client, app):
     with app.app_context():
@@ -20,7 +20,7 @@ def test_my_policies_flow(client, app):
             policy_id=policy.id,
             version_number="1.0",
             status="Active",
-            effective_date=date.today(),
+            effective_date=today(),
             content="Policy content"
         )
         # Assign to user specifically to test logic
