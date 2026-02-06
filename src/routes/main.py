@@ -422,6 +422,8 @@ def home():
 @requires_permission('health_dashboard', access_level='READ_ONLY')
 def organizational_health():
     """Executive Organizational Health Dashboard."""
+    user_id = session.get('user_id')
+    user = db.session.get(User, user_id)
     current_date = today()
     ninety_days = current_date + timedelta(days=90)
     
@@ -633,6 +635,10 @@ def organizational_health():
         'pending_audits': pending_audits
     }
     
+    # Get user modules and role for template permissions check
+    allowed_modules = get_user_modules(user_id)
+    current_user_role = user.role if user else None
+
     return render_template(
         'organizational_health.html',
         today=today(),
@@ -644,7 +650,9 @@ def organizational_health():
         expiring_count=expiring_count,
         expirations=expirations,
         ops_summary=ops_summary,
-        compliance_summary=compliance_summary
+        compliance_summary=compliance_summary,
+        allowed_modules=allowed_modules,
+        current_user_role=current_user_role
     )
 
 
