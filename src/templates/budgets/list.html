@@ -9,7 +9,7 @@
         <button class="btn btn-outline-success" onclick="exportTableToCSV('budgets-table', 'budgets.csv')">
             <i class="fas fa-file-csv"></i> Export to CSV
         </button>
-        {% if can_write('business_ops') %}
+        {% if can_write('finance') %}
         <a href="{{ url_for('budgets.new_budget') }}" class="btn btn-primary">
             <i class="fas fa-plus"></i> Add Budget
         </a>
@@ -41,7 +41,7 @@
                         <td>{{ budget.period.title() }}</td>
                         <td>{{ budget.currency }}{{ "%.2f"|format(budget.remaining) }}</td>
                         <td>
-                            {% if can_write('business_ops') %}
+                            {% if can_write('finance') %}
                             <a href="{{ url_for('budgets.edit_budget', id=budget.id) }}"
                                 class="btn btn-sm btn-outline-primary me-1" title="Edit">
                                 <i class="fas fa-edit"></i>
@@ -57,7 +57,7 @@
         {% set icon = '💰' %}
         {% set title = 'No Budgets Found' %}
         {% set message = 'Create budgets to track spending and manage financial resources.' %}
-        {% set action_url = url_for('budgets.new_budget') if can_write('business_ops') else none %}
+        {% set action_url = url_for('budgets.new_budget') if can_write('finance') else none %}
         {% set action_text = 'Create First Budget' %}
         {% include 'components/empty_state.html' %}
         {% endif %}

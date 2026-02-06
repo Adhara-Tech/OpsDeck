@@ -5,7 +5,7 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="fas fa-user"></i> {{ contact.name }}</h2>
-    {% if can_write('business_ops') %}
+    {% if can_write('procurement') %}
     <a href="{{ url_for('contacts.edit_contact', id=contact.id) }}" class="btn btn-outline-primary">
         <i class="fas fa-edit"></i> Edit Contact
     </a>
