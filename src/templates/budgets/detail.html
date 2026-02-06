@@ -15,7 +15,7 @@
             {% endif %}
         </h2>
     </div>
-    {% if can_write('business_ops') %}
+    {% if can_write('finance') %}
     <a href="{{ url_for('budgets.edit_budget', id=budget.id) }}" class="btn btn-outline-primary">
         <i class="fas fa-edit"></i> Edit Budget
     </a>

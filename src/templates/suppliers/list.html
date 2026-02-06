@@ -12,7 +12,7 @@
         <a href="{{ url_for('suppliers.archived_suppliers') }}" class="btn btn-outline-secondary">
             <i class="fas fa-archive"></i> View Archived
         </a>
-        {% if can_write('business_ops') %}
+        {% if can_write('procurement') %}
         <a href="{{ url_for('suppliers.new_supplier') }}" class="btn btn-primary">
             <i class="fas fa-plus"></i> Add Supplier
         </a>
@@ -44,7 +44,7 @@
                         <td>{{ supplier.phone or '-' }}</td>
                         <td><span class="badge bg-info">{{ supplier.subscriptions|length }}</span></td>
                         <td>
-                            {% if can_write('business_ops') %}
+                            {% if can_write('procurement') %}
                             <a href="{{ url_for('suppliers.edit_supplier', id=supplier.id) }}"
                                 class="btn btn-sm btn-outline-primary me-1" title="Edit">
                                 <i class="fas fa-edit"></i>
@@ -74,7 +74,7 @@
         {% set icon = '🏢' %}
         {% set title = 'No Suppliers Found' %}
         {% set message = 'Add suppliers to manage vendor relationships and subscriptions.' %}
-        {% set action_url = url_for('suppliers.new_supplier') if can_write('business_ops') else none %}
+        {% set action_url = url_for('suppliers.new_supplier') if can_write('procurement') else none %}
         {% set action_text = 'Add First Supplier' %}
         {% include 'components/empty_state.html' %}
         {% endif %}

@@ -31,7 +31,7 @@
                             <label for="code" class="form-label">Code <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="code" name="code"
                                 value="{{ cost_center.code if cost_center else '' }}" required maxlength="50"
-                                placeholder="e.g., CC001, IT-DEPT" {% if not can_write('business_ops') %}disabled{%
+                                placeholder="e.g., CC001, IT-DEPT" {% if not can_write('finance') %}disabled{%
                                 endif %}>
                             <small class="form-text text-muted">Unique identifier for the cost center</small>
                         </div>
@@ -41,7 +41,7 @@
                             <label for="name" class="form-label">Name <span class="text-danger">*</span></label>
                             <input type="text" class="form-control" id="name" name="name"
                                 value="{{ cost_center.name if cost_center else '' }}" required maxlength="200"
-                                placeholder="e.g., IT Department" {% if not can_write('business_ops') %}disabled{% endif
+                                placeholder="e.g., IT Department" {% if not can_write('finance') %}disabled{% endif
                                 %}>
                             <small class="form-text text-muted">Full name of the cost center</small>
                         </div>
@@ -51,7 +51,7 @@
                 <div class="mb-3">
                     <label for="description" class="form-label">Description</label>
                     <textarea class="form-control" id="description" name="description" rows="4"
-                        placeholder="Optional description of the cost center" {% if not can_write('business_ops')
+                        placeholder="Optional description of the cost center" {% if not can_write('finance')
                         %}disabled{% endif
                         %}>{{ cost_center.description if cost_center and cost_center.description else '' }}</textarea>
                 </div>
@@ -60,7 +60,7 @@
                     <a href="{{ url_for('cost_centers.list_cost_centers') }}" class="btn btn-secondary">
                         <i class="fas fa-times"></i> Cancel
                     </a>
-                    {% if can_write('business_ops') %}
+                    {% if can_write('finance') %}
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-save"></i> {{ 'Update' if cost_center else 'Create' }} Cost Center
                     </button>

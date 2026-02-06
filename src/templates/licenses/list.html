@@ -3,7 +3,7 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="fas fa-id-badge"></i> Licenses</h2>
-    {% if can_write('access_control') %}
+    {% if can_write('core_inventory') %}
     <a href="{{ url_for('licenses.add_license') }}" class="btn btn-primary"><i class="fas fa-plus"></i> Add License</a>
     {% endif %}
 </div>
@@ -49,7 +49,7 @@
         {% set icon = '🎓' %}
         {% set title = 'No Licenses Found' %}
         {% set message = 'Track software licenses and their assignments to users.' %}
-        {% set action_url = url_for('licenses.add_license') if can_write('access_control') else none %}
+        {% set action_url = url_for('licenses.add_license') if can_write('core_inventory') else none %}
         {% set action_text = 'Add First License' %}
         {% include 'components/empty_state.html' %}
         {% endif %}
