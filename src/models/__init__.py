@@ -26,4 +26,5 @@ from .finance import FinanceSettings, ExchangeRate
 from .change import Change
 from .contracts import Contract, ContractItem
 from .hiring import HiringStage, Candidate
+from .audit_log import AuditLog
 

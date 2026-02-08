@@ -258,9 +258,127 @@ def permissions_matrix():
 
     active_tab = request.args.get('tab', 'users')
     
-    return render_template('admin/permissions_matrix.html', 
-                         modules=modules, 
-                         users=users, 
-                         groups=groups, 
+    return render_template('admin/permissions_matrix.html',
+                         modules=modules,
+                         users=users,
+                         groups=groups,
                          matrix=matrix,
                          active_tab=active_tab)
+
+
+# --- Audit Log ---
+
+from ..models.audit_log import AuditLog
+import json
+
+@admin_bp.route('/audit-log')
+@login_required
+@requires_permission('administration', access_level='READ_ONLY')
+def audit_log():
+    """
+    Display audit log with server-side pagination and filtering.
+    """
+    # Pagination
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 50, type=int)
+    per_page = min(per_page, 100)  # Max 100 per page
+
+    # Filters
+    entity_type = request.args.get('entity_type')
+    action = request.args.get('action')
+    user_id = request.args.get('user_id', type=int)
+    date_from = request.args.get('date_from')
+    date_to = request.args.get('date_to')
+    search = request.args.get('search')
+
+    # Build query
+    query = AuditLog.query
+
+    if entity_type:
+        query = query.filter(AuditLog.entity_type == entity_type)
+
+    if action:
+        query = query.filter(AuditLog.action == action)
+
+    if user_id:
+        query = query.filter(AuditLog.user_id == user_id)
+
+    if date_from:
+        from datetime import datetime
+        try:
+            date_from_obj = datetime.strptime(date_from, '%Y-%m-%d')
+            query = query.filter(AuditLog.timestamp >= date_from_obj)
+        except ValueError:
+            pass
+
+    if date_to:
+        from datetime import datetime
+        try:
+            date_to_obj = datetime.strptime(date_to, '%Y-%m-%d')
+            # Add one day to include the entire day
+            from dateutil.relativedelta import relativedelta
+            date_to_obj = date_to_obj + relativedelta(days=1)
+            query = query.filter(AuditLog.timestamp < date_to_obj)
+        except ValueError:
+            pass
+
+    if search:
+        search_pattern = f"%{search}%"
+        query = query.filter(AuditLog.entity_repr.ilike(search_pattern))
+
+    # Order by timestamp descending (newest first)
+    query = query.order_by(AuditLog.timestamp.desc())
+
+    # Paginate
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+
+    # Get distinct entity types and users for filters
+    entity_types = db.session.query(AuditLog.entity_type).distinct().order_by(AuditLog.entity_type).all()
+    entity_types = [et[0] for et in entity_types if et[0]]
+
+    users = User.query.filter_by(is_archived=False).order_by(User.name).all()
+
+    return render_template('admin/audit_log.html',
+                          entries=pagination.items,
+                          pagination=pagination,
+                          entity_types=entity_types,
+                          users=users,
+                          filters={
+                              'entity_type': entity_type,
+                              'action': action,
+                              'user_id': user_id,
+                              'date_from': date_from,
+                              'date_to': date_to,
+                              'search': search,
+                              'per_page': per_page
+                          })
+
+
+@admin_bp.route('/audit-log/<int:id>/detail')
+@login_required
+@requires_permission('administration', access_level='READ_ONLY')
+def audit_log_detail(id):
+    """
+    Get detailed information about a specific audit log entry (for AJAX).
+    """
+    from flask import jsonify
+    entry = AuditLog.query.get_or_404(id)
+
+    changes = None
+    if entry.changes:
+        try:
+            changes = json.loads(entry.changes)
+        except:
+            changes = {"error": "Could not parse changes"}
+
+    return jsonify({
+        'id': entry.id,
+        'timestamp': entry.timestamp.isoformat(),
+        'user_email': entry.user_email,
+        'ip_address': entry.ip_address,
+        'action': entry.action,
+        'entity_type': entry.entity_type,
+        'entity_id': entry.entity_id,
+        'entity_repr': entry.entity_repr,
+        'changes': changes
+    })
