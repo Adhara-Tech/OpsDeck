@@ -446,15 +446,17 @@ def calendar_events():
             while next_renewal and next_renewal < end_date:
                 if next_renewal >= start_date:
                     events.append({
-                        'id': subscription.id,
-                        'title': subscription.name,
+                        'id': f'sub-{subscription.id}',
+                        'title': f'📋 {subscription.name}',
                         'start': next_renewal.isoformat(),
                         'backgroundColor': '#007bff',
                         'borderColor': '#007bff',
                         'url': url_for('subscriptions.subscription_detail', id=subscription.id),
                         'extendedProps': {
-                            'subscription_name': subscription.name,
-                            'cost_eur': f"€{subscription.cost_eur:.2f}"
+                            'type': 'subscription',
+                            'name': subscription.name,
+                            'cost_eur': f"€{subscription.cost_eur:.2f}",
+                            'auto_renew': True
                         }
                     })
                 next_renewal = subscription.get_renewal_date_after(next_renewal)
@@ -463,17 +465,99 @@ def calendar_events():
             renewal_date = subscription.renewal_date
             if start_date <= renewal_date < end_date:
                 events.append({
-                    'id': subscription.id,
-                    'title': f"{subscription.name} (Expira)",
+                    'id': f'sub-{subscription.id}',
+                    'title': f'📋 {subscription.name} (Expira)',
                     'start': renewal_date.isoformat(),
                     'backgroundColor': '#ffc107',
                     'borderColor': '#ffc107',
                     'url': url_for('subscriptions.subscription_detail', id=subscription.id),
                     'extendedProps': {
-                        'subscription_name': subscription.name,
-                        'cost_eur': f"€{subscription.cost_eur:.2f}"
+                        'type': 'subscription',
+                        'name': subscription.name,
+                        'cost_eur': f"€{subscription.cost_eur:.2f}",
+                        'auto_renew': False
                     }
                 })
+
+    # ============================================
+    # 2. CONTRACTS
+    # ============================================
+    all_active_contracts = Contract.query.filter(Contract.status == 'Active').all()
+
+    for contract in all_active_contracts:
+        # Only show contracts that end within the date range
+        if start_date <= contract.end_date < end_date:
+            if contract.is_auto_renew:
+                title = f'📄 {contract.name} (Renueva)'
+                color = '#28a745'  # Green
+            else:
+                title = f'📄 {contract.name} (Expira)'
+                color = '#fd7e14'  # Orange
+
+            events.append({
+                'id': f'contract-{contract.id}',
+                'title': title,
+                'start': contract.end_date.isoformat(),
+                'backgroundColor': color,
+                'borderColor': color,
+                'url': url_for('contracts.contract_detail', id=contract.id),
+                'extendedProps': {
+                    'type': 'contract',
+                    'name': contract.name,
+                    'auto_renew': contract.is_auto_renew
+                }
+            })
+
+    # ============================================
+    # 3. CERTIFICATES (Active Versions)
+    # ============================================
+    # Get all active certificate versions expiring in the date range
+    expiring_cert_versions = CertificateVersion.query.filter(
+        CertificateVersion.is_active == True,
+        CertificateVersion.expires_at >= start_date,
+        CertificateVersion.expires_at < end_date
+    ).all()
+
+    for cert_version in expiring_cert_versions:
+        events.append({
+            'id': f'cert-{cert_version.certificate.id}',
+            'title': f'🔒 {cert_version.certificate.name} (Expira)',
+            'start': cert_version.expires_at.isoformat(),
+            'backgroundColor': '#dc3545',  # Red
+            'borderColor': '#dc3545',
+            'url': url_for('certificates.certificate_detail', id=cert_version.certificate.id),
+            'extendedProps': {
+                'type': 'certificate',
+                'name': cert_version.certificate.name,
+                'issuer': cert_version.issuer
+            }
+        })
+
+    # ============================================
+    # 4. CREDENTIALS (Active Secrets)
+    # ============================================
+    # Get all active credential secrets expiring in the date range
+    expiring_secrets = CredentialSecret.query.filter(
+        CredentialSecret.is_active == True,
+        CredentialSecret.expires_at.isnot(None),
+        CredentialSecret.expires_at >= start_date,
+        CredentialSecret.expires_at < end_date
+    ).all()
+
+    for secret in expiring_secrets:
+        events.append({
+            'id': f'cred-{secret.credential.id}',
+            'title': f'🔑 {secret.credential.name} (Expira)',
+            'start': secret.expires_at.date().isoformat(),
+            'backgroundColor': '#6f42c1',  # Purple
+            'borderColor': '#6f42c1',
+            'url': url_for('credentials.detail_credential', id=secret.credential.id),
+            'extendedProps': {
+                'type': 'credential',
+                'name': secret.credential.name,
+                'credential_type': secret.credential.type
+            }
+        })
 
     return jsonify(events)
 
