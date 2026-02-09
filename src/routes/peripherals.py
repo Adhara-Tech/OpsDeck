@@ -5,7 +5,7 @@ from datetime import datetime
 from ..models import db, Peripheral, Asset, Purchase, Supplier, User, PeripheralAssignment
 from ..models.core import CustomFieldDefinition
 from .main import login_required
-from ..services.permissions_service import requires_permission
+from ..services.permissions_service import requires_permission, has_write_permission
 from src.utils.timezone_helper import now
 
 
@@ -34,18 +34,7 @@ def new_peripheral():
     custom_field_definitions = CustomFieldDefinition.query.filter_by(entity_type='Peripheral').all()
     
     if request.method == 'POST':
-        # Manual check for WRITE access
-        from ..services.permissions_cache import permissions_cache
-        from ..services.permissions_service import get_user_modules
-        from flask import session
-        user_id = session.get('user_id')
-        user_role = session.get('user_role')
-        if user_role != 'admin':
-            perms = permissions_cache.get(user_id)
-            if perms is None:
-                get_user_modules(user_id)
-                perms = permissions_cache.get(user_id)
-            if perms.get('core_inventory') != 'WRITE':
+        if not has_write_permission('core_inventory'):
                 flash('Write access required for this action.', 'danger')
                 return redirect(url_for('peripherals.peripherals'))
         peripheral = Peripheral(
@@ -81,18 +70,7 @@ def edit_peripheral(id):
     peripheral = Peripheral.query.get_or_404(id)
     
     if request.method == 'POST':
-        # Manual check for WRITE access
-        from ..services.permissions_cache import permissions_cache
-        from ..services.permissions_service import get_user_modules
-        from flask import session
-        user_id = session.get('user_id')
-        user_role = session.get('user_role')
-        if user_role != 'admin':
-            perms = permissions_cache.get(user_id)
-            if perms is None:
-                get_user_modules(user_id)
-                perms = permissions_cache.get(user_id)
-            if perms.get('core_inventory') != 'WRITE':
+        if not has_write_permission('core_inventory'):
                 flash('Write access required for this action.', 'danger')
                 return redirect(url_for('peripherals.peripheral_detail', id=id))
         # Enforce EoL Workflow
@@ -150,18 +128,7 @@ def checkout_peripheral(id):
         return redirect(url_for('peripherals.peripheral_detail', id=id))
 
     if request.method == 'POST':
-        # Manual check for WRITE access
-        from ..services.permissions_cache import permissions_cache
-        from ..services.permissions_service import get_user_modules
-        from flask import session
-        user_id = session.get('user_id')
-        user_role = session.get('user_role')
-        if user_role != 'admin':
-            perms = permissions_cache.get(user_id)
-            if perms is None:
-                get_user_modules(user_id)
-                perms = permissions_cache.get(user_id)
-            if perms.get('core_inventory') != 'WRITE':
+        if not has_write_permission('core_inventory'):
                 flash('Write access required for this action.', 'danger')
                 return redirect(url_for('peripherals.peripheral_detail', id=id))
         user_id = request.form.get('user_id')

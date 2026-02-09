@@ -5,7 +5,7 @@ from ..extensions import db
 from ..models.core import CostCenter
 from ..models.services import BusinessService
 from .main import login_required
-from ..services.permissions_service import requires_permission
+from ..services.permissions_service import requires_permission, has_write_permission
 
 cost_centers_bp = Blueprint('cost_centers', __name__)
 
@@ -29,18 +29,7 @@ def list_cost_centers():
 def new_cost_center():
     """Create a new cost center."""
     if request.method == 'POST':
-        # Manual check for WRITE access
-        from ..services.permissions_cache import permissions_cache
-        from ..services.permissions_service import get_user_modules
-        from flask import session
-        user_id = session.get('user_id')
-        user_role = session.get('user_role')
-        if (user_role or session.get('role')) != 'admin':
-            perms = permissions_cache.get(user_id)
-            if perms is None:
-                get_user_modules(user_id)
-                perms = permissions_cache.get(user_id)
-            if perms.get('finance') != 'WRITE':
+        if not has_write_permission('finance'):
                 flash('Write access required for this action.', 'danger')
                 return redirect(url_for('cost_centers.list_cost_centers'))
         code = request.form.get('code', '').strip()
@@ -99,18 +88,7 @@ def edit(id):
     cost_center = CostCenter.query.get_or_404(id)
     
     if request.method == 'POST':
-        # Manual check for WRITE access
-        from ..services.permissions_cache import permissions_cache
-        from ..services.permissions_service import get_user_modules
-        from flask import session
-        user_id = session.get('user_id')
-        user_role = session.get('user_role')
-        if (user_role or session.get('role')) != 'admin':
-            perms = permissions_cache.get(user_id)
-            if perms is None:
-                get_user_modules(user_id)
-                perms = permissions_cache.get(user_id)
-            if perms.get('finance') != 'WRITE':
+        if not has_write_permission('finance'):
                 flash('Write access required for this action.', 'danger')
                 return redirect(url_for('cost_centers.detail', id=id))
         code = request.form.get('code', '').strip()

@@ -1,7 +1,7 @@
 from datetime import datetime
 from flask import Blueprint, render_template, request, flash, redirect, url_for
 from ..models import db, Certificate, CertificateVersion, User, BusinessService
-from ..services.permissions_service import requires_permission
+from ..services.permissions_service import requires_permission, has_write_permission
 from src.utils.logger import log_audit
 from .main import login_required
 
@@ -21,18 +21,7 @@ def list_certificates():
 @requires_permission('core_inventory', access_level='READ_ONLY')
 def create_certificate():
     if request.method == 'POST':
-        # Manual check for WRITE access
-        from ..services.permissions_cache import permissions_cache
-        from ..services.permissions_service import get_user_modules
-        from flask import session
-        user_id = session.get('user_id')
-        user_role = session.get('user_role')
-        if (user_role or session.get('role')) != 'admin':
-            perms = permissions_cache.get(user_id)
-            if perms is None:
-                get_user_modules(user_id)
-                perms = permissions_cache.get(user_id)
-            if perms.get('core_inventory') != 'WRITE':
+        if not has_write_permission('core_inventory'):
                 flash('Write access required for this action.', 'danger')
                 return redirect(url_for('certificates.list_certificates'))
         # 1. Create Certificate
@@ -105,18 +94,7 @@ def edit_certificate(id):
     cert = Certificate.query.get_or_404(id)
     
     if request.method == 'POST':
-        # Manual check for WRITE access
-        from ..services.permissions_cache import permissions_cache
-        from ..services.permissions_service import get_user_modules
-        from flask import session
-        user_id = session.get('user_id')
-        user_role = session.get('user_role')
-        if (user_role or session.get('role')) != 'admin':
-            perms = permissions_cache.get(user_id)
-            if perms is None:
-                get_user_modules(user_id)
-                perms = permissions_cache.get(user_id)
-            if perms.get('core_inventory') != 'WRITE':
+        if not has_write_permission('core_inventory'):
                 flash('Write access required for this action.', 'danger')
                 return redirect(url_for('certificates.certificate_detail', id=id))
         cert.name = request.form.get('name')
@@ -151,18 +129,7 @@ def new_version(id):
     cert = Certificate.query.get_or_404(id)
     
     if request.method == 'POST':
-        # Manual check for WRITE access
-        from ..services.permissions_cache import permissions_cache
-        from ..services.permissions_service import get_user_modules
-        from flask import session
-        user_id = session.get('user_id')
-        user_role = session.get('user_role')
-        if (user_role or session.get('role')) != 'admin':
-            perms = permissions_cache.get(user_id)
-            if perms is None:
-                get_user_modules(user_id)
-                perms = permissions_cache.get(user_id)
-            if perms.get('core_inventory') != 'WRITE':
+        if not has_write_permission('core_inventory'):
                 flash('Write access required for this action.', 'danger')
                 return redirect(url_for('certificates.certificate_detail', id=id))
         expires_at_str = request.form.get('expires_at')

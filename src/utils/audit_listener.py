@@ -198,20 +198,17 @@ def _after_commit(session):
     from src.utils.timezone_helper import now
 
     try:
-        # Use bulk_insert_mappings for performance
-        # Add timestamp to each entry
         for entry in audit_entries:
             entry['timestamp'] = now()
 
-        # Insert all audit entries in a single operation
-        session.bulk_insert_mappings(AuditLog, audit_entries)
-        session.commit()
+        # Use a separate connection to avoid "committed state" session error
+        bind = session.get_bind()
+        with bind.connect() as conn:
+            conn.execute(AuditLog.__table__.insert(), audit_entries)
+            conn.commit()
     except Exception as e:
-        # If audit logging fails, just log the error and continue
-        # We don't want audit logging to break the application
         import sys
         print(f"Error writing audit log: {e}", file=sys.stderr)
-        session.rollback()
     finally:
         # Clear the accumulated entries
         session.info['_audit_entries'] = []

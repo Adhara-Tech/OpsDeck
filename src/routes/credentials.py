@@ -4,7 +4,7 @@ from ..models import db, User
 from ..models.credentials import Credential, CredentialSecret
 from ..models.services import BusinessService
 from ..models.assets import Software, License, Asset
-from ..services.permissions_service import requires_permission
+from ..services.permissions_service import requires_permission, has_write_permission
 from .main import login_required
 
 credentials_bp = Blueprint('credentials', __name__, url_prefix='/credentials')
@@ -125,20 +125,9 @@ def new_credential():
     Create a new credential with its first secret.
     """
     if request.method == 'POST':
-        # Manual check for WRITE access
-        from ..services.permissions_cache import permissions_cache
-        from ..services.permissions_service import get_user_modules
-        from flask import session
-        user_id = session.get('user_id')
-        user_role = session.get('user_role')
-        if (user_role or session.get('role')) != 'admin':
-            perms = permissions_cache.get(user_id)
-            if perms is None:
-                get_user_modules(user_id)
-                perms = permissions_cache.get(user_id)
-            if perms.get('core_inventory') != 'WRITE':
-                flash('Write access required for this action.', 'danger')
-                return redirect(url_for('credentials.list_credentials'))
+        if not has_write_permission('core_inventory'):
+            flash('Write access required for this action.', 'danger')
+            return redirect(url_for('credentials.list_credentials'))
         # Extract form data
         name = request.form.get('name')
         cred_type = request.form.get('type')
@@ -264,20 +253,9 @@ def edit_credential(id):
     credential = Credential.query.get_or_404(id)
     
     if request.method == 'POST':
-        # Manual check for WRITE access
-        from ..services.permissions_cache import permissions_cache
-        from ..services.permissions_service import get_user_modules
-        from flask import session
-        user_id = session.get('user_id')
-        user_role = session.get('user_role')
-        if (user_role or session.get('role')) != 'admin':
-            perms = permissions_cache.get(user_id)
-            if perms is None:
-                get_user_modules(user_id)
-                perms = permissions_cache.get(user_id)
-            if perms.get('core_inventory') != 'WRITE':
-                flash('Write access required for this action.', 'danger')
-                return redirect(url_for('credentials.detail_credential', id=id))
+        if not has_write_permission('core_inventory'):
+            flash('Write access required for this action.', 'danger')
+            return redirect(url_for('credentials.detail_credential', id=id))
         # Extract form data
         name = request.form.get('name')
         cred_type = request.form.get('type')
