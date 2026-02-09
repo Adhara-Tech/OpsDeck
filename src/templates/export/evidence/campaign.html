@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Campaign: {{ evidence.title }}</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
+        .card { background: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .header { border-bottom: 3px solid #fd7e14; padding-bottom: 15px; margin-bottom: 20px; }
+        h1 { color: #fd7e14; font-size: 1.8em; margin-bottom: 10px; }
+        .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.85em; font-weight: 600; margin-right: 10px; }
+        .badge-warning { background: #fff3cd; color: #856404; }
+        .badge-info { background: #d1ecf1; color: #0c5460; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th { text-align: left; padding: 10px; background: #f8f9fa; font-weight: 600; width: 30%; }
+        td { padding: 10px; border-bottom: 1px solid #eee; }
+        .description { background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0; }
+        .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 0.85em; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="header">
+            <span class="badge badge-warning">📧 Campaign</span>
+            <span class="badge badge-info">Automated Evidence</span>
+            <h1>{{ evidence.title }}</h1>
+        </div>
+
+        {% if evidence.description %}
+        <div class="description">
+            {{ evidence.description }}
+        </div>
+        {% endif %}
+
+        <table>
+            <tr>
+                <th>Control:</th>
+                <td>{{ link.audit_item.control_code }} - {{ link.audit_item.control_title }}</td>
+            </tr>
+            {% if evidence.processed_at %}
+            <tr>
+                <th>Processed Date:</th>
+                <td>{{ evidence.processed_at.strftime('%Y-%m-%d %H:%M') }}</td>
+            </tr>
+            {% endif %}
+            {% if evidence.recipient_count %}
+            <tr>
+                <th>Recipients:</th>
+                <td>{{ evidence.recipient_count }}</td>
+            </tr>
+            {% endif %}
+            {% if evidence.template %}
+            <tr>
+                <th>Template:</th>
+                <td>{{ evidence.template.name if hasattr(evidence.template, 'name') else evidence.template }}</td>
+            </tr>
+            {% endif %}
+            {% if evidence.sent_by %}
+            <tr>
+                <th>Sent By:</th>
+                <td>{{ evidence.sent_by.name }}</td>
+            </tr>
+            {% endif %}
+        </table>
+
+        <p style="background: #d1ecf1; padding: 15px; border-radius: 5px; border-left: 4px solid #17a2b8;">
+            <strong>ℹ️ About This Evidence:</strong> This campaign demonstrates compliance through automated communication records. The campaign was successfully processed and delivered to the intended recipients.
+        </p>
+
+        <div class="footer">
+            Generated: {{ generated_at.strftime('%Y-%m-%d %H:%M:%S') }}<br>
+            Audit: {{ audit.name }}
+        </div>
+    </div>
+</body>
+</html>

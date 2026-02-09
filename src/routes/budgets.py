@@ -3,7 +3,7 @@ from flask import (
 )
 from datetime import datetime
 from ..models import db, Budget
-from ..services.permissions_service import requires_permission
+from ..services.permissions_service import requires_permission, has_write_permission
 from .main import login_required
 
 budgets_bp = Blueprint('budgets', __name__)
@@ -27,18 +27,7 @@ def budget_detail(id):
 @requires_permission('finance', access_level='READ_ONLY')
 def new_budget():
     if request.method == 'POST':
-        # Manual check for WRITE access
-        from ..services.permissions_cache import permissions_cache
-        from ..services.permissions_service import get_user_modules
-        from flask import session
-        user_id = session.get('user_id')
-        user_role = session.get('user_role')
-        if (user_role or session.get('role')) != 'admin':
-            perms = permissions_cache.get(user_id)
-            if perms is None:
-                get_user_modules(user_id)
-                perms = permissions_cache.get(user_id)
-            if perms.get('finance') != 'WRITE':
+        if not has_write_permission('finance'):
                 flash('Write access required for this action.', 'danger')
                 return redirect(url_for('budgets.budgets'))
 
@@ -75,18 +64,7 @@ def edit_budget(id):
     budget = Budget.query.get_or_404(id)
 
     if request.method == 'POST':
-        # Manual check for WRITE access
-        from ..services.permissions_cache import permissions_cache
-        from ..services.permissions_service import get_user_modules
-        from flask import session
-        user_id = session.get('user_id')
-        user_role = session.get('user_role')
-        if (user_role or session.get('role')) != 'admin':
-            perms = permissions_cache.get(user_id)
-            if perms is None:
-                get_user_modules(user_id)
-                perms = permissions_cache.get(user_id)
-            if perms.get('finance') != 'WRITE':
+        if not has_write_permission('finance'):
                 flash('Write access required for this action.', 'danger')
                 return redirect(url_for('budgets.budget_detail', id=id))
 

@@ -739,3 +739,41 @@ def search_linkable_api():
         results = [{'id': item.id, 'name': item.name, 'type': 'Org Chart Snapshot'} for item in items]
     
     return jsonify(results)
+
+
+# --- Export Defense Pack ---
+
+@audits_bp.route('/<int:id>/export-pack', methods=['POST'])
+@login_required
+@requires_permission('compliance')
+def export_defense_pack(id):
+    """
+    Generate and download a complete defense pack for an audit.
+
+    This creates a ZIP file containing:
+    - Main report document
+    - Evidence documents organized by control
+    - All attachments
+    - External links manifest
+    """
+    from ..services.audit_export_service import export_audit_pack
+    from flask import send_file
+    import os
+
+    audit = ComplianceAudit.query.get_or_404(id)
+
+    try:
+        # Generate the export pack
+        zip_path, stats = export_audit_pack(id)
+
+        # Send the file to the user
+        return send_file(
+            zip_path,
+            as_attachment=True,
+            download_name=os.path.basename(zip_path),
+            mimetype='application/zip'
+        )
+
+    except Exception as e:
+        flash(f'Error generating defense pack: {str(e)}', 'danger')
+        return redirect(url_for('audits.audit_detail', id=id))

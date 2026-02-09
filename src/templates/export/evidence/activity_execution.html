@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Activity Execution: {{ evidence.activity.name if evidence.activity else 'Activity' }}</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
+        .card { background: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .header { border-bottom: 3px solid #20c997; padding-bottom: 15px; margin-bottom: 20px; }
+        h1 { color: #20c997; font-size: 1.8em; margin-bottom: 10px; }
+        .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.85em; font-weight: 600; margin-right: 10px; }
+        .badge-success { background: #d4edda; color: #155724; }
+        .badge-info { background: #d1ecf1; color: #0c5460; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th { text-align: left; padding: 10px; background: #f8f9fa; font-weight: 600; width: 30%; }
+        td { padding: 10px; border-bottom: 1px solid #eee; }
+        .description { background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0; }
+        .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 0.85em; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="header">
+            <span class="badge badge-success">✅ Activity Execution</span>
+            <span class="badge badge-info">Automated Evidence</span>
+            <h1>{{ evidence.activity.name if evidence.activity else 'Activity Execution' }}</h1>
+        </div>
+
+        <table>
+            <tr>
+                <th>Control:</th>
+                <td>{{ link.audit_item.control_code }} - {{ link.audit_item.control_title }}</td>
+            </tr>
+            {% if evidence.activity %}
+            <tr>
+                <th>Activity:</th>
+                <td>{{ evidence.activity.name }}</td>
+            </tr>
+            {% endif %}
+            {% if evidence.execution_date %}
+            <tr>
+                <th>Execution Date:</th>
+                <td>{{ evidence.execution_date.strftime('%Y-%m-%d') }}</td>
+            </tr>
+            {% endif %}
+            {% if evidence.executed_by %}
+            <tr>
+                <th>Executed By:</th>
+                <td>{{ evidence.executed_by.name }}</td>
+            </tr>
+            {% endif %}
+            {% if evidence.status %}
+            <tr>
+                <th>Status:</th>
+                <td>
+                    <span class="badge badge-success">{{ evidence.status }}</span>
+                </td>
+            </tr>
+            {% endif %}
+        </table>
+
+        {% if evidence.notes %}
+        <h3>Execution Notes</h3>
+        <div class="description">
+            {{ evidence.notes }}
+        </div>
+        {% endif %}
+
+        <p style="background: #d4edda; padding: 15px; border-radius: 5px; border-left: 4px solid #28a745;">
+            <strong>✓ Compliance Evidence:</strong> This activity execution demonstrates that the required security activity was performed as scheduled, contributing to compliance with the associated control.
+        </p>
+
+        {% if evidence.attachments %}
+        <h3>📎 Execution Evidence</h3>
+        <ul>
+            {% for att in evidence.attachments %}
+            <li><a href="./attachments/{{ att.filename }}">{{ att.filename }}</a></li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        <div class="footer">
+            Generated: {{ generated_at.strftime('%Y-%m-%d %H:%M:%S') }}<br>
+            Audit: {{ audit.name }}
+        </div>
+    </div>
+</body>
+</html>

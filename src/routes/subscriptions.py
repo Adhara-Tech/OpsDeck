@@ -5,7 +5,7 @@ from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
 from ..models import db, Subscription, Supplier, Contact, PaymentMethod, Tag, CostHistory, Software, Budget, User
 from ..services.finance_service import get_conversion_rate
-from ..services.permissions_service import requires_permission
+from ..services.permissions_service import requires_permission, has_write_permission
 from .main import login_required
 from src.utils.timezone_helper import today
 
@@ -95,18 +95,7 @@ def new_subscription():
     users = User.query.filter_by(is_archived=False).all()
 
     if request.method == 'POST':
-        # Manual check for WRITE access
-        from ..services.permissions_cache import permissions_cache
-        from ..services.permissions_service import get_user_modules
-        from flask import session
-        user_id = session.get('user_id')
-        user_role = session.get('user_role')
-        if (user_role or session.get('role')) != 'admin':
-            perms = permissions_cache.get(user_id)
-            if perms is None:
-                get_user_modules(user_id)
-                perms = permissions_cache.get(user_id)
-            if perms.get('core_inventory') != 'WRITE':
+        if not has_write_permission('core_inventory'):
                 flash('Write access required for this action.', 'danger')
                 return redirect(url_for('subscriptions.subscriptions'))
         renewal_date = datetime.strptime(request.form['renewal_date'], '%Y-%m-%d').date()
@@ -234,18 +223,7 @@ def edit_subscription(id):
     users = User.query.filter_by(is_archived=False).all()
 
     if request.method == 'POST':
-        # Manual check for WRITE access
-        from ..services.permissions_cache import permissions_cache
-        from ..services.permissions_service import get_user_modules
-        from flask import session
-        user_id = session.get('user_id')
-        user_role = session.get('user_role')
-        if (user_role or session.get('role')) != 'admin':
-            perms = permissions_cache.get(user_id)
-            if perms is None:
-                get_user_modules(user_id)
-                perms = permissions_cache.get(user_id)
-            if perms.get('core_inventory') != 'WRITE':
+        if not has_write_permission('core_inventory'):
                 flash('Write access required for this action.', 'danger')
                 return redirect(url_for('subscriptions.subscription_detail', id=id))
         renewal_date = datetime.strptime(request.form['renewal_date'], '%Y-%m-%d').date()

@@ -167,6 +167,11 @@ def create_app(test_config=None):
         return db.session.get(User, int(user_id))
 
     migrate.init_app(app, db)
+
+    # Initialize audit logging
+    from src.utils.audit_listener import register_audit_listener
+    register_audit_listener(db)
+
     limiter.init_app(app)
     
     # Configure CSRF to not protect JSON requests (for AJAX endpoints)

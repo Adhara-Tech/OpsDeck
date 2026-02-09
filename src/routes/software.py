@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from ..models import db, Software, Supplier, User, Group
-from ..services.permissions_service import requires_permission
+from ..services.permissions_service import requires_permission, has_write_permission
 from .main import login_required
 
 software_bp = Blueprint('software', __name__, url_prefix='/software')
@@ -48,18 +48,7 @@ def detail(id):
 @requires_permission('core_inventory', access_level='READ_ONLY')
 def add_software():
     if request.method == 'POST':
-        # Manual check for WRITE access
-        from ..services.permissions_cache import permissions_cache
-        from ..services.permissions_service import get_user_modules
-        from flask import session
-        user_id = session.get('user_id')
-        user_role = session.get('user_role')
-        if (user_role or session.get('role')) != 'admin':
-            perms = permissions_cache.get(user_id)
-            if perms is None:
-                get_user_modules(user_id)
-                perms = permissions_cache.get(user_id)
-            if perms is None or perms.get('core_inventory') != 'WRITE':
+        if not has_write_permission('core_inventory'):
                 flash('Write access required for this action.', 'danger')
                 return redirect(url_for('software.list_software'))
         owner_type, owner_id = (request.form['owner'].split('_') + [None])[:2]
@@ -89,18 +78,7 @@ def add_software():
 def edit_software(id):
     software = Software.query.get_or_404(id)
     if request.method == 'POST':
-        # Manual check for WRITE access
-        from ..services.permissions_cache import permissions_cache
-        from ..services.permissions_service import get_user_modules
-        from flask import session
-        user_id = session.get('user_id')
-        user_role = session.get('user_role')
-        if (user_role or session.get('role')) != 'admin':
-            perms = permissions_cache.get(user_id)
-            if perms is None:
-                get_user_modules(user_id)
-                perms = permissions_cache.get(user_id)
-            if perms is None or perms.get('core_inventory') != 'WRITE':
+        if not has_write_permission('core_inventory'):
                 flash('Write access required for this action.', 'danger')
                 return redirect(url_for('software.detail', id=id))
         owner_type, owner_id = (request.form['owner'].split('_') + [None])[:2]

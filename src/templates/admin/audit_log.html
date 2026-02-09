@@ -1,0 +1,325 @@
+{% extends "layout.html" %}
+
+{% block title %}Audit Log - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-history"></i> Audit Log</h2>
+    <div>
+        <button class="btn btn-outline-secondary" onclick="exportTableToCSV()">
+            <i class="fas fa-file-csv"></i> Export to CSV
+        </button>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('admin.audit_log') }}" class="row g-3">
+            <div class="col-md-2">
+                <label for="entity_type" class="form-label">Entity Type</label>
+                <select name="entity_type" id="entity_type" class="form-select form-select-sm">
+                    <option value="">All Types</option>
+                    {% for entity_type in entity_types %}
+                    <option value="{{ entity_type }}" {% if filters.entity_type == entity_type %}selected{% endif %}>
+                        {{ entity_type }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-2">
+                <label for="action" class="form-label">Action</label>
+                <select name="action" id="action" class="form-select form-select-sm">
+                    <option value="">All Actions</option>
+                    <option value="create" {% if filters.action == 'create' %}selected{% endif %}>Create</option>
+                    <option value="update" {% if filters.action == 'update' %}selected{% endif %}>Update</option>
+                    <option value="delete" {% if filters.action == 'delete' %}selected{% endif %}>Delete</option>
+                </select>
+            </div>
+
+            <div class="col-md-2">
+                <label for="user_id" class="form-label">User</label>
+                <select name="user_id" id="user_id" class="form-select form-select-sm">
+                    <option value="">All Users</option>
+                    {% for user in users %}
+                    <option value="{{ user.id }}" {% if filters.user_id == user.id %}selected{% endif %}>
+                        {{ user.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-2">
+                <label for="date_from" class="form-label">From Date</label>
+                <input type="date" name="date_from" id="date_from" class="form-control form-control-sm"
+                       value="{{ filters.date_from or '' }}">
+            </div>
+
+            <div class="col-md-2">
+                <label for="date_to" class="form-label">To Date</label>
+                <input type="date" name="date_to" id="date_to" class="form-control form-control-sm"
+                       value="{{ filters.date_to or '' }}">
+            </div>
+
+            <div class="col-md-2">
+                <label for="search" class="form-label">Search</label>
+                <input type="text" name="search" id="search" class="form-control form-control-sm"
+                       placeholder="Entity name..." value="{{ filters.search or '' }}">
+            </div>
+
+            <div class="col-12">
+                <button type="submit" class="btn btn-primary btn-sm">
+                    <i class="fas fa-filter"></i> Apply Filters
+                </button>
+                <a href="{{ url_for('admin.audit_log') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-times"></i> Clear
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Results -->
+<div class="card">
+    <div class="card-body">
+        {% if entries %}
+        <div class="table-responsive">
+            <table class="table table-hover table-sm" id="audit-table">
+                <thead>
+                    <tr>
+                        <th style="width: 150px;">Timestamp</th>
+                        <th style="width: 100px;">Action</th>
+                        <th style="width: 150px;">User</th>
+                        <th style="width: 120px;">Entity Type</th>
+                        <th>Entity</th>
+                        <th style="width: 120px;">IP Address</th>
+                        <th style="width: 60px;">Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in entries %}
+                    <tr>
+                        <td>
+                            <small class="text-muted">
+                                {{ entry.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}
+                            </small>
+                        </td>
+                        <td>
+                            <span class="badge bg-{{ entry.action_badge_class }}">
+                                <i class="fas {{ entry.action_icon }}"></i>
+                                {{ entry.action }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if entry.user %}
+                            <a href="{{ url_for('people.person_detail', id=entry.user.id) }}">
+                                {{ entry.user_email }}
+                            </a>
+                            {% else %}
+                            <span class="text-muted">{{ entry.user_email or 'System' }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <code class="small">{{ entry.entity_type }}</code>
+                        </td>
+                        <td>
+                            {% if entry.entity_repr %}
+                            {{ entry.entity_repr }}
+                            {% endif %}
+                            {% if entry.entity_id %}
+                            <small class="text-muted">#{{ entry.entity_id }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <small class="text-muted">{{ entry.ip_address or '-' }}</small>
+                        </td>
+                        <td>
+                            {% if entry.changes %}
+                            <button class="btn btn-sm btn-outline-info"
+                                    onclick="showChanges({{ entry.id }})"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#changesModal">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <nav aria-label="Audit log pagination" class="mt-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="text-muted small">
+                    Showing {{ ((pagination.page - 1) * pagination.per_page) + 1 }} to
+                    {{ [pagination.page * pagination.per_page, pagination.total] | min }} of
+                    {{ pagination.total }} entries
+                </div>
+
+                <ul class="pagination pagination-sm mb-0">
+                    {% if pagination.has_prev %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('admin.audit_log', page=pagination.prev_num,
+                            entity_type=filters.entity_type, action=filters.action, user_id=filters.user_id,
+                            date_from=filters.date_from, date_to=filters.date_to, search=filters.search,
+                            per_page=filters.per_page) }}">
+                            <i class="fas fa-chevron-left"></i> Previous
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link"><i class="fas fa-chevron-left"></i> Previous</span>
+                    </li>
+                    {% endif %}
+
+                    <li class="page-item active">
+                        <span class="page-link">Page {{ pagination.page }} of {{ pagination.pages }}</span>
+                    </li>
+
+                    {% if pagination.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('admin.audit_log', page=pagination.next_num,
+                            entity_type=filters.entity_type, action=filters.action, user_id=filters.user_id,
+                            date_from=filters.date_from, date_to=filters.date_to, search=filters.search,
+                            per_page=filters.per_page) }}">
+                            Next <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">Next <i class="fas fa-chevron-right"></i></span>
+                    </li>
+                    {% endif %}
+                </ul>
+
+                <div>
+                    <select class="form-select form-select-sm" style="width: auto;"
+                            onchange="location.href='{{ url_for('admin.audit_log', entity_type=filters.entity_type,
+                            action=filters.action, user_id=filters.user_id, date_from=filters.date_from,
+                            date_to=filters.date_to, search=filters.search) }}&per_page=' + this.value;">
+                        <option value="25" {% if filters.per_page == 25 %}selected{% endif %}>25 per page</option>
+                        <option value="50" {% if filters.per_page == 50 %}selected{% endif %}>50 per page</option>
+                        <option value="100" {% if filters.per_page == 100 %}selected{% endif %}>100 per page</option>
+                    </select>
+                </div>
+            </div>
+        </nav>
+
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-history fa-3x text-muted mb-3"></i>
+            <p class="text-muted">No audit log entries found.</p>
+            {% if filters.entity_type or filters.action or filters.user_id or filters.date_from or filters.date_to or filters.search %}
+            <p class="small text-muted">Try adjusting your filters.</p>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Changes Detail Modal -->
+<div class="modal fade" id="changesModal" tabindex="-1" aria-labelledby="changesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="changesModalLabel">Change Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="changesModalBody">
+                <div class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showChanges(entryId) {
+    const modalBody = document.getElementById('changesModalBody');
+    modalBody.innerHTML = `
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    `;
+
+    fetch(`{{ url_for('admin.audit_log_detail', id=0) }}`.replace('/0/', `/${entryId}/`))
+        .then(response => response.json())
+        .then(data => {
+            let html = '<div class="mb-3">';
+            html += `<p><strong>Action:</strong> <span class="badge bg-${data.action === 'create' ? 'success' : data.action === 'update' ? 'primary' : 'danger'}">${data.action}</span></p>`;
+            html += `<p><strong>Entity:</strong> <code>${data.entity_type}</code> #${data.entity_id}</p>`;
+            html += `<p><strong>Name:</strong> ${data.entity_repr || 'N/A'}</p>`;
+            html += `<p><strong>User:</strong> ${data.user_email || 'System'}</p>`;
+            html += `<p><strong>IP Address:</strong> ${data.ip_address || 'N/A'}</p>`;
+            html += `<p><strong>Timestamp:</strong> ${new Date(data.timestamp).toLocaleString()}</p>`;
+            html += '</div>';
+
+            if (data.changes) {
+                html += '<hr><h6>Changes:</h6>';
+                html += '<table class="table table-sm table-bordered">';
+                html += '<thead><tr><th>Field</th><th>Old Value</th><th>New Value</th></tr></thead>';
+                html += '<tbody>';
+
+                for (const [field, change] of Object.entries(data.changes)) {
+                    const oldVal = change.old === null ? '<em class="text-muted">null</em>' : change.old;
+                    const newVal = change.new === null ? '<em class="text-muted">null</em>' : change.new;
+                    html += `<tr><td><code>${field}</code></td><td>${oldVal}</td><td>${newVal}</td></tr>`;
+                }
+
+                html += '</tbody></table>';
+            } else {
+                html += '<p class="text-muted">No detailed changes recorded.</p>';
+            }
+
+            modalBody.innerHTML = html;
+        })
+        .catch(error => {
+            modalBody.innerHTML = `<div class="alert alert-danger">Error loading details: ${error.message}</div>`;
+        });
+}
+
+function exportTableToCSV() {
+    // Build CSV export URL with current filters
+    const params = new URLSearchParams(window.location.search);
+    params.set('export', 'csv');
+    window.location.href = '{{ url_for("admin.audit_log") }}?' + params.toString();
+}
+</script>
+
+<style>
+/* Make the table more compact */
+#audit-table th, #audit-table td {
+    vertical-align: middle;
+}
+
+#audit-table code {
+    font-size: 0.85em;
+}
+
+/* Sticky header for long lists */
+.table-responsive {
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.table-responsive thead th {
+    position: sticky;
+    top: 0;
+    background-color: var(--bs-light);
+    z-index: 10;
+}
+</style>
+{% endblock %}
