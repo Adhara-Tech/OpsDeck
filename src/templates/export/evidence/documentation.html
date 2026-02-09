@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Documentation: {{ evidence.title }}</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
+        .card { background: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .header { border-bottom: 3px solid #28a745; padding-bottom: 15px; margin-bottom: 20px; }
+        h1 { color: #28a745; font-size: 1.8em; margin-bottom: 10px; }
+        .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.85em; font-weight: 600; margin-right: 10px; }
+        .badge-success { background: #d4edda; color: #155724; }
+        .badge-info { background: #d1ecf1; color: #0c5460; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th { text-align: left; padding: 10px; background: #f8f9fa; font-weight: 600; width: 30%; }
+        td { padding: 10px; border-bottom: 1px solid #eee; }
+        .description { background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0; }
+        .external-link { background: #fff3cd; padding: 15px; border-radius: 5px; border-left: 4px solid #ffc107; margin: 15px 0; }
+        .external-link a { color: #856404; font-weight: 600; word-break: break-all; }
+        .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 0.85em; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="header">
+            <span class="badge badge-success">📄 Documentation</span>
+            {% if link.is_automated %}<span class="badge badge-info">Automated</span>{% endif %}
+            <h1>{{ evidence.title }}</h1>
+        </div>
+
+        {% if evidence.description %}
+        <div class="description">
+            {{ evidence.description }}
+        </div>
+        {% endif %}
+
+        {% if link.description %}
+        <div class="description">
+            <strong>Evidence Context:</strong><br>
+            {{ link.description }}
+        </div>
+        {% endif %}
+
+        <table>
+            <tr>
+                <th>Control:</th>
+                <td>{{ link.audit_item.control_code }} - {{ link.audit_item.control_title }}</td>
+            </tr>
+            {% if evidence.category %}
+            <tr>
+                <th>Category:</th>
+                <td>{{ evidence.category }}</td>
+            </tr>
+            {% endif %}
+            {% if evidence.created_at %}
+            <tr>
+                <th>Created:</th>
+                <td>{{ evidence.created_at.strftime('%Y-%m-%d') }}</td>
+            </tr>
+            {% endif %}
+        </table>
+
+        {% if evidence.url %}
+        <div class="external-link">
+            <strong>🔗 External Link:</strong><br>
+            <a href="{{ evidence.url }}" target="_blank">{{ evidence.url }}</a>
+        </div>
+        {% endif %}
+
+        {% if evidence.attachments %}
+        <h3>📎 Attached Files</h3>
+        <ul>
+            {% for att in evidence.attachments %}
+            <li><a href="./attachments/{{ att.filename }}">{{ att.filename }}</a> ({{ (att.file_size / 1024)|round|int }} KB)</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        <div class="footer">
+            Generated: {{ generated_at.strftime('%Y-%m-%d %H:%M:%S') }}<br>
+            Audit: {{ audit.name }}
+        </div>
+    </div>
+</body>
+</html>

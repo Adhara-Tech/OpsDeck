@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Defense Pack - {{ audit.name }}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background: #f5f5f5;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header .subtitle {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .metadata {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .metadata-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .metadata-item {
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .metadata-item label {
+            display: block;
+            font-weight: 600;
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+
+        .metadata-item .value {
+            font-size: 1.1em;
+            color: #333;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 600;
+        }
+
+        .badge-success { background: #d4edda; color: #155724; }
+        .badge-warning { background: #fff3cd; color: #856404; }
+        .badge-danger { background: #f8d7da; color: #721c24; }
+        .badge-info { background: #d1ecf1; color: #0c5460; }
+        .badge-secondary { background: #e2e3e5; color: #383d41; }
+
+        .section {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .section h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 8px;
+        }
+
+        .stat-card .number {
+            font-size: 2.5em;
+            font-weight: bold;
+            display: block;
+        }
+
+        .stat-card .label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #666;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .footer {
+            text-align: center;
+            color: #666;
+            padding: 20px;
+            margin-top: 40px;
+            font-size: 0.9em;
+        }
+
+        .evidence-link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .evidence-link:hover {
+            text-decoration: underline;
+        }
+
+        @media print {
+            body {
+                background: white;
+            }
+
+            .header, .section {
+                box-shadow: none;
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1>🛡️ Defense Pack</h1>
+        <div class="subtitle">{{ audit.name }}</div>
+    </div>
+
+    <!-- Audit Metadata -->
+    <div class="metadata">
+        <h2 style="margin-bottom: 20px; color: #333;">Audit Information</h2>
+        <div class="metadata-grid">
+            <div class="metadata-item">
+                <label>Framework</label>
+                <div class="value">{{ audit.framework.name if audit.framework else 'N/A' }}</div>
+            </div>
+            <div class="metadata-item">
+                <label>Status</label>
+                <div class="value">
+                    <span class="badge badge-{{ 'success' if audit.status == 'Closed' else 'warning' }}">
+                        {{ audit.status }}
+                    </span>
+                </div>
+            </div>
+            {% if audit.outcome %}
+            <div class="metadata-item">
+                <label>Outcome</label>
+                <div class="value">
+                    <span class="badge badge-{{ 'success' if audit.outcome == 'Pass' else 'danger' }}">
+                        {{ audit.outcome }}
+                    </span>
+                </div>
+            </div>
+            {% endif %}
+            <div class="metadata-item">
+                <label>Internal Lead</label>
+                <div class="value">{{ audit.internal_lead.name if audit.internal_lead else 'N/A' }}</div>
+            </div>
+            {% if audit.auditor %}
+            <div class="metadata-item">
+                <label>External Auditor</label>
+                <div class="value">{{ audit.auditor.name }}</div>
+            </div>
+            {% endif %}
+            {% if audit.start_date %}
+            <div class="metadata-item">
+                <label>Start Date</label>
+                <div class="value">{{ audit.start_date.strftime('%Y-%m-%d') }}</div>
+            </div>
+            {% endif %}
+            {% if audit.end_date %}
+            <div class="metadata-item">
+                <label>End Date</label>
+                <div class="value">{{ audit.end_date.strftime('%Y-%m-%d') }}</div>
+            </div>
+            {% endif %}
+            <div class="metadata-item">
+                <label>Pack Generated</label>
+                <div class="value">{{ generated_at.strftime('%Y-%m-%d %H:%M') }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Control Status Summary -->
+    <div class="section">
+        <h2>Control Status Summary</h2>
+        <div class="stats-grid">
+            {% for status, count in status_counts.items() %}
+            <div class="stat-card">
+                <span class="number">{{ count }}</span>
+                <span class="label">{{ status }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Statement of Applicability (SOA) -->
+    <div class="section">
+        <h2>Statement of Applicability (SOA)</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 100px;">Code</th>
+                    <th>Control</th>
+                    <th style="width: 120px;">Applicable</th>
+                    <th style="width: 120px;">Status</th>
+                    <th style="width: 100px;">Evidence</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td><strong>{{ item.control_code }}</strong></td>
+                    <td>{{ item.control_title }}</td>
+                    <td>
+                        {% if item.is_applicable %}
+                        <span class="badge badge-success">Yes</span>
+                        {% else %}
+                        <span class="badge badge-secondary">No</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge badge-{{ 'success' if item.status == 'Compliant' else 'warning' if item.status == 'Observation' else 'danger' if item.status == 'Gap' else 'secondary' }}">
+                            {{ item.status }}
+                        </span>
+                    </td>
+                    <td>
+                        {% set evidence_count = item.linked_objects.count() %}
+                        {% if evidence_count > 0 %}
+                        <a href="./evidence/{{ item.control_code.replace('.', '_') }}/" class="evidence-link">
+                            {{ evidence_count }} items
+                        </a>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Export Information -->
+    <div class="section">
+        <h2>About This Export</h2>
+        <p><strong>Structure:</strong></p>
+        <ul style="line-height: 2;">
+            <li><code>Defense_Pack_Report.html</code> - This document</li>
+            <li><code>evidence/</code> - Evidence documents organized by control code</li>
+            <li><code>attachments/</code> - All supporting documents and files</li>
+            <li><code>external_links.txt</code> - List of external references (Jira, URLs, etc.)</li>
+            <li><code>manifest.json</code> - Export metadata</li>
+        </ul>
+
+        <p style="margin-top: 20px;"><strong>Navigation:</strong></p>
+        <p>Each control with evidence has a dedicated folder under <code>evidence/</code>. Inside, you'll find individual HTML documents for each piece of evidence, along with an <code>attachments/</code> subfolder for related files.</p>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        Generated by OpsDeck Compliance Platform<br>
+        {{ generated_at.strftime('%Y-%m-%d %H:%M:%S') }}
+    </div>
+</body>
+</html>
