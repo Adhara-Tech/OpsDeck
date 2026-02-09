@@ -8,7 +8,8 @@ from .assets import *
 from .procurement import *
 from .credentials import Credential, CredentialSecret
 from .certificates import Certificate, CertificateVersion
-from .crm import *
+from .crm import (Lead, Requirement, RequirementAction, Opportunity, Activity,
+                  OpportunityTask, Contact)
 from .policy import *
 from .security import *
 from .uar import UARComparison, UARExecution, UARFinding

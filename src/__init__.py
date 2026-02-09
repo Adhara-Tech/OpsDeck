@@ -248,6 +248,7 @@ def create_app(test_config=None):
     from .routes.treeview import treeview_bp
     from .routes.admin import admin_bp
     from .routes.opportunities import opportunities_bp
+    from .routes.evaluations import evaluations_bp  # New: renamed from opportunities
     from .routes.policies import policies_bp
     from .routes.compliance import compliance_bp
     from .routes.risk import risk_bp
@@ -255,6 +256,7 @@ def create_app(test_config=None):
     from .routes.maintenance import maintenance_bp
     from .routes.disposal import disposal_bp
     from .routes.leads import leads_bp
+    from .routes.requirements import requirements_bp  # New: renamed from leads
     from .routes.documentation import documentation_bp
     from .routes.frameworks import frameworks_bp
     from .routes.links import links_bp
@@ -288,7 +290,8 @@ def create_app(test_config=None):
     app.register_blueprint(attachments_bp, url_prefix='/attachments')
     app.register_blueprint(treeview_bp, url_prefix='/tree-view')
     app.register_blueprint(admin_bp, url_prefix='/admin')
-    app.register_blueprint(opportunities_bp, url_prefix='/opportunities')
+    app.register_blueprint(opportunities_bp, url_prefix='/opportunities')  # Legacy - kept for backward compatibility
+    app.register_blueprint(evaluations_bp)  # New: /evaluations (includes prefix in blueprint)
     app.register_blueprint(policies_bp, url_prefix='/policies')
     app.register_blueprint(compliance_bp, url_prefix='/compliance')
     app.register_blueprint(risk_bp, url_prefix='/risk')
@@ -298,7 +301,8 @@ def create_app(test_config=None):
     app.register_blueprint(training_bp, url_prefix='/training')
     app.register_blueprint(maintenance_bp)
     app.register_blueprint(disposal_bp)
-    app.register_blueprint(leads_bp)
+    app.register_blueprint(leads_bp)  # Legacy - kept for backward compatibility
+    app.register_blueprint(requirements_bp)  # New: /requirements (includes prefix in blueprint)
     app.register_blueprint(documentation_bp, url_prefix='/documentation')
     app.register_blueprint(frameworks_bp)
     

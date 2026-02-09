@@ -1,0 +1,251 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ evaluation.name }} - {{ super() %}}{%endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-chart-line"></i> {{ evaluation.name }}</h2>
+    {% if can_write('procurement') %}
+    <a href="{{ url_for('evaluations.edit_evaluation', id=evaluation.id) }}" class="btn btn-sm btn-outline-primary">
+        <i class="fas fa-edit"></i> Edit
+    </a>
+    {% endif %}
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">Evaluation Details</div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <p><strong>Status:</strong>
+                    {% if evaluation.status == 'Won' %}
+                    <span class="badge bg-success">{{ evaluation.status }}</span>
+                    {% elif evaluation.status == 'Lost' %}
+                    <span class="badge bg-danger">{{ evaluation.status }}</span>
+                    {% elif evaluation.status == 'Negotiating' %}
+                    <span class="badge bg-warning">{{ evaluation.status }}</span>
+                    {% else %}
+                    <span class="badge bg-info">{{ evaluation.status }}</span>
+                    {% endif %}
+                </p>
+                <p><strong>Supplier:</strong> {{ evaluation.supplier.name if evaluation.supplier else 'N/A' }}</p>
+                <p><strong>Primary Contact:</strong> {{ evaluation.primary_contact.name if evaluation.primary_contact
+                    else 'N/A' }}</p>
+                {% if evaluation.source_requirement %}
+                <p><strong>Source Requirement:</strong>
+                    <a href="{{ url_for('requirements.detail', id=evaluation.source_requirement.id) }}">
+                        {{ evaluation.source_requirement.name }}
+                    </a>
+                </p>
+                {% endif %}
+            </div>
+            <div class="col-md-6">
+                <p><strong>Potential Value:</strong> {{ evaluation.currency }} {{
+                    "%.2f"|format(evaluation.potential_value) if evaluation.potential_value else 'N/A' }}</p>
+                <p><strong>Estimated Close Date:</strong> {{ evaluation.estimated_close_date.strftime('%Y-%m-%d') if
+                    evaluation.estimated_close_date else 'N/A' }}</p>
+                <p><strong>Created:</strong> {{ evaluation.created_at.strftime('%Y-%m-%d') }}</p>
+            </div>
+        </div>
+        {% if evaluation.notes %}
+        <hr>
+        <p class="mb-0"><strong>Notes:</strong></p>
+        <p>{{ evaluation.notes|nl2br }}</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Tasks Section -->
+<div class="card mb-4">
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <span><i class="fas fa-tasks"></i> Tasks</span>
+            {% if evaluation.tasks %}
+            {% set completed = visible_tasks|selectattr('is_completed')|list|length %}
+            <span class="badge bg-secondary">{{ completed }}/{{ visible_tasks|length }} completed</span>
+            {% endif %}
+        </div>
+    </div>
+    <div class="card-body">
+        {% if can_write('procurement') %}
+        <form action="{{ url_for('evaluations.add_task', evaluation_id=evaluation.id) }}" method="POST" class="mb-4">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="row">
+                <div class="col-md-8">
+                    <input type="text" class="form-control" name="task_description" placeholder="Add a task..." required>
+                </div>
+                <div class="col-md-3">
+                    <input type="date" class="form-control" name="due_date">
+                </div>
+                <div class="col-md-1">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+            </div>
+        </form>
+        {% endif %}
+
+        <ul class="list-group list-group-flush">
+            {% for task in visible_tasks %}
+            <li class="list-group-item">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                        <div class="form-check">
+                            <form action="{{ url_for('evaluations.toggle_task', task_id=task.id) }}" method="POST" class="d-inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="checkbox" class="form-check-input" {% if task.is_completed %}checked{% endif %}
+                                    onchange="this.form.submit()" {% if not can_write('procurement') %}disabled{% endif %}>
+                            </form>
+                            <label class="form-check-label {% if task.is_completed %}text-decoration-line-through text-muted{% endif %}">
+                                {{ task.description }}
+                                {% if task.due_date %}
+                                <small class="text-muted">(Due: {{ task.due_date.strftime('%Y-%m-%d') }})</small>
+                                {% endif %}
+                            </label>
+                        </div>
+                        {% if task.is_completed and task.completed_at %}
+                        <small class="text-muted ms-4">Completed: {{ task.completed_at.strftime('%Y-%m-%d @ %H:%M') }}</small>
+                        {% endif %}
+                    </div>
+                    {% if can_write('procurement') %}
+                    <div class="btn-group ms-2" role="group">
+                        <form action="{{ url_for('evaluations.toggle_task_hidden', task_id=task.id) }}" method="POST" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-outline-secondary" title="Hide">
+                                <i class="fas fa-eye-slash"></i>
+                            </button>
+                        </form>
+                        <form action="{{ url_for('evaluations.delete_task', task_id=task.id) }}" method="POST"
+                            class="d-inline" onsubmit="return confirm('Delete this task?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </form>
+                    </div>
+                    {% endif %}
+                </div>
+            </li>
+            {% else %}
+            <li class="list-group-item text-muted">No tasks yet.</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+
+<!-- Activity Log Section -->
+<div class="card">
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <span><i class="fas fa-history"></i> Activity Log</span>
+            {% if evaluation.activities and evaluation.activities|length > visible_activities|length %}
+            <small class="text-muted">{{ (evaluation.activities|length) - (visible_activities|length) }} hidden</small>
+            {% endif %}
+        </div>
+    </div>
+    <div class="card-body">
+        {% if can_write('procurement') %}
+        <form action="{{ url_for('evaluations.add_activity', id=evaluation.id) }}" method="POST" class="mb-4">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="mb-3">
+                <label for="notes" class="form-label">New Activity Notes</label>
+                <textarea class="form-control" name="notes" rows="3" required
+                    placeholder="Document meetings, calls, emails, decisions..."></textarea>
+            </div>
+            <div class="row">
+                <div class="col-md-4">
+                    <label for="type" class="form-label">Activity Type</label>
+                    <select name="type" class="form-select">
+                        <option value="Meeting">Meeting</option>
+                        <option value="Call">Call</option>
+                        <option value="Email">Email</option>
+                        <option value="Demo">Demo</option>
+                        <option value="Note">Note</option>
+                    </select>
+                </div>
+                <div class="col-md-8 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add Activity
+                    </button>
+                </div>
+            </div>
+        </form>
+        <hr>
+        {% endif %}
+
+        <ul class="list-group list-group-flush">
+            {% for activity in visible_activities %}
+            <li class="list-group-item" id="activity-{{ activity.id }}">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                        <p class="mb-1">
+                            <strong>
+                                <span class="badge bg-secondary">{{ activity.type }}</span>
+                                {{ activity.activity_date.strftime('%Y-%m-%d @ %H:%M') }}
+                            </strong>
+                            {% if activity.edited_at %}
+                            <small class="text-muted">(edited {{ activity.edited_at.strftime('%Y-%m-%d @ %H:%M') }})</small>
+                            {% endif %}
+                        </p>
+                        <p class="mb-0 activity-text" id="activity-text-{{ activity.id }}">{{ activity.notes|nl2br }}</p>
+
+                        <!-- Edit form (hidden by default) -->
+                        <form action="{{ url_for('evaluations.edit_activity', activity_id=activity.id) }}" method="POST"
+                            class="activity-edit-form mt-2" id="activity-edit-form-{{ activity.id }}" style="display:none;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <textarea class="form-control mb-2" name="notes" rows="3">{{ activity.notes }}</textarea>
+                            <select name="type" class="form-select mb-2">
+                                <option value="Meeting" {% if activity.type=='Meeting' %}selected{% endif %}>Meeting</option>
+                                <option value="Call" {% if activity.type=='Call' %}selected{% endif %}>Call</option>
+                                <option value="Email" {% if activity.type=='Email' %}selected{% endif %}>Email</option>
+                                <option value="Demo" {% if activity.type=='Demo' %}selected{% endif %}>Demo</option>
+                                <option value="Note" {% if activity.type=='Note' %}selected{% endif %}>Note</option>
+                            </select>
+                            <button type="submit" class="btn btn-sm btn-success">Save</button>
+                            <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEditActivity({{ activity.id }})">Cancel</button>
+                        </form>
+                    </div>
+                    {% if can_write('procurement') %}
+                    <div class="btn-group ms-2" role="group">
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleEditActivity({{ activity.id }})"
+                            title="Edit"><i class="fas fa-edit"></i></button>
+                        <form action="{{ url_for('evaluations.toggle_activity_hidden', activity_id=activity.id) }}" method="POST" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-outline-secondary" title="Hide">
+                                <i class="fas fa-eye-slash"></i>
+                            </button>
+                        </form>
+                        <form action="{{ url_for('evaluations.delete_activity', activity_id=activity.id) }}" method="POST"
+                            class="d-inline" onsubmit="return confirm('Delete this activity?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </form>
+                    </div>
+                    {% endif %}
+                </div>
+            </li>
+            {% else %}
+            <li class="list-group-item text-muted">No activities logged yet.</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+
+<script>
+function toggleEditActivity(activityId) {
+    const textDiv = document.getElementById('activity-text-' + activityId);
+    const editForm = document.getElementById('activity-edit-form-' + activityId);
+
+    if (editForm.style.display === 'none') {
+        textDiv.style.display = 'none';
+        editForm.style.display = 'block';
+    } else {
+        textDiv.style.display = 'block';
+        editForm.style.display = 'none';
+    }
+}
+</script>
+{% endblock %}

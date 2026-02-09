@@ -1,0 +1,245 @@
+{% extends "layout.html" %}
+
+{% block title %}Evaluations Kanban - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-th"></i> Evaluations Kanban</h2>
+    <div>
+        <a href="{{ url_for('evaluations.list_evaluations') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-list"></i> List View
+        </a>
+        {% if can_write('procurement') %}
+        <a href="{{ url_for('evaluations.new_evaluation') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> New Evaluation
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="kanban-board">
+    <div class="row g-3">
+        {% for status in statuses %}
+        <div class="col">
+            <div class="card kanban-column">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <strong>
+                        {% if status == 'Evaluating' %}
+                        <i class="fas fa-search text-info"></i>
+                        {% elif status == 'PoC' %}
+                        <i class="fas fa-flask text-primary"></i>
+                        {% elif status == 'Negotiating' %}
+                        <i class="fas fa-handshake text-warning"></i>
+                        {% elif status == 'Won' %}
+                        <i class="fas fa-trophy text-success"></i>
+                        {% elif status == 'Lost' %}
+                        <i class="fas fa-times-circle text-danger"></i>
+                        {% endif %}
+                        {{ status }}
+                    </strong>
+                    <span class="badge bg-secondary">{{ evaluations_by_status[status]|length }}</span>
+                </div>
+                <div class="card-body p-2 kanban-column-body" data-status="{{ status }}">
+                    {% for eval in evaluations_by_status[status] %}
+                    <div class="card mb-2 kanban-card {% if can_write('procurement') %}draggable{% endif %}"
+                         draggable="{% if can_write('procurement') %}true{% else %}false{% endif %}"
+                         data-evaluation-id="{{ eval.id }}"
+                         data-status="{{ status }}">
+                        <div class="card-body p-3">
+                            <h6 class="card-title mb-2">
+                                <a href="{{ url_for('evaluations.detail', id=eval.id) }}" class="text-decoration-none">
+                                    {{ eval.name }}
+                                </a>
+                            </h6>
+                            {% if eval.supplier %}
+                            <p class="card-text small text-muted mb-1">
+                                <i class="fas fa-building"></i> {{ eval.supplier.name }}
+                            </p>
+                            {% endif %}
+                            {% if eval.potential_value %}
+                            <p class="card-text small mb-1">
+                                <i class="fas fa-dollar-sign"></i> {{ eval.currency }} {{ "%.2f"|format(eval.potential_value) }}
+                            </p>
+                            {% endif %}
+                            {% if eval.estimated_close_date %}
+                            <p class="card-text small text-muted mb-1">
+                                <i class="fas fa-calendar"></i> {{ eval.estimated_close_date.strftime('%Y-%m-%d') }}
+                            </p>
+                            {% endif %}
+                            {% if eval.tasks %}
+                            {% set completed = eval.tasks|selectattr('is_completed')|list|length %}
+                            {% set total = eval.tasks|length %}
+                            <div class="progress mt-2" style="height: 5px;">
+                                <div class="progress-bar" role="progressbar"
+                                     style="width: {{ (completed / total * 100)|int }}%"
+                                     aria-valuenow="{{ completed }}"
+                                     aria-valuemin="0"
+                                     aria-valuemax="{{ total }}"></div>
+                            </div>
+                            <small class="text-muted">{{ completed }}/{{ total }} tasks</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-inbox fa-2x mb-2"></i>
+                        <p class="small">No evaluations</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+.kanban-board {
+    overflow-x: auto;
+}
+
+.kanban-column {
+    min-height: 500px;
+    background-color: #f8f9fa;
+}
+
+.kanban-column-body {
+    min-height: 400px;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.kanban-card {
+    cursor: move;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.kanban-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.kanban-card.dragging {
+    opacity: 0.5;
+}
+
+.kanban-column-body.drag-over {
+    background-color: #e7f3ff;
+    border: 2px dashed #007bff;
+}
+</style>
+
+{% if can_write('procurement') %}
+<script>
+// Drag and drop functionality
+let draggedElement = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    const draggables = document.querySelectorAll('.draggable');
+    const columns = document.querySelectorAll('.kanban-column-body');
+
+    draggables.forEach(card => {
+        card.addEventListener('dragstart', function(e) {
+            draggedElement = this;
+            this.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        });
+
+        card.addEventListener('dragend', function() {
+            this.classList.remove('dragging');
+            columns.forEach(col => col.classList.remove('drag-over'));
+        });
+    });
+
+    columns.forEach(column => {
+        column.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            this.classList.add('drag-over');
+        });
+
+        column.addEventListener('dragleave', function() {
+            this.classList.remove('drag-over');
+        });
+
+        column.addEventListener('drop', function(e) {
+            e.preventDefault();
+            this.classList.remove('drag-over');
+
+            if (draggedElement) {
+                const evaluationId = draggedElement.dataset.evaluationId;
+                const oldStatus = draggedElement.dataset.status;
+                const newStatus = this.dataset.status;
+
+                if (oldStatus !== newStatus) {
+                    // Update status via API
+                    updateEvaluationStatus(evaluationId, newStatus, draggedElement, this);
+                }
+            }
+        });
+    });
+});
+
+function updateEvaluationStatus(evaluationId, newStatus, cardElement, columnElement) {
+    const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '';
+
+    fetch(`/evaluations/api/${evaluationId}/update_status`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({ status: newStatus })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Move card to new column
+            columnElement.insertBefore(cardElement, columnElement.firstChild);
+            cardElement.dataset.status = newStatus;
+
+            // Update column counts
+            updateColumnCounts();
+
+            // Show success message
+            showToast('Success', data.message, 'success');
+        } else {
+            showToast('Error', data.error, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('Error', 'Failed to update status', 'danger');
+    });
+}
+
+function updateColumnCounts() {
+    document.querySelectorAll('.kanban-column-body').forEach(column => {
+        const count = column.querySelectorAll('.kanban-card').length;
+        const badge = column.parentElement.querySelector('.badge');
+        if (badge) {
+            badge.textContent = count;
+        }
+    });
+}
+
+function showToast(title, message, type) {
+    // Simple toast notification (you can enhance this)
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 end-0 m-3`;
+    alertDiv.style.zIndex = '9999';
+    alertDiv.innerHTML = `
+        <strong>${title}:</strong> ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alertDiv);
+
+    setTimeout(() => alertDiv.remove(), 3000);
+}
+</script>
+
+<!-- Hidden CSRF token for AJAX requests -->
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+{% endif %}
+
+{% endblock %}
