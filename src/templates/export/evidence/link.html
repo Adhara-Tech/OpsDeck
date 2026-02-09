@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>External Link: {{ evidence.title or evidence.name }}</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
+        .card { background: white; border-radius: 10px; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .header { border-bottom: 3px solid #17a2b8; padding-bottom: 15px; margin-bottom: 20px; }
+        h1 { color: #17a2b8; font-size: 1.8em; margin-bottom: 10px; }
+        .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.85em; font-weight: 600; }
+        .badge-info { background: #d1ecf1; color: #0c5460; }
+        .external-link-box { background: #d1ecf1; padding: 20px; border-radius: 8px; border-left: 4px solid #17a2b8; margin: 20px 0; }
+        .external-link-box a { color: #0c5460; font-weight: 600; font-size: 1.1em; word-break: break-all; }
+        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+        th { text-align: left; padding: 10px; background: #f8f9fa; font-weight: 600; width: 30%; }
+        td { padding: 10px; border-bottom: 1px solid #eee; }
+        .description { background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0; }
+        .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; font-size: 0.85em; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="header">
+            <span class="badge badge-info">🔗 External Link</span>
+            <h1>{{ evidence.title if hasattr(evidence, 'title') else evidence.name }}</h1>
+        </div>
+
+        {% if evidence.description %}
+        <div class="description">
+            {{ evidence.description }}
+        </div>
+        {% endif %}
+
+        <div class="external-link-box">
+            <strong>🌐 URL:</strong><br>
+            <a href="{{ evidence.url }}" target="_blank">{{ evidence.url }}</a>
+        </div>
+
+        <table>
+            <tr>
+                <th>Control:</th>
+                <td>{{ link.audit_item.control_code }} - {{ link.audit_item.control_title }}</td>
+            </tr>
+            {% if evidence.link_type %}
+            <tr>
+                <th>Link Type:</th>
+                <td>{{ evidence.link_type }}</td>
+            </tr>
+            {% endif %}
+        </table>
+
+        <p style="background: #fff3cd; padding: 15px; border-radius: 5px; border-left: 4px solid #ffc107;">
+            <strong>⚠️ Note:</strong> This is an external reference. Please access the URL above to view the full content. Ensure you have the necessary credentials and access rights.
+        </p>
+
+        <div class="footer">
+            Generated: {{ generated_at.strftime('%Y-%m-%d %H:%M:%S') }}<br>
+            Audit: {{ audit.name }}
+        </div>
+    </div>
+</body>
+</html>

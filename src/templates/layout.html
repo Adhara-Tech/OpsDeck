@@ -590,6 +590,10 @@
                             href="{{ url_for('admin.custom_fields') }}"><i class="fa-fw fas fa-list-ul"></i>
                             Custom Properties</a></li>
                     <li class="nav-item"><a
+                            class="nav-link {% if request.endpoint == 'admin.audit_log' %}active{% endif %}"
+                            href="{{ url_for('admin.audit_log') }}"><i class="fa-fw fas fa-history"></i>
+                            Audit Log</a></li>
+                    <li class="nav-item"><a
                             class="nav-link {% if request.endpoint and request.endpoint.startswith('treeview.') %}active{% endif %}"
                             href="{{ url_for('treeview.tree_view') }}"><i class="fa-fw fas fa-sitemap"></i> Tree
                             View</a></li>

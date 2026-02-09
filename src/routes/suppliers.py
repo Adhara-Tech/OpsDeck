@@ -3,7 +3,7 @@ from flask import (
 )
 from ..models import db, Supplier
 from .main import login_required
-from ..services.permissions_service import requires_permission
+from ..services.permissions_service import requires_permission, has_write_permission
 
 suppliers_bp = Blueprint('suppliers', __name__)
 
@@ -47,18 +47,7 @@ def unarchive_supplier(id):
 @requires_permission('procurement', access_level='READ_ONLY')
 def new_supplier():
     if request.method == 'POST':
-        # Manual check for WRITE access
-        from ..services.permissions_cache import permissions_cache
-        from ..services.permissions_service import get_user_modules
-        from flask import session
-        user_id = session.get('user_id')
-        user_role = session.get('user_role')
-        if (user_role or session.get('role')) != 'admin':
-            perms = permissions_cache.get(user_id)
-            if perms is None:
-                get_user_modules(user_id)
-                perms = permissions_cache.get(user_id)
-            if perms.get('business_ops') != 'WRITE':
+        if not has_write_permission('procurement'):
                 flash('Write access required for this action.', 'danger')
                 return redirect(url_for('suppliers.suppliers'))
         supplier = Supplier(
@@ -92,18 +81,7 @@ def edit_supplier(id):
     supplier = Supplier.query.get_or_404(id)
     
     if request.method == 'POST':
-        # Manual check for WRITE access
-        from ..services.permissions_cache import permissions_cache
-        from ..services.permissions_service import get_user_modules
-        from flask import session
-        user_id = session.get('user_id')
-        user_role = session.get('user_role')
-        if (user_role or session.get('role')) != 'admin':
-            perms = permissions_cache.get(user_id)
-            if perms is None:
-                get_user_modules(user_id)
-                perms = permissions_cache.get(user_id)
-            if perms.get('business_ops') != 'WRITE':
+        if not has_write_permission('procurement'):
                 flash('Write access required for this action.', 'danger')
                 return redirect(url_for('suppliers.supplier_detail', id=id))
         supplier.name = request.form['name']
