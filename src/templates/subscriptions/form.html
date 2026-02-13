@@ -197,12 +197,42 @@
                 </div>
             </div>
 
+            <div class="row mb-3">
+                <div class="col-md-12">
+                    <label class="form-label fw-bold">Pricing Model *</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="pricing_model" id="pricing_fixed"
+                            value="fixed" {% if not subscription or subscription.pricing_model=='fixed' %}checked{% endif
+                            %} {% if not can_write('core_inventory') %}disabled{% endif %}>
+                        <label class="form-check-label" for="pricing_fixed">
+                            <strong>Fixed Cost</strong> - Total cost regardless of user count (e.g., Sysdig: 5500€/year)
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="pricing_model" id="pricing_per_user"
+                            value="per_user" {% if subscription and subscription.pricing_model=='per_user' %}checked{%
+                            endif %} {% if not can_write('core_inventory') %}disabled{% endif %}>
+                        <label class="form-check-label" for="pricing_per_user">
+                            <strong>Per User Cost</strong> - Cost multiplied by number of active users (e.g., Miro: 8€/user/month)
+                        </label>
+                    </div>
+                </div>
+            </div>
+
             <div class="row mb-3 align-items-end">
-                <div class="col-md-4">
-                    <label for="cost" class="form-label">Cost *</label>
+                <div class="col-md-4" id="fixed-cost-field">
+                    <label for="cost" class="form-label">Total Cost *</label>
                     <input type="number" class="form-control" id="cost" name="cost" step="0.01"
                         value="{{ subscription.cost if subscription else '' }}" required {% if not
                         can_write('core_inventory') %}disabled{% endif %}>
+                    <small class="form-text text-muted">For fixed pricing model</small>
+                </div>
+                <div class="col-md-4" id="per-user-cost-field" style="display: none;">
+                    <label for="cost_per_user" class="form-label">Cost Per User *</label>
+                    <input type="number" class="form-control" id="cost_per_user" name="cost_per_user" step="0.01"
+                        value="{{ subscription.cost_per_user if subscription else '' }}" {% if not
+                        can_write('core_inventory') %}disabled{% endif %}>
+                    <small class="form-text text-muted">Cost per active user</small>
                 </div>
                 <div class="col-md-4">
                     <label for="currency" class="form-label">Currency</label>
@@ -294,6 +324,34 @@
 
         // Run the check once on page load to set the initial state
         toggleMonthlyOptions();
+
+        // Pricing model toggle
+        const pricingFixed = document.getElementById('pricing_fixed');
+        const pricingPerUser = document.getElementById('pricing_per_user');
+        const fixedCostField = document.getElementById('fixed-cost-field');
+        const perUserCostField = document.getElementById('per-user-cost-field');
+        const costInput = document.getElementById('cost');
+        const costPerUserInput = document.getElementById('cost_per_user');
+
+        function togglePricingFields() {
+            if (pricingPerUser.checked) {
+                fixedCostField.style.display = 'none';
+                perUserCostField.style.display = 'block';
+                costInput.removeAttribute('required');
+                costPerUserInput.setAttribute('required', 'required');
+            } else {
+                fixedCostField.style.display = 'block';
+                perUserCostField.style.display = 'none';
+                costInput.setAttribute('required', 'required');
+                costPerUserInput.removeAttribute('required');
+            }
+        }
+
+        pricingFixed.addEventListener('change', togglePricingFields);
+        pricingPerUser.addEventListener('change', togglePricingFields);
+
+        // Set initial state
+        togglePricingFields();
     });
 </script>
 {% endblock %}

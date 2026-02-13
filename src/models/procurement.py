@@ -249,6 +249,12 @@ class Budget(db.Model):
             rate = get_conversion_rate(subscription.currency)
             cost_in_budget_currency = subscription.cost * rate
 
+            if not subscription.auto_renew:
+                # Non-renewable: count only once if renewal_date falls within budget period
+                if self.valid_from <= subscription.renewal_date <= self.valid_until:
+                    spent += cost_in_budget_currency
+                continue
+
             # Count renewals within budget validity period
             renewal_count = self._count_renewals_in_period(
                 subscription.renewal_date,
@@ -275,6 +281,9 @@ class Budget(db.Model):
         from dateutil.relativedelta import relativedelta
         from datetime import timedelta
 
+        if not period_value or period_value <= 0:
+            return 0
+
         count = 0
         current_renewal = renewal_date
 
@@ -296,10 +305,53 @@ class Budget(db.Model):
 class CostHistory(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     subscription_id = db.Column(db.Integer, db.ForeignKey('subscription.id'), nullable=False)
-    cost = db.Column(db.Float, nullable=False)
+    cost = db.Column(db.Float, nullable=False)  # Base cost at this point in time
     currency = db.Column(db.String(3), nullable=False)
     # The date this cost became effective
     changed_date = db.Column(db.Date, nullable=False, default=lambda: today())
+
+    # NEW: Additional tracking fields
+    pricing_model = db.Column(db.String(20))  # 'fixed' or 'per_user'
+    cost_per_user = db.Column(db.Float, nullable=True)  # Cost per user at this point
+    user_count = db.Column(db.Integer, nullable=True)  # Number of users at this point
+    reason = db.Column(db.String(50))  # 'price_change', 'user_added', 'user_removed', 'onboarding', 'offboarding', 'manual'
+
+    @property
+    def total_cost(self):
+        """Calculate total cost at this point in history"""
+        if self.pricing_model == 'per_user' and self.cost_per_user is not None:
+            return self.cost_per_user * (self.user_count or 0)
+        return self.cost or 0
+
+
+def log_subscription_cost_change(subscription, reason='manual'):
+    """
+    Records a cost change in the subscription's history.
+    Should be called whenever:
+    - Cost or cost_per_user changes
+    - Users are added/removed (for per_user pricing)
+    - Pricing model changes
+
+    Args:
+        subscription: The Subscription object
+        reason: One of 'price_change', 'user_added', 'user_removed', 'onboarding', 'offboarding', 'manual'
+
+    Note: Does NOT commit - caller must handle commit
+    """
+    active_user_count = len([u for u in subscription.users if not u.is_archived])
+
+    history_entry = CostHistory(
+        subscription_id=subscription.id,
+        cost=subscription.cost,
+        currency=subscription.currency,
+        pricing_model=subscription.pricing_model,
+        cost_per_user=subscription.cost_per_user,
+        user_count=active_user_count,
+        reason=reason,
+        changed_date=today()
+    )
+    db.session.add(history_entry)
+
 
 class PaymentMethod(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -332,10 +384,14 @@ class Subscription(db.Model):
     monthly_renewal_day = db.Column(db.String(10), nullable=True)
     
     auto_renew = db.Column(db.Boolean, default=False)
-    
+
     # Cost information
-    cost = db.Column(db.Float, nullable=False)
+    cost = db.Column(db.Float, nullable=False)  # Base cost (for fixed) or legacy
     currency = db.Column(db.String(3), default='EUR')
+
+    # NEW: Pricing model
+    pricing_model = db.Column(db.String(20), default='fixed')  # 'fixed' or 'per_user'
+    cost_per_user = db.Column(db.Float, nullable=True)  # Cost per user/license (for per_user model)
 
     # User information
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
@@ -385,12 +441,71 @@ class Subscription(db.Model):
             raise ValueError(f"Subscription cost must be greater than 0, got {value}")
         return value
 
+    @validates('renewal_period_value')
+    def validate_renewal_period_value(self, key, value):
+        if value is not None and value <= 0:
+            raise ValueError(f"Renewal period value must be greater than 0, got {value}")
+        return value
+
     @property
     def cost_eur(self):
         from ..services.finance_service import get_conversion_rate
         rate = get_conversion_rate(self.currency)
         return self.cost * rate
-    
+
+    @property
+    def current_cost(self):
+        """
+        Calculates the current total cost based on pricing model.
+        For per_user: cost_per_user * active_users
+        For fixed: cost
+        """
+        if self.pricing_model == 'per_user' and self.cost_per_user:
+            # Count only non-archived users
+            active_users = [u for u in self.users if not u.is_archived]
+            return self.cost_per_user * len(active_users)
+        return self.cost or 0
+
+    @property
+    def monthly_cost(self):
+        """
+        Calculates the monthly cost regardless of renewal period.
+        Converts yearly/custom periods to monthly equivalent.
+        """
+        base_cost = self.current_cost
+
+        if self.renewal_period_type == 'yearly':
+            return base_cost / 12
+        elif self.renewal_period_type == 'monthly':
+            return base_cost
+        elif self.renewal_period_type == 'custom' and self.renewal_period_value:
+            # Assuming renewal_period_value is in months for custom
+            return base_cost / self.renewal_period_value
+        else:
+            return base_cost
+
+    @property
+    def annual_cost(self):
+        """Projected annual cost"""
+        return self.monthly_cost * 12
+
+    @property
+    def monthly_cost_eur(self):
+        """Monthly cost converted to EUR"""
+        from ..services.finance_service import get_conversion_rate
+        rate = get_conversion_rate(self.currency or 'EUR')
+        return self.monthly_cost * rate
+
+    @property
+    def annual_cost_eur(self):
+        """Annual cost converted to EUR"""
+        return self.monthly_cost_eur * 12
+
+    @property
+    def active_user_count(self):
+        """Count of active (non-archived) users"""
+        return len([u for u in self.users if not u.is_archived])
+
     @property
     def next_renewal_date(self):
         """

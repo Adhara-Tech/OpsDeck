@@ -10,7 +10,19 @@ class Requirement(db.Model):
 
     # Main fields
     name = db.Column(db.String(255), nullable=False)  # Renamed from company_name
-    company_name = db.synonym('name')  # Backward compatibility alias
+    # Map company_name column to name for backward compatibility
+    # Use synonym that maps to the same column
+    _company_name_col = db.Column('company_name', db.String(255), nullable=False, default='')
+
+    @property
+    def company_name(self):
+        """Backward compatibility: return name"""
+        return self.name
+
+    @company_name.setter
+    def company_name(self, value):
+        """Backward compatibility: set name"""
+        self.name = value
 
     # Classification
     requirement_type = db.Column(db.String(50))  # 'Software', 'Hardware', 'Service', 'Consulting'
@@ -39,6 +51,15 @@ class Requirement(db.Model):
                               cascade='all, delete-orphan', order_by='RequirementAction.created_at.desc()')
     evaluations = db.relationship('Opportunity', backref='source_requirement', lazy=True,
                                   foreign_keys='Opportunity.requirement_id')
+
+# Event listener to keep name and _company_name_col in sync
+from sqlalchemy import event
+
+@event.listens_for(Requirement, 'before_insert')
+@event.listens_for(Requirement, 'before_update')
+def sync_company_name(mapper, connection, target):
+    """Ensure _company_name_col matches name for backward compatibility"""
+    target._company_name_col = target.name
 
 # Backward compatibility alias
 Lead = Requirement

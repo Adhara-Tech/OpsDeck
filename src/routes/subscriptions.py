@@ -4,6 +4,7 @@ from flask import (
 from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
 from ..models import db, Subscription, Supplier, Contact, PaymentMethod, Tag, CostHistory, Software, Budget, User
+from ..models.procurement import log_subscription_cost_change
 from ..services.finance_service import get_conversion_rate
 from ..services.permissions_service import requires_permission, has_write_permission
 from .main import login_required
@@ -133,19 +134,37 @@ def new_subscription():
                                         budgets=Budget.query.order_by(Budget.name).all(),
                                         users=users)
 
-        # Validate cost
+        # Get pricing model
+        pricing_model = request.form.get('pricing_model', 'fixed')
+
+        # Validate cost based on pricing model
         try:
-            cost = float(request.form['cost'])
-            if cost <= 0:
-                flash('Error: Subscription cost must be greater than 0.', 'danger')
-                return render_template('subscriptions/form.html',
-                                        suppliers=Supplier.query.order_by(Supplier.name).all(),
-                                        contacts=Contact.query.order_by(Contact.name).all(),
-                                        payment_methods=PaymentMethod.query.order_by(PaymentMethod.name).all(),
-                                        tags=Tag.query.order_by(Tag.name).all(),
-                                        software_items=software_items,
-                                        budgets=Budget.query.order_by(Budget.name).all(),
-                                        users=users)
+            if pricing_model == 'fixed':
+                cost = float(request.form['cost'])
+                cost_per_user = None
+                if cost <= 0:
+                    flash('Error: Subscription cost must be greater than 0.', 'danger')
+                    return render_template('subscriptions/form.html',
+                                            suppliers=Supplier.query.order_by(Supplier.name).all(),
+                                            contacts=Contact.query.order_by(Contact.name).all(),
+                                            payment_methods=PaymentMethod.query.order_by(PaymentMethod.name).all(),
+                                            tags=Tag.query.order_by(Tag.name).all(),
+                                            software_items=software_items,
+                                            budgets=Budget.query.order_by(Budget.name).all(),
+                                            users=users)
+            else:  # per_user
+                cost_per_user = float(request.form.get('cost_per_user', 0))
+                cost = 0  # Will be calculated based on users
+                if cost_per_user <= 0:
+                    flash('Error: Cost per user must be greater than 0.', 'danger')
+                    return render_template('subscriptions/form.html',
+                                            suppliers=Supplier.query.order_by(Supplier.name).all(),
+                                            contacts=Contact.query.order_by(Contact.name).all(),
+                                            payment_methods=PaymentMethod.query.order_by(PaymentMethod.name).all(),
+                                            tags=Tag.query.order_by(Tag.name).all(),
+                                            software_items=software_items,
+                                            budgets=Budget.query.order_by(Budget.name).all(),
+                                            users=users)
         except (ValueError, KeyError):
             flash('Error: Invalid cost value.', 'danger')
             return render_template('subscriptions/form.html',
@@ -167,7 +186,9 @@ def new_subscription():
             renewal_period_type=request.form['renewal_period_type'],
             renewal_period_value=int(request.form.get('renewal_period_value', 1)),
             auto_renew='auto_renew' in request.form,
+            pricing_model=pricing_model,
             cost=cost,
+            cost_per_user=cost_per_user,
             currency=request.form['currency'],
             supplier_id=request.form.get('supplier_id') or None,
             software_id=request.form.get('software_id') or None,
@@ -182,10 +203,11 @@ def new_subscription():
             elif selector == 'specific':
                 subscription.monthly_renewal_day = request.form.get('monthly_renewal_day')
 
-        initial_cost = CostHistory(
-            subscription=subscription, cost=subscription.cost, currency=subscription.currency, changed_date=today()
-        )
-        db.session.add(initial_cost)
+        db.session.add(subscription)
+        db.session.flush()  # Get subscription.id before logging
+
+        # Log initial cost
+        log_subscription_cost_change(subscription, reason='created')
 
         for contact_id in request.form.getlist('contact_ids'):
             contact = db.session.get(Contact,contact_id)
@@ -263,20 +285,39 @@ def edit_subscription(id):
                                         budgets=Budget.query.order_by(Budget.name).all(),
                                         users=users)
 
-        # Validate cost
+        # Get pricing model
+        new_pricing_model = request.form.get('pricing_model', 'fixed')
+
+        # Validate cost based on pricing model
         try:
-            new_cost = float(request.form['cost'])
-            if new_cost <= 0:
-                flash('Error: Subscription cost must be greater than 0.', 'danger')
-                return render_template('subscriptions/form.html',
-                                        subscription=subscription,
-                                        suppliers=Supplier.query.order_by(Supplier.name).all(),
-                                        contacts=Contact.query.order_by(Contact.name).all(),
-                                        payment_methods=PaymentMethod.query.order_by(PaymentMethod.name).all(),
-                                        tags=Tag.query.order_by(Tag.name).all(),
-                                        software_items=software_items,
-                                        budgets=Budget.query.order_by(Budget.name).all(),
-                                        users=users)
+            if new_pricing_model == 'fixed':
+                new_cost = float(request.form['cost'])
+                new_cost_per_user = None
+                if new_cost <= 0:
+                    flash('Error: Subscription cost must be greater than 0.', 'danger')
+                    return render_template('subscriptions/form.html',
+                                            subscription=subscription,
+                                            suppliers=Supplier.query.order_by(Supplier.name).all(),
+                                            contacts=Contact.query.order_by(Contact.name).all(),
+                                            payment_methods=PaymentMethod.query.order_by(PaymentMethod.name).all(),
+                                            tags=Tag.query.order_by(Tag.name).all(),
+                                            software_items=software_items,
+                                            budgets=Budget.query.order_by(Budget.name).all(),
+                                            users=users)
+            else:  # per_user
+                new_cost_per_user = float(request.form.get('cost_per_user', 0))
+                new_cost = 0  # Will be calculated based on users
+                if new_cost_per_user <= 0:
+                    flash('Error: Cost per user must be greater than 0.', 'danger')
+                    return render_template('subscriptions/form.html',
+                                            subscription=subscription,
+                                            suppliers=Supplier.query.order_by(Supplier.name).all(),
+                                            contacts=Contact.query.order_by(Contact.name).all(),
+                                            payment_methods=PaymentMethod.query.order_by(PaymentMethod.name).all(),
+                                            tags=Tag.query.order_by(Tag.name).all(),
+                                            software_items=software_items,
+                                            budgets=Budget.query.order_by(Budget.name).all(),
+                                            users=users)
         except (ValueError, KeyError):
             flash('Error: Invalid cost value.', 'danger')
             return render_template('subscriptions/form.html',
@@ -291,11 +332,13 @@ def edit_subscription(id):
 
         new_currency = request.form['currency']
 
-        if subscription.cost != new_cost or subscription.currency != new_currency:
-            cost_entry = CostHistory(
-                subscription_id=subscription.id, cost=new_cost, currency=new_currency, changed_date=today()
-            )
-            db.session.add(cost_entry)
+        # Detect if cost-related fields changed
+        cost_changed = (
+            subscription.pricing_model != new_pricing_model or
+            subscription.cost != new_cost or
+            subscription.cost_per_user != new_cost_per_user or
+            subscription.currency != new_currency
+        )
 
         subscription.name = request.form['name']
         subscription.subscription_type = request.form['subscription_type']
@@ -304,7 +347,9 @@ def edit_subscription(id):
         subscription.renewal_period_type = request.form['renewal_period_type']
         subscription.renewal_period_value = int(request.form.get('renewal_period_value', 1))
         subscription.auto_renew = 'auto_renew' in request.form
+        subscription.pricing_model = new_pricing_model
         subscription.cost = new_cost
+        subscription.cost_per_user = new_cost_per_user
         subscription.currency = new_currency
         subscription.supplier_id = request.form.get('supplier_id') or None
         subscription.software_id = request.form.get('software_id') or None
@@ -335,6 +380,10 @@ def edit_subscription(id):
         for tag_id in request.form.getlist('tag_ids'):
             tag = db.session.get(Tag,tag_id)
             if tag: subscription.tags.append(tag)
+
+        # Log cost change if any cost-related field changed
+        if cost_changed:
+            log_subscription_cost_change(subscription, reason='manual')
 
         db.session.commit()
         flash('Subscription updated successfully!')

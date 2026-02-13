@@ -74,20 +74,13 @@ Open your browser and navigate to:
 The `docker-compose.yml` mounts a volume for data persistence:
 - `./data` on host maps to `/app/data` in the container.
 
-This ensures that your SQLite database (`renewals.db`) and other data files persist even if the container is stopped or removed.
+This ensures that your data files (attachments, logs) persist even if the container is stopped or removed.
 
 ## Production Considerations
 
 ### Database
 
-**SQLite Limitations**
-SQLite is suitable for development and small deployments but has limitations:
-- Single writer at a time (can cause locking under load)
-- No network access (application must run on same host)
-- Limited concurrent connections
-
-**PostgreSQL for Production**
-For production deployments, use PostgreSQL:
+OpsDeck requires PostgreSQL. Configure it via the `DATABASE_URL` environment variable:
 
 1. Update `docker-compose.yml` to add PostgreSQL service:
 ```yaml

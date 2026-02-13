@@ -20,3 +20,8 @@ src/static/vendor/
 
 # Enterprise plugin (separate repository)
 opsdeck-enterprise/
+
+.docs/
+.claude/
+.agent/
+.coverage

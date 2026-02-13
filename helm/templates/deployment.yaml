@@ -44,15 +44,6 @@ spec:
             - name: DATABASE_URL
               value: postgresql://{{ .Values.database.external.username }}:$(DB_PASSWORD_RAW)@{{ .Values.database.external.host }}:{{ .Values.database.external.port }}/{{ .Values.database.external.database }}
             
-            # OPCIÓN C: SQLite (Local)
-            # Forzamos la ruta a /data/renewals.db para usar el volumen persistente
-            {{- else if eq .Values.database.type "sqlite" }}
-            - name: DATABASE_URL
-              {{- if .Values.database.sqlite.persistence.enabled }}
-              value: sqlite:////app/data/renewals.db
-              {{- else }}
-              value: sqlite:////app/data/renewals.db
-              {{- end }}
             {{- end }}
             
             # --- 2. Variables de Entorno Extra (values.yaml) ---
@@ -133,12 +124,6 @@ spec:
 
           # --- 5. Montaje de Volúmenes ---
           volumeMounts:
-            # SQLite database (if enabled)
-            {{- if and (eq .Values.database.type "sqlite") .Values.database.sqlite.persistence.enabled }}
-            - name: sqlite-data
-              mountPath: /data
-            {{- end }}
-            
             # Logs folder
             {{- if .Values.persistence.logs.enabled }}
             - name: logs
@@ -153,13 +138,6 @@ spec:
 
       # --- 6. Definición de Volúmenes ---
       volumes:
-        # SQLite PVC
-        {{- if and (eq .Values.database.type "sqlite") .Values.database.sqlite.persistence.enabled }}
-        - name: sqlite-data
-          persistentVolumeClaim:
-            claimName: {{ include "opsdeck.fullname" . }}-sqlite-pvc
-        {{- end }}
-        
         # Logs PVC
         {{- if .Values.persistence.logs.enabled }}
         - name: logs

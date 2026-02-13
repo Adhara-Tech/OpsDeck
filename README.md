@@ -57,7 +57,7 @@ See [deployment documentation](documentation/deployment_docker.md) for productio
 
 ## Tech Stack
 
-Python 3 + Flask, SQLAlchemy ORM, Bootstrap 5, APScheduler. Supports SQLite (development) and PostgreSQL (production).
+Python 3 + Flask, SQLAlchemy ORM, Bootstrap 5, APScheduler. Requires PostgreSQL.
 
 ## Documentation
 

@@ -90,14 +90,22 @@ def create_app(test_config=None):
     # --- Configuration ---
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-change-this')
     
-    # Database configuration - supports SQLite or PostgreSQL
-    database_url = os.environ.get('DATABASE_URL', 'sqlite:///../data/renewals.db')
+    # Database configuration - PostgreSQL required in production
+    if test_config and 'SQLALCHEMY_DATABASE_URI' in test_config:
+        database_url = test_config['SQLALCHEMY_DATABASE_URI']
+    else:
+        database_url = os.environ.get('DATABASE_URL')
+        if not database_url:
+            raise RuntimeError(
+                "DATABASE_URL environment variable is required. "
+                "Example: postgresql://user:password@host:5432/dbname"
+            )
     # Handle Heroku-style postgres:// URLs (SQLAlchemy requires postgresql://)
     if database_url.startswith('postgres://'):
         database_url = database_url.replace('postgres://', 'postgresql://', 1)
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    
+
     # Log which database backend is being used
     is_postgres = 'postgresql' in database_url
     app.config['IS_POSTGRES'] = is_postgres
@@ -225,7 +233,15 @@ def create_app(test_config=None):
     # --- REGISTER THE CUSTOM MARKDOWN FILTER ---
     @app.template_filter('markdown')
     def markdown_filter(s):
-        return markdown.markdown(s)
+        """Convert markdown to HTML with common extensions"""
+        return Markup(markdown.markdown(s, extensions=[
+            'extra',           # Includes tables, fenced code blocks, footnotes, etc.
+            'codehilite',      # Syntax highlighting for code blocks
+            'nl2br',           # Convert newlines to <br>
+            'sane_lists',      # Better list handling
+            'toc',             # Table of contents
+            'smarty'           # Smart quotes and dashes
+        ]))
     
     @app.template_filter('nl2br')
     def nl2br_filter(s):
@@ -562,12 +578,13 @@ def create_app(test_config=None):
             id="uar_scheduled_comparisons",
             replace_existing=True
         )
-        # Compliance drift detection - runs daily at 9:00 AM local time
+        # Compliance drift detection - runs weekly on Mondays at 9:00 AM local time
         from .services.compliance_drift_service import run_drift_detection
         scheduler.add_job(
             func=run_drift_detection,
             args=[app],
             trigger="cron",
+            day_of_week='mon',
             hour=9,
             minute=0,
             timezone=app_timezone,

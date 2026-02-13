@@ -47,24 +47,15 @@ kubectl create secret generic opsdeck-secrets \
 
 ### 3. Configure Persistent Storage (Optional)
 
-OpsDeck supports persistent storage for three types of data:
+OpsDeck supports persistent storage for two types of data:
 
-1. **SQLite Database** (if using SQLite instead of PostgreSQL)
-2. **Logs** (`/app/logs` folder)
-3. **Attachments** (`/app/data/attachments` folder)
+1. **Logs** (`/app/logs` folder)
+2. **Attachments** (`/app/data/attachments` folder)
 
 By default, all persistence is enabled in `values.yaml`. You can customize the storage sizes and classes:
 
 ```yaml
 # values.yaml
-database:
-  type: sqlite
-  sqlite:
-    persistence:
-      enabled: true
-      size: 1Gi
-      storageClass: ""  # Use default storage class
-
 persistence:
   logs:
     enabled: true

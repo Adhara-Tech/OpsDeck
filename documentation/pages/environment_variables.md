@@ -14,7 +14,7 @@ The OpsDeck application is configured using environment variables. These can be 
 
 | Variable | Description | Default | Required |
 | :--- | :--- | :--- | :--- |
-| `DATABASE_URL` | The database connection URI (e.g., `postgresql://user:pass@host/db`). Defaults to a local SQLite file. | `sqlite:///../data/renewals.db` | No |
+| `DATABASE_URL` | PostgreSQL connection URI (e.g., `postgresql://user:pass@host/db`). | None | **Yes** |
 
 ## Email & Notifications
 

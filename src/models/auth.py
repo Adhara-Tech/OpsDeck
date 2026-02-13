@@ -166,11 +166,7 @@ class OrgChartSnapshot(db.Model):
     created_at = db.Column(db.DateTime, default=lambda: now())
     created_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     
-    # Aquí guardamos el árbol completo en formato JSON
-    # SQLite < 3.9 no soporta JSON nativo, pero SQLAlchemy con JSON type suele manejar la serialización
-    # Si da problemas en SQLite antiguo, cambiar a db.Text y usar json.loads/dumps manual.
-    # Asumimos que el entorno soporta JSON o que SQLAlchemy hace el fallback.
-    chart_data = db.Column(db.JSON, nullable=False) 
+    chart_data = db.Column(db.JSON, nullable=False)
     
     notes = db.Column(db.Text)
     

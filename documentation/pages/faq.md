@@ -25,7 +25,7 @@ Minimum:
 - 4GB RAM
 - 20GB disk space
 - Python 3.8+
-- SQLite or PostgreSQL
+- PostgreSQL
 
 Recommended for production:
 - 4 CPU cores
@@ -43,8 +43,7 @@ Not natively in the core platform. For high availability:
 - Consider Kubernetes deployment with pod autoscaling
 
 **What databases are supported?**
-- SQLite (development and small deployments)
-- PostgreSQL (recommended for production)
+- PostgreSQL (required)
 - MySQL (community-supported, not officially tested)
 
 **How does OpsDeck handle upgrades?**
@@ -96,7 +95,7 @@ Yes, OpsDeck can run on any cloud platform:
 
 **How do I backup OpsDeck?**
 Backup requirements:
-- Database: pg_dump for PostgreSQL or file copy for SQLite
+- Database: pg_dump for PostgreSQL
 - File storage: Backup data directory containing uploads
 - Configuration: Backup .env file (store securely)
 
