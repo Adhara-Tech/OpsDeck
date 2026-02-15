@@ -84,7 +84,8 @@ def subscription_detail(id):
         subscription=subscription,
         cost_history_labels=cost_history_labels,
         cost_history_data=cost_history_data,
-        all_users=all_users
+        all_users=all_users,
+        get_conversion_rate=get_conversion_rate
     )
 
 @subscriptions_bp.route('/new', methods=['GET', 'POST'])
