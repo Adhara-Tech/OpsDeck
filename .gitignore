@@ -24,4 +24,5 @@ opsdeck-enterprise/
 .docs/
 .claude/
 .agent/
+.plans/
 .coverage
