@@ -71,9 +71,27 @@
                     </div>
                     <div class="col-md-6">
                         <p><strong>Next Renewal:</strong> {{ subscription.next_renewal_date.strftime('%B %d, %Y') if subscription.next_renewal_date else 'N/A' }}</p>
-                        <p><strong>Cost:</strong> €{{ "%.2f"|format(subscription.cost_eur) }} ({{ subscription.cost }}
-                            {{
-                            subscription.currency }})</p>
+
+                        <p><strong>Pricing Model:</strong>
+                            <span class="badge {{ 'bg-primary' if subscription.pricing_model == 'fixed' else 'bg-info' }}">
+                                {{ 'Fixed Cost' if subscription.pricing_model == 'fixed' else 'Per User' }}
+                            </span>
+                        </p>
+
+                        {% if subscription.pricing_model == 'per_user' %}
+                        <p><strong>Cost Per User:</strong> {{ subscription.currency }} {{ "%.2f"|format(subscription.cost_per_user) }}</p>
+                        <p><strong>Active Users:</strong> {{ subscription.active_user_count }}</p>
+                        <p><strong>Current Total Cost:</strong>
+                            <span class="text-primary fw-bold">€{{ "%.2f"|format(subscription.monthly_cost_eur * 12 if subscription.renewal_period_type == 'monthly' else subscription.current_cost * get_conversion_rate(subscription.currency)) }}</span>
+                            ({{ subscription.currency }} {{ "%.2f"|format(subscription.current_cost) }})
+                        </p>
+                        {% else %}
+                        <p><strong>Cost:</strong> €{{ "%.2f"|format(subscription.cost_eur) }} ({{ subscription.cost }} {{ subscription.currency }})</p>
+                        {% endif %}
+
+                        <p><strong>Monthly Cost (approx):</strong> €{{ "%.2f"|format(subscription.monthly_cost_eur) }}</p>
+                        <p><strong>Annual Cost (approx):</strong> €{{ "%.2f"|format(subscription.annual_cost_eur) }}</p>
+
                         <p><strong>Auto Renew:</strong>
                             <span class="badge {{ 'bg-success' if subscription.auto_renew else 'bg-warning' }}">
                                 {{ 'Yes' if subscription.auto_renew else 'No' }}
@@ -156,8 +174,79 @@
                 {% if subscription.cost_history|length > 1 %}
                 <canvas id="costHistoryChart" data-labels='{{ cost_history_labels|tojson|safe }}'
                     data-values='{{ cost_history_data|tojson|safe }}'></canvas>
+                <hr class="my-4">
+                {% endif %}
+
+                {% if subscription.cost_history %}
+                <h6 class="mb-3">Detailed Cost History</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Pricing Model</th>
+                                <th>Cost</th>
+                                <th>Cost per User</th>
+                                <th>User Count</th>
+                                <th>Total Cost (EUR)</th>
+                                <th>Reason</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for entry in subscription.cost_history|reverse %}
+                            <tr>
+                                <td>{{ entry.changed_date.strftime('%Y-%m-%d') }}</td>
+                                <td>
+                                    {% if entry.pricing_model %}
+                                    <span class="badge {{ 'bg-primary' if entry.pricing_model == 'fixed' else 'bg-info' }}">
+                                        {{ 'Fixed' if entry.pricing_model == 'fixed' else 'Per User' }}
+                                    </span>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ entry.currency }} {{ "%.2f"|format(entry.cost) }}</td>
+                                <td>
+                                    {% if entry.cost_per_user %}
+                                    {{ entry.currency }} {{ "%.2f"|format(entry.cost_per_user) }}
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if entry.user_count is not none %}
+                                    {{ entry.user_count }}
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if entry.pricing_model == 'per_user' and entry.cost_per_user and entry.user_count %}
+                                    €{{ "%.2f"|format(entry.cost_per_user * entry.user_count * get_conversion_rate(entry.currency)) }}
+                                    {% else %}
+                                    €{{ "%.2f"|format(entry.cost * get_conversion_rate(entry.currency)) }}
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if entry.reason == 'created' %}
+                                    <span class="badge bg-success">Created</span>
+                                    {% elif entry.reason == 'manual' %}
+                                    <span class="badge bg-primary">Manual Edit</span>
+                                    {% elif entry.reason == 'user_added' %}
+                                    <span class="badge bg-info">User Added</span>
+                                    {% elif entry.reason == 'user_removed' %}
+                                    <span class="badge bg-warning">User Removed</span>
+                                    {% else %}
+                                    <span class="text-muted">{{ entry.reason or '-' }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
                 {% else %}
-                <p class="text-muted">No cost changes have been recorded for this subscription yet.</p>
+                <p class="text-muted">No cost history available for this subscription.</p>
                 {% endif %}
             </div>
         </div>

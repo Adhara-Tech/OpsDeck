@@ -30,7 +30,10 @@ def list_audits():
     # IMPORTANT: Show ALL audits regardless of framework.is_active status
     # Audits are historical evidence snapshots and remain valid even if framework is deactivated
     # This allows companies to maintain audit history when frameworks are no longer in use
-    audits = ComplianceAudit.query.order_by(ComplianceAudit.created_at.desc()).all()
+    # Filter out drift_snapshots - those are internal data for compliance drift detection, not real audits
+    audits = ComplianceAudit.query.filter(
+        ComplianceAudit.audit_type != 'drift_snapshot'
+    ).order_by(ComplianceAudit.created_at.desc()).all()
     return render_template('audits/list.html', audits=audits)
 
 @audits_bp.route('/new', methods=['GET', 'POST'])
@@ -110,8 +113,10 @@ def new_audit():
     frameworks = Framework.query.filter_by(is_active=True).all()
     users = User.query.filter_by(is_archived=False).all()
     contacts = Contact.query.filter_by(is_archived=False).all()
-    # Fetch previous audits for the clone dropdown (exclude nothing for now, maybe filter later)
-    previous_audits = ComplianceAudit.query.order_by(ComplianceAudit.created_at.desc()).all()
+    # Fetch previous audits for the clone dropdown (exclude drift snapshots)
+    previous_audits = ComplianceAudit.query.filter(
+        ComplianceAudit.audit_type != 'drift_snapshot'
+    ).order_by(ComplianceAudit.created_at.desc()).all()
     
     return render_template('audits/new.html', 
                          frameworks=frameworks, 

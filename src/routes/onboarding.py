@@ -4,6 +4,7 @@ from datetime import datetime
 from ..extensions import db
 from ..models import User, Peripheral, License, Software, Course
 from ..models import Subscription, PaymentMethod, Risk, BusinessService, Location
+from ..models.procurement import log_subscription_cost_change
 # Importamos los modelos nuevos (asegúrate de haberlos registrado en __init__.py primero)
 from ..models.onboarding import (
     OnboardingProcess, OffboardingProcess, ProcessItem, 
@@ -637,9 +638,13 @@ def revoke_subscription_access(process_id, item_id):
         if target_user in subscription.users:
             subscription.users.remove(target_user)
             flash(f'User removed from {subscription.name}.', 'success')
+
+            # Log cost change if subscription uses per-user pricing
+            if subscription.pricing_model == 'per_user':
+                log_subscription_cost_change(subscription, reason='user_removed')
         else:
             flash(f'User was not in {subscription.name} (already removed?).', 'warning')
-            
+
         item.is_completed = True
         item.completed_at = now()
         db.session.commit()
@@ -773,6 +778,11 @@ def add_user_to_subscription(process_id, item_id):
         subscription.users.append(process.user)
         flash(f'User {process.user.name} added to subscription {subscription.name}.', 'success')
         item.is_completed = True
+
+        # Log cost change if subscription uses per-user pricing
+        if subscription.pricing_model == 'per_user':
+            log_subscription_cost_change(subscription, reason='user_added')
+
         db.session.commit()
     else:
         flash(f'User already has access to {subscription.name}.', 'info')

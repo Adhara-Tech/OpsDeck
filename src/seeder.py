@@ -200,11 +200,70 @@ def seed_data(app=None):
             subscription = Subscription(name=data['name'], subscription_type=data['type'], renewal_date=data['renewal'], cost=data['cost'], supplier=data['supplier'], renewal_period_type='yearly')
             db.session.add(subscription)
         
+        # Create Requirements
+        from src.models.crm import Requirement, RequirementAction, OpportunityTask
+        requirements_data = [
+            {
+                'name': 'Need a comprehensive backup solution',
+                'requirement_type': 'Software',
+                'priority': 'High',
+                'status': 'Researching',
+                'description': 'Current backup solution is outdated. Need cloud-based backup with 3-2-1 strategy support.',
+                'estimated_budget': 15000,
+                'needed_by': date(2026, 6, 1)
+            },
+            {
+                'name': 'Replace aging network equipment',
+                'requirement_type': 'Hardware',
+                'priority': 'Critical',
+                'status': 'Evaluating',
+                'description': 'Core switches are EOL. Need replacement for 3 core switches and 15 access switches.',
+                'estimated_budget': 75000,
+                'needed_by': date(2026, 4, 1)
+            },
+            {
+                'name': 'Implement SIEM solution',
+                'requirement_type': 'Security',
+                'priority': 'Medium',
+                'status': 'New',
+                'description': 'Required for compliance. Need centralized logging and security monitoring.',
+                'estimated_budget': 30000,
+                'needed_by': date(2026, 8, 1)
+            }
+        ]
+        requirements = []
+        for data in requirements_data:
+            req = Requirement(**data)
+            db.session.add(req)
+            requirements.append(req)
+        db.session.commit()
+
+        # Add some actions to requirements
+        actions = [
+            RequirementAction(requirement=requirements[0], action_type='Research', description='Evaluated Veeam, Commvault, and Druva. Druva looks promising for cloud-first approach.'),
+            RequirementAction(requirement=requirements[0], action_type='Meeting', description='Demo scheduled with Druva for next week.'),
+            RequirementAction(requirement=requirements[1], action_type='Note', description='Current switches: Cisco 3750X (2015). Warranty expired 2020.'),
+        ]
+        db.session.add_all(actions)
+        db.session.commit()
+
+        # Create Evaluations (Opportunities) - some linked to requirements
         opportunities = [
             Opportunity(name="Company-wide SSO solution", status="Evaluating", potential_value=20000, supplier=suppliers[12]),
-            Opportunity(name="Next-gen firewall refresh", status="Negotiating", potential_value=50000, supplier=suppliers[13], estimated_close_date=date(2025, 12, 1))
+            Opportunity(name="Next-gen firewall refresh", status="Negotiating", potential_value=50000, supplier=suppliers[13], estimated_close_date=date(2025, 12, 1)),
+            Opportunity(name="Evaluation: Druva Cloud Backup", status="PoC", potential_value=15000, supplier=suppliers[0], requirement_id=requirements[0].id, estimated_close_date=date(2026, 3, 15)),
         ]
         db.session.add_all(opportunities)
+        db.session.commit()
+
+        # Add some tasks to evaluations
+        tasks = [
+            OpportunityTask(opportunity=opportunities[0], description='Request pricing for 500 users', due_date=date(2026, 2, 20)),
+            OpportunityTask(opportunity=opportunities[0], description='Schedule technical deep-dive', due_date=date(2026, 2, 25)),
+            OpportunityTask(opportunity=opportunities[2], description='Complete 30-day PoC', due_date=date(2026, 3, 10), is_completed=True),
+            OpportunityTask(opportunity=opportunities[2], description='Present results to management', due_date=date(2026, 3, 15)),
+        ]
+        db.session.add_all(tasks)
         db.session.commit()
         
         # 6. Create Policies and Courses

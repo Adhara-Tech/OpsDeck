@@ -1,0 +1,199 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ requirement.name }} - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-lightbulb"></i> {{ requirement.name }}</h2>
+    <div>
+        {% if can_write('procurement') %}
+        <a href="{{ url_for('requirements.edit_requirement', id=requirement.id) }}" class="btn btn-sm btn-outline-primary">
+            <i class="fas fa-edit"></i> Edit
+        </a>
+        {% if requirement.status != 'Converted' %}
+        <a href="{{ url_for('requirements.convert_requirement', id=requirement.id) }}" class="btn btn-sm btn-outline-success">
+            <i class="fas fa-exchange-alt"></i> Convert
+        </a>
+        {% endif %}
+        {% endif %}
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">Requirement Details</div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <p><strong>Type:</strong>
+                    {% if requirement.requirement_type %}
+                    <span class="badge bg-secondary">{{ requirement.requirement_type }}</span>
+                    {% else %}
+                    <span class="text-muted">Not specified</span>
+                    {% endif %}
+                </p>
+                <p><strong>Priority:</strong>
+                    {% if requirement.priority == 'Critical' %}
+                    <span class="badge bg-danger">{{ requirement.priority }}</span>
+                    {% elif requirement.priority == 'High' %}
+                    <span class="badge bg-warning">{{ requirement.priority }}</span>
+                    {% elif requirement.priority == 'Medium' %}
+                    <span class="badge bg-info">{{ requirement.priority }}</span>
+                    {% else %}
+                    <span class="badge bg-secondary">{{ requirement.priority }}</span>
+                    {% endif %}
+                </p>
+                <p><strong>Status:</strong> <span class="badge bg-primary">{{ requirement.status }}</span></p>
+            </div>
+            <div class="col-md-6">
+                <p><strong>Estimated Budget:</strong>
+                    {% if requirement.estimated_budget %}
+                    {{ requirement.currency }} {{ "%.2f"|format(requirement.estimated_budget) }}
+                    {% else %}
+                    <span class="text-muted">Not specified</span>
+                    {% endif %}
+                </p>
+                <p><strong>Needed By:</strong>
+                    {% if requirement.needed_by %}
+                    {{ requirement.needed_by.strftime('%Y-%m-%d') }}
+                    {% else %}
+                    <span class="text-muted">Not specified</span>
+                    {% endif %}
+                </p>
+                <p><strong>Created:</strong> {{ requirement.created_at.strftime('%Y-%m-%d') }}</p>
+            </div>
+        </div>
+        {% if requirement.description %}
+        <hr>
+        <p class="mb-0"><strong>Description:</strong></p>
+        <p>{{ requirement.description|nl2br }}</p>
+        {% endif %}
+
+        {% if requirement.evaluations %}
+        <hr>
+        <p class="mb-0"><strong>Related Evaluations:</strong></p>
+        <ul class="list-unstyled mt-2">
+            {% for eval in requirement.evaluations %}
+            <li>
+                <i class="fas fa-arrow-right text-primary"></i>
+                <a href="{{ url_for('evaluations.detail', id=eval.id) }}">{{ eval.name }}</a>
+                <span class="badge bg-info">{{ eval.status }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <span><i class="fas fa-tasks"></i> Actions & Notes</span>
+            {% if requirement.actions and requirement.actions|length > visible_actions|length %}
+            <small class="text-muted">{{ (requirement.actions|length) - (visible_actions|length) }} hidden</small>
+            {% endif %}
+        </div>
+    </div>
+    <div class="card-body">
+        {% if can_write('procurement') %}
+        <form action="{{ url_for('requirements.add_action', id=requirement.id) }}" method="POST" class="mb-4">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="mb-3">
+                <label for="description" class="form-label">New Action/Note</label>
+                <textarea class="form-control" name="description" rows="3" required
+                    placeholder="Add notes, research findings, meeting summaries, etc."></textarea>
+            </div>
+            <div class="row">
+                <div class="col-md-4">
+                    <label for="action_type" class="form-label">Action Type</label>
+                    <select name="action_type" class="form-select">
+                        <option value="Note">Note</option>
+                        <option value="Research">Research</option>
+                        <option value="Meeting">Meeting</option>
+                        <option value="Decision">Decision</option>
+                        <option value="Email">Email</option>
+                    </select>
+                </div>
+                <div class="col-md-8 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add Action
+                    </button>
+                </div>
+            </div>
+        </form>
+        <hr>
+        {% endif %}
+
+        <ul class="list-group list-group-flush">
+            {% for action in visible_actions %}
+            <li class="list-group-item" id="action-{{ action.id }}">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
+                        <p class="mb-1">
+                            <strong>
+                                <span class="badge bg-secondary">{{ action.action_type }}</span>
+                                {{ action.created_at.strftime('%Y-%m-%d @ %H:%M') }}
+                            </strong>
+                            {% if action.edited_at %}
+                            <small class="text-muted">(edited {{ action.edited_at.strftime('%Y-%m-%d @ %H:%M') }})</small>
+                            {% endif %}
+                        </p>
+                        <p class="mb-0 action-text" id="action-text-{{ action.id }}">{{ action.description|nl2br }}</p>
+                        <!-- Edit form (hidden by default) -->
+                        <form action="{{ url_for('requirements.edit_action', action_id=action.id) }}" method="POST"
+                            class="action-edit-form mt-2" id="action-edit-form-{{ action.id }}" style="display:none;">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <textarea class="form-control mb-2" name="description" rows="3">{{ action.description }}</textarea>
+                            <select name="action_type" class="form-select mb-2">
+                                <option value="Note" {% if action.action_type=='Note' %}selected{% endif %}>Note</option>
+                                <option value="Research" {% if action.action_type=='Research' %}selected{% endif %}>Research</option>
+                                <option value="Meeting" {% if action.action_type=='Meeting' %}selected{% endif %}>Meeting</option>
+                                <option value="Decision" {% if action.action_type=='Decision' %}selected{% endif %}>Decision</option>
+                                <option value="Email" {% if action.action_type=='Email' %}selected{% endif %}>Email</option>
+                            </select>
+                            <button type="submit" class="btn btn-sm btn-success">Save</button>
+                            <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEditAction({{ action.id }})">Cancel</button>
+                        </form>
+                    </div>
+                    {% if can_write('procurement') %}
+                    <div class="btn-group ms-2" role="group">
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleEditAction({{ action.id }})"
+                            title="Edit"><i class="fas fa-edit"></i></button>
+                        <form action="{{ url_for('requirements.toggle_action_hidden', action_id=action.id) }}" method="POST" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-outline-secondary" title="Hide">
+                                <i class="fas fa-eye-slash"></i>
+                            </button>
+                        </form>
+                        <form action="{{ url_for('requirements.delete_action', action_id=action.id) }}" method="POST"
+                            class="d-inline" onsubmit="return confirm('Delete this action?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </form>
+                    </div>
+                    {% endif %}
+                </div>
+            </li>
+            {% else %}
+            <li class="list-group-item text-muted">No actions logged yet.</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+
+<script>
+function toggleEditAction(actionId) {
+    const textDiv = document.getElementById('action-text-' + actionId);
+    const editForm = document.getElementById('action-edit-form-' + actionId);
+
+    if (editForm.style.display === 'none') {
+        textDiv.style.display = 'none';
+        editForm.style.display = 'block';
+    } else {
+        textDiv.style.display = 'block';
+        editForm.style.display = 'none';
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,98 @@
+{% extends "layout.html" %}
+{% set title = "Edit Requirement" if requirement else "New Requirement" %}
+{% block title %}{{ title }} - {{ super() }}{% endblock %}
+{% block content %}
+<h2><i class="fas fa-lightbulb"></i> {{ title }}</h2>
+<hr>
+<div class="card">
+    <div class="card-body">
+        <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="mb-3">
+                <label for="name" class="form-label">Requirement Name *</label>
+                <input type="text" class="form-control" id="name" name="name"
+                    value="{{ requirement.name if requirement else '' }}" required
+                    placeholder="e.g., Need a CRM system, New backup solution"
+                    {% if not can_write('procurement') %}disabled{% endif %}>
+                <div class="form-text">A clear, descriptive name for this requirement</div>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <label for="requirement_type" class="form-label">Type</label>
+                    <select class="form-select" id="requirement_type" name="requirement_type"
+                        {% if not can_write('procurement') %}disabled{% endif %}>
+                        <option value="">- Select Type -</option>
+                        {% set types = ['Software', 'Hardware', 'Service', 'Consulting', 'License', 'Subscription', 'Other'] %}
+                        {% for t in types %}
+                        <option value="{{ t }}" {% if requirement and requirement.requirement_type==t %}selected{% endif %}>{{ t }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="priority" class="form-label">Priority</label>
+                    <select class="form-select" id="priority" name="priority"
+                        {% if not can_write('procurement') %}disabled{% endif %}>
+                        {% set priorities = ['Low', 'Medium', 'High', 'Critical'] %}
+                        {% for p in priorities %}
+                        <option value="{{ p }}" {% if requirement and requirement.priority==p %}selected{% elif not requirement and p=='Medium' %}selected{% endif %}>{{ p }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="status" class="form-label">Status</label>
+                    <select class="form-select" id="status" name="status"
+                        {% if not can_write('procurement') %}disabled{% endif %}>
+                        {% set statuses = ['New', 'Researching', 'Evaluating', 'Converted', 'Rejected'] %}
+                        {% for s in statuses %}
+                        <option value="{{ s }}" {% if requirement and requirement.status==s %}selected{% elif not requirement and s=='New' %}selected{% endif %}>{{ s }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label for="estimated_budget" class="form-label">Estimated Budget</label>
+                    <input type="number" step="0.01" class="form-control" id="estimated_budget" name="estimated_budget"
+                        value="{{ requirement.estimated_budget if requirement and requirement.estimated_budget else '' }}"
+                        {% if not can_write('procurement') %}disabled{% endif %}>
+                </div>
+                <div class="col-md-3">
+                    <label for="currency" class="form-label">Currency</label>
+                    <select class="form-select" id="currency" name="currency"
+                        {% if not can_write('procurement') %}disabled{% endif %}>
+                        {% set currencies = ['EUR', 'USD', 'GBP'] %}
+                        {% for c in currencies %}
+                        <option value="{{ c }}" {% if requirement and requirement.currency==c %}selected{% elif not requirement and c=='EUR' %}selected{% endif %}>{{ c }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="needed_by" class="form-label">Needed By</label>
+                    <input type="date" class="form-control" id="needed_by" name="needed_by"
+                        value="{{ requirement.needed_by.strftime('%Y-%m-%d') if requirement and requirement.needed_by else '' }}"
+                        {% if not can_write('procurement') %}disabled{% endif %}>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="description" class="form-label">Description</label>
+                <textarea class="form-control" id="description" name="description" rows="5"
+                    placeholder="Describe the requirement in detail..."
+                    {% if not can_write('procurement') %}disabled{% endif %}>{{ requirement.description if requirement and requirement.description else '' }}</textarea>
+                <div class="form-text">What is needed and why? Include any specific requirements or constraints.</div>
+            </div>
+
+            <hr>
+            <a href="{{ url_for('requirements.list_requirements') }}" class="btn btn-secondary">Cancel</a>
+            {% if can_write('procurement') %}
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save"></i> Save Requirement
+            </button>
+            {% endif %}
+        </form>
+    </div>
+</div>
+{% endblock %}

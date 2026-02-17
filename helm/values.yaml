@@ -10,11 +10,11 @@ service:
 
 # --- Base de Datos ---
 database:
-  # Opciones: "sqlite" (no recomendado para producción), "internal" (despliega pod postgres) o "external" (usa RDS/Aurora/Etc)
-  type: sqlite
+  # Opciones: "internal" (despliega pod postgres) o "external" (usa RDS/Aurora/Etc)
+  type: internal
 
-  # Internal se configura desde la ruta .Values.postgresql      
-  
+  # Internal se configura desde la ruta .Values.postgresql
+
   # Solo se usa si type: external
   external:
     host: "mi-aurora-db.aws.com"
@@ -24,13 +24,6 @@ database:
     existingSecret:
       name: "secreto-kubernetes"
       key: "password"
-
-  # Solo se usa si type: sqlite
-  sqlite:
-    persistence:
-      enabled: true
-      size: 1Gi
-      storageClass: "" # Dejar vacío para usar la default
 
 # --- Persistent Storage for Application Data ---
 persistence:

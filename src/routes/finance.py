@@ -68,7 +68,7 @@ def exchange_rates():
         .order_by(ExchangeRate.currency_code, ExchangeRate.fetched_at.desc())\
         .all()
     
-    # SQLite workaround - get latest for each currency
+    # Get latest rate for each currency
     current_rates = {}
     all_currencies = db.session.query(ExchangeRate.currency_code).distinct().all()
     for (currency,) in all_currencies:

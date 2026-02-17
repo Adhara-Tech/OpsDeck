@@ -1,0 +1,164 @@
+{% extends "layout.html" %}
+{% block title %}Requirements - {{ super() }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-lightbulb"></i> Requirements</h2>
+    <div>
+        <a href="{{ url_for('requirements.timeline') }}" class="btn btn-outline-info me-2">
+            <i class="fas fa-project-diagram"></i> Timeline View
+        </a>
+        <button class="btn btn-outline-success" onclick="exportTableToCSV('requirements-table', 'requirements.csv')">
+            <i class="fas fa-file-csv"></i> Export to CSV
+        </button>
+        {% if can_write('procurement') %}
+        <a href="{{ url_for('requirements.new_requirement') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> New Requirement
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Filters Card -->
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('requirements.list_requirements') }}" id="filter-form">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label for="search" class="form-label small mb-1">Search</label>
+                    <input type="text" class="form-control form-control-sm" id="search" name="search"
+                           placeholder="Search name or description..."
+                           value="{{ current_filters.search if current_filters.search else '' }}">
+                </div>
+                <div class="col-md-2">
+                    <label for="status" class="form-label small mb-1">Status</label>
+                    <select class="form-select form-select-sm" id="status" name="status" onchange="this.form.submit()">
+                        <option value="all">All Statuses</option>
+                        {% for status in all_statuses %}
+                        <option value="{{ status }}" {% if current_filters.status == status %}selected{% endif %}>{{ status }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="priority" class="form-label small mb-1">Priority</label>
+                    <select class="form-select form-select-sm" id="priority" name="priority" onchange="this.form.submit()">
+                        <option value="all">All Priorities</option>
+                        {% for priority in all_priorities %}
+                        <option value="{{ priority }}" {% if current_filters.priority == priority %}selected{% endif %}>{{ priority }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="type" class="form-label small mb-1">Type</label>
+                    <select class="form-select form-select-sm" id="type" name="type" onchange="this.form.submit()">
+                        <option value="all">All Types</option>
+                        {% for type in all_types %}
+                        <option value="{{ type }}" {% if current_filters.type == type %}selected{% endif %}>{{ type }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="sort" class="form-label small mb-1">Sort By</label>
+                    <select class="form-select form-select-sm" id="sort" name="sort" onchange="this.form.submit()">
+                        <option value="created_desc" {% if current_filters.sort == 'created_desc' or not current_filters.sort %}selected{% endif %}>Newest First</option>
+                        <option value="created_asc" {% if current_filters.sort == 'created_asc' %}selected{% endif %}>Oldest First</option>
+                        <option value="priority" {% if current_filters.sort == 'priority' %}selected{% endif %}>Priority</option>
+                        <option value="needed_by" {% if current_filters.sort == 'needed_by' %}selected{% endif %}>Needed By Date</option>
+                        <option value="budget" {% if current_filters.sort == 'budget' %}selected{% endif %}>Budget (High to Low)</option>
+                    </select>
+                </div>
+                <div class="col-md-1">
+                    <button type="submit" class="btn btn-sm btn-primary w-100">
+                        <i class="fas fa-filter"></i>
+                    </button>
+                </div>
+            </div>
+            {% if current_filters.search or current_filters.status or current_filters.priority or current_filters.type %}
+            <div class="mt-2">
+                <a href="{{ url_for('requirements.list_requirements') }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-times"></i> Clear Filters
+                </a>
+                <small class="text-muted ms-2">{{ requirements|length }} result(s)</small>
+            </div>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <table class="table table-striped datatable" id="requirements-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Priority</th>
+                    <th>Status</th>
+                    <th>Budget</th>
+                    <th>Needed By</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for req in requirements %}
+                <tr>
+                    <td>
+                        <a href="{{ url_for('requirements.detail', id=req.id) }}">{{ req.name }}</a>
+                    </td>
+                    <td>
+                        {% if req.requirement_type %}
+                        <span class="badge bg-secondary">{{ req.requirement_type }}</span>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if req.priority == 'Critical' %}
+                        <span class="badge bg-danger">{{ req.priority }}</span>
+                        {% elif req.priority == 'High' %}
+                        <span class="badge bg-warning">{{ req.priority }}</span>
+                        {% elif req.priority == 'Medium' %}
+                        <span class="badge bg-info">{{ req.priority }}</span>
+                        {% else %}
+                        <span class="badge bg-secondary">{{ req.priority }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge bg-primary">{{ req.status }}</span>
+                    </td>
+                    <td>
+                        {% if req.estimated_budget %}
+                        {{ req.currency }} {{ "%.2f"|format(req.estimated_budget) }}
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if req.needed_by %}
+                        {{ req.needed_by.strftime('%Y-%m-%d') }}
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if can_write('procurement') %}
+                        <a href="{{ url_for('requirements.edit_requirement', id=req.id) }}" class="btn btn-sm btn-outline-primary"
+                            title="Edit"><i class="fas fa-edit"></i></a>
+                        {% if req.status != 'Converted' %}
+                        <a href="{{ url_for('requirements.convert_requirement', id=req.id) }}" class="btn btn-sm btn-outline-success"
+                            title="Convert"><i class="fas fa-exchange-alt"></i></a>
+                        {% endif %}
+                        {% else %}
+                        <span class="text-muted small">Read Only</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" class="text-center">No requirements found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

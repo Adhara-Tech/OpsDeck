@@ -1,7 +1,7 @@
 from datetime import date, datetime, timedelta
 import pytest
 from src import db
-from src.models import Budget, Subscription, Supplier
+from src.models import Budget, Subscription, Supplier, CostHistory
 from src.utils.timezone_helper import today
 
 def test_purchase_cost_calculation(auth_client, app):
@@ -346,3 +346,240 @@ def test_subscription_positive_cost_validation(app):
         db.session.commit()
 
         assert subscription.cost == 99.99
+
+
+# === Bug fix regression tests ===
+
+
+def test_budget_remaining_ignores_non_renewable_subscriptions(app):
+    """
+    Bug 1: Budget.remaining must NOT project future renewals for
+    subscriptions with auto_renew=False.
+    """
+    with app.app_context():
+        supplier = Supplier(name='Test Supplier')
+        db.session.add(supplier)
+        db.session.flush()
+
+        budget = Budget(
+            name='2024 Budget',
+            amount=10000,
+            valid_from=date(2024, 1, 1),
+            valid_until=date(2024, 12, 31)
+        )
+        db.session.add(budget)
+        db.session.flush()
+
+        # Non-renewable subscription with renewal_date outside budget period
+        sub = Subscription(
+            name='Expiring SaaS',
+            subscription_type='SaaS',
+            renewal_date=date(2025, 3, 15),  # Outside budget period
+            renewal_period_type='yearly',
+            renewal_period_value=1,
+            auto_renew=False,
+            cost=1200,
+            currency='EUR',
+            supplier_id=supplier.id,
+            budget_id=budget.id
+        )
+        db.session.add(sub)
+        db.session.commit()
+
+        # Non-renewable + renewal_date outside period = 0 spent
+        assert budget.remaining == 10000
+
+
+def test_budget_remaining_counts_renewable_subscriptions(app):
+    """
+    Bug 1: Budget.remaining MUST count all renewals for auto_renew=True
+    subscriptions within the budget period.
+    """
+    with app.app_context():
+        supplier = Supplier(name='Test Supplier')
+        db.session.add(supplier)
+        db.session.flush()
+
+        budget = Budget(
+            name='2024 Budget',
+            amount=10000,
+            valid_from=date(2024, 1, 1),
+            valid_until=date(2024, 12, 31)
+        )
+        db.session.add(budget)
+        db.session.flush()
+
+        # Auto-renewing monthly subscription: 12 renewals in 2024
+        sub = Subscription(
+            name='Monthly SaaS',
+            subscription_type='SaaS',
+            renewal_date=date(2024, 1, 1),
+            renewal_period_type='monthly',
+            renewal_period_value=1,
+            auto_renew=True,
+            cost=100,
+            currency='EUR',
+            supplier_id=supplier.id,
+            budget_id=budget.id
+        )
+        db.session.add(sub)
+        db.session.commit()
+
+        # 12 monthly renewals × €100 = €1200 spent
+        assert budget.remaining == 10000 - 1200
+
+
+def test_budget_remaining_non_renewable_counts_once_if_in_period(app):
+    """
+    Bug 1: A non-renewable subscription whose renewal_date falls within
+    the budget period should be counted exactly once.
+    """
+    with app.app_context():
+        supplier = Supplier(name='Test Supplier')
+        db.session.add(supplier)
+        db.session.flush()
+
+        budget = Budget(
+            name='2024 Budget',
+            amount=5000,
+            valid_from=date(2024, 1, 1),
+            valid_until=date(2024, 12, 31)
+        )
+        db.session.add(budget)
+        db.session.flush()
+
+        sub = Subscription(
+            name='One-off License',
+            subscription_type='SaaS',
+            renewal_date=date(2024, 6, 15),  # Inside budget period
+            renewal_period_type='yearly',
+            renewal_period_value=1,
+            auto_renew=False,
+            cost=500,
+            currency='EUR',
+            supplier_id=supplier.id,
+            budget_id=budget.id
+        )
+        db.session.add(sub)
+        db.session.commit()
+
+        # Counted exactly once: 5000 - 500 = 4500
+        assert budget.remaining == 4500
+
+
+def test_count_renewals_zero_period_value(app):
+    """
+    Bug 2: _count_renewals_in_period must return 0 when period_value
+    is 0 or negative, preventing an infinite loop.
+    """
+    with app.app_context():
+        budget = Budget(
+            name='Test Budget',
+            amount=1000,
+            valid_from=date(2024, 1, 1),
+            valid_until=date(2024, 12, 31)
+        )
+        db.session.add(budget)
+        db.session.commit()
+
+        # period_value=0 should return 0 (not infinite loop)
+        assert budget._count_renewals_in_period(
+            date(2024, 1, 1), 'monthly', 0
+        ) == 0
+
+        # Negative period_value should also return 0
+        assert budget._count_renewals_in_period(
+            date(2024, 1, 1), 'yearly', -1
+        ) == 0
+
+        # None period_value should also return 0
+        assert budget._count_renewals_in_period(
+            date(2024, 1, 1), 'monthly', None
+        ) == 0
+
+
+def test_subscription_renewal_period_value_validation(app):
+    """
+    Bug 2: Subscription must reject renewal_period_value <= 0
+    at the model level to prevent bad data from entering the DB.
+    """
+    with app.app_context():
+        supplier = Supplier(name='Test Supplier')
+        db.session.add(supplier)
+        db.session.commit()
+
+        with pytest.raises(ValueError, match="greater than 0"):
+            Subscription(
+                name='Bad Sub',
+                subscription_type='SaaS',
+                renewal_date=date(2024, 1, 1),
+                renewal_period_type='monthly',
+                renewal_period_value=0,  # Should raise ValueError
+                cost=100,
+                supplier_id=supplier.id
+            )
+
+        with pytest.raises(ValueError, match="greater than 0"):
+            Subscription(
+                name='Bad Sub 2',
+                subscription_type='SaaS',
+                renewal_date=date(2024, 1, 1),
+                renewal_period_type='monthly',
+                renewal_period_value=-5,  # Should also raise
+                cost=100,
+                supplier_id=supplier.id
+            )
+
+
+def test_cost_history_per_user_zero_users(app):
+    """
+    Bug 5: CostHistory.total_cost must return 0 (not None) when
+    pricing_model='per_user' and user_count=0.
+    """
+    with app.app_context():
+        supplier = Supplier(name='Test Supplier')
+        db.session.add(supplier)
+        db.session.flush()
+
+        sub = Subscription(
+            name='Per User SaaS',
+            subscription_type='SaaS',
+            renewal_date=date(2024, 1, 1),
+            renewal_period_type='monthly',
+            cost=10,
+            supplier_id=supplier.id,
+            pricing_model='per_user',
+            cost_per_user=10.0
+        )
+        db.session.add(sub)
+        db.session.flush()
+
+        # user_count=0 should yield total_cost=0, not None or error
+        history = CostHistory(
+            subscription_id=sub.id,
+            cost=0,
+            currency='EUR',
+            pricing_model='per_user',
+            cost_per_user=10.0,
+            user_count=0,
+            reason='manual'
+        )
+        db.session.add(history)
+        db.session.commit()
+
+        assert history.total_cost == 0
+
+        # user_count=None should also yield 0
+        history2 = CostHistory(
+            subscription_id=sub.id,
+            cost=0,
+            currency='EUR',
+            pricing_model='per_user',
+            cost_per_user=10.0,
+            user_count=None,
+            reason='manual'
+        )
+        db.session.add(history2)
+        db.session.commit()
+
+        assert history2.total_cost == 0

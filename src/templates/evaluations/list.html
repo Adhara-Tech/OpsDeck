@@ -1,0 +1,141 @@
+{% extends "layout.html" %}
+
+{% block title %}Evaluations - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-chart-line"></i> Evaluations</h2>
+    <div>
+        <a href="{{ url_for('evaluations.kanban_view') }}" class="btn btn-outline-primary me-2">
+            <i class="fas fa-th"></i> Kanban View
+        </a>
+        <button class="btn btn-outline-success" onclick="exportTableToCSV('evaluations-table', 'evaluations.csv')">
+            <i class="fas fa-file-csv"></i> Export to CSV
+        </button>
+        {% if can_write('procurement') %}
+        <a href="{{ url_for('evaluations.new_evaluation') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> New Evaluation
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Filters Card -->
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="GET" action="{{ url_for('evaluations.list_evaluations') }}" id="filter-form">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label for="search" class="form-label small mb-1">Search</label>
+                    <input type="text" class="form-control form-control-sm" id="search" name="search"
+                           placeholder="Search name or notes..."
+                           value="{{ current_filters.search if current_filters.search else '' }}">
+                </div>
+                <div class="col-md-2">
+                    <label for="status" class="form-label small mb-1">Status</label>
+                    <select class="form-select form-select-sm" id="status" name="status" onchange="this.form.submit()">
+                        <option value="all">All Statuses</option>
+                        {% for status in all_statuses %}
+                        <option value="{{ status }}" {% if current_filters.status == status %}selected{% endif %}>{{ status }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="supplier" class="form-label small mb-1">Supplier</label>
+                    <select class="form-select form-select-sm" id="supplier" name="supplier" onchange="this.form.submit()">
+                        <option value="all">All Suppliers</option>
+                        {% for supplier in all_suppliers %}
+                        <option value="{{ supplier.id }}" {% if current_filters.supplier == supplier.id|string %}selected{% endif %}>{{ supplier.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="requirement" class="form-label small mb-1">Requirement Link</label>
+                    <select class="form-select form-select-sm" id="requirement" name="requirement" onchange="this.form.submit()">
+                        <option value="all">All</option>
+                        <option value="linked" {% if current_filters.requirement == 'linked' %}selected{% endif %}>Linked to Requirement</option>
+                        <option value="unlinked" {% if current_filters.requirement == 'unlinked' %}selected{% endif %}>Not Linked</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="sort" class="form-label small mb-1">Sort By</label>
+                    <select class="form-select form-select-sm" id="sort" name="sort" onchange="this.form.submit()">
+                        <option value="close_date" {% if current_filters.sort == 'close_date' or not current_filters.sort %}selected{% endif %}>Close Date</option>
+                        <option value="created_desc" {% if current_filters.sort == 'created_desc' %}selected{% endif %}>Newest First</option>
+                        <option value="value" {% if current_filters.sort == 'value' %}selected{% endif %}>Value (High to Low)</option>
+                        <option value="name" {% if current_filters.sort == 'name' %}selected{% endif %}>Name (A-Z)</option>
+                    </select>
+                </div>
+                <div class="col-md-1">
+                    <button type="submit" class="btn btn-sm btn-primary w-100">
+                        <i class="fas fa-filter"></i>
+                    </button>
+                </div>
+            </div>
+            {% if current_filters.search or current_filters.status or current_filters.supplier or current_filters.requirement %}
+            <div class="mt-2">
+                <a href="{{ url_for('evaluations.list_evaluations') }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-times"></i> Clear Filters
+                </a>
+                <small class="text-muted ms-2">{{ evaluations|length }} result(s)</small>
+            </div>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped datatable" id="evaluations-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Status</th>
+                        <th>Supplier</th>
+                        <th>Potential Value</th>
+                        <th>Est. Close Date</th>
+                        <th>Tasks</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for eval in evaluations %}
+                    <tr>
+                        <td><a href="{{ url_for('evaluations.detail', id=eval.id) }}">{{ eval.name }}</a></td>
+                        <td>
+                            {% if eval.status == 'Won' %}
+                            <span class="badge bg-success">{{ eval.status }}</span>
+                            {% elif eval.status == 'Lost' %}
+                            <span class="badge bg-danger">{{ eval.status }}</span>
+                            {% elif eval.status == 'Negotiating' %}
+                            <span class="badge bg-warning">{{ eval.status }}</span>
+                            {% else %}
+                            <span class="badge bg-info">{{ eval.status }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ eval.supplier.name if eval.supplier else '-' }}</td>
+                        <td>{{ eval.currency }} {{ "%.2f"|format(eval.potential_value) if eval.potential_value else '-' }}
+                        </td>
+                        <td>{{ eval.estimated_close_date.strftime('%Y-%m-%d') if eval.estimated_close_date else '-' }}
+                        </td>
+                        <td>
+                            {% if eval.tasks %}
+                            {% set completed = eval.tasks|selectattr('is_completed')|list|length %}
+                            {% set total = eval.tasks|length %}
+                            <span class="badge bg-secondary">{{ completed }}/{{ total }}</span>
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center">No evaluations found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

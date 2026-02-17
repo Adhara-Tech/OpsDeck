@@ -1,0 +1,42 @@
+{% extends "layout.html" %}
+{% block title %}Convert Requirement - {{ super() }}{% endblock %}
+{% block content %}
+<h2><i class="fas fa-exchange-alt"></i> Convert Requirement</h2>
+<hr>
+<div class="card">
+    <div class="card-header">
+        Converting: <strong>{{ requirement.name }}</strong>
+    </div>
+    <div class="card-body">
+        <p>This requirement can be converted to:</p>
+        <form method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="mb-3">
+                <div class="form-check mb-2">
+                    <input class="form-check-input" type="radio" name="conversion_type" id="conversion_evaluation" value="evaluation" checked>
+                    <label class="form-check-label" for="conversion_evaluation">
+                        <strong>Evaluation</strong> - Start evaluating potential solutions for this requirement
+                    </label>
+                    <div class="form-text ms-4">
+                        Creates a new evaluation linked to this requirement. Use this when you're ready to compare vendors or solutions.
+                    </div>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="conversion_type" id="conversion_supplier" value="supplier">
+                    <label class="form-check-label" for="conversion_supplier">
+                        <strong>Supplier</strong> - Add a new supplier to fulfill this requirement
+                    </label>
+                    <div class="form-text ms-4">
+                        Creates a new supplier record. Use this if you already know the vendor you'll work with.
+                    </div>
+                </div>
+            </div>
+            <hr>
+            <a href="{{ url_for('requirements.list_requirements') }}" class="btn btn-secondary">Cancel</a>
+            <button type="submit" class="btn btn-success">
+                <i class="fas fa-check"></i> Convert Requirement
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

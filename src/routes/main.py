@@ -999,6 +999,8 @@ def ops_finance_dashboard():
         forecast_costs[year_month_key] = 0
 
     for subscription in all_active_subscriptions:
+        if not subscription.auto_renew:
+            continue
         renewal = subscription.renewal_date
         # Find first renewal within or after forecast start
         while renewal < forecast_start_date:
@@ -1262,8 +1264,8 @@ def internal_test_db():
             masked_uri = db_uri
         
         is_postgres = current_app.config.get('IS_POSTGRES', False)
-        db_type = 'PostgreSQL' if is_postgres else 'SQLite'
-        
+        db_type = 'PostgreSQL' if is_postgres else 'Unknown'
+
         return jsonify({
             'status': 'success',
             'message': 'Database connection successful',
@@ -1296,8 +1298,8 @@ def internal_app_info():
             masked_uri = db_uri
         
         is_postgres = current_app.config.get('IS_POSTGRES', False)
-        db_type = 'PostgreSQL' if is_postgres else 'SQLite'
-        
+        db_type = 'PostgreSQL' if is_postgres else 'Unknown'
+
         # Gather application configuration
         app_info = {
             'status': 'success',
@@ -1583,15 +1585,15 @@ def internal_test_security():
             'message': f'Could not check admin password: {str(e)}'
         }
     
-    # 6. Check database type (SQLite in production is a warning)
+    # 6. Check database type
     is_postgres = current_app.config.get('IS_POSTGRES', False)
     audit_results['checks']['database'] = {
-        'status': 'ok' if is_postgres else 'info',
-        'type': 'PostgreSQL' if is_postgres else 'SQLite',
-        'message': 'Using PostgreSQL' if is_postgres else 'Using SQLite'
+        'status': 'ok' if is_postgres else 'warning',
+        'type': 'PostgreSQL' if is_postgres else 'Unknown',
+        'message': 'Using PostgreSQL' if is_postgres else 'PostgreSQL is required for production'
     }
     if not is_postgres and not is_development:
-        audit_results['recommendations'].append('Consider using PostgreSQL for production deployments')
+        audit_results['recommendations'].append('PostgreSQL is required for production deployments')
     
     # Calculate security score
     critical_issues = len([w for w in audit_results['warnings'] if 'CRITICAL' in w])

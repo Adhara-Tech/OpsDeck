@@ -8,10 +8,8 @@ python-dotenv==1.1.1
 pytz==2024.2
 gunicorn==23.0.0
 MarkupSafe==3.0.3
-Faker==19.13.0
 Markdown>=3.0
 weasyprint==68.0
-pytest==9.0.1
 Flask-Login
 ecs-logging
 flask-limiter

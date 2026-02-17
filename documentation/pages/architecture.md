@@ -41,7 +41,7 @@ The platform uses a modular blueprint architecture that allows features to be ad
 **ORM & Database**
 - SQLAlchemy ORM for database abstraction
 - Flask-Migrate for schema versioning
-- Supports SQLite (development), PostgreSQL, MySQL (production)
+- Requires PostgreSQL (MySQL community-supported)
 - Soft deletes and audit fields on all major entities
 
 **Data Model Structure**
@@ -131,7 +131,7 @@ Fine-grained permissions checked at route level:
 ### Single-Server Deployment
 Suitable for small to medium installations:
 - Application server (Gunicorn/uWSGI)
-- SQLite or PostgreSQL database
+- PostgreSQL database
 - Nginx reverse proxy for HTTPS termination
 - All components on single host
 

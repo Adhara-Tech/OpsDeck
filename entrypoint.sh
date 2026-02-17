@@ -1,13 +1,7 @@
 #!/bin/sh
 
-# This is the path inside the container where the database will live
-DB_FILE="/app/data/renewals.db"
-
-# Ensure the data directory exists (required for SQLite)
+# Ensure the data directory exists (required for attachments)
 mkdir -p /app/data/attachments
-
-# Wait for the database file to be created if it's being mounted
-sleep 1
 
 # Check if Enterprise mode is enabled and install plugin BEFORE migrations
 if [ "$ENTERPRISE_ENABLED" = "True" ]; then

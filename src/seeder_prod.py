@@ -1054,7 +1054,7 @@ def seed_notification_templates():
 
 <p style="color: #6c757d; font-size: 12px; margin-top: 20px;">
     This is an automated notification from OpsDeck Compliance Drift Detection.<br>
-    Drift detection runs daily at 9:00 AM UTC. Next scan: {{ next_scan_time }}<br>
+    Drift detection runs weekly on Mondays at 9:00 AM local time. Next scan: {{ next_scan_time }}<br>
     To disable these alerts, contact your system administrator.
 </p>
             """
