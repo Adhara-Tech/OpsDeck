@@ -20,16 +20,14 @@ if [ "$ENTERPRISE_ENABLED" = "True" ]; then
     fi
 fi
 
-# Check if the database file does NOT exist
-
-# Initialize the migrations folder (idempotent, skips if exists)
-flask db init 2>/dev/null || true
-
-# Create/Stamp migration (handling cases where migrations might already exist in image)
-flask db migrate -m "Initial migration" 2>/dev/null || true
-
-# Apply the migration to create all tables
-flask db upgrade
+# Apply database migrations (migrations are committed in the repo/image)
+# For fresh databases: creates all tables from the migration chain
+# For existing databases: applies only pending migrations
+flask db upgrade 2>&1 || {
+    echo "Migration failed. Attempting to stamp current DB state and retry..."
+    flask db stamp head
+    flask db upgrade
+}
 
 # Create the default admin user
 flask init-db

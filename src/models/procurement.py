@@ -432,13 +432,12 @@ class Subscription(db.Model):
     @validates('cost')
     def validate_cost(self, key, value):
         """
-        Validate that subscription cost is positive and non-zero.
-
-        Raises:
-            ValueError: If cost is <= 0
+        Validate that subscription cost is not negative.
+        Cost can be 0 for per_user pricing (calculated from cost_per_user * users).
+        Route-level validation ensures cost > 0 for fixed pricing.
         """
-        if value is not None and value <= 0:
-            raise ValueError(f"Subscription cost must be greater than 0, got {value}")
+        if value is not None and value < 0:
+            raise ValueError(f"Subscription cost must not be negative, got {value}")
         return value
 
     @validates('renewal_period_value')
