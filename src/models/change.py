@@ -22,7 +22,7 @@ class Change(db.Model):
     change_type = db.Column(db.String(50), default='Standard') # Standard, Normal, Emergency
     priority = db.Column(db.String(50), default='Medium')      # Low, Medium, High, Critical
     risk_impact = db.Column(db.String(50), default='Low')      # Low, Medium, High
-    status = db.Column(db.String(50), default='Draft')         # Draft, Pending Approval, Approved, In Progress, Completed, Failed, Cancelled
+    status = db.Column(db.String(50), default='Draft', index=True)  # Draft, Pending Approval, Approved, In Progress, Completed, Failed, Cancelled
     requires_approval = db.Column(db.Boolean, default=True)    # Whether this change needs approval step
     
     # --- Planning & Execution (Markdown) ---
@@ -41,9 +41,9 @@ class Change(db.Model):
     closed_at = db.Column(db.DateTime, nullable=True)   # Actual end/close
     
     # --- Actors (Segregation of Duties) ---
-    requester_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    assignee_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
-    approved_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    requester_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    assignee_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
+    approved_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
     approved_at = db.Column(db.DateTime, nullable=True)
     
     # Relationships
@@ -52,11 +52,11 @@ class Change(db.Model):
     approved_by = db.relationship('User', foreign_keys=[approved_by_id], backref='approved_changes')
     
     # --- Target (What is changing) ---
-    service_id = db.Column(db.Integer, db.ForeignKey('business_service.id'), nullable=True)
-    asset_id = db.Column(db.Integer, db.ForeignKey('asset.id'), nullable=True)
-    software_id = db.Column(db.Integer, db.ForeignKey('software.id'), nullable=True)
-    configuration_id = db.Column(db.Integer, db.ForeignKey('configuration.id'), nullable=True)
-    configuration_version_id = db.Column(db.Integer, db.ForeignKey('configuration_version.id'), nullable=True)
+    service_id = db.Column(db.Integer, db.ForeignKey('business_service.id'), nullable=True, index=True)
+    asset_id = db.Column(db.Integer, db.ForeignKey('asset.id'), nullable=True, index=True)
+    software_id = db.Column(db.Integer, db.ForeignKey('software.id'), nullable=True, index=True)
+    configuration_id = db.Column(db.Integer, db.ForeignKey('configuration.id'), nullable=True, index=True)
+    configuration_version_id = db.Column(db.Integer, db.ForeignKey('configuration_version.id'), nullable=True, index=True)
     
     service = db.relationship('BusinessService', backref='changes')
     asset = db.relationship('Asset', backref='changes')

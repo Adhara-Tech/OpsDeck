@@ -49,7 +49,7 @@ class Supplier(db.Model):
     address = db.Column(db.Text)
     website = db.Column(db.String(255), nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: now())
-    is_archived = db.Column(db.Boolean, default=False, nullable=False)
+    is_archived = db.Column(db.Boolean, default=False, nullable=False, index=True)
     compliance_status = db.Column(db.String(50), default='Pending')
     gdpr_dpa_signed = db.Column(db.Date, nullable=True)
     security_assessment_completed = db.Column(db.Date, nullable=True)
@@ -95,15 +95,15 @@ class Purchase(db.Model):
     invoice_number = db.Column(db.String(100))
     purchase_date = db.Column(db.Date, nullable=False)
     comments = db.Column(db.Text)
-    supplier_id = db.Column(db.Integer, db.ForeignKey('supplier.id'))
-    payment_method_id = db.Column(db.Integer, db.ForeignKey('payment_method.id'))
-    budget_id = db.Column(db.Integer, db.ForeignKey('budget.id'))
+    supplier_id = db.Column(db.Integer, db.ForeignKey('supplier.id'), index=True)
+    payment_method_id = db.Column(db.Integer, db.ForeignKey('payment_method.id'), index=True)
+    budget_id = db.Column(db.Integer, db.ForeignKey('budget.id'), index=True)
     created_at = db.Column(db.DateTime, default=lambda: now())
-    is_archived = db.Column(db.Boolean, default=False, nullable=False)
+    is_archived = db.Column(db.Boolean, default=False, nullable=False, index=True)
 
     validated_cost = db.Column(db.Float, nullable=True)
     cost_validated_at = db.Column(db.DateTime, nullable=True)
-    cost_validated_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    cost_validated_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
     cost_validated_by = db.relationship('User', foreign_keys=[cost_validated_by_id])
 
     users = db.relationship('User', secondary=purchase_users, backref='purchases')
@@ -394,16 +394,16 @@ class Subscription(db.Model):
     cost_per_user = db.Column(db.Float, nullable=True)  # Cost per user/license (for per_user model)
 
     # User information
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
     user = db.relationship('User', backref='subscriptions')
 
     # Licenses
     licenses = db.relationship('License', backref='subscription', lazy=True)
-    
+
     # Relationships
-    supplier_id = db.Column(db.Integer, db.ForeignKey('supplier.id'), nullable=False)
-    software_id = db.Column(db.Integer, db.ForeignKey('software.id'), nullable=True)
-    budget_id = db.Column(db.Integer, db.ForeignKey('budget.id'), nullable=True)
+    supplier_id = db.Column(db.Integer, db.ForeignKey('supplier.id'), nullable=False, index=True)
+    software_id = db.Column(db.Integer, db.ForeignKey('software.id'), nullable=True, index=True)
+    budget_id = db.Column(db.Integer, db.ForeignKey('budget.id'), nullable=True, index=True)
     contacts = db.relationship('Contact', secondary=subscription_contacts, backref='subscriptions')
     payment_methods = db.relationship('PaymentMethod', secondary=subscription_payment_methods, back_populates='subscriptions')
     attachments = db.relationship('Attachment',
@@ -425,7 +425,7 @@ class Subscription(db.Model):
     users = db.relationship('User', secondary=subscription_users, backref='access_subscriptions')
     
     # Metadata
-    is_archived = db.Column(db.Boolean, default=False, nullable=False)
+    is_archived = db.Column(db.Boolean, default=False, nullable=False, index=True)
     created_at = db.Column(db.DateTime, default=lambda: now())
     updated_at = db.Column(db.DateTime, default=lambda: now(), onupdate=lambda: now())
 

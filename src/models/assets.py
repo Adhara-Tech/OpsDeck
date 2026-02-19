@@ -13,7 +13,7 @@ class Location(db.Model):
     name = db.Column(db.String(100), nullable=False, unique=True)
     created_at = db.Column(db.DateTime, default=lambda: now())
     assets = db.relationship('Asset', backref='location', lazy=True)
-    is_archived = db.Column(db.Boolean, default=False, nullable=False)
+    is_archived = db.Column(db.Boolean, default=False, nullable=False, index=True)
 
     # Physical address fields (optional - if filled, this is a physical site)
     address = db.Column(db.String(255))
@@ -42,27 +42,27 @@ class Asset(db.Model, CustomPropertiesMixin):
     model = db.Column(db.String(100))
     brand = db.Column(db.String(100))
     serial_number = db.Column(db.String(100), unique=True)
-    status = db.Column(db.String(50), nullable=False, default='In Use')
+    status = db.Column(db.String(50), nullable=False, default='In Use', index=True)
     internal_id = db.Column(db.String(100), unique=True)
     comments = db.Column(db.Text)
     purchase_date = db.Column(db.Date)
-    
+
     # --- UPDATED FIELDS ---
     cost = db.Column(db.Float)
     currency = db.Column(db.String(3), default='EUR')
-    
+
     warranty_length = db.Column(db.Integer) # in months
-    is_archived = db.Column(db.Boolean, default=False, nullable=False)
-    
+    is_archived = db.Column(db.Boolean, default=False, nullable=False, index=True)
+
     # --- NEW FIELDS: Critical and Virtual indicators ---
     is_critical = db.Column(db.Boolean, default=False, nullable=False)
     is_virtual = db.Column(db.Boolean, default=False, nullable=False)
-    
+
     # Relationships
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    location_id = db.Column(db.Integer, db.ForeignKey('location.id'))
-    supplier_id = db.Column(db.Integer, db.ForeignKey('supplier.id'))
-    purchase_id = db.Column(db.Integer, db.ForeignKey('purchase.id'))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), index=True)
+    location_id = db.Column(db.Integer, db.ForeignKey('location.id'), index=True)
+    supplier_id = db.Column(db.Integer, db.ForeignKey('supplier.id'), index=True)
+    purchase_id = db.Column(db.Integer, db.ForeignKey('purchase.id'), index=True)
     attachments = db.relationship('Attachment',
                             primaryjoin="and_(Asset.id==foreign(Attachment.linkable_id), "
                                         "Attachment.linkable_type=='Asset')",
@@ -237,27 +237,27 @@ class Peripheral(db.Model, CustomPropertiesMixin):
     name = db.Column(db.String(100), nullable=False)
     type = db.Column(db.String(50))
     serial_number = db.Column(db.String(100), unique=True)
-    status = db.Column(db.String(50), nullable=False, default='In Use')
-    is_archived = db.Column(db.Boolean, default=False, nullable=False)
+    status = db.Column(db.String(50), nullable=False, default='In Use', index=True)
+    is_archived = db.Column(db.Boolean, default=False, nullable=False, index=True)
     maintenance_logs = db.relationship('MaintenanceLog', backref='peripheral', lazy='dynamic', cascade='all, delete-orphan')
     disposal_record = db.relationship('DisposalRecord', backref='peripheral', uselist=False, cascade='all, delete-orphan')
-    
+
     # --- ADDED/UPDATED FIELDS ---
     brand = db.Column(db.String(100))
     purchase_date = db.Column(db.Date)
     warranty_length = db.Column(db.Integer) # in months
-    
+
     # --- COSTS ---
     cost = db.Column(db.Float)
     currency = db.Column(db.String(3), default='EUR')
 
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), index=True)
+
     # Relationships
-    asset_id = db.Column(db.Integer, db.ForeignKey('asset.id'))
-    location_id = db.Column(db.Integer, db.ForeignKey('location.id')) # New: Support physical location
-    purchase_id = db.Column(db.Integer, db.ForeignKey('purchase.id'))
-    supplier_id = db.Column(db.Integer, db.ForeignKey('supplier.id'))
+    asset_id = db.Column(db.Integer, db.ForeignKey('asset.id'), index=True)
+    location_id = db.Column(db.Integer, db.ForeignKey('location.id'), index=True)
+    purchase_id = db.Column(db.Integer, db.ForeignKey('purchase.id'), index=True)
+    supplier_id = db.Column(db.Integer, db.ForeignKey('supplier.id'), index=True)
     
     assignments = db.relationship('PeripheralAssignment', backref='peripheral', lazy=True, cascade='all, delete-orphan', order_by='PeripheralAssignment.checked_out_date.desc()')
     attachments = db.relationship('Attachment',
@@ -317,14 +317,14 @@ class License(db.Model):
     expiry_date = db.Column(db.Date, nullable=True) # Optional for perpetual licenses
 
     # Relationships
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id')) # Assigned user (seat)
-    purchase_id = db.Column(db.Integer, db.ForeignKey('purchase.id'), nullable=True)
-    budget_id = db.Column(db.Integer, db.ForeignKey('budget.id'), nullable=True)
-    subscription_id = db.Column(db.Integer, db.ForeignKey('subscription.id'), nullable=True)
-    software_id = db.Column(db.Integer, db.ForeignKey('software.id'), nullable=True)
-    
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), index=True) # Assigned user (seat)
+    purchase_id = db.Column(db.Integer, db.ForeignKey('purchase.id'), nullable=True, index=True)
+    budget_id = db.Column(db.Integer, db.ForeignKey('budget.id'), nullable=True, index=True)
+    subscription_id = db.Column(db.Integer, db.ForeignKey('subscription.id'), nullable=True, index=True)
+    software_id = db.Column(db.Integer, db.ForeignKey('software.id'), nullable=True, index=True)
+
     # Metadata
-    is_archived = db.Column(db.Boolean, default=False, nullable=False)
+    is_archived = db.Column(db.Boolean, default=False, nullable=False, index=True)
     created_at = db.Column(db.DateTime, default=lambda: now())
 
     compliance_links = db.relationship('ComplianceLink',
