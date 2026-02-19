@@ -2,10 +2,10 @@ import os
 import uuid
 from datetime import datetime
 from flask import (
-    Blueprint, render_template, request, redirect, url_for, flash, current_app
+    Blueprint, render_template, request, redirect, url_for, flash, current_app, jsonify
 )
 from ..models import db, User, Attachment, OrgChartSnapshot
-from ..models.core import CustomFieldDefinition
+from ..models.core import CustomFieldDefinition, OrganizationSettings
 
 from .main import login_required
 from weasyprint import HTML
@@ -27,7 +27,51 @@ def users():
 @requires_permission('administration', access_level='READ_ONLY')
 def org_chart():
     users = User.query.filter_by(is_archived=False, hide_from_org_chart=False).all()
-    return render_template('users/org_chart.html', users=users)
+
+    # Build nested tree for OrgChart.js
+    user_map = {}
+    for u in users:
+        user_map[u.id] = {
+            'id': u.id,
+            'name': u.name,
+            'title': u.job_title or 'No Title',
+            'department': u.department or '',
+            'url': url_for('users.user_detail', id=u.id),
+            'children': []
+        }
+
+    roots = []
+    for u in users:
+        node = user_map[u.id]
+        if u.manager_id and u.manager_id in user_map:
+            user_map[u.manager_id]['children'].append(node)
+        else:
+            roots.append(node)
+
+    # Remove empty children arrays so leaf nodes don't show expand arrows
+    def prune_empty_children(node):
+        if node.get('children'):
+            for child in node['children']:
+                prune_empty_children(child)
+        else:
+            node.pop('children', None)
+    for node in user_map.values():
+        prune_empty_children(node)
+
+    # If multiple roots, wrap them under a virtual root
+    if len(roots) == 1:
+        org_tree = roots[0]
+    elif roots:
+        org_settings = OrganizationSettings.query.first()
+        org_name = (org_settings.legal_name if org_settings and org_settings.legal_name else 'Organization')
+        org_tree = {'id': 0, 'name': org_name, 'title': org_name, 'className': 'virtual-root', 'children': roots}
+    else:
+        org_tree = None
+
+    import json
+    org_tree_json = json.dumps(org_tree) if org_tree else 'null'
+
+    return render_template('users/org_chart.html', users=users, org_tree_json=org_tree_json)
 
 @users_bp.route('/archived')
 @login_required
@@ -285,4 +329,47 @@ def list_org_snapshots():
 @requires_permission('administration', access_level='READ_ONLY')
 def view_org_snapshot(id):
     snapshot = OrgChartSnapshot.query.get_or_404(id)
-    return render_template('users/org_snapshot_detail.html', snapshot=snapshot)
+
+    # Build nested tree from flat chart_data for OrgChart.js
+    flat = snapshot.chart_data or []
+    node_map = {}
+    for u in flat:
+        node_map[u['id']] = {
+            'id': u['id'],
+            'name': u['name'],
+            'title': u.get('title') or 'No Title',
+            'department': u.get('department') or '',
+            'children': []
+        }
+
+    roots = []
+    for u in flat:
+        node = node_map[u['id']]
+        mid = u.get('manager_id')
+        if mid and mid in node_map:
+            node_map[mid]['children'].append(node)
+        else:
+            roots.append(node)
+
+    def prune_empty_children(node):
+        if node.get('children'):
+            for child in node['children']:
+                prune_empty_children(child)
+        else:
+            node.pop('children', None)
+    for node in node_map.values():
+        prune_empty_children(node)
+
+    if len(roots) == 1:
+        snap_tree = roots[0]
+    elif roots:
+        org_settings = OrganizationSettings.query.first()
+        org_name = (org_settings.legal_name if org_settings and org_settings.legal_name else 'Organization')
+        snap_tree = {'id': 0, 'name': org_name, 'title': org_name, 'className': 'virtual-root', 'children': roots}
+    else:
+        snap_tree = None
+
+    import json
+    snap_tree_json = json.dumps(snap_tree) if snap_tree else 'null'
+
+    return render_template('users/org_snapshot_detail.html', snapshot=snapshot, snap_tree_json=snap_tree_json)

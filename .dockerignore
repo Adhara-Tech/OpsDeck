@@ -6,7 +6,6 @@ __pycache__/
 .git/
 .env
 tests/
-requirements-dev.txt
 .docs/
 .migrations/
 .claude/

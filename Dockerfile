@@ -55,3 +55,31 @@ RUN chmod +x ./entrypoint.sh
 
 # Set the entrypoint for the container
 ENTRYPOINT ["./entrypoint.sh"]
+
+# ============================================
+# Stage 3: Development (adds faker, pytest)
+# ============================================
+FROM python:3.13-slim AS dev
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgobject-2.0-0 \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    libcairo2 \
+    libgdk-pixbuf-xlib-2.0-0\
+    libffi-dev \
+    shared-mime-info \
+    fonts-liberation \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY requirements-dev.txt requirements.txt ./
+RUN pip install --no-cache-dir -r requirements-dev.txt
+
+COPY . .
+COPY --from=asset-builder /build/src/static/vendor /app/src/static/vendor
+
+RUN chmod +x ./entrypoint.sh
+
+ENTRYPOINT ["./entrypoint.sh"]
