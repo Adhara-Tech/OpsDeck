@@ -48,6 +48,7 @@ class PackItem(db.Model):
 class OnboardingProcess(db.Model):
     """Registro de una incorporación."""
     id = db.Column(db.Integer, primary_key=True)
+    external_ref = db.Column(db.String(255), unique=True, nullable=True, index=True)
     new_hire_name = db.Column(db.String(100), nullable=False) # Nombre temporal si aún no hay User
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True) # Se enlaza al crear el usuario
     

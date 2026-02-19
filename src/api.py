@@ -1,12 +1,19 @@
 # src/api.py
-from flask import request, current_app, jsonify
+from flask import request, current_app, jsonify, g
 from flask.views import MethodView
 from flask_smorest import Blueprint, abort
+from .extensions import db
 from .models import User, Asset, Peripheral, License, Subscription
 from .models.services import BusinessService
+from .models.change import Change
+from .models.security import SecurityIncident
+from .models.onboarding import OnboardingProcess
 from .schemas import (
-    UserSchema, AssetSchema, PeripheralSchema, 
-    LicenseSchema, SubscriptionSchema, ServiceSchema
+    UserSchema, AssetSchema, PeripheralSchema,
+    LicenseSchema, SubscriptionSchema, ServiceSchema,
+    ChangeApiSchema, ChangeInputSchema,
+    IncidentApiSchema, IncidentInputSchema,
+    OnboardingApiSchema, OnboardingInputSchema,
 )
 
 # Define Blueprints for each resource
@@ -56,8 +63,8 @@ def check_token():
         )
         return jsonify({"error": "Token is invalid"}), 401
 
-    # Log Success (Optional: might be verbose, maybe log only critical actions or sample)
-    # For now, logging all authenticated API requests as requested.
+    g.api_user = current_api_user
+
     current_app.logger.info(
         f"API Access: {current_api_user.email}",
         extra={
@@ -112,3 +119,129 @@ register_read_only_resource(api_bp, Peripheral, PeripheralSchema, 'peripherals')
 register_read_only_resource(api_bp, License, LicenseSchema, 'licenses')
 register_read_only_resource(api_bp, Subscription, SubscriptionSchema, 'subscriptions')
 register_read_only_resource(api_bp, BusinessService, ServiceSchema, 'services')
+
+
+# --- Helpers ---
+
+def resolve_user(identifier):
+    """Resolve a user by email (preferred) or name. Returns User or None."""
+    if not identifier:
+        return None
+    user = User.query.filter_by(email=identifier, is_archived=False).first()
+    if not user:
+        user = User.query.filter_by(name=identifier, is_archived=False).first()
+    return user
+
+
+# --- POST Endpoints (Upsert by external_ref) ---
+
+@api_bp.route('/changes')
+class ChangeResource(MethodView):
+
+    @api_bp.doc(security=[{"bearerAuth": []}])
+    @api_bp.arguments(ChangeInputSchema)
+    @api_bp.response(201, ChangeApiSchema)
+    def post(self, data):
+        """Create or update a Change (upsert by external_ref)"""
+        existing = None
+        if data.get('external_ref'):
+            existing = Change.query.filter_by(external_ref=data['external_ref']).first()
+
+        requester = resolve_user(data.pop('requester', None))
+        assignee = resolve_user(data.pop('assignee', None))
+
+        if existing:
+            for key, value in data.items():
+                if value is not None:
+                    setattr(existing, key, value)
+            if requester:
+                existing.requester_id = requester.id
+            if assignee:
+                existing.assignee_id = assignee.id
+            db.session.commit()
+            return existing, 200
+
+        change = Change(
+            requester_id=(requester.id if requester else g.api_user.id),
+            assignee_id=(assignee.id if assignee else None),
+            **{k: v for k, v in data.items() if v is not None}
+        )
+        db.session.add(change)
+        db.session.commit()
+        return change, 201
+
+
+@api_bp.route('/incidents')
+class IncidentResource(MethodView):
+
+    @api_bp.doc(security=[{"bearerAuth": []}])
+    @api_bp.arguments(IncidentInputSchema)
+    @api_bp.response(201, IncidentApiSchema)
+    def post(self, data):
+        """Create or update a Security Incident (upsert by external_ref)"""
+        existing = None
+        if data.get('external_ref'):
+            existing = SecurityIncident.query.filter_by(external_ref=data['external_ref']).first()
+
+        reported_by = resolve_user(data.pop('reported_by', None))
+        owner = resolve_user(data.pop('owner', None))
+        assignee = resolve_user(data.pop('assignee', None))
+
+        if existing:
+            for key, value in data.items():
+                if value is not None:
+                    setattr(existing, key, value)
+            if reported_by:
+                existing.reported_by_id = reported_by.id
+            if owner:
+                existing.owner_id = owner.id
+            if assignee:
+                existing.assignee_id = assignee.id
+            db.session.commit()
+            return existing, 200
+
+        incident = SecurityIncident(
+            reported_by_id=(reported_by.id if reported_by else g.api_user.id),
+            owner_id=(owner.id if owner else None),
+            assignee_id=(assignee.id if assignee else None),
+            **{k: v for k, v in data.items() if v is not None}
+        )
+        db.session.add(incident)
+        db.session.commit()
+        return incident, 201
+
+
+@api_bp.route('/onboardings')
+class OnboardingResource(MethodView):
+
+    @api_bp.doc(security=[{"bearerAuth": []}])
+    @api_bp.arguments(OnboardingInputSchema)
+    @api_bp.response(201, OnboardingApiSchema)
+    def post(self, data):
+        """Create or update an Onboarding Process (upsert by external_ref)"""
+        existing = None
+        if data.get('external_ref'):
+            existing = OnboardingProcess.query.filter_by(external_ref=data['external_ref']).first()
+
+        manager = resolve_user(data.pop('manager', None))
+        buddy = resolve_user(data.pop('buddy', None))
+
+        if existing:
+            for key, value in data.items():
+                if value is not None:
+                    setattr(existing, key, value)
+            if manager:
+                existing.assigned_manager_id = manager.id
+            if buddy:
+                existing.assigned_buddy_id = buddy.id
+            db.session.commit()
+            return existing, 200
+
+        onboarding = OnboardingProcess(
+            assigned_manager_id=(manager.id if manager else None),
+            assigned_buddy_id=(buddy.id if buddy else None),
+            **{k: v for k, v in data.items() if v is not None}
+        )
+        db.session.add(onboarding)
+        db.session.commit()
+        return onboarding, 201

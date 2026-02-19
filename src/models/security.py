@@ -106,6 +106,7 @@ incident_tags = db.Table('incident_tags',
 
 class SecurityIncident(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    external_ref = db.Column(db.String(255), unique=True, nullable=True, index=True)
     title = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text, nullable=False)
     incident_date = db.Column(db.DateTime, default=lambda: now())

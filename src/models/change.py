@@ -16,7 +16,8 @@ class Change(db.Model):
     Tracks requests for changes to infrastructure, services, or assets.
     """
     id = db.Column(db.Integer, primary_key=True)
-    
+    external_ref = db.Column(db.String(255), unique=True, nullable=True, index=True)
+
     # --- Core Fields ---
     title = db.Column(db.String(200), nullable=False)
     change_type = db.Column(db.String(50), default='Standard') # Standard, Normal, Emergency
