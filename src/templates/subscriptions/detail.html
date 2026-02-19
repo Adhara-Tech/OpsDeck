@@ -260,14 +260,27 @@
             <div class="card-header py-3 d-flex justify-content-between align-items-center">
                 <h6 class="m-0 font-weight-bold text-primary">User Access ({{ subscription.users|length }})</h6>
                 {% if can_write('core_inventory') %}
-                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addUserAccessModal">
-                    <i class="fas fa-user-plus"></i> Add User
-                </button>
+                <div>
+                    <form action="{{ url_for('subscriptions.add_all_users', id=subscription.id) }}" method="POST" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-sm btn-outline-primary me-2">
+                            <i class="fas fa-users"></i> Add All
+                        </button>
+                    </form>
+                    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addUserAccessModal">
+                        <i class="fas fa-user-plus"></i> Add User
+                    </button>
+                </div>
                 {% endif %}
             </div>
             <div class="card-body">
+                {% if subscription.users|length > 5 %}
+                <div class="mb-3">
+                    <input type="text" class="form-control" id="userAccessFilter" placeholder="Filter users...">
+                </div>
+                {% endif %}
                 <div class="table-responsive">
-                    <table class="table table-bordered table-hover">
+                    <table class="table table-bordered table-hover" id="userAccessTable">
                         <thead>
                             <tr>
                                 <th>Name</th>
@@ -276,7 +289,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for user in subscription.users %}
+                            {% for user in subscription.users|sort(attribute='name') %}
                             <tr>
                                 <td>
                                     <div class="d-flex align-items-center">
@@ -366,11 +379,13 @@
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label">Select User</label>
-                        <select class="form-select tom-select" name="user_id" required>
-                            <option value="">Search users...</option>
+                        <label class="form-label">Select Users</label>
+                        <select class="form-select" name="user_ids" multiple required>
+                            {% set existing_user_ids = subscription.users | map(attribute='id') | list %}
                             {% for user in all_users %}
+                            {% if user.id not in existing_user_ids %}
                             <option value="{{ user.id }}">{{ user.name }} ({{ user.email }})</option>
+                            {% endif %}
                             {% endfor %}
                         </select>
                     </div>
@@ -389,4 +404,22 @@
 {% block scripts_extra %}
 <script src="{{ url_for('static', filename='js/vendor/chart.js/chart.js') }}"></script>
 <script src="{{ url_for('static', filename='js/reports.js') }}"></script>
+<script>
+    // Activate tab from URL hash
+    if (window.location.hash) {
+        const tab = document.querySelector(`[data-bs-target="${window.location.hash}"]`);
+        if (tab) new bootstrap.Tab(tab).show();
+    }
+
+    // User access filter
+    const filterInput = document.getElementById('userAccessFilter');
+    if (filterInput) {
+        filterInput.addEventListener('input', function() {
+            const term = this.value.toLowerCase();
+            document.querySelectorAll('#userAccessTable tbody tr').forEach(row => {
+                row.style.display = row.textContent.toLowerCase().includes(term) ? '' : 'none';
+            });
+        });
+    }
+</script>
 {% endblock %}

@@ -594,16 +594,41 @@ def calendar_events():
 @requires_permission('core_inventory', access_level='WRITE')
 def add_user_access(id):
     subscription = Subscription.query.get_or_404(id)
-    user_id = request.form.get('user_id')
-    
-    if user_id:
-        user = db.session.get(User,user_id)
+    user_ids = request.form.getlist('user_ids')
+
+    added = []
+    for user_id in user_ids:
+        user = db.session.get(User, int(user_id))
         if user and user not in subscription.users:
             subscription.users.append(user)
-            db.session.commit()
-            flash(f'User {user.name} added to {subscription.name}.', 'success')
-            
-    return redirect(url_for('subscriptions.subscription_detail', id=id))
+            added.append(user.name)
+
+    if added:
+        db.session.commit()
+        flash(f'Added {", ".join(added)} to {subscription.name}.', 'success')
+
+    return redirect(url_for('subscriptions.subscription_detail', id=id) + '#users')
+
+@subscriptions_bp.route('/<int:id>/users/add-all', methods=['POST'])
+@login_required
+@requires_permission('core_inventory', access_level='WRITE')
+def add_all_users(id):
+    subscription = Subscription.query.get_or_404(id)
+    all_users = User.query.filter_by(is_archived=False).all()
+
+    added = []
+    for user in all_users:
+        if user not in subscription.users:
+            subscription.users.append(user)
+            added.append(user.name)
+
+    if added:
+        db.session.commit()
+        flash(f'Added {len(added)} users to {subscription.name}.', 'success')
+    else:
+        flash('All users already have access.', 'info')
+
+    return redirect(url_for('subscriptions.subscription_detail', id=id) + '#users')
 
 @subscriptions_bp.route('/<int:id>/users/remove/<int:user_id>', methods=['POST'])
 @login_required
@@ -611,10 +636,10 @@ def add_user_access(id):
 def remove_user_access(id, user_id):
     subscription = Subscription.query.get_or_404(id)
     user = User.query.get_or_404(user_id)
-    
+
     if user in subscription.users:
         subscription.users.remove(user)
         db.session.commit()
         flash(f'User {user.name} removed from {subscription.name}.', 'warning')
-        
-    return redirect(url_for('subscriptions.subscription_detail', id=id))
+
+    return redirect(url_for('subscriptions.subscription_detail', id=id) + '#users')

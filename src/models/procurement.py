@@ -450,7 +450,7 @@ class Subscription(db.Model):
     def cost_eur(self):
         from ..services.finance_service import get_conversion_rate
         rate = get_conversion_rate(self.currency)
-        return self.cost * rate
+        return self.current_cost * rate
 
     @property
     def current_cost(self):
