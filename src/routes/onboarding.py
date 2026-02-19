@@ -698,7 +698,7 @@ def create_user_account(process_id, item_id):
         email = f"{email_local}{random.randint(10,99)}@example.com"
     
     # Create User
-    new_user = User(name=process.new_hire_name, email=email, role='user', personal_email=process.personal_email)
+    new_user = User(name=process.new_hire_name, email=email, role='user', personal_email=process.personal_email, manager_id=process.assigned_manager_id, buddy_id=process.assigned_buddy_id)
     new_user.set_password(password)
     db.session.add(new_user)
     db.session.flush() # Get ID
