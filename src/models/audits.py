@@ -132,12 +132,12 @@ class ComplianceAudit(db.Model):
                 control_title=control.name,
                 control_description=control.description,
                 
-                # SOA defaults
-                is_applicable=True,
-                justification=None,
-                
+                # SOA: Inherit from framework control
+                is_applicable=control.is_applicable,
+                justification=control.soa_justification,
+
                 # Audit defaults
-                status='Pending', # Starting state, to be assessed
+                status='Not Applicable' if not control.is_applicable else 'Pending',
             )
             db.session.add(audit_item)
             db.session.flush() # Need ID for links

@@ -15,7 +15,7 @@ depends_on = None
 
 
 def upgrade():
-    op.add_column('framework_control', sa.Column('is_applicable', sa.Boolean(), nullable=False, server_default=sa.text('1')))
+    op.add_column('framework_control', sa.Column('is_applicable', sa.Boolean(), nullable=False, server_default=sa.text('true')))
     op.add_column('framework_control', sa.Column('soa_justification', sa.Text(), nullable=True))
 
 
