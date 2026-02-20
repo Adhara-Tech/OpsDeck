@@ -320,9 +320,21 @@
         margin-left: 0 !important;
     }
 
-    /* Hide handlebar on mobile, use overlay toggle instead */
+    /* Bigger handle for touch on mobile (replaces hamburger) */
     .sidebar-toggle {
-        display: none;
+        width: 24px;
+        height: 80px;
+        right: -24px;
+        border-radius: 0 8px 8px 0;
+    }
+
+    .sidebar-toggle::after {
+        font-size: 14px;
+    }
+
+    /* Hide hamburger — handle replaces it */
+    #mobileSidebarToggle {
+        display: none !important;
     }
 }
 
