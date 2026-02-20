@@ -655,7 +655,7 @@
                 <div class="ms-auto d-flex align-items-center">
                     <!-- Theme Toggle Button -->
                     <button class="btn btn-link text-white me-2" id="themeToggle" type="button"
-                            title="Cambiar a modo oscuro" aria-label="Cambiar a modo oscuro">
+                            title="Switch to dark mode" aria-label="Switch to dark mode">
                         <i class="fas fa-moon"></i>
                     </button>
 
@@ -732,14 +732,14 @@
         <div class="main-content-body">
             {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
-            {# Lista para trackear mensajes ya mostrados #}
+            {# Track already-printed messages to avoid duplicates #}
             {% set printed_messages = [] %}
 
             {% for category, message in messages %}
             {% if message not in printed_messages %}
             <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm mt-3" role="alert">
 
-                {# Iconos según categoría para mejor UX #}
+                {# Icons by category #}
                 {% if category == 'success' %}
                 <i class="fas fa-check-circle me-2"></i>
                 {% elif category == 'danger' %}
@@ -754,7 +754,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
 
-            {# Hack de Jinja2 para añadir a la lista sin imprimir nada #}
+            {# Jinja2 hack to append without printing #}
             {% if printed_messages.append(message) %}{% endif %}
             {% endif %}
             {% endfor %}

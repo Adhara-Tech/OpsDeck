@@ -63,11 +63,11 @@ def create():
                 description=description,
                 link=link,
                 is_active=is_active,
-                is_custom=True  # Los creados por usuarios siempre son custom
+                is_custom=True
             )
             db.session.add(new_framework)
             db.session.commit()
-            flash('Framework creado con éxito.', 'success')
+            flash('Framework created successfully.', 'success')
             return redirect(url_for('frameworks.edit', id=new_framework.id))
         except IntegrityError:
             db.session.rollback()
@@ -114,7 +114,7 @@ def edit(id):
         
         try:
             db.session.commit()
-            flash('Framework actualizado.', 'success')
+            flash('Framework updated.', 'success')
             return redirect(url_for('frameworks.detail', id=id))
         except IntegrityError:
             db.session.rollback()
@@ -186,7 +186,7 @@ def add_control():
         )
         db.session.add(new_control)
         db.session.commit()
-        flash('Control añadido correctamente.', 'success')
+        flash('Control added successfully.', 'success')
         return jsonify({'success': True, 'reload': True})
     except Exception as e:
         db.session.rollback()
@@ -228,7 +228,7 @@ def edit_control(id):
         control.name = name
         control.description = description
         db.session.commit()
-        flash('Control actualizado.', 'success')
+        flash('Control updated.', 'success')
         return jsonify({'success': True, 'reload': True})
     except Exception as e:
         db.session.rollback()
