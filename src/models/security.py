@@ -659,7 +659,11 @@ class FrameworkControl(db.Model):
     
     # Descripción específica del control
     description = db.Column(db.Text)
-    
+
+    # --- SOA (Statement of Applicability) ---
+    is_applicable = db.Column(db.Boolean, default=True, nullable=False)
+    soa_justification = db.Column(db.Text)  # Required when is_applicable = False
+
     # Cross-Framework Mappings: Controls this one maps to (e.g., DORA -> ISO)
     mapped_targets = db.relationship(
         'FrameworkControl',
