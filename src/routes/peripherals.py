@@ -54,7 +54,7 @@ def new_peripheral():
         )
         db.session.add(peripheral)
         db.session.commit()
-        flash('Peripheral created successfully!')
+        flash('Peripheral created successfully!', 'success')
         return redirect(url_for('peripherals.peripherals'))
 
     return render_template('peripherals/form.html',
@@ -108,7 +108,7 @@ def edit_peripheral(id):
         peripheral.user_id = request.form.get('user_id') or None
         
         db.session.commit()
-        flash('Peripheral updated successfully!')
+        flash('Peripheral updated successfully!', 'success')
         return redirect(url_for('peripherals.peripheral_detail', id=id))
 
     return render_template('peripherals/form.html',
@@ -149,7 +149,7 @@ def checkout_peripheral(id):
         db.session.add(assignment)
 
         db.session.commit()
-        flash(f'Peripheral "{peripheral.name}" has been checked out to {user.name}.')
+        flash(f'Peripheral "{peripheral.name}" has been checked out to {user.name}.', 'success')
         return redirect(url_for('peripherals.peripheral_detail', id=id))
         
     users = User.query.order_by(User.name).filter_by(is_archived=False).all()
@@ -219,7 +219,7 @@ def archive_peripheral(id):
     peripheral = Peripheral.query.get_or_404(id)
     peripheral.is_archived = True
     db.session.commit()
-    flash(f'Peripheral "{peripheral.name}" has been archived.')
+    flash(f'Peripheral "{peripheral.name}" has been archived.', 'warning')
     return redirect(url_for('peripherals.peripherals'))
 
 
@@ -231,7 +231,7 @@ def unarchive_peripheral(id):
     peripheral = Peripheral.query.get_or_404(id)
     peripheral.is_archived = False
     db.session.commit()
-    flash(f'Peripheral "{peripheral.name}" has been restored.')
+    flash(f'Peripheral "{peripheral.name}" has been restored.', 'success')
     return redirect(url_for('peripherals.archived_peripherals'))
 
 

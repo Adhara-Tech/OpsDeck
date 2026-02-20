@@ -1335,13 +1335,13 @@ def create_manual_link():
     description = request.form.get('description', '').strip()
 
     if not all([framework_control_id, linkable_type, linkable_id]):
-        flash('Missing required fields.', 'error')
+        flash('Missing required fields.', 'danger')
         return redirect(request.referrer or url_for('frameworks.list'))
 
     # Validate control exists
     control = db.session.get(FrameworkControl,framework_control_id)
     if not control:
-        flash('Control not found.', 'error')
+        flash('Control not found.', 'danger')
         return redirect(request.referrer or url_for('frameworks.list'))
 
     # Check for existing link to avoid duplicates
@@ -1380,7 +1380,7 @@ def link_control():
     linkable_id = request.args.get('linkable_id') or request.form.get('linkable_id')
 
     if not linkable_type or not linkable_id:
-        flash('Missing linkable object information.', 'error')
+        flash('Missing linkable object information.', 'danger')
         return redirect(url_for('risk.dashboard'))
 
     if request.method == 'POST':
@@ -1388,7 +1388,7 @@ def link_control():
         description = request.form.get('description')
 
         if not framework_control_id or not description:
-            flash('Please select a control and provide a description.', 'error')
+            flash('Please select a control and provide a description.', 'danger')
         else:
             # Check for existing link
             existing = ComplianceLink.query.filter_by(
@@ -1501,13 +1501,13 @@ def create_rule():
     grace_period_days = request.form.get('grace_period_days', 7, type=int)
     
     if not all([framework_control_id, name, target_model]):
-        flash('Missing required fields for automation rule.', 'error')
+        flash('Missing required fields for automation rule.', 'danger')
         return redirect(request.referrer or url_for('compliance.dashboard'))
     
     # Validate control exists
     control = db.session.get(FrameworkControl,framework_control_id)
     if not control:
-        flash('Control not found.', 'error')
+        flash('Control not found.', 'danger')
         return redirect(request.referrer or url_for('compliance.dashboard'))
     
     # Build criteria JSON based on target_model

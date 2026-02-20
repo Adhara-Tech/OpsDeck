@@ -92,8 +92,8 @@ def archive_user(id):
 
     if not can_archive:
         for error in errors:
-            flash(error, 'error')
-        flash(f'Cannot archive user "{user.name}". Please resolve the issues above first.', 'error')
+            flash(error, 'danger')
+        flash(f'Cannot archive user "{user.name}". Please resolve the issues above first.', 'danger')
         return redirect(url_for('users.user_detail', id=id))
 
     # Clean up non-critical relationships
@@ -103,7 +103,7 @@ def archive_user(id):
     user.is_archived = True
     db.session.commit()
 
-    flash(f'User "{user.name}" has been archived successfully.')
+    flash(f'User "{user.name}" has been archived successfully.', 'warning')
     return redirect(url_for('users.users'))
 
 
@@ -114,7 +114,7 @@ def unarchive_user(id):
     user = User.query.get_or_404(id)
     user.is_archived = False
     db.session.commit()
-    flash(f'User "{user.name}" has been restored.')
+    flash(f'User "{user.name}" has been restored.', 'success')
     return redirect(url_for('users.archived_users'))
 
 @users_bp.route('/<int:id>')
@@ -154,7 +154,7 @@ def new_user():
         user.save_custom_properties(request.form)
         db.session.commit()
         
-        flash('User created successfully!')
+        flash('User created successfully!', 'success')
         return redirect(url_for('users.users'))
 
     return render_template('users/form.html', users=users, custom_field_definitions=custom_field_definitions)
@@ -189,7 +189,7 @@ def edit_user(id):
         user.save_custom_properties(request.form)
         
         db.session.commit()
-        flash('User updated successfully!')
+        flash('User updated successfully!', 'success')
         return redirect(url_for('users.users'))
 
     return render_template('users/form.html', user=user, users=users, custom_field_definitions=custom_field_definitions)

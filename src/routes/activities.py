@@ -333,7 +333,7 @@ def link_object(id):
     object_id = request.form.get('object_id')
     
     if not object_type or not object_id:
-        flash('Please select both object type and object.', 'error')
+        flash('Please select both object type and object.', 'danger')
         return redirect(url_for('activities.activity_detail', id=id))
     
     # Check if link already exists
@@ -373,7 +373,7 @@ def unlink_object(id, link_id):
     
     # Verify the link belongs to this activity
     if link.activity_id != id:
-        flash('Invalid link.', 'error')
+        flash('Invalid link.', 'danger')
         return redirect(url_for('activities.activity_detail', id=id))
     
     db.session.delete(link)

@@ -85,7 +85,7 @@ def snapshot(id):
     try:
         raw_data = request.form.get('config_data')
         if not raw_data:
-            flash('No data provided', 'error')
+            flash('No data provided', 'danger')
             return redirect(url_for('configuration.detail', id=id))
             
         data = json.loads(raw_data)
@@ -107,9 +107,9 @@ def snapshot(id):
         flash(f'Snapshot v{new_version_number} saved.', 'success')
         
     except json.JSONDecodeError:
-        flash('Invalid JSON', 'error')
+        flash('Invalid JSON', 'danger')
     except Exception as e:
-        flash(f'Error saving snapshot: {str(e)}', 'error')
+        flash(f'Error saving snapshot: {str(e)}', 'danger')
         
     return redirect(url_for('configuration.detail', id=id))
 

@@ -28,7 +28,7 @@ def archive_contact(id):
     contact = Contact.query.get_or_404(id)
     contact.is_archived = True
     db.session.commit()
-    flash(f'Contact "{contact.name}" has been archived.')
+    flash(f'Contact "{contact.name}" has been archived.', 'warning')
     return redirect(url_for('contacts.contacts'))
 
 @contacts_bp.route('/<int:id>/unarchive', methods=['POST'])
@@ -38,7 +38,7 @@ def unarchive_contact(id):
     contact = Contact.query.get_or_404(id)
     contact.is_archived = False
     db.session.commit()
-    flash(f'Contact "{contact.name}" has been restored.')
+    flash(f'Contact "{contact.name}" has been restored.', 'success')
     return redirect(url_for('contacts.archived_contacts'))
 
 @contacts_bp.route('/<int:id>')
@@ -65,7 +65,7 @@ def new_contact():
         )
         db.session.add(contact)
         db.session.commit()
-        flash('Contact created successfully!')
+        flash('Contact created successfully!', 'success')
         return redirect(url_for('contacts.contacts'))
 
     suppliers = Supplier.query.all()
@@ -87,7 +87,7 @@ def edit_contact(id):
         contact.role = request.form.get('role')
         contact.supplier_id = request.form['supplier_id']
         db.session.commit()
-        flash('Contact updated successfully!')
+        flash('Contact updated successfully!', 'success')
         return redirect(url_for('contacts.contacts'))
 
     suppliers = Supplier.query.all()
@@ -100,5 +100,5 @@ def delete_contact(id):
     contact = Contact.query.get_or_404(id)
     db.session.delete(contact)
     db.session.commit()
-    flash('Contact deleted successfully!')
+    flash('Contact deleted successfully!', 'success')
     return redirect(url_for('contacts.contacts'))

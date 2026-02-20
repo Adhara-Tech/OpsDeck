@@ -60,7 +60,7 @@ def login():
                 target_object=email,
                 error_message='Invalid email or password'
             )
-            flash('Invalid email or password')
+            flash('Invalid email or password', 'danger')
 
     return render_template('login.html')
 
@@ -1094,7 +1094,7 @@ def notification_settings():
         settings.notify_days_before = ','.join(days_before)
 
         db.session.commit()
-        flash('Notification settings updated successfully!')
+        flash('Notification settings updated successfully!', 'success')
         return redirect(url_for('main.notification_settings'))
 
     notify_days_list = [int(day) for day in settings.notify_days_before.split(',') if day]

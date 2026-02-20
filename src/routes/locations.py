@@ -29,7 +29,7 @@ def archive_location(id):
     location = Location.query.get_or_404(id)
     location.is_archived = True
     db.session.commit()
-    flash(f'Location "{location.name}" has been archived.')
+    flash(f'Location "{location.name}" has been archived.', 'warning')
     return redirect(url_for('locations.list_locations'))
 
 
@@ -40,7 +40,7 @@ def unarchive_location(id):
     location = Location.query.get_or_404(id)
     location.is_archived = False
     db.session.commit()
-    flash(f'Location "{location.name}" has been restored.')
+    flash(f'Location "{location.name}" has been restored.', 'success')
     return redirect(url_for('locations.archived_locations'))
 
 
@@ -62,7 +62,7 @@ def new_location():
         )
         db.session.add(location)
         db.session.commit()
-        flash('Location created successfully!')
+        flash('Location created successfully!', 'success')
         return redirect(url_for('locations.list_locations'))
 
     return render_template('locations/form.html')
@@ -84,7 +84,7 @@ def edit_location(id):
         location.phone = request.form.get('phone', '').strip() or None
         location.reception_email = request.form.get('reception_email', '').strip() or None
         db.session.commit()
-        flash('Location updated successfully!')
+        flash('Location updated successfully!', 'success')
         return redirect(url_for('locations.list_locations'))
 
     return render_template('locations/form.html', location=location)

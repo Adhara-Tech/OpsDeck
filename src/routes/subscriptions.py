@@ -224,7 +224,7 @@ def new_subscription():
 
         db.session.add(subscription)
         db.session.commit()
-        flash('Subscription created successfully!')
+        flash('Subscription created successfully!', 'success')
         return redirect(url_for('subscriptions.subscriptions'))
 
     return render_template('subscriptions/form.html',
@@ -387,7 +387,7 @@ def edit_subscription(id):
             log_subscription_cost_change(subscription, reason='manual')
 
         db.session.commit()
-        flash('Subscription updated successfully!')
+        flash('Subscription updated successfully!', 'success')
         return redirect(url_for('subscriptions.subscription_detail', id=subscription.id))
 
     return render_template('subscriptions/form.html',
@@ -407,7 +407,7 @@ def delete_subscription(id):
     subscription = Subscription.query.get_or_404(id)
     db.session.delete(subscription)
     db.session.commit()
-    flash('Subscription deleted successfully!')
+    flash('Subscription deleted successfully!', 'success')
     return redirect(url_for('subscriptions.subscriptions'))
 
 @subscriptions_bp.route('/archived')
@@ -424,7 +424,7 @@ def archive_subscription(id):
     subscription = Subscription.query.get_or_404(id)
     subscription.is_archived = True
     db.session.commit()
-    flash(f'Subscription "{subscription.name}" has been archived.')
+    flash(f'Subscription "{subscription.name}" has been archived.', 'warning')
     return redirect(url_for('subscriptions.subscriptions'))
 
 @subscriptions_bp.route('/<int:id>/unarchive', methods=['POST'])
@@ -434,7 +434,7 @@ def unarchive_subscription(id):
     subscription = Subscription.query.get_or_404(id)
     subscription.is_archived = False
     db.session.commit()
-    flash(f'Subscription "{subscription.name}" has been restored.')
+    flash(f'Subscription "{subscription.name}" has been restored.', 'success')
     return redirect(url_for('subscriptions.archived_subscriptions'))
 
 @subscriptions_bp.route('/calendar')

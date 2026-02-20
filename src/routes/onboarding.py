@@ -51,7 +51,7 @@ def new_pack():
         pack = OnboardingPack(name=name, description=request.form.get('description'))
         db.session.add(pack)
         db.session.commit()
-        flash(f'Pack "{name}" creado.')
+        flash(f'Pack "{name}" creado.', 'success')
     return redirect(url_for('onboarding.index'))
 
 @onboarding_bp.route('/packs')
@@ -126,7 +126,7 @@ def pack_detail(id):
         )
         db.session.add(item)
         db.session.commit()
-        flash('Item añadido al pack.')
+        flash('Item añadido al pack.', 'success')
         return redirect(url_for('onboarding.pack_detail', id=id))
 
     all_software = Software.query.order_by(Software.name).all()
@@ -296,7 +296,7 @@ def new_onboarding():
                 if comm_count > 0:
                     flash(f'{comm_count} emails scheduled based on pack communications.', 'info')
         
-        flash(f'Onboarding started for {new_hire_name}.')
+        flash(f'Onboarding started for {new_hire_name}.', 'success')
         return redirect(url_for('onboarding.onboarding_detail', id=process.id))
 
     packs = OnboardingPack.query.filter_by(is_active=True).all()
@@ -857,7 +857,7 @@ def new_template_task():
         t = ProcessTemplate(name=name, process_type=process_type)
         db.session.add(t)
         db.session.commit()
-        flash('Tarea global creada.')
+        flash('Tarea global creada.', 'success')
     return redirect(url_for('onboarding.list_templates'))
 
 @onboarding_bp.route('/templates/<int:id>/toggle', methods=['POST'])
@@ -870,7 +870,7 @@ def toggle_template_task(id):
     t = ProcessTemplate.query.get_or_404(id)
     t.is_active = not t.is_active
     db.session.commit()
-    flash('Estado de tarea actualizado.')
+    flash('Estado de tarea actualizado.', 'success')
     return redirect(url_for('onboarding.list_templates'))
 
 # ==========================================
