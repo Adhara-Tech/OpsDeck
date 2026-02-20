@@ -272,7 +272,7 @@ class AuditPackExporter:
                 audit=self.audit,
                 generated_at=now()
             )
-        except:
+        except Exception:
             # Fallback to generic template
             return render_template(
                 'export/evidence/generic.html',

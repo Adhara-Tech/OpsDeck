@@ -366,7 +366,7 @@ def audit_log_detail(id):
     if entry.changes:
         try:
             changes = json.loads(entry.changes)
-        except:
+        except Exception:
             changes = {"error": "Could not parse changes"}
 
     return jsonify({

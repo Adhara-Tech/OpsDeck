@@ -767,7 +767,7 @@ def my_dashboard():
                 'expires_at': secret.expires_at,
                 'days_left': (secret.expires_at.date() - current_date).days
             })
-    except:
+    except Exception:
         pass  # Credentials module might not be available
 
     # ----- PERSONAL HEALTH SCORE -----
