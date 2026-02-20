@@ -3,6 +3,14 @@
 {% block title %}Asset Operations Dashboard - {{ super() }}{% endblock %}
 
 {% block content %}
+<!-- Skeleton Loader -->
+<div id="assets-skeleton">
+    {% set cards = 4 %}
+    {% include 'components/skeleton_dashboard.html' %}
+</div>
+
+<!-- Actual Content -->
+<div id="assets-content" style="display: none;">
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="fas fa-server"></i> Asset Operations Dashboard</h2>
     <div class="btn-toolbar mb-2 mb-md-0">
@@ -214,6 +222,7 @@
         </div>
     </div>
 </div>
+</div> <!-- End assets-content -->
 {% endblock %}
 
 {% block scripts_extra %}
@@ -227,5 +236,16 @@
         brandLabels: {{ brand_labels | tojson }},
         brandBreakdownRates: {{ brand_breakdown_rates | tojson }}
     };
+
+    // Hide skeleton and show content
+    document.addEventListener('DOMContentLoaded', function() {
+        const skeleton = document.getElementById('assets-skeleton');
+        const content = document.getElementById('assets-content');
+
+        setTimeout(function() {
+            if (skeleton) skeleton.style.display = 'none';
+            if (content) content.style.display = 'block';
+        }, 300);
+    });
 </script>
 {% endblock %}
