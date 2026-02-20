@@ -947,7 +947,11 @@ def edit_bcdr_test(test_id):
 @compliance_bp.route('/incidents')
 @requires_permission('compliance')
 def list_incidents():
-    incidents = SecurityIncident.query.order_by(SecurityIncident.incident_date.desc()).all()
+    query = SecurityIncident.query
+    status = request.args.get('status')
+    if status:
+        query = query.filter(SecurityIncident.status == status)
+    incidents = query.order_by(SecurityIncident.incident_date.desc()).all()
     return render_template('compliance/incident_list.html', incidents=incidents)
 
 @compliance_bp.route('/incidents/new', methods=['GET', 'POST'])
