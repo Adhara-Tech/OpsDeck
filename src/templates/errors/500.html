@@ -30,9 +30,14 @@
             Oops! Something went wrong on our end.<br>
             Our team has been notified and is working on it.
         </div>
-        <a href="{{ url_for('main.dashboard') }}" class="btn-home">
-            <i class="fas fa-home me-2"></i>Back to Dashboard
-        </a>
+        <div class="d-flex gap-3 justify-content-center">
+            <a href="javascript:history.back()" class="btn-home" style="background: var(--bs-secondary);">
+                <i class="fas fa-arrow-left me-2"></i>Go Back
+            </a>
+            <a href="{{ url_for('main.dashboard') }}" class="btn-home">
+                <i class="fas fa-home me-2"></i>Dashboard
+            </a>
+        </div>
     </div>
 </body>
 

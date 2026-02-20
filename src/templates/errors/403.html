@@ -30,9 +30,14 @@
             You don't have permission to access this resource.<br>
             Please contact your administrator if you believe this is an error.
         </div>
-        <a href="{{ url_for('main.dashboard') }}" class="btn-home">
-            <i class="fas fa-home me-2"></i>Back to Dashboard
-        </a>
+        <div class="d-flex gap-3 justify-content-center">
+            <a href="javascript:history.back()" class="btn-home" style="background: var(--bs-secondary);">
+                <i class="fas fa-arrow-left me-2"></i>Go Back
+            </a>
+            <a href="{{ url_for('main.dashboard') }}" class="btn-home">
+                <i class="fas fa-home me-2"></i>Dashboard
+            </a>
+        </div>
     </div>
 </body>
 
