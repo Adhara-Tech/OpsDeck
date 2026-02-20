@@ -3,6 +3,7 @@ from flask import (
 )
 import os
 from sqlalchemy import or_
+from sqlalchemy.orm import joinedload
 from markupsafe import Markup
 from functools import wraps
 from datetime import date, timedelta, datetime
@@ -474,7 +475,9 @@ def organizational_health():
         })
     
     # Overdue maintenance
-    overdue_logs = MaintenanceLog.query.filter(
+    overdue_logs = MaintenanceLog.query.options(
+        joinedload(MaintenanceLog.asset)
+    ).filter(
         MaintenanceLog.status == 'Pending',
         MaintenanceLog.event_date < today()
     ).limit(5).all()
@@ -488,7 +491,9 @@ def organizational_health():
         })
     
     # Expired credentials
-    expired_secrets = CredentialSecret.query.filter(
+    expired_secrets = CredentialSecret.query.options(
+        joinedload(CredentialSecret.credential)
+    ).filter(
         CredentialSecret.is_active == True,
         CredentialSecret.expires_at < now()
     ).limit(5).all()
@@ -502,7 +507,9 @@ def organizational_health():
         })
     
     # Expired certificates (still active)
-    expired_certs = CertificateVersion.query.filter(
+    expired_certs = CertificateVersion.query.options(
+        joinedload(CertificateVersion.certificate)
+    ).filter(
         CertificateVersion.is_active == True,
         CertificateVersion.expires_at < today()
     ).limit(5).all()
@@ -535,7 +542,9 @@ def organizational_health():
     expirations['finance'].sort(key=lambda x: x['days'])
     
     # Identity: Credentials
-    expiring_secrets = CredentialSecret.query.filter(
+    expiring_secrets = CredentialSecret.query.options(
+        joinedload(CredentialSecret.credential)
+    ).filter(
         CredentialSecret.is_active == True,
         CredentialSecret.expires_at.isnot(None),
         CredentialSecret.expires_at > now(),
@@ -551,7 +560,9 @@ def organizational_health():
     expirations['identity'].sort(key=lambda x: x['days'])
     
     # Certificates
-    cert_versions = CertificateVersion.query.filter(
+    cert_versions = CertificateVersion.query.options(
+        joinedload(CertificateVersion.certificate)
+    ).filter(
         CertificateVersion.is_active == True,
         CertificateVersion.expires_at > today(),
         CertificateVersion.expires_at <= ninety_days
@@ -1139,7 +1150,7 @@ def search():
         })
 
     # Search Contacts
-    contacts = Contact.query.filter(Contact.name.ilike(search_term), Contact.is_archived == False).limit(limit).all()
+    contacts = Contact.query.options(joinedload(Contact.supplier)).filter(Contact.name.ilike(search_term), Contact.is_archived == False).limit(limit).all()
     for item in contacts:
         results.append({
             'name': f"{item.name} ({item.supplier.name})",
