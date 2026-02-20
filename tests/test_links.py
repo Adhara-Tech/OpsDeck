@@ -30,7 +30,7 @@ def test_create_link(auth_client, app):
     
     response = auth_client.post('/links/new', data=data, follow_redirects=True)
     assert response.status_code == 200
-    assert b'Enlace creado.' in response.data
+    assert b'Link created.' in response.data
     assert b'New Link' in response.data
     assert b'https://example.com' in response.data
 
@@ -66,7 +66,7 @@ def test_edit_link(auth_client, app):
 
     response = auth_client.post(f'/links/{link_id}/edit', data=data, follow_redirects=True)
     assert response.status_code == 200
-    assert b'Enlace actualizado.' in response.data
+    assert b'Link updated.' in response.data
     assert b'Updated Name' in response.data
     assert b'https://updated.com' in response.data
 
