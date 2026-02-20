@@ -311,6 +311,32 @@ def control_detail(id):
     )
 
 
+@frameworks_bp.route('/control/<int:id>/soa', methods=['POST'])
+@requires_permission('compliance')
+def update_control_soa(id):
+    """Updates the Statement of Applicability for a framework control."""
+    if not has_write_permission('compliance'):
+        flash('Write access required to update SOA.', 'danger')
+        return redirect(url_for('frameworks.control_detail', id=id))
+
+    control = FrameworkControl.query.get_or_404(id)
+
+    control.is_applicable = request.form.get('is_applicable') == 'on'
+    if not control.is_applicable:
+        control.soa_justification = request.form.get('soa_justification', '')
+    else:
+        control.soa_justification = None
+
+    try:
+        db.session.commit()
+        flash('Statement of Applicability updated.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error updating SOA: {str(e)}', 'danger')
+
+    return redirect(url_for('frameworks.control_detail', id=id))
+
+
 @frameworks_bp.route('/control/<int:id>/map', methods=['POST'])
 @requires_permission('compliance')
 def map_control(id):
