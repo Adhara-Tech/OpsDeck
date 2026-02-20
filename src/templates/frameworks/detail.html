@@ -79,11 +79,18 @@
                             <p class="text-muted small mb-0">{{ control.description }}</p>
                             {% endif %}
                         </div>
-                        {% if control.get_all_mappings() %}
-                        <span class="badge bg-info" title="Has cross-framework mappings">
-                            <i class="fas fa-link"></i> {{ control.get_all_mappings()|length }}
-                        </span>
-                        {% endif %}
+                        <div>
+                            {% if not control.is_applicable %}
+                            <span class="badge bg-secondary" title="Not Applicable (SOA)">
+                                <i class="fas fa-ban"></i> N/A
+                            </span>
+                            {% endif %}
+                            {% if control.get_all_mappings() %}
+                            <span class="badge bg-info" title="Has cross-framework mappings">
+                                <i class="fas fa-link"></i> {{ control.get_all_mappings()|length }}
+                            </span>
+                            {% endif %}
+                        </div>
                     </li>
                     {% else %}
                     <li class="list-group-item text-center">
