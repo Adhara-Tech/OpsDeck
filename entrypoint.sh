@@ -64,4 +64,14 @@ echo "Database initialized."
 
 # Start the application using gunicorn
 echo "Starting application..."
-exec gunicorn --bind 0.0.0.0:5000 run:app
+exec gunicorn \
+    --bind 0.0.0.0:5000 \
+    --workers "${GUNICORN_WORKERS:-2}" \
+    --threads "${GUNICORN_THREADS:-4}" \
+    --worker-class gthread \
+    --timeout 120 \
+    --max-requests 1000 \
+    --max-requests-jitter 50 \
+    --access-logfile - \
+    --error-logfile - \
+    run:app
