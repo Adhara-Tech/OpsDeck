@@ -288,7 +288,7 @@ def test_subscription_negative_cost_validation(app):
         db.session.add(supplier)
         db.session.commit()
 
-        with pytest.raises(ValueError, match="must be greater than 0"):
+        with pytest.raises(ValueError, match="must not be negative"):
             subscription = Subscription(
                 name='Invalid Subscription',
                 subscription_type='SaaS',
@@ -301,9 +301,9 @@ def test_subscription_negative_cost_validation(app):
             db.session.flush()  # Force validation
 
 
-def test_subscription_zero_cost_validation(app):
+def test_subscription_zero_cost_allowed(app):
     """
-    Test that Subscription.cost validates against zero value (Bug #8).
+    Test that Subscription.cost allows zero value (for per_user pricing).
     """
     with app.app_context():
         # Create a supplier first (required FK)
@@ -311,17 +311,18 @@ def test_subscription_zero_cost_validation(app):
         db.session.add(supplier)
         db.session.commit()
 
-        with pytest.raises(ValueError, match="must be greater than 0"):
-            subscription = Subscription(
-                name='Invalid Subscription',
-                subscription_type='SaaS',
-                renewal_date=date(2024, 6, 15),
-                renewal_period_type='monthly',
-                cost=0,  # Zero cost should raise ValueError
-                supplier_id=supplier.id
-            )
-            db.session.add(subscription)
-            db.session.flush()  # Force validation
+        # Zero cost is valid (used for per_user pricing model)
+        subscription = Subscription(
+            name='Zero Cost Subscription',
+            subscription_type='SaaS',
+            renewal_date=date(2024, 6, 15),
+            renewal_period_type='monthly',
+            cost=0,
+            supplier_id=supplier.id
+        )
+        db.session.add(subscription)
+        db.session.flush()
+        assert subscription.cost == 0
 
 
 def test_subscription_positive_cost_validation(app):

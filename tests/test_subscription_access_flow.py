@@ -54,10 +54,10 @@ class TestSubscriptionAccessFlow:
         
         # 1. Add User
         response = auth_client.post(f'/subscriptions/{subscription.id}/users/add', data={
-            'user_id': user.id
+            'user_ids': user.id
         }, follow_redirects=True)
         assert response.status_code == 200
-        assert f'User {user.name} added'.encode() in response.data
+        assert f'Added {user.name}'.encode() in response.data
         
         # Verify DB
         db_sub = db.session.get(Subscription,subscription.id)
