@@ -106,10 +106,11 @@ incident_tags = db.Table('incident_tags',
 
 class SecurityIncident(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    external_ref = db.Column(db.String(255), unique=True, nullable=True, index=True)
     title = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text, nullable=False)
     incident_date = db.Column(db.DateTime, default=lambda: now())
-    status = db.Column(db.String(50), default='Investigating') # Investigating, Contained, Resolved, Closed
+    status = db.Column(db.String(50), default='Investigating', index=True) # Investigating, Contained, Resolved, Closed
     severity = db.Column(db.String(50), default='SEV-3') # SEV-0 (Critical) to SEV-3 (Low)
     impact = db.Column(db.String(50), default='Minor') # Minor, Moderate, Significant, Extensive
     data_breach = db.Column(db.Boolean, default=False)
@@ -120,14 +121,14 @@ class SecurityIncident(db.Model):
     resolved_at = db.Column(db.DateTime)
     
     # Relationships
-    reported_by_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    owner_id = db.Column(db.Integer, db.ForeignKey('user.id'))
-    
+    reported_by_id = db.Column(db.Integer, db.ForeignKey('user.id'), index=True)
+    owner_id = db.Column(db.Integer, db.ForeignKey('user.id'), index=True)
+
     reported_by = db.relationship('User', foreign_keys=[reported_by_id])
     owner = db.relationship('User', foreign_keys=[owner_id])
-    
+
     # Assignee (Resolver)
-    assignee_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    assignee_id = db.Column(db.Integer, db.ForeignKey('user.id'), index=True)
     assignee = db.relationship('User', foreign_keys=[assignee_id])
 
     # Tags
@@ -352,10 +353,10 @@ class Risk(db.Model):
     source_catalog_risk = db.relationship('CatalogRisk')
     
     # Management
-    owner_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    owner_id = db.Column(db.Integer, db.ForeignKey('user.id'), index=True)
     owner = db.relationship('User', foreign_keys=[owner_id])
-    
-    status = db.Column(db.String(50), default='Identified') # Identified, Assessed, In Treatment, Mitigated, Accepted, Closed
+
+    status = db.Column(db.String(50), default='Identified', index=True) # Identified, Assessed, In Treatment, Mitigated, Accepted, Closed
     treatment_strategy = db.Column(db.String(50)) # Mitigate, Accept, Transfer, Avoid
     next_review_date = db.Column(db.Date)
     
@@ -658,7 +659,11 @@ class FrameworkControl(db.Model):
     
     # Descripción específica del control
     description = db.Column(db.Text)
-    
+
+    # --- SOA (Statement of Applicability) ---
+    is_applicable = db.Column(db.Boolean, default=True, nullable=False)
+    soa_justification = db.Column(db.Text)  # Required when is_applicable = False
+
     # Cross-Framework Mappings: Controls this one maps to (e.g., DORA -> ISO)
     mapped_targets = db.relationship(
         'FrameworkControl',

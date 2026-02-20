@@ -16,7 +16,11 @@ const assets = [
     // SunEditor WYSIWYG (MIT license)
     { src: 'suneditor/dist', dest: 'suneditor' },
     // Swagger UI
-    { src: 'swagger-ui-dist', dest: 'swagger-ui' }
+    { src: 'swagger-ui-dist', dest: 'swagger-ui' },
+    // OrgChart.js (vanilla JS org chart by dabeng)
+    { src: 'orgchart.js/src', dest: 'orgchart.js' },
+    // html2canvas (for OrgChart PNG export)
+    { src: 'html2canvas/dist/html2canvas.min.js', dest: 'html2canvas/html2canvas.min.js' }
 ];
 
 

@@ -28,7 +28,7 @@ def archive_supplier(id):
     supplier = Supplier.query.get_or_404(id)
     supplier.is_archived = True
     db.session.commit()
-    flash(f'Supplier "{supplier.name}" has been archived.')
+    flash(f'Supplier "{supplier.name}" has been archived.', 'warning')
     return redirect(url_for('suppliers.suppliers'))
 
 
@@ -39,7 +39,7 @@ def unarchive_supplier(id):
     supplier = Supplier.query.get_or_404(id)
     supplier.is_archived = False
     db.session.commit()
-    flash(f'Supplier "{supplier.name}" has been restored.')
+    flash(f'Supplier "{supplier.name}" has been restored.', 'success')
     return redirect(url_for('suppliers.archived_suppliers'))
 
 @suppliers_bp.route('/new', methods=['GET', 'POST'])
@@ -62,7 +62,7 @@ def new_supplier():
         )
         db.session.add(supplier)
         db.session.commit()
-        flash('Supplier created successfully!')
+        flash('Supplier created successfully!', 'success')
         return redirect(url_for('suppliers.suppliers'))
 
     return render_template('suppliers/form.html')
@@ -95,7 +95,7 @@ def edit_supplier(id):
         supplier.compliance_notes = request.form.get('compliance_notes')
         supplier.data_storage_region = request.form.get('data_storage_region') # <-- ADD THIS LINE
         db.session.commit()
-        flash('Supplier updated successfully!')
+        flash('Supplier updated successfully!', 'success')
         return redirect(url_for('suppliers.supplier_detail', id=supplier.id)) # Redirect to detail view
     
     return render_template('suppliers/form.html', supplier=supplier)
@@ -107,5 +107,5 @@ def delete_supplier(id):
     supplier = Supplier.query.get_or_404(id)
     db.session.delete(supplier)
     db.session.commit()
-    flash('Supplier deleted successfully!')
+    flash('Supplier deleted successfully!', 'success')
     return redirect(url_for('suppliers.suppliers'))

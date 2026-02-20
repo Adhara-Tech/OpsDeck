@@ -15,7 +15,6 @@
         })();
     </script>
     <link href="{{ url_for('static', filename='vendor/bootstrap/css/bootstrap.min.css') }}" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/easymde/easymde.min.css') }}">
     <link href="{{ url_for('static', filename='vendor/simple-datatables/style.css') }}" rel="stylesheet"
         type="text/css">
     <link href="{{ url_for('static', filename='vendor/font-awesome/css/all.min.css') }}" rel="stylesheet">
@@ -655,7 +654,7 @@
                 <div class="ms-auto d-flex align-items-center">
                     <!-- Theme Toggle Button -->
                     <button class="btn btn-link text-white me-2" id="themeToggle" type="button"
-                            title="Cambiar a modo oscuro" aria-label="Cambiar a modo oscuro">
+                            title="Switch to dark mode" aria-label="Switch to dark mode">
                         <i class="fas fa-moon"></i>
                     </button>
 
@@ -732,14 +731,14 @@
         <div class="main-content-body">
             {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
-            {# Lista para trackear mensajes ya mostrados #}
+            {# Track already-printed messages to avoid duplicates #}
             {% set printed_messages = [] %}
 
             {% for category, message in messages %}
             {% if message not in printed_messages %}
             <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm mt-3" role="alert">
 
-                {# Iconos según categoría para mejor UX #}
+                {# Icons by category #}
                 {% if category == 'success' %}
                 <i class="fas fa-check-circle me-2"></i>
                 {% elif category == 'danger' %}
@@ -754,7 +753,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
 
-            {# Hack de Jinja2 para añadir a la lista sin imprimir nada #}
+            {# Jinja2 hack to append without printing #}
             {% if printed_messages.append(message) %}{% endif %}
             {% endif %}
             {% endfor %}
@@ -771,14 +770,31 @@
             const scrollPos = localStorage.getItem('sidebarScroll');
             if (scrollPos) { sidebarBody.scrollTop = parseInt(scrollPos, 10); }
             sidebarBody.addEventListener('scroll', () => { localStorage.setItem('sidebarScroll', sidebarBody.scrollTop); });
+            // Restore open accordion section (saved > active-link fallback)
+            const savedSection = localStorage.getItem('sidebarOpenSection');
             const activeLink = document.querySelector('.sidebar .nav-link.active');
-            if (activeLink) {
+            if (savedSection) {
+                const savedEl = document.getElementById(savedSection);
+                if (savedEl && !savedEl.classList.contains('show')) {
+                    new bootstrap.Collapse(savedEl, { toggle: false }).show();
+                }
+            } else if (activeLink) {
                 const activeCollapse = activeLink.closest('.collapse:not(.show)');
                 if (activeCollapse) {
-                    const bsCollapse = new bootstrap.Collapse(activeCollapse, { toggle: false });
-                    bsCollapse.show();
+                    new bootstrap.Collapse(activeCollapse, { toggle: false }).show();
                 }
             }
+
+            // Persist open accordion section across navigation
+            const sidebarAccordion = document.getElementById('sidebar-accordion');
+            sidebarAccordion.addEventListener('shown.bs.collapse', function(e) {
+                localStorage.setItem('sidebarOpenSection', e.target.id);
+            });
+            sidebarAccordion.addEventListener('hidden.bs.collapse', function(e) {
+                if (localStorage.getItem('sidebarOpenSection') === e.target.id) {
+                    localStorage.removeItem('sidebarOpenSection');
+                }
+            });
 
             // Sidebar toggle functionality
             const sidebar = document.getElementById('mainSidebar');
@@ -963,7 +979,6 @@
     </script>
     <script src="{{ url_for('static', filename='vendor/simple-datatables/umd/simple-datatables.js') }}"></script>
     <script src="{{ url_for('static', filename='vendor/tom-select/js/tom-select.complete.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='vendor/easymde/easymde.min.js') }}"></script>
 
     {# Global Modal for replacing native alert/confirm/prompt #}
     <div class="modal fade" id="globalModal" tabindex="-1" aria-hidden="true" role="dialog" aria-modal="true">

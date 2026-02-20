@@ -36,8 +36,8 @@ class User(db.Model, CustomPropertiesMixin): # Add UserMixin here if using Flask
     peripherals = db.relationship('Peripheral', backref='user', lazy=True)
     licenses = db.relationship('License', backref='user', lazy=True)
     
-    is_archived = db.Column(db.Boolean, default=False, nullable=False)
-    hide_from_org_chart = db.Column(db.Boolean, default=False, nullable=False)
+    is_archived = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    hide_from_org_chart = db.Column(db.Boolean, default=False, nullable=False, index=True)
     
     acknowledgements = db.relationship('PolicyAcknowledgement', backref='user', lazy=True, cascade='all, delete-orphan')
     
@@ -54,10 +54,10 @@ class User(db.Model, CustomPropertiesMixin): # Add UserMixin here if using Flask
                             overlaps="attachments")
                             
     # Hierarchy & Mentorship
-    manager_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    manager_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
     manager = db.relationship('User', remote_side='User.id', backref='direct_reports', foreign_keys=[manager_id])
-    
-    buddy_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+
+    buddy_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, index=True)
     buddy = db.relationship('User', remote_side='User.id', foreign_keys=[buddy_id], backref='mentees')
 
     def set_password(self, password):

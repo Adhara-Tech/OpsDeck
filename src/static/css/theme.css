@@ -264,6 +264,14 @@ body,
     color: var(--bs-body-color);
 }
 
+/* Badges with bg-light should stay readable in dark mode */
+[data-bs-theme="dark"] .badge.bg-light {
+    --bs-bg-opacity: 1;
+    background-color: #6c757d !important;
+    color: #fff !important;
+    border-color: #6c757d !important;
+}
+
 /* .bg-light class should respect dark mode */
 [data-bs-theme="dark"] .bg-light {
     --bs-bg-opacity: 1;

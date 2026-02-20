@@ -60,7 +60,7 @@ def new_purchase():
         )
         db.session.add(purchase)
         db.session.commit()
-        flash('Purchase created successfully!')
+        flash('Purchase created successfully!', 'success')
         return redirect(url_for('purchases.purchases'))
 
     return render_template('purchases/form.html',
@@ -105,7 +105,7 @@ def edit_purchase(id):
         purchase.payment_method_id = request.form.get('payment_method_id') or None
         purchase.budget_id = budget_id
         db.session.commit()
-        flash('Purchase updated successfully!')
+        flash('Purchase updated successfully!', 'success')
         return redirect(url_for('purchases.purchases'))
 
     return render_template('purchases/form.html',

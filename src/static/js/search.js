@@ -16,6 +16,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Debounce the search to avoid sending too many requests while typing
             searchTimeout = setTimeout(() => {
+                // Show skeleton while loading
+                searchResults.innerHTML =
+                    '<div class="list-group-item py-2"><div class="skeleton skeleton-text" style="width: 70%;"></div></div>' +
+                    '<div class="list-group-item py-2"><div class="skeleton skeleton-text" style="width: 55%;"></div></div>' +
+                    '<div class="list-group-item py-2"><div class="skeleton skeleton-text" style="width: 65%;"></div></div>';
+                searchResults.style.display = 'block';
+
                 fetch(`/api/search?q=${encodeURIComponent(query)}`)
                     .then(response => response.json())
                     .then(data => {

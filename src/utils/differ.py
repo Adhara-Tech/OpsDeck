@@ -90,5 +90,5 @@ def _get_value_at_path(data, deepdiff_path):
             if key: # skip empty
                 val = val[key]
         return val
-    except:
+    except Exception:
         return "?"

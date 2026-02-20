@@ -216,7 +216,7 @@
                     <div class="card-body">
                         {% if risk.mitigation_activities.count() > 0 %}
                         <div class="table-responsive">
-                            <table class="table table-sm">
+                            <table class="table table-sm datatable">
                                 <thead>
                                     <tr>
                                         <th>Activity</th>
@@ -452,7 +452,7 @@
                             Track how this risk's residual score has evolved through periodic risk assessments.
                         </p>
                         <div class="table-responsive">
-                            <table class="table table-sm table-hover mb-0">
+                            <table class="table table-sm table-hover mb-0 datatable">
                                 <thead class="table-light">
                                     <tr>
                                         <th>Date</th>
@@ -510,7 +510,7 @@
                         </p>
                         {% if risk.history.count() > 0 %}
                         <div class="table-responsive">
-                            <table class="table table-sm table-hover mb-0">
+                            <table class="table table-sm table-hover mb-0 datatable">
                                 <thead class="table-light">
                                     <tr>
                                         <th>Timestamp</th>

@@ -32,7 +32,7 @@ def archive_tag(id):
     tag = Tag.query.get_or_404(id)
     tag.is_archived = True
     db.session.commit()
-    flash(f'Tag "{tag.name}" has been archived.')
+    flash(f'Tag "{tag.name}" has been archived.', 'warning')
     return redirect(url_for('tags.tags'))
 
 
@@ -46,7 +46,7 @@ def unarchive_tag(id):
     tag = Tag.query.get_or_404(id)
     tag.is_archived = False
     db.session.commit()
-    flash(f'Tag "{tag.name}" has been restored.')
+    flash(f'Tag "{tag.name}" has been restored.', 'success')
     return redirect(url_for('tags.archived_tags'))
 
 @tags_bp.route('/new', methods=['GET', 'POST'])
@@ -62,9 +62,9 @@ def new_tag():
             new_tag = Tag(name=tag_name)
             db.session.add(new_tag)
             db.session.commit()
-            flash(f'Tag "{tag_name}" created successfully.')
+            flash(f'Tag "{tag_name}" created successfully.', 'success')
         else:
-            flash(f'Tag "{tag_name}" already exists or is invalid.', 'error')
+            flash(f'Tag "{tag_name}" already exists or is invalid.', 'danger')
         return redirect(url_for('tags.tags'))
     return render_template('tags/form.html')
 
@@ -81,7 +81,7 @@ def edit_tag(id):
         if new_name:
             tag.name = new_name
             db.session.commit()
-            flash('Tag updated successfully!')
+            flash('Tag updated successfully!', 'success')
             return redirect(url_for('tags.tags'))
     return render_template('tags/form.html', tag=tag)
 
@@ -95,5 +95,5 @@ def delete_tag(id):
     tag = Tag.query.get_or_404(id)
     db.session.delete(tag)
     db.session.commit()
-    flash(f'Tag "{tag.name}" deleted successfully.')
+    flash(f'Tag "{tag.name}" deleted successfully.', 'success')
     return redirect(url_for('tags.tags'))

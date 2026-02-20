@@ -52,7 +52,7 @@ def new_budget():
         )
         db.session.add(budget)
         db.session.commit()
-        flash('Budget created successfully!')
+        flash('Budget created successfully!', 'success')
         return redirect(url_for('budgets.budgets'))
 
     return render_template('budgets/form.html')
@@ -86,7 +86,7 @@ def edit_budget(id):
         budget.valid_from = datetime.strptime(request.form['valid_from'], '%Y-%m-%d').date()
         budget.valid_until = datetime.strptime(request.form['valid_until'], '%Y-%m-%d').date()
         db.session.commit()
-        flash('Budget updated successfully!')
+        flash('Budget updated successfully!', 'success')
         return redirect(url_for('budgets.budgets'))
 
     return render_template('budgets/form.html', budget=budget)

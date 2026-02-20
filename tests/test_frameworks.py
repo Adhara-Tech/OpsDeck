@@ -121,7 +121,7 @@ def test_edit_framework(auth_client, app):
     }, follow_redirects=True)
     
     assert response.status_code == 200
-    assert b"Framework actualizado" in response.data
+    assert b"Framework updated." in response.data
     # El nombre NO debe cambiar
     assert b"Nombre Falso" not in response.data
     assert b"ISO27001:2022" in response.data
@@ -147,7 +147,7 @@ def test_edit_framework(auth_client, app):
     }, follow_redirects=True)
     
     assert response.status_code == 200
-    assert b"Framework actualizado" in response.data
+    assert b"Framework updated." in response.data
     
     with app.app_context():
         fw_custom_updated = db.session.get(Framework,fw_custom_id)

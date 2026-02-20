@@ -88,13 +88,13 @@ const ThemeManager = (function() {
         if (theme === THEME_DARK) {
             icon.classList.remove('fa-moon');
             icon.classList.add('fa-sun');
-            toggle.setAttribute('title', 'Cambiar a modo claro');
-            toggle.setAttribute('aria-label', 'Cambiar a modo claro');
+            toggle.setAttribute('title', 'Switch to light mode');
+            toggle.setAttribute('aria-label', 'Switch to light mode');
         } else {
             icon.classList.remove('fa-sun');
             icon.classList.add('fa-moon');
-            toggle.setAttribute('title', 'Cambiar a modo oscuro');
-            toggle.setAttribute('aria-label', 'Cambiar a modo oscuro');
+            toggle.setAttribute('title', 'Switch to dark mode');
+            toggle.setAttribute('aria-label', 'Switch to dark mode');
         }
     }
 

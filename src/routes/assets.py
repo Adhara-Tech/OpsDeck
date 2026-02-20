@@ -47,7 +47,7 @@ def archive_asset(id):
         target_info=asset.name
     )
     
-    flash(f'Asset "{asset.name}" has been archived.')
+    flash(f'Asset "{asset.name}" has been archived.', 'warning')
     return redirect(url_for('assets.assets'))
 
 
@@ -67,7 +67,7 @@ def unarchive_asset(id):
         target_info=asset.name
     )
     
-    flash(f'Asset "{asset.name}" has been restored.')
+    flash(f'Asset "{asset.name}" has been restored.', 'success')
     return redirect(url_for('assets.archived_assets'))
 
 @assets_bp.route('/new', methods=['GET', 'POST'])
@@ -111,7 +111,7 @@ def new_asset():
             target_info=asset.name
         )
         
-        flash('Asset created successfully!')
+        flash('Asset created successfully!', 'success')
         return redirect(url_for('assets.assets'))
 
     return render_template('assets/form.html',
@@ -234,7 +234,7 @@ def edit_asset(id):
             **event_ctx
         )
         
-        flash('Asset updated successfully!')
+        flash('Asset updated successfully!', 'success')
         return redirect(url_for('assets.assets'))
 
     return render_template('assets/form.html',
@@ -300,7 +300,7 @@ def checkout_asset(id):
         db.session.add(history_entry)
 
         db.session.commit()
-        flash(f'Asset "{asset.name}" has been checked out to {user.name}.')
+        flash(f'Asset "{asset.name}" has been checked out to {user.name}.', 'success')
         return redirect(url_for('assets.asset_detail', id=id))
         
     users = User.query.order_by(User.name).filter_by(is_archived=False).all()

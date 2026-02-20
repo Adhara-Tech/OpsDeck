@@ -1,6 +1,10 @@
 {% extends "layout.html" %}
 {% set title = "Edit Version" if version else "New Version" %}
 {% block title %}{{ title }} for {{ policy.title }} - {{ super() }}{% endblock %}
+{% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/easymde/easymde.min.css') }}">
+{% endblock %}
+
 {% block content %}
 <h2><i class="fas fa-file-signature"></i> {{ title }} for: {{ policy.title }}</h2>
 <hr>
@@ -43,6 +47,7 @@
 {% endblock %}
 
 {% block scripts_extra %}
+<script src="{{ url_for('static', filename='vendor/easymde/easymde.min.js') }}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const textarea = document.getElementById('policy-content-editor');

@@ -11,8 +11,6 @@ from ..services.permissions_service import requires_permission, has_write_permis
 # Admin bp
 admin_bp = Blueprint('admin', __name__)
 
-admin_bp = Blueprint('admin', __name__)
-
 @admin_bp.route('/users')
 @login_required
 @requires_permission('administration', access_level='READ_ONLY')
@@ -368,7 +366,7 @@ def audit_log_detail(id):
     if entry.changes:
         try:
             changes = json.loads(entry.changes)
-        except:
+        except Exception:
             changes = {"error": "Could not parse changes"}
 
     return jsonify({

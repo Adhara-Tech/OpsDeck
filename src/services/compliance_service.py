@@ -197,7 +197,7 @@ class ComplianceEvaluator:
         Returns:
             dict with:
                 - framework: Framework object
-                - stats: {total, compliant, warning, non_compliant, manual, uncovered}
+                - stats: {total, compliant, warning, non_compliant, manual, uncovered, not_applicable}
                 - controls: list of control data with status
         """
         from src.models.security import Framework, FrameworkControl
@@ -212,14 +212,34 @@ class ComplianceEvaluator:
             'warning': 0,
             'non_compliant': 0,
             'manual': 0,
-            'uncovered': 0
+            'uncovered': 0,
+            'not_applicable': 0
         }
-        
+
         controls_data = []
-        
+
         for control in framework.framework_controls:
             stats['total'] += 1
-            
+
+            # SOA: Skip non-applicable controls
+            if not control.is_applicable:
+                stats['not_applicable'] += 1
+                controls_data.append({
+                    'id': control.id,
+                    'control_id': control.control_id,
+                    'name': control.name,
+                    'description': control.description,
+                    'status': 'not_applicable',
+                    'rules_count': 0,
+                    'manual_links_count': 0,
+                    'linked_items_count': 0,
+                    'oldest_evidence_date': None,
+                    'rule_evaluations': [],
+                    'coverage_type': 'not_applicable',
+                    'soa_justification': control.soa_justification
+                })
+                continue
+
             rules = list(control.rules)
             manual_links_count = control.compliance_links.count()
             

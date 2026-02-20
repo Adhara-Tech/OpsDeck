@@ -1,6 +1,10 @@
 {% extends "layout.html" %}
 {% block title %}Post-Incident Review - {{ super() }}{% endblock %}
 
+{% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/easymde/easymde.min.css') }}">
+{% endblock %}
+
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
@@ -149,9 +153,6 @@
 <!-- Importar SortableJS (necesario para arrastrar y soltar) -->
 <script src="{{ url_for('static', filename='vendor/sortablejs/Sortable.min.js') }}"></script>
 
-<!-- *** INICIO DE LA CORRECCIÓN *** -->
-<!-- Cargar los assets de EasyMDE (CSS y JS) desde vendor local -->
-<link rel="stylesheet" href="{{ url_for('static', filename='vendor/easymde/easymde.min.css') }}">
 <script src="{{ url_for('static', filename='vendor/easymde/easymde.min.js') }}"></script>
 
 <script>

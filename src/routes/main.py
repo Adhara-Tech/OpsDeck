@@ -3,6 +3,7 @@ from flask import (
 )
 import os
 from sqlalchemy import or_
+from sqlalchemy.orm import joinedload
 from markupsafe import Markup
 from functools import wraps
 from datetime import date, timedelta, datetime
@@ -59,7 +60,7 @@ def login():
                 target_object=email,
                 error_message='Invalid email or password'
             )
-            flash('Invalid email or password')
+            flash('Invalid email or password', 'danger')
 
     return render_template('login.html')
 
@@ -120,16 +121,16 @@ def verify_ip_and_login(user):
     
     # Send OTP email
     email_body = f"""
-    <h2>Código de Verificación de Seguridad</h2>
-    <p>Se ha detectado un intento de inicio de sesión desde una nueva ubicación.</p>
-    <p>Tu código de verificación es:</p>
+    <h2>Security Verification Code</h2>
+    <p>A login attempt from a new location has been detected.</p>
+    <p>Your verification code is:</p>
     <h1 style="font-size: 32px; letter-spacing: 5px; font-family: monospace;">{otp}</h1>
-    <p>Este código expira en 10 minutos.</p>
-    <p>Si no has intentado iniciar sesión, ignora este correo.</p>
+    <p>This code expires in 10 minutes.</p>
+    <p>If you did not attempt to log in, please ignore this email.</p>
     """
     notifications.send_email(
         current_app._get_current_object(),
-        "OpsDeck - Código de Verificación",
+        "OpsDeck - Security Verification Code",
         email_body,
         [user.email]
     )
@@ -143,7 +144,7 @@ def verify_ip_and_login(user):
         user_email=user.email
     )
     
-    flash('Nuevo dispositivo detectado. Revisa tu email para el código de verificación.', 'info')
+    flash('New device detected. Check your email for the verification code.', 'info')
     return redirect(url_for('main.mfa_verify'))
 
 
@@ -167,7 +168,7 @@ def mfa_verify():
             session.pop('mfa_user_id', None)
             session.pop('mfa_otp', None)
             session.pop('mfa_expiry', None)
-            flash('El código ha expirado. Por favor, inicia sesión de nuevo.', 'warning')
+            flash('The code has expired. Please log in again.', 'warning')
             return redirect(url_for('main.login'))
         
         if code == stored_otp:
@@ -203,7 +204,7 @@ def mfa_verify():
                 # Populate permissions cache immediately
                 get_user_modules(user.id)
                 
-                flash('Dispositivo verificado. Bienvenido.', 'success')
+                flash('Device verified. Welcome.', 'success')
                 return redirect(url_for('main.dashboard'))
         
         # FAILURE - Wrong code
@@ -214,7 +215,7 @@ def mfa_verify():
             target_object=f"User:{user_id}",
             error_message="Invalid MFA code"
         )
-        flash('Código incorrecto. Inténtalo de nuevo.', 'danger')
+        flash('Incorrect code. Please try again.', 'danger')
     
     return render_template('mfa.html')
 
@@ -474,7 +475,9 @@ def organizational_health():
         })
     
     # Overdue maintenance
-    overdue_logs = MaintenanceLog.query.filter(
+    overdue_logs = MaintenanceLog.query.options(
+        joinedload(MaintenanceLog.asset)
+    ).filter(
         MaintenanceLog.status == 'Pending',
         MaintenanceLog.event_date < today()
     ).limit(5).all()
@@ -488,7 +491,9 @@ def organizational_health():
         })
     
     # Expired credentials
-    expired_secrets = CredentialSecret.query.filter(
+    expired_secrets = CredentialSecret.query.options(
+        joinedload(CredentialSecret.credential)
+    ).filter(
         CredentialSecret.is_active == True,
         CredentialSecret.expires_at < now()
     ).limit(5).all()
@@ -502,7 +507,9 @@ def organizational_health():
         })
     
     # Expired certificates (still active)
-    expired_certs = CertificateVersion.query.filter(
+    expired_certs = CertificateVersion.query.options(
+        joinedload(CertificateVersion.certificate)
+    ).filter(
         CertificateVersion.is_active == True,
         CertificateVersion.expires_at < today()
     ).limit(5).all()
@@ -535,7 +542,9 @@ def organizational_health():
     expirations['finance'].sort(key=lambda x: x['days'])
     
     # Identity: Credentials
-    expiring_secrets = CredentialSecret.query.filter(
+    expiring_secrets = CredentialSecret.query.options(
+        joinedload(CredentialSecret.credential)
+    ).filter(
         CredentialSecret.is_active == True,
         CredentialSecret.expires_at.isnot(None),
         CredentialSecret.expires_at > now(),
@@ -551,7 +560,9 @@ def organizational_health():
     expirations['identity'].sort(key=lambda x: x['days'])
     
     # Certificates
-    cert_versions = CertificateVersion.query.filter(
+    cert_versions = CertificateVersion.query.options(
+        joinedload(CertificateVersion.certificate)
+    ).filter(
         CertificateVersion.is_active == True,
         CertificateVersion.expires_at > today(),
         CertificateVersion.expires_at <= ninety_days
@@ -673,11 +684,11 @@ def my_dashboard():
     # ----- GREETING -----
     hour = now().hour
     if hour < 12:
-        greeting_time = "Buenos días"
+        greeting_time = "Good morning"
     elif hour < 20:
-        greeting_time = "Buenas tardes"
+        greeting_time = "Good afternoon"
     else:
-        greeting_time = "Buenas noches"
+        greeting_time = "Good evening"
 
     # ----- MY EQUIPMENT -----
     my_assets = Asset.query.filter_by(user_id=user_id, is_archived=False).all()
@@ -756,7 +767,7 @@ def my_dashboard():
                 'expires_at': secret.expires_at,
                 'days_left': (secret.expires_at.date() - current_date).days
             })
-    except:
+    except Exception:
         pass  # Credentials module might not be available
 
     # ----- PERSONAL HEALTH SCORE -----
@@ -781,9 +792,9 @@ def my_dashboard():
             if days_left <= 0:
                 critical_alerts.append({
                     'icon': '📋',
-                    'message': f'Política "{policy.policy.name}" requiere aprobación urgente',
+                    'message': f'Policy "{policy.policy.name}" requires urgent approval',
                     'link': url_for('policies.acknowledge', id=policy.id),
-                    'action_text': 'Aprobar ahora'
+                    'action_text': 'Approve now'
                 })
 
     # Courses expiring soon
@@ -793,18 +804,18 @@ def my_dashboard():
             if 0 <= days_left <= 3:
                 critical_alerts.append({
                     'icon': '📚',
-                    'message': f'Curso "{ca.course.title}" vence en {days_left} día(s)',
+                    'message': f'Course "{ca.course.title}" due in {days_left} day(s)',
                     'link': url_for('training.course_detail', id=ca.course_id),
-                    'action_text': 'Continuar curso'
+                    'action_text': 'Continue course'
                 })
 
     # Maintenance issues
     for issue in maintenance_issues:
         critical_alerts.append({
             'icon': '🔧',
-            'message': f'{issue["asset"].name} tiene {issue["count"]} mantenimiento(s) vencido(s)',
+            'message': f'{issue["asset"].name} has {issue["count"]} overdue maintenance(s)',
             'link': url_for('assets.asset_detail', id=issue['asset'].id),
-            'action_text': 'Ver detalles'
+            'action_text': 'View details'
         })
 
     # Critical risks
@@ -812,9 +823,9 @@ def my_dashboard():
         if risk.residual_likelihood >= 4 and risk.residual_impact >= 4:
             critical_alerts.append({
                 'icon': '⚠️',
-                'message': f'Riesgo crítico: {risk.risk_description[:50]}...',
+                'message': f'Critical risk: {risk.risk_description[:50]}...',
                 'link': url_for('risk.detail', id=risk.id),
-                'action_text': 'Revisar'
+                'action_text': 'Review'
             })
 
     # ----- PRIORITIZED TASKS -----
@@ -828,18 +839,18 @@ def my_dashboard():
 
         urgency_class = 'urgent' if days_left <= 1 else ('warning' if days_left <= 7 else 'normal')
         urgency_icon = '🔴' if days_left == 0 else ('🟡' if days_left <= 7 else '🟢')
-        urgency_label = 'URGENTE' if days_left == 0 else ('Próximo' if days_left <= 7 else 'Pendiente')
+        urgency_label = 'URGENT' if days_left == 0 else ('Soon' if days_left <= 7 else 'Pending')
 
         prioritized_tasks.append({
             'priority': 1 if days_left <= 1 else 2,
             'urgency_class': urgency_class,
             'urgency_icon': urgency_icon,
             'urgency_label': urgency_label,
-            'due_text': f'Vence hoy' if days_left == 0 else (f'Vence en {days_left} días' if days_left < 999 else 'Sin fecha límite'),
-            'title': f'Aprobar Política: {policy.policy.name}',
-            'description': policy.summary or 'Requiere tu aprobación',
+            'due_text': 'Due today' if days_left == 0 else (f'Due in {days_left} days' if days_left < 999 else 'No deadline'),
+            'title': f'Approve Policy: {policy.policy.name}',
+            'description': policy.summary or 'Requires your approval',
             'action_url': url_for('policies.acknowledge', id=policy.id),
-            'action_text': 'Revisar y Aprobar',
+            'action_text': 'Review & Approve',
             'can_dismiss': False
         })
 
@@ -850,18 +861,18 @@ def my_dashboard():
             if days_left <= 30:  # Only show if due within 30 days
                 urgency_class = 'urgent' if days_left < 0 else ('warning' if days_left <= 7 else 'normal')
                 urgency_icon = '🔴' if days_left < 0 else ('🟡' if days_left <= 7 else '🟢')
-                urgency_label = 'URGENTE' if days_left < 0 else ('Próximo' if days_left <= 7 else 'Pendiente')
+                urgency_label = 'URGENT' if days_left < 0 else ('Soon' if days_left <= 7 else 'Pending')
 
                 prioritized_tasks.append({
                     'priority': 1 if days_left < 0 else (2 if days_left <= 7 else 3),
                     'urgency_class': urgency_class,
                     'urgency_icon': urgency_icon,
                     'urgency_label': urgency_label,
-                    'due_text': f'Venció hace {abs(days_left)} días' if days_left < 0 else f'Vence en {days_left} días',
-                    'title': f'Completar Curso: {ca.course.title}',
-                    'description': f'Progreso actual: {ca.progress or 0}%',
+                    'due_text': f'Overdue by {abs(days_left)} days' if days_left < 0 else f'Due in {days_left} days',
+                    'title': f'Complete Course: {ca.course.title}',
+                    'description': f'Current progress: {ca.progress or 0}%',
                     'action_url': url_for('training.course_detail', id=ca.course_id),
-                    'action_text': 'Continuar curso',
+                    'action_text': 'Continue course',
                     'can_dismiss': True
                 })
 
@@ -875,12 +886,12 @@ def my_dashboard():
             'priority': 2 if days_left <= 7 else 3,
             'urgency_class': urgency_class,
             'urgency_icon': urgency_icon,
-            'urgency_label': 'URGENTE' if days_left <= 7 else 'Próximo',
-            'due_text': f'Expira en {days_left} días',
-            'title': f'Actualizar credencial: {cred["credential"].name}',
-            'description': f'Tipo: {cred["credential"].type}',
+            'urgency_label': 'URGENT' if days_left <= 7 else 'Soon',
+            'due_text': f'Expires in {days_left} days',
+            'title': f'Update credential: {cred["credential"].name}',
+            'description': f'Type: {cred["credential"].type}',
             'action_url': url_for('credentials.detail_credential', id=cred["credential"].id),
-            'action_text': 'Actualizar',
+            'action_text': 'Update',
             'can_dismiss': True
         })
 
@@ -1083,7 +1094,7 @@ def notification_settings():
         settings.notify_days_before = ','.join(days_before)
 
         db.session.commit()
-        flash('Notification settings updated successfully!')
+        flash('Notification settings updated successfully!', 'success')
         return redirect(url_for('main.notification_settings'))
 
     notify_days_list = [int(day) for day in settings.notify_days_before.split(',') if day]
@@ -1107,7 +1118,7 @@ def search():
     limit = 5
 
     # Search Subscriptions
-    subscriptions = Subscription.query.filter(Subscription.name.ilike(search_term), not Subscription.is_archived).limit(limit).all()
+    subscriptions = Subscription.query.filter(Subscription.name.ilike(search_term), Subscription.is_archived == False).limit(limit).all()
     for item in subscriptions:
         results.append({
             'name': item.name,
@@ -1120,7 +1131,7 @@ def search():
         or_(
             Asset.name.ilike(search_term),
             Asset.serial_number.ilike(search_term)
-        ), not Asset.is_archived
+        ), Asset.is_archived == False
     ).limit(limit).all()
     for item in assets:
         results.append({
@@ -1130,7 +1141,7 @@ def search():
         })
 
     # Search Suppliers
-    suppliers = Supplier.query.filter(Supplier.name.ilike(search_term), not Supplier.is_archived).limit(limit).all()
+    suppliers = Supplier.query.filter(Supplier.name.ilike(search_term), Supplier.is_archived == False).limit(limit).all()
     for item in suppliers:
         results.append({
             'name': item.name,
@@ -1139,7 +1150,7 @@ def search():
         })
 
     # Search Contacts
-    contacts = Contact.query.filter(Contact.name.ilike(search_term), not Contact.is_archived).limit(limit).all()
+    contacts = Contact.query.options(joinedload(Contact.supplier)).filter(Contact.name.ilike(search_term), Contact.is_archived == False).limit(limit).all()
     for item in contacts:
         results.append({
             'name': f"{item.name} ({item.supplier.name})",
@@ -1161,7 +1172,7 @@ def search():
         or_(
             Peripheral.name.ilike(search_term),
             Peripheral.serial_number.ilike(search_term)
-        ), not Peripheral.is_archived
+        ), Peripheral.is_archived == False
     ).limit(limit).all()
     for item in peripherals:
         results.append({
@@ -1240,10 +1251,22 @@ def generate_my_token():
     return redirect(url_for('main.my_api_key'))
 
 
-# --- INTERNAL ROUTES (No Login Required) ---
-# These routes are designed to be called by Flask CLI commands
+# --- INTERNAL ROUTES (Localhost Only) ---
+# These routes are designed to be called by Flask CLI commands from within the container.
+# Access is restricted to localhost to prevent external exposure.
+
+LOCALHOST_ADDRS = {'127.0.0.1', '::1', 'localhost'}
+
+def localhost_only(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if request.remote_addr not in LOCALHOST_ADDRS:
+            abort(403)
+        return f(*args, **kwargs)
+    return decorated
 
 @main_bp.route('/internal/test-db')
+@localhost_only
 def internal_test_db():
     """
     Internal route for database connectivity testing.
@@ -1283,6 +1306,7 @@ def internal_test_db():
 
 
 @main_bp.route('/internal/app-info')
+@localhost_only
 def internal_app_info():
     """
     Internal route for retrieving application configuration information.
@@ -1337,6 +1361,7 @@ def internal_app_info():
         }), 500
 
 @main_bp.route('/internal/test-email')
+@localhost_only
 def internal_test_email():
     """
     Internal route for testing email configuration.
@@ -1403,6 +1428,7 @@ def internal_test_email():
 
 
 @main_bp.route('/internal/health-check')
+@localhost_only
 def internal_health_check():
     """
     Internal route for comprehensive health check.
@@ -1499,6 +1525,7 @@ def internal_health_check():
 
 
 @main_bp.route('/internal/test-security')
+@localhost_only
 def internal_test_security():
     """
     Internal route for security configuration audit.

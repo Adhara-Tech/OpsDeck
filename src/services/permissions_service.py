@@ -30,7 +30,7 @@ def get_user_modules(user_id):
     
     # 1. Get direct module permissions
     direct_permissions = Permission.query.filter_by(user_id=user_id).all()
-    logger.info(f"DEBUG: get_user_modules user_id={user_id} direct_perms_count={len(direct_permissions)}")
+    logger.debug(f" get_user_modules user_id={user_id} direct_perms_count={len(direct_permissions)}")
 
     
     # 2. Get permissions inherited from groups
@@ -39,7 +39,7 @@ def get_user_modules(user_id):
     if group_ids:
         group_permissions = Permission.query.filter(Permission.group_id.in_(group_ids)).all()
     
-    logger.info(f"DEBUG: group_ids={group_ids} group_perms_count={len(group_permissions)}")
+    logger.debug(f" group_ids={group_ids} group_perms_count={len(group_permissions)}")
 
         
     # 3. Combine and resolve access level (WRITE > READ_ONLY)
@@ -56,7 +56,7 @@ def get_user_modules(user_id):
     # 4. Fetch module objects and update cache with slugs
     if not resolved_permissions:
         permissions_cache.set(user_id, {})
-        logger.info(f"DEBUG: No permissions resolved for user {user_id}")
+        logger.debug(f" No permissions resolved for user {user_id}")
         return []
 
         
@@ -67,7 +67,7 @@ def get_user_modules(user_id):
     for m in modules:
         slug_permissions[m.slug] = resolved_permissions[m.id]
         
-    logger.info(f"DEBUG: resolved_cache_keys={list(slug_permissions.keys())} for user_id={user_id}")
+    logger.debug(f" resolved_cache_keys={list(slug_permissions.keys())} for user_id={user_id}")
         
     permissions_cache.set(user_id, slug_permissions)
     
@@ -137,14 +137,14 @@ def requires_permission(module_slug, access_level='READ_ONLY'):
                 
             # Check permissions
             perms = permissions_cache.get(user_id)
-            logger.info(f"DEBUG: decorator check user_id={user_id} (type {type(user_id)}) module={module_slug} cached_found={perms is not None}")
+            logger.debug(f" decorator check user_id={user_id} (type {type(user_id)}) module={module_slug} cached_found={perms is not None}")
 
             if perms is None:
                 # Refresh cache
-                logger.info(f"DEBUG: Refreshing cache for user {user_id}")
+                logger.debug(f" Refreshing cache for user {user_id}")
                 get_user_modules(user_id)
                 perms = permissions_cache.get(user_id)
-                logger.info(f"DEBUG: After refresh perms keys: {list(perms.keys()) if perms else 'None'}")
+                logger.debug(f" After refresh perms keys: {list(perms.keys()) if perms else 'None'}")
 
                 
             if module_slug not in perms:

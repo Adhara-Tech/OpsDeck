@@ -4,7 +4,10 @@ from .extensions import db
 from .models import User, Asset, Peripheral, License, Subscription
 from .models.services import BusinessService
 
-from marshmallow import fields
+from marshmallow import fields, Schema, validate
+from .models.change import Change
+from .models.security import SecurityIncident
+from .models.onboarding import OnboardingProcess
 
 # --- Base Schema ---
 class BaseSchema(SQLAlchemyAutoSchema):
@@ -45,3 +48,59 @@ class ServiceSchema(BaseSchema):
         model = BusinessService
         # Exclude complex recursive relationships to keep it light for now
         exclude = ('upstream_dependencies', 'downstream_dependencies', 'components')
+
+
+# --- API Output Schemas ---
+
+class ChangeApiSchema(BaseSchema):
+    class Meta(BaseSchema.Meta):
+        model = Change
+
+class IncidentApiSchema(BaseSchema):
+    class Meta(BaseSchema.Meta):
+        model = SecurityIncident
+
+class OnboardingApiSchema(BaseSchema):
+    class Meta(BaseSchema.Meta):
+        model = OnboardingProcess
+
+
+# --- API Input Schemas (accept emails/names instead of IDs) ---
+
+class ChangeInputSchema(Schema):
+    title = fields.String(required=True, validate=validate.Length(min=1, max=200))
+    description = fields.String(load_default=None)
+    change_type = fields.String(load_default='Standard', validate=validate.OneOf(['Standard', 'Normal', 'Emergency']))
+    priority = fields.String(load_default='Medium', validate=validate.OneOf(['Low', 'Medium', 'High', 'Critical']))
+    risk_impact = fields.String(load_default='Low', validate=validate.OneOf(['Low', 'Medium', 'High']))
+    status = fields.String(load_default='Draft')
+    implementation_plan = fields.String(load_default=None)
+    rollback_plan = fields.String(load_default=None)
+    test_plan = fields.String(load_default=None)
+    requester = fields.String(load_default=None)
+    assignee = fields.String(load_default=None)
+    external_ref = fields.String(load_default=None, validate=validate.Length(max=255))
+
+
+class IncidentInputSchema(Schema):
+    title = fields.String(required=True, validate=validate.Length(min=1, max=255))
+    description = fields.String(required=True)
+    severity = fields.String(load_default='SEV-3', validate=validate.OneOf(['SEV-0', 'SEV-1', 'SEV-2', 'SEV-3']))
+    status = fields.String(load_default='Investigating')
+    impact = fields.String(load_default='Minor', validate=validate.OneOf(['Minor', 'Moderate', 'Significant', 'Extensive']))
+    reported_by = fields.String(load_default=None)
+    owner = fields.String(load_default=None)
+    assignee = fields.String(load_default=None)
+    external_ref = fields.String(load_default=None, validate=validate.Length(max=255))
+
+
+class OnboardingInputSchema(Schema):
+    new_hire_name = fields.String(required=True, validate=validate.Length(min=1, max=100))
+    start_date = fields.Date(required=True)
+    status = fields.String(load_default='Provisioning')
+    manager = fields.String(load_default=None)
+    buddy = fields.String(load_default=None)
+    pack_id = fields.Integer(load_default=None)
+    target_email = fields.String(load_default=None)
+    personal_email = fields.String(load_default=None)
+    external_ref = fields.String(load_default=None, validate=validate.Length(max=255))

@@ -89,7 +89,7 @@ def new_link():
         db.session.add(link)
         db.session.commit()
 
-        flash('Enlace creado.', 'success')
+        flash('Link created.', 'success')
         return redirect(url_for('links.detail', id=link.id))
 
     # --- Lógica GET ---
@@ -136,7 +136,7 @@ def edit_link(id):
         link.tags = Tag.query.filter(Tag.id.in_(tag_ids)).all()
 
         db.session.commit()
-        flash('Enlace actualizado.', 'success')
+        flash('Link updated.', 'success')
         return redirect(url_for('links.detail', id=link.id))
 
     # --- Lógica GET ---

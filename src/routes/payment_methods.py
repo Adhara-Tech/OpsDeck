@@ -32,7 +32,7 @@ def archive_payment_method(id):
     method = PaymentMethod.query.get_or_404(id)
     method.is_archived = True
     db.session.commit()
-    flash(f'Payment method "{method.name}" has been archived.')
+    flash(f'Payment method "{method.name}" has been archived.', 'warning')
     return redirect(url_for('payment_methods.payment_methods'))
 
 @payment_methods_bp.route('/<int:id>/unarchive', methods=['POST'])
@@ -45,7 +45,7 @@ def unarchive_payment_method(id):
     method = PaymentMethod.query.get_or_404(id)
     method.is_archived = False
     db.session.commit()
-    flash(f'Payment method "{method.name}" has been restored.')
+    flash(f'Payment method "{method.name}" has been restored.', 'success')
     return redirect(url_for('payment_methods.archived_payment_methods'))
 
 
@@ -82,7 +82,7 @@ def new_payment_method():
         )
         db.session.add(method)
         db.session.commit()
-        flash('Payment method created successfully!')
+        flash('Payment method created successfully!', 'success')
         return redirect(url_for('payment_methods.payment_methods'))
 
     return render_template('payment_methods/form.html', users=users)
@@ -112,7 +112,7 @@ def edit_payment_method(id):
         method.user_id = int(user_id) if user_id else None
 
         db.session.commit()
-        flash('Payment method updated successfully!')
+        flash('Payment method updated successfully!', 'success')
         return redirect(url_for('payment_methods.payment_methods'))
 
     return render_template('payment_methods/form.html', method=method, users=users)
@@ -127,5 +127,5 @@ def delete_payment_method(id):
     method = PaymentMethod.query.get_or_404(id)
     db.session.delete(method)
     db.session.commit()
-    flash('Payment method deleted successfully!')
+    flash('Payment method deleted successfully!', 'success')
     return redirect(url_for('payment_methods.payment_methods'))

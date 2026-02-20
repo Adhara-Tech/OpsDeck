@@ -3,6 +3,10 @@
 {% block title %}{% if change %}Edit Change #{{ change.id }}{% else %}New Change Request{% endif %} - OpsDeck{% endblock
 %}
 
+{% block head_extra %}
+<link rel="stylesheet" href="{{ url_for('static', filename='vendor/easymde/easymde.min.css') }}">
+{% endblock %}
+
 {% block content %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h1 class="h2">{% if change %}Edit Change <small class="text-muted">#{{ change.id }}</small>{% else %}New Change

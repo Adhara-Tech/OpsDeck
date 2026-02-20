@@ -216,6 +216,10 @@
             <div class="number">{{ fw_data.stats.manual }}</div>
             <div class="label">Manual</div>
         </div>
+        <div class="stat-box" style="border-color: #6c757d;">
+            <div class="number" style="color: #6c757d;">{{ fw_data.stats.not_applicable }}</div>
+            <div class="label">N/A</div>
+        </div>
     </div>
 
     <!-- Controls Table -->
@@ -243,6 +247,8 @@
                     <span class="status status-noncompliant">✗ Non-Compliant</span>
                     {% elif ctrl.status == 'manual' %}
                     <span class="status status-manual">📄 Manual</span>
+                    {% elif ctrl.status == 'not_applicable' %}
+                    <span class="status status-uncovered">— N/A</span>
                     {% else %}
                     <span class="status status-uncovered">— Uncovered</span>
                     {% endif %}
@@ -271,6 +277,7 @@
     <!-- Summary Line -->
     <p style="font-size: 10px; color: #666;">
         Total: {{ fw_data.stats.total }} controls |
+        Not Applicable: {{ fw_data.stats.not_applicable }} |
         Uncovered: {{ fw_data.stats.uncovered }}
     </p>
 

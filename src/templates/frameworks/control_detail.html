@@ -33,6 +33,54 @@
 </div>
 {% endif %}
 
+{# SOA (Statement of Applicability) Card #}
+<div class="card mb-4 {{ 'border-secondary' if not control.is_applicable else '' }}">
+    <div class="card-header d-flex justify-content-between align-items-center py-2">
+        <h6 class="mb-0">
+            <i class="fas fa-clipboard-check me-1"></i> Statement of Applicability (SOA)
+        </h6>
+        {% if not control.is_applicable %}
+        <span class="badge bg-secondary">Not Applicable</span>
+        {% else %}
+        <span class="badge bg-success">Applicable</span>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        {% if can_write('compliance') %}
+        <form action="{{ url_for('frameworks.update_control_soa', id=control.id) }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="form-check form-switch mb-2">
+                <input class="form-check-input" type="checkbox" id="soaApplicable"
+                       name="is_applicable" {{ 'checked' if control.is_applicable else '' }}
+                       onchange="document.getElementById('soaJustificationGroup').classList.toggle('d-none', this.checked)">
+                <label class="form-check-label" for="soaApplicable">This control is applicable to our organization</label>
+            </div>
+            <div id="soaJustificationGroup" class="{{ 'd-none' if control.is_applicable else '' }}">
+                <div class="mb-2">
+                    <label class="form-label small">Justification (required when not applicable)</label>
+                    <textarea class="form-control" name="soa_justification" rows="2"
+                              placeholder="Explain why this control does not apply...">{{ control.soa_justification or '' }}</textarea>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-sm btn-primary mt-1">
+                <i class="fas fa-save me-1"></i> Save SOA
+            </button>
+        </form>
+        {% else %}
+        <p class="mb-0">
+            {% if control.is_applicable %}
+            This control is <strong>applicable</strong> to the organization.
+            {% else %}
+            This control is <strong>not applicable</strong>.
+            {% if control.soa_justification %}
+            <br><small class="text-muted">{{ control.soa_justification }}</small>
+            {% endif %}
+            {% endif %}
+        </p>
+        {% endif %}
+    </div>
+</div>
+
 {# Main Content Tabs #}
 <ul class="nav nav-tabs mb-4" id="controlTabs" role="tablist">
     <li class="nav-item" role="presentation">

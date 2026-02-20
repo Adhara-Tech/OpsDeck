@@ -82,13 +82,7 @@
         </div>
     </div>
 
-    <!-- Loading Indicator -->
-    <div id="loadingIndicator" class="text-center py-5" style="display: none;">
-        <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Loading...</span>
-        </div>
-        <p class="mt-2">Loading drift timeline...</p>
-    </div>
+    <!-- Loading skeleton (managed by Skeleton.show/hide in JS) -->
 
     <!-- Drift Timeline -->
     <div class="card" id="timelineCard">
@@ -151,9 +145,9 @@ function loadDriftTimeline() {
     currentFrameworkId = frameworkId;
     currentDays = days;
 
-    // Show loading
-    document.getElementById('loadingIndicator').style.display = 'block';
-    document.getElementById('timelineCard').style.display = 'none';
+    // Show skeleton loader for timeline
+    Skeleton.show('#driftTimeline', 'list', {items: 4, hasAvatar: false, hasBadge: false, hasActions: false});
+    document.getElementById('timelineCard').style.display = 'block';
     document.getElementById('noDataMessage').style.display = 'none';
 
     // Fetch timeline data
@@ -175,7 +169,7 @@ function loadDriftTimeline() {
             alert('Failed to load drift timeline: ' + error.message);
         })
         .finally(() => {
-            document.getElementById('loadingIndicator').style.display = 'none';
+            Skeleton.hide('#driftTimeline');
         });
 }
 
