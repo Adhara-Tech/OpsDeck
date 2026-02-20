@@ -770,14 +770,31 @@
             const scrollPos = localStorage.getItem('sidebarScroll');
             if (scrollPos) { sidebarBody.scrollTop = parseInt(scrollPos, 10); }
             sidebarBody.addEventListener('scroll', () => { localStorage.setItem('sidebarScroll', sidebarBody.scrollTop); });
+            // Restore open accordion section (saved > active-link fallback)
+            const savedSection = localStorage.getItem('sidebarOpenSection');
             const activeLink = document.querySelector('.sidebar .nav-link.active');
-            if (activeLink) {
+            if (savedSection) {
+                const savedEl = document.getElementById(savedSection);
+                if (savedEl && !savedEl.classList.contains('show')) {
+                    new bootstrap.Collapse(savedEl, { toggle: false }).show();
+                }
+            } else if (activeLink) {
                 const activeCollapse = activeLink.closest('.collapse:not(.show)');
                 if (activeCollapse) {
-                    const bsCollapse = new bootstrap.Collapse(activeCollapse, { toggle: false });
-                    bsCollapse.show();
+                    new bootstrap.Collapse(activeCollapse, { toggle: false }).show();
                 }
             }
+
+            // Persist open accordion section across navigation
+            const sidebarAccordion = document.getElementById('sidebar-accordion');
+            sidebarAccordion.addEventListener('shown.bs.collapse', function(e) {
+                localStorage.setItem('sidebarOpenSection', e.target.id);
+            });
+            sidebarAccordion.addEventListener('hidden.bs.collapse', function(e) {
+                if (localStorage.getItem('sidebarOpenSection') === e.target.id) {
+                    localStorage.removeItem('sidebarOpenSection');
+                }
+            });
 
             // Sidebar toggle functionality
             const sidebar = document.getElementById('mainSidebar');
