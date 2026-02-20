@@ -1240,10 +1240,22 @@ def generate_my_token():
     return redirect(url_for('main.my_api_key'))
 
 
-# --- INTERNAL ROUTES (No Login Required) ---
-# These routes are designed to be called by Flask CLI commands
+# --- INTERNAL ROUTES (Localhost Only) ---
+# These routes are designed to be called by Flask CLI commands from within the container.
+# Access is restricted to localhost to prevent external exposure.
+
+LOCALHOST_ADDRS = {'127.0.0.1', '::1', 'localhost'}
+
+def localhost_only(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if request.remote_addr not in LOCALHOST_ADDRS:
+            abort(403)
+        return f(*args, **kwargs)
+    return decorated
 
 @main_bp.route('/internal/test-db')
+@localhost_only
 def internal_test_db():
     """
     Internal route for database connectivity testing.
@@ -1283,6 +1295,7 @@ def internal_test_db():
 
 
 @main_bp.route('/internal/app-info')
+@localhost_only
 def internal_app_info():
     """
     Internal route for retrieving application configuration information.
@@ -1337,6 +1350,7 @@ def internal_app_info():
         }), 500
 
 @main_bp.route('/internal/test-email')
+@localhost_only
 def internal_test_email():
     """
     Internal route for testing email configuration.
@@ -1403,6 +1417,7 @@ def internal_test_email():
 
 
 @main_bp.route('/internal/health-check')
+@localhost_only
 def internal_health_check():
     """
     Internal route for comprehensive health check.
@@ -1499,6 +1514,7 @@ def internal_health_check():
 
 
 @main_bp.route('/internal/test-security')
+@localhost_only
 def internal_test_security():
     """
     Internal route for security configuration audit.
