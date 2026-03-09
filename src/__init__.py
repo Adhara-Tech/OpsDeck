@@ -182,7 +182,11 @@ def create_app(test_config=None):
     register_audit_listener(db)
 
     limiter.init_app(app)
-    
+
+    @limiter.request_filter
+    def _no_limit_static():
+        return request.endpoint == 'static'
+
     # Configure CSRF to not protect JSON requests (for AJAX endpoints)
     app.config['WTF_CSRF_CHECK_DEFAULT'] = False
     app.config['WTF_CSRF_ENABLED'] = True
