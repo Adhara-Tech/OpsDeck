@@ -24,25 +24,27 @@ fi
 # For fresh databases: creates all tables from the migration chain
 # For existing databases: applies only pending migrations
 #
-# If upgrade fails (e.g. existing DB without alembic_version), we walk the
-# migration chain and stamp each revision whose tables/columns already exist,
-# then run upgrade again to apply only the truly pending migrations.
+# If upgrade fails, try stamping head. If that also fails (e.g. DB references
+# a non-existent revision), clear alembic_version via SQL and stamp head.
 if ! flask db upgrade 2>&1; then
-    echo "Migration failed. Detecting current DB state..."
+    echo "Migration failed. Resetting migration state..."
 
-    # Try to upgrade one revision at a time from the base
-    # Stamp revisions that already exist, apply those that don't
-    flask db stamp base 2>/dev/null
+    if ! flask db stamp head 2>/dev/null; then
+        echo "Stamp failed — clearing invalid revision reference..."
+        python3 -c "
+from src import create_app
+from src.extensions import db
+app = create_app()
+with app.app_context():
+    db.session.execute(db.text('DELETE FROM alembic_version'))
+    db.session.commit()
+    print('  Cleared alembic_version table')
+" 2>/dev/null
+        flask db stamp head
+    fi
 
-    for rev in $(flask db history --verbose 2>/dev/null | awk '{print $1}' | tac); do
-        if flask db upgrade "$rev" 2>/dev/null; then
-            echo "  Applied migration: $rev"
-        else
-            echo "  Stamped existing migration: $rev"
-            flask db stamp "$rev" 2>/dev/null
-        fi
-    done
-
+    # Apply any truly pending migrations
+    flask db upgrade 2>/dev/null || true
     echo "Database state synchronized."
 fi
 

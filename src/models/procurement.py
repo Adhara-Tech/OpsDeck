@@ -50,7 +50,7 @@ class Supplier(db.Model):
     website = db.Column(db.String(255), nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: now())
     is_archived = db.Column(db.Boolean, default=False, nullable=False, index=True)
-    is_critical = db.Column(db.Boolean, default=False, nullable=False)
+    is_critical = db.Column(db.Boolean, default=False)
     compliance_status = db.Column(db.String(50), default='Pending')
     gdpr_dpa_signed = db.Column(db.Date, nullable=True)
     security_assessment_completed = db.Column(db.Date, nullable=True)
