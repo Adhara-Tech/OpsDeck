@@ -8,7 +8,7 @@ RiskAssessment, UARExecution) and calculating SLA-based traffic-light status.
 """
 from typing import Dict, List, Any, Optional, Tuple
 from datetime import date, datetime, timedelta
-from src.utils.timezone_helper import now
+from src.utils.timezone_helper import now, naive_to_aware
 from src.extensions import db
 
 
@@ -364,7 +364,7 @@ class ComplianceEvaluator:
             
             if execution:
                 # execution_date is a Date field, convert to datetime for consistency
-                evidence_date = datetime.combine(execution.execution_date, datetime.min.time())
+                evidence_date = naive_to_aware(datetime.combine(execution.execution_date, datetime.min.time()))
                 return execution, evidence_date
         
         return None, None
@@ -486,9 +486,9 @@ class ComplianceEvaluator:
             
             if test_log:
                 # test_date is a Date field
-                evidence_date = datetime.combine(test_log.test_date, datetime.min.time())
+                evidence_date = naive_to_aware(datetime.combine(test_log.test_date, datetime.min.time()))
                 return test_log, evidence_date
-        
+
         elif method == 'any_passed':
             # Find any passed BCDR test
             test_log = BCDRTestLog.query.filter_by(
@@ -496,11 +496,11 @@ class ComplianceEvaluator:
             ).order_by(BCDRTestLog.test_date.desc()).first()
             
             if test_log:
-                evidence_date = datetime.combine(test_log.test_date, datetime.min.time())
+                evidence_date = naive_to_aware(datetime.combine(test_log.test_date, datetime.min.time()))
                 return test_log, evidence_date
-        
+
         return None, None
-    
+
     def _evaluate_onboarding(self, rule):
         """
         Evaluate rule against OnboardingProcess model.
@@ -590,7 +590,7 @@ class ComplianceEvaluator:
         
         if latest:
             # assessment_date is a Date field, convert to datetime for consistency
-            evidence_date = datetime.combine(latest.assessment_date, datetime.min.time())
+            evidence_date = naive_to_aware(datetime.combine(latest.assessment_date, datetime.min.time()))
             return latest, evidence_date
         
         return None, None
@@ -934,7 +934,9 @@ class ComplianceEvaluator:
         
         # Calculate days since last evidence
         if isinstance(evidence_date, date) and not isinstance(evidence_date, datetime):
-            evidence_date = datetime.combine(evidence_date, datetime.min.time())
+            evidence_date = naive_to_aware(datetime.combine(evidence_date, datetime.min.time()))
+        elif isinstance(evidence_date, datetime) and evidence_date.tzinfo is None:
+            evidence_date = naive_to_aware(evidence_date)
         
         days_since = (today - evidence_date).days
         next_due_date = evidence_date + timedelta(days=rule.frequency_days)
