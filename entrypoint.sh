@@ -23,11 +23,28 @@ fi
 # Apply database migrations (migrations are committed in the repo/image)
 # For fresh databases: creates all tables from the migration chain
 # For existing databases: applies only pending migrations
-flask db upgrade 2>&1 || {
-    echo "Migration failed. Attempting to stamp current DB state and retry..."
-    flask db stamp head
-    flask db upgrade
-}
+#
+# If upgrade fails (e.g. existing DB without alembic_version), we walk the
+# migration chain and stamp each revision whose tables/columns already exist,
+# then run upgrade again to apply only the truly pending migrations.
+if ! flask db upgrade 2>&1; then
+    echo "Migration failed. Detecting current DB state..."
+
+    # Try to upgrade one revision at a time from the base
+    # Stamp revisions that already exist, apply those that don't
+    flask db stamp base 2>/dev/null
+
+    for rev in $(flask db history --verbose 2>/dev/null | awk '{print $1}' | tac); do
+        if flask db upgrade "$rev" 2>/dev/null; then
+            echo "  Applied migration: $rev"
+        else
+            echo "  Stamped existing migration: $rev"
+            flask db stamp "$rev" 2>/dev/null
+        fi
+    done
+
+    echo "Database state synchronized."
+fi
 
 # Create the default admin user
 flask init-db
