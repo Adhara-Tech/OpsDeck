@@ -20,8 +20,8 @@
                     <tr>
                         <th>Supplier</th>
                         <th>Compliance Status</th>
-                        <th>GDPR DPA Signed</th>
-                        <th>Security Assessment</th>
+                        <th>Critical</th>
+                        <th>Last Assessment</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -37,8 +37,17 @@
                                 <span class="badge bg-warning">{{ supplier.compliance_status }}</span>
                             {% endif %}
                         </td>
-                        <td>{{ supplier.gdpr_dpa_signed.strftime('%Y-%m-%d') if supplier.gdpr_dpa_signed else 'N/A' }}</td>
-                        <td>{{ supplier.security_assessment_completed.strftime('%Y-%m-%d') if supplier.security_assessment_completed else 'N/A' }}</td>
+                        <td>
+                            {% if supplier.is_critical %}
+                                <span class="badge bg-danger">Yes</span>
+                            {% else %}
+                                <span class="badge bg-success">No</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% set latest = supplier.security_assessments|sort(attribute='assessment_date', reverse=True)|first %}
+                            {{ latest.assessment_date.strftime('%Y-%m-%d') if latest else 'N/A' }}
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
