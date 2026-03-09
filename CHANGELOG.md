@@ -7,25 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.6.9] - 2026-03-09
-
-### Added
-- **Critical Suppliers**: Flag suppliers as critical with badge visibility across lists and detail views
-- **Assessments History**: Moved assessments under Vendor Compliance as a sub-page
-
-### Changed
-- Compliance Dashboard moved to the Compliance menu section with proper RBAC permissions
-- Vendor Compliance table now shows Critical status and Last Assessment date instead of GDPR/Assessment dates
-- Full description shown for linked evidence items in framework control details (previously truncated)
-
-### Fixed
-- Timezone-aware datetime errors in compliance rule evaluations
-- Static assets (CSS/JS) no longer count towards rate limits
-- Entrypoint migration logic now walks the chain revision-by-revision instead of stamping head blindly
 
 ## [0.6.8] - 2026-02-20
 
 ### Added
+- **Critical Suppliers**: Flag suppliers as critical with badge visibility across lists and detail views
+- **Assessments History**: Moved assessments under Vendor Compliance as a sub-page
 - **SOA at Framework Level**: SOA applicability fields on controls, inherited by new audits, with change visualization in framework reports
 - **Status Filters**: Dropdown filters for Change Management (Draft, Pending Approval, Approved, In Progress, Completed) and Security Incidents (Investigating, Contained, Resolved, Closed)
 - **API Upsert Endpoints**: POST endpoints with `external_ref` support for external integrations
@@ -34,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Skeleton Loaders**: Deployed across additional pages
 
 ### Changed
+- Compliance Dashboard moved to the Compliance menu section with proper RBAC permissions
+- Vendor Compliance table now shows Critical status and Last Assessment date instead of GDPR/Assessment dates
+- Full description shown for linked evidence items in framework control details (previously truncated)
 - Gunicorn configured as production WSGI server
 - SQLAlchemy `pool_pre_ping` enabled for connection resilience
 - EasyMDE removed from global load (lazy-loaded where needed)
@@ -42,6 +32,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Replaced bare `except:` clauses with `except Exception:`
 
 ### Fixed
+- Timezone-aware datetime errors in compliance rule evaluations
+- Static assets (CSS/JS) no longer count towards rate limits
+- Entrypoint migration logic now walks the chain revision-by-revision instead of stamping head blindly
 - Slow queries on health dashboard
 - Menu losing active state when browsing
 - Dark mode: owner badges and change title text now readable
