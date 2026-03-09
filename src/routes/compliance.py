@@ -1448,7 +1448,7 @@ def dashboard():
         if framework_status:
             dashboard_data.append(framework_status)
     
-    return render_template('compliance/dashboard.html', dashboard_data=dashboard_data, now=datetime.now)
+    return render_template('compliance/dashboard.html', dashboard_data=dashboard_data, now=now)
 
 @compliance_bp.route('/dashboard/pdf')
 @login_required
