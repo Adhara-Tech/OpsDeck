@@ -37,7 +37,11 @@
                 <tbody>
                     {% for supplier in suppliers %}
                     <tr>
-                        <td><a href="{{ url_for('suppliers.supplier_detail', id=supplier.id) }}">{{ supplier.name }}</a>
+                        <td>
+                            <a href="{{ url_for('suppliers.supplier_detail', id=supplier.id) }}">{{ supplier.name }}</a>
+                            {% if supplier.is_critical %}
+                            <span class="badge bg-danger">Critical</span>
+                            {% endif %}
                         </td>
 
                         <td>{{ supplier.email or '-' }}</td>
