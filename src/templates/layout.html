@@ -301,10 +301,6 @@
                     aria-expanded="false">Risk & Governance <i class="fa-fw fas fa-chevron-down float-end"></i></h6>
                 <div class="collapse" id="risk-governance-menu" data-bs-parent="#sidebar-accordion">
                     <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint == 'compliance.dashboard' %}active{% endif %}"
-                            href="{{ url_for('compliance.dashboard') }}"><i class="fa-fw fas fa-tachometer-alt"></i>
-                            Compliance Dashboard</a></li>
-                    <li class="nav-item"><a
                             class="nav-link {% if request.endpoint == 'risk.dashboard' %}active{% endif %}"
                             href="{{ url_for('risk.dashboard') }}"><i class="fa-fw fas fa-chart-pie"></i>
                             Risk Dashboard</a></li>
@@ -333,6 +329,10 @@
                     aria-expanded="false">Compliance <i class="fa-fw fas fa-chevron-down float-end"></i></h6>
                 <div class="collapse" id="compliance-menu" data-bs-parent="#sidebar-accordion">
 
+                    <li class="nav-item"><a
+                            class="nav-link {% if request.endpoint == 'compliance.dashboard' %}active{% endif %}"
+                            href="{{ url_for('compliance.dashboard') }}"><i class="fa-fw fas fa-tachometer-alt"></i>
+                            Compliance Dashboard</a></li>
                     <li class="nav-item"><a class="nav-link {% if request.blueprint == 'frameworks' %}active{% endif %}"
                             href="{{ url_for('frameworks.list') }}"><i class="fa-fw fas fa-layer-group"></i>
                             Frameworks</a></li>

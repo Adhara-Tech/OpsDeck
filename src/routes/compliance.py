@@ -1429,6 +1429,7 @@ def link_control():
 
 @compliance_bp.route('/dashboard')
 @login_required
+@requires_permission('compliance')
 def dashboard():
     """Displays the compliance dashboard with real-time status evaluation."""
     from src.services.compliance_service import get_compliance_evaluator
@@ -1451,6 +1452,7 @@ def dashboard():
 
 @compliance_bp.route('/dashboard/pdf')
 @login_required
+@requires_permission('compliance')
 def export_dashboard_pdf():
     """Exports the compliance dashboard to PDF using the same data as the HTML dashboard."""
     from weasyprint import HTML
