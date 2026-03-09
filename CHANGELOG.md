@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.9] - 2026-03-09
+
+### Added
+- **Critical Suppliers**: Flag suppliers as critical with badge visibility across lists and detail views
+- **Assessments History**: Moved assessments under Vendor Compliance as a sub-page
+
+### Changed
+- Compliance Dashboard moved to the Compliance menu section with proper RBAC permissions
+- Vendor Compliance table now shows Critical status and Last Assessment date instead of GDPR/Assessment dates
+- Full description shown for linked evidence items in framework control details (previously truncated)
+
+### Fixed
+- Timezone-aware datetime errors in compliance rule evaluations
+- Static assets (CSS/JS) no longer count towards rate limits
+- Entrypoint migration logic now walks the chain revision-by-revision instead of stamping head blindly
+
 ## [0.6.8] - 2026-02-20
 
 ### Added

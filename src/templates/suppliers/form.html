@@ -35,6 +35,17 @@
                 <textarea class="form-control" id="address" name="address" rows="3" {% if not can_write('procurement')
                     %}disabled{% endif %}>{{ supplier.address if supplier else '' }}</textarea>
             </div>
+            <div class="mb-3">
+                <label class="form-label d-block">Classification</label>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="is_critical" name="is_critical"
+                        {{ 'checked' if supplier and supplier.is_critical else '' }}
+                        {% if not can_write('procurement') %}disabled{% endif %}>
+                    <label class="form-check-label" for="is_critical">
+                        <span class="badge bg-danger">Critical Supplier</span>
+                    </label>
+                </div>
+            </div>
 
             <hr class="my-4">
             <h4 class="mb-3">Compliance Details</h4>

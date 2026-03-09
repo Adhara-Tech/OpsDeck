@@ -58,7 +58,8 @@ def new_supplier():
             compliance_status=request.form.get('compliance_status'),
             gdpr_dpa_signed=datetime.strptime(request.form['gdpr_dpa_signed'], '%Y-%m-%d').date() if request.form.get('gdpr_dpa_signed') else None,
             security_assessment_completed=datetime.strptime(request.form['security_assessment_completed'], '%Y-%m-%d').date() if request.form.get('security_assessment_completed') else None,
-            compliance_notes=request.form.get('compliance_notes')
+            compliance_notes=request.form.get('compliance_notes'),
+            is_critical=request.form.get('is_critical') == 'on'
         )
         db.session.add(supplier)
         db.session.commit()
@@ -93,7 +94,8 @@ def edit_supplier(id):
         # This line was already here, but now it's just part of the updates
         supplier.security_assessment_completed = datetime.strptime(request.form['security_assessment_completed'], '%Y-%m-%d').date() if request.form.get('security_assessment_completed') else None
         supplier.compliance_notes = request.form.get('compliance_notes')
-        supplier.data_storage_region = request.form.get('data_storage_region') # <-- ADD THIS LINE
+        supplier.data_storage_region = request.form.get('data_storage_region')
+        supplier.is_critical = request.form.get('is_critical') == 'on'
         db.session.commit()
         flash('Supplier updated successfully!', 'success')
         return redirect(url_for('suppliers.supplier_detail', id=supplier.id)) # Redirect to detail view
