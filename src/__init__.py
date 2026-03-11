@@ -414,10 +414,10 @@ def create_app(test_config=None):
                 return context
 
         return {
-            current_user=None,
-            current_user_role=None,
-            today=today(),
-            is_impersonating=False
+            'current_user': None,
+            'current_user_role': None,
+            'today': today(),
+            'is_impersonating': False
         }
 
     # --- Permissions Context Processor ---
