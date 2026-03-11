@@ -91,10 +91,10 @@ def new_asset():
             cost=float(request.form.get('cost')) if request.form.get('cost') else None,
             currency=request.form.get('currency'),
             warranty_length=int(request.form.get('warranty_length')) if request.form.get('warranty_length') else None,
-            user_id=request.form.get('user_id'),
-            location_id=request.form.get('location_id'),
-            supplier_id=request.form.get('supplier_id'),
-            purchase_id=request.form.get('purchase_id'),
+            user_id=int(request.form.get('user_id')) if request.form.get('user_id') else None,
+            location_id=int(request.form.get('location_id')) if request.form.get('location_id') else None,
+            supplier_id=int(request.form.get('supplier_id')) if request.form.get('supplier_id') else None,
+            purchase_id=int(request.form.get('purchase_id')) if request.form.get('purchase_id') else None,
             is_critical=request.form.get('is_critical') == 'on',
             is_virtual=request.form.get('is_virtual') == 'on'
         )
