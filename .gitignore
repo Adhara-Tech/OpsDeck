@@ -12,10 +12,10 @@ logs/*
 
 # Node.js dependencies
 node_modules/
-package-lock.json
 
 # Generated artifacts
 src/static/vendor/
+requirements.locked.txt
 /instance
 
 # Enterprise plugin (separate repository)
