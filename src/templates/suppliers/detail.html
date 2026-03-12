@@ -23,7 +23,17 @@
     <div class="card-body">
         <p><strong>Email:</strong> {{ supplier.email or 'N/A' }}</p>
         <p><strong>Phone:</strong> {{ supplier.phone or 'N/A' }}</p>
-        <p class="mb-0"><strong>Address:</strong> {{ supplier.address or 'N/A' }}</p>
+        <p><strong>Website:</strong>
+            {% if supplier.website %}
+            <a href="{{ supplier.website }}" target="_blank" rel="noopener noreferrer">{{ supplier.website }}</a>
+            {% else %}N/A{% endif %}
+        </p>
+        <p><strong>Address:</strong> {{ supplier.address or 'N/A' }}</p>
+        {% if supplier.notes %}
+        <hr>
+        <p class="mb-1"><strong>Notes:</strong></p>
+        <p class="mb-0 text-muted">{{ supplier.notes|nl2br }}</p>
+        {% endif %}
     </div>
 </div>
 

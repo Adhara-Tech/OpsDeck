@@ -10,6 +10,7 @@
         max-height: calc(100vh - 350px);
         overflow: auto;
         border-radius: 0.5rem;
+        background-color: var(--bs-body-bg);
     }
 
     .table-sticky thead th {
@@ -93,7 +94,12 @@
 
     /* Highlight row on hover */
     .table-hover tbody tr:hover td {
-        background-color: rgba(var(--bs-primary-rgb), 0.03);
+        background-color: rgba(var(--bs-primary-rgb), 0.9);
+    }
+
+    /* Keep sticky first column consistent with hover state */
+    .table-sticky tbody tr:hover td:first-child {
+        background-color: rgba(var(--bs-primary-rgb), 0.9);
     }
 </style>
 {% endblock %}

@@ -7,14 +7,16 @@ from ..services.permissions_service import requires_permission, has_write_permis
 
 suppliers_bp = Blueprint('suppliers', __name__)
 
-@suppliers_bp.route('/')
+SUPPLIERS_LIST_ENDPOINT = 'suppliers.suppliers'
+
+@suppliers_bp.route('/', methods=['GET'])
 @login_required
 @requires_permission('procurement', access_level='READ_ONLY')
 def suppliers():
     suppliers = Supplier.query.filter_by(is_archived=False).all()
     return render_template('suppliers/list.html', suppliers=suppliers)
 
-@suppliers_bp.route('/archived')
+@suppliers_bp.route('/archived', methods=['GET'])
 @login_required
 @requires_permission('procurement', access_level='READ_ONLY')
 def archived_suppliers():
@@ -29,7 +31,7 @@ def archive_supplier(id):
     supplier.is_archived = True
     db.session.commit()
     flash(f'Supplier "{supplier.name}" has been archived.', 'warning')
-    return redirect(url_for('suppliers.suppliers'))
+    return redirect(url_for(SUPPLIERS_LIST_ENDPOINT))
 
 
 @suppliers_bp.route('/<int:id>/unarchive', methods=['POST'])
@@ -49,26 +51,26 @@ def new_supplier():
     if request.method == 'POST':
         if not has_write_permission('procurement'):
                 flash('Write access required for this action.', 'danger')
-                return redirect(url_for('suppliers.suppliers'))
+                return redirect(url_for(SUPPLIERS_LIST_ENDPOINT))
         supplier = Supplier(
             name=request.form['name'],
             email=request.form.get('email'),
             phone=request.form.get('phone'),
             address=request.form.get('address'),
+            website=request.form.get('website'),
+            notes=request.form.get('notes'),
             compliance_status=request.form.get('compliance_status'),
-            gdpr_dpa_signed=datetime.strptime(request.form['gdpr_dpa_signed'], '%Y-%m-%d').date() if request.form.get('gdpr_dpa_signed') else None,
-            security_assessment_completed=datetime.strptime(request.form['security_assessment_completed'], '%Y-%m-%d').date() if request.form.get('security_assessment_completed') else None,
             compliance_notes=request.form.get('compliance_notes'),
             is_critical=request.form.get('is_critical') == 'on'
         )
         db.session.add(supplier)
         db.session.commit()
         flash('Supplier created successfully!', 'success')
-        return redirect(url_for('suppliers.suppliers'))
+        return redirect(url_for(SUPPLIERS_LIST_ENDPOINT))
 
     return render_template('suppliers/form.html')
 
-@suppliers_bp.route('/<int:id>')
+@suppliers_bp.route('/<int:id>', methods=['GET'])
 @login_required
 @requires_permission('procurement', access_level='READ_ONLY')
 def supplier_detail(id):
@@ -89,10 +91,9 @@ def edit_supplier(id):
         supplier.email = request.form.get('email')
         supplier.phone = request.form.get('phone')
         supplier.address = request.form.get('address')
+        supplier.website = request.form.get('website')
+        supplier.notes = request.form.get('notes')
         supplier.compliance_status = request.form.get('compliance_status')
-        supplier.gdpr_dpa_signed = datetime.strptime(request.form['gdpr_dpa_signed'], '%Y-%m-%d').date() if request.form.get('gdpr_dpa_signed') else None
-        # This line was already here, but now it's just part of the updates
-        supplier.security_assessment_completed = datetime.strptime(request.form['security_assessment_completed'], '%Y-%m-%d').date() if request.form.get('security_assessment_completed') else None
         supplier.compliance_notes = request.form.get('compliance_notes')
         supplier.data_storage_region = request.form.get('data_storage_region')
         supplier.is_critical = request.form.get('is_critical') == 'on'
@@ -110,4 +111,4 @@ def delete_supplier(id):
     db.session.delete(supplier)
     db.session.commit()
     flash('Supplier deleted successfully!', 'success')
-    return redirect(url_for('suppliers.suppliers'))
+    return redirect(url_for(SUPPLIERS_LIST_ENDPOINT))

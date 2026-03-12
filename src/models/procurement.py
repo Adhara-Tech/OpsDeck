@@ -48,6 +48,7 @@ class Supplier(db.Model):
     phone = db.Column(db.String(20))
     address = db.Column(db.Text)
     website = db.Column(db.String(255), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=lambda: now())
     is_archived = db.Column(db.Boolean, default=False, nullable=False, index=True)
     is_critical = db.Column(db.Boolean, default=False)
@@ -402,7 +403,7 @@ class Subscription(db.Model):
     licenses = db.relationship('License', backref='subscription', lazy=True)
 
     # Relationships
-    supplier_id = db.Column(db.Integer, db.ForeignKey('supplier.id'), nullable=False, index=True)
+    supplier_id = db.Column(db.Integer, db.ForeignKey('supplier.id'), nullable=True, index=True)
     software_id = db.Column(db.Integer, db.ForeignKey('software.id'), nullable=True, index=True)
     budget_id = db.Column(db.Integer, db.ForeignKey('budget.id'), nullable=True, index=True)
     contacts = db.relationship('Contact', secondary=subscription_contacts, backref='subscriptions')

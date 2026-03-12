@@ -412,13 +412,13 @@ def create_app(test_config=None):
                     context['original_user'] = original_user
                 
                 return context
-        
-        return dict(
-            current_user=None, 
-            current_user_role=None, 
-            today=today(),
-            is_impersonating=False
-        )
+
+        return {
+            'current_user': None,
+            'current_user_role': None,
+            'today': today(),
+            'is_impersonating': False
+        }
 
     # --- Permissions Context Processor ---
     @app.context_processor

@@ -384,7 +384,7 @@
                             href="{{ url_for('policies.list_policies') }}"><i class="fa-fw fas fa-file-contract"></i>
                             Policies</a></li>
 
-                    {% if current_user_role == 'admin' %}
+                    {% if can_write('knowledge_policy') %}
                     <li class="nav-item"><a
                             class="nav-link {% if request.endpoint and request.endpoint.startswith('training.') and request.endpoint != 'training.my_training' %}active{% endif %}"
                             href="{{ url_for('training.list_courses') }}"><i

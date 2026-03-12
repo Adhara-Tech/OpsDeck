@@ -28,11 +28,10 @@ def check_token():
         
     token = None
     # Check standard Authorization header
-    if 'Authorization' in request.headers:
-        auth_header = request.headers['Authorization']
-        if auth_header.startswith("Bearer "):
-            token = auth_header.split(" ")[1]
-    
+    auth_header = request.headers.get('Authorization')
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+
     if not token:
         # Check if it's the schema/swagger endpoint? 
         # flask-smorest serves swagger at /swagger-ui (configured in init) and openapi.json at /openapi.json (root usually).
