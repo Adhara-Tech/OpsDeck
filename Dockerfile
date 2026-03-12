@@ -5,12 +5,12 @@ FROM node:18-alpine AS asset-builder
 
 WORKDIR /build
 
-# Copy package files and build script
-COPY package.json .
+# Copy package files, lockfile, and build script
+COPY package.json package-lock.json ./
 COPY copy-assets.js .
 
-# Install exact dependencies
-RUN npm install --production
+# Install exact dependencies from lockfile
+RUN npm ci --production
 
 # Create vendor directory structure
 RUN mkdir -p src/static/vendor
