@@ -21,7 +21,9 @@
 ## Architecture
 
 - [Architecture](pages/architecture.md) — System design, data model, security model
+- [Database Versioning](pages/database_versioning.md) — Schema migrations with sequential numbering
 - [Dependencies](pages/dependencies.md) — Python packages, what they do, and where they are used
+- [Updating Dependencies](pages/updating_dependencies.md) — How to update, freeze, and test dependency upgrades
 
 ## Reference
 
