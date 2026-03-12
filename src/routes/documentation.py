@@ -51,7 +51,7 @@ def list_docs():
 @requires_permission('knowledge_policy')
 def detail(id):
     """Muestra los detalles de una entrada de documentación."""
-    doc = Documentation.query.get_or_404(id)
+    doc = db.get_or_404(Documentation, id)
     return render_template('documentation/detail.html', doc=doc)
 
 @documentation_bp.route('/new', methods=['GET', 'POST'])
@@ -128,7 +128,7 @@ def new_doc():
 @requires_permission('knowledge_policy')
 def edit_doc(id):
     """Edita una entrada de documentación existente."""
-    doc = Documentation.query.get_or_404(id)
+    doc = db.get_or_404(Documentation, id)
 
     if request.method == 'POST':
         if not has_write_permission('knowledge_policy'):
@@ -198,7 +198,7 @@ def delete_doc(id):
         flash('Write access required to delete documentation.', 'danger')
         return redirect(url_for('documentation.detail', id=id))
     """Elimina una entrada de documentación."""
-    doc = Documentation.query.get_or_404(id)
+    doc = db.get_or_404(Documentation, id)
     
     # (Opcional: eliminar archivos físicos de adjuntos)
     # for att in doc.attachments:

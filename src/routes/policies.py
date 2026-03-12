@@ -64,7 +64,7 @@ def new_policy():
 @login_required
 @requires_permission('knowledge_policy')
 def detail(id):
-    policy = Policy.query.get_or_404(id)
+    policy = db.get_or_404(Policy, id)
     users = User.query.order_by(User.name).filter_by(is_archived=False).all()
     groups = Group.query.order_by(Group.name).all()
     return render_template('policies/detail.html', policy=policy, users=users, groups=groups)
@@ -73,7 +73,7 @@ def detail(id):
 @login_required
 @requires_permission('knowledge_policy')
 def edit_policy(id):
-    policy = Policy.query.get_or_404(id)
+    policy = db.get_or_404(Policy, id)
     latest_version = PolicyVersion.query.filter_by(policy_id=id).order_by(PolicyVersion.effective_date.desc()).first()
 
     if request.method == 'POST':
@@ -104,7 +104,7 @@ def edit_policy(id):
 @login_required
 @requires_permission('knowledge_policy')
 def new_version(id):
-    policy = Policy.query.get_or_404(id)
+    policy = db.get_or_404(Policy, id)
     if request.method == 'POST':
         if not has_write_permission('knowledge_policy'):
             flash('Write access required to create versions.', 'danger')
@@ -154,7 +154,7 @@ def new_version(id):
 @login_required
 @requires_permission('knowledge_policy')
 def edit_version(id):
-    version = PolicyVersion.query.get_or_404(id)
+    version = db.get_or_404(PolicyVersion, id)
     policy = version.policy
     if request.method == 'POST':
         if not has_write_permission('knowledge_policy'):
@@ -206,10 +206,10 @@ def edit_version(id):
 @requires_permission('knowledge_policy')
 def activate_version(id):
     if not has_write_permission('knowledge_policy'):
-        version = PolicyVersion.query.get_or_404(id)
+        version = db.get_or_404(PolicyVersion, id)
         flash('Write access required to activate versions.', 'danger')
         return redirect(url_for('policies.detail', id=version.policy_id))
-    version_to_activate = PolicyVersion.query.get_or_404(id)
+    version_to_activate = db.get_or_404(PolicyVersion, id)
     policy = version_to_activate.policy
 
     # Deactivate all other versions for this policy
@@ -230,7 +230,7 @@ def activate_version(id):
 @login_required
 @requires_permission('knowledge_policy')
 def view_version(id):
-    version = PolicyVersion.query.get_or_404(id)
+    version = db.get_or_404(PolicyVersion, id)
     user_id = session.get('user_id')
     user = db.session.get(User,user_id)
     return render_template('policies/view_version.html', version=version, current_user=user)
@@ -239,7 +239,7 @@ def view_version(id):
 @login_required
 @requires_permission('knowledge_policy')
 def acknowledge_version(id):
-    version = PolicyVersion.query.get_or_404(id)
+    version = db.get_or_404(PolicyVersion, id)
     user_id = session.get('user_id')
     
     user = db.session.get(User,user_id)
@@ -266,10 +266,10 @@ def remove_user_from_policy(policy_id, user_id):
     if not has_write_permission('knowledge_policy'):
         flash('Write access required to remove users.', 'danger')
         return redirect(url_for('policies.detail', id=policy_id))
-    Policy.query.get_or_404(policy_id)
+    db.get_or_404(Policy, policy_id)
     latest_version = PolicyVersion.query.filter_by(policy_id=policy_id).order_by(PolicyVersion.effective_date.desc()).first()
     if latest_version:
-        user = User.query.get_or_404(user_id)
+        user = db.get_or_404(User, user_id)
         if user in latest_version.users_to_acknowledge:
             latest_version.users_to_acknowledge.remove(user)
             db.session.commit()
@@ -283,10 +283,10 @@ def remove_group_from_policy(policy_id, group_id):
     if not has_write_permission('knowledge_policy'):
         flash('Write access required to remove groups.', 'danger')
         return redirect(url_for('policies.detail', id=policy_id))
-    Policy.query.get_or_404(policy_id)
+    db.get_or_404(Policy, policy_id)
     latest_version = PolicyVersion.query.filter_by(policy_id=policy_id).order_by(PolicyVersion.effective_date.desc()).first()
     if latest_version:
-        group = Group.query.get_or_404(group_id)
+        group = db.get_or_404(Group, group_id)
         if group in latest_version.groups_to_acknowledge:
             latest_version.groups_to_acknowledge.remove(group)
             db.session.commit()

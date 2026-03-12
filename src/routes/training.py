@@ -60,7 +60,7 @@ def new_course():
 @login_required
 @requires_permission('knowledge_policy')
 def course_detail(id):
-    course = Course.query.get_or_404(id)
+    course = db.get_or_404(Course, id)
     if request.method == 'POST':
         if not has_write_permission('knowledge_policy'):
             flash('Write access required to assign courses.', 'danger')
@@ -94,7 +94,7 @@ def course_detail(id):
 @training_bp.route('/completion/<int:assignment_id>/complete', methods=['POST'])
 @login_required
 def complete_course(assignment_id):
-    assignment = CourseAssignment.query.get_or_404(assignment_id)
+    assignment = db.get_or_404(CourseAssignment, assignment_id)
     notes = request.form.get('notes')
     
     completion = CourseCompletion(
@@ -137,10 +137,10 @@ def complete_course(assignment_id):
 @requires_permission('knowledge_policy')
 def admin_complete_course(assignment_id):
     if not has_write_permission('knowledge_policy'):
-        assignment = CourseAssignment.query.get_or_404(assignment_id)
+        assignment = db.get_or_404(CourseAssignment, assignment_id)
         flash('Write access required to mark courses as complete.', 'danger')
         return redirect(url_for('training.course_detail', id=assignment.course_id))
-    assignment = CourseAssignment.query.get_or_404(assignment_id)
+    assignment = db.get_or_404(CourseAssignment, assignment_id)
     notes = request.form.get('notes')
     completion_date_str = request.form.get('completion_date')
 
@@ -191,13 +191,13 @@ def admin_complete_course(assignment_id):
 @requires_permission('knowledge_policy')
 def edit_completion(completion_id):
     if not has_write_permission('knowledge_policy'):
-        completion = CourseCompletion.query.get_or_404(completion_id)
+        completion = db.get_or_404(CourseCompletion, completion_id)
         flash('Write access required to edit completion records.', 'danger')
         return redirect(url_for('training.course_detail', id=completion.assignment.course_id))
     """
     Edita una finalización de curso existente.
     """
-    completion = CourseCompletion.query.get_or_404(completion_id)
+    completion = db.get_or_404(CourseCompletion, completion_id)
     assignment = completion.assignment
     
     if not completion:

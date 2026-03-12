@@ -72,7 +72,7 @@ def new_cost_center():
 @requires_permission('finance', access_level='READ_ONLY')
 def detail(id):
     """Display cost center details."""
-    cost_center = CostCenter.query.get_or_404(id)
+    cost_center = db.get_or_404(CostCenter, id)
     
     # Get associated services
     services = BusinessService.query.filter_by(cost_center_id=id).order_by(BusinessService.name).all()
@@ -85,7 +85,7 @@ def detail(id):
 @requires_permission('finance', access_level='READ_ONLY')
 def edit(id):
     """Edit an existing cost center."""
-    cost_center = CostCenter.query.get_or_404(id)
+    cost_center = db.get_or_404(CostCenter, id)
     
     if request.method == 'POST':
         if not has_write_permission('finance'):
@@ -131,7 +131,7 @@ def edit(id):
 @requires_permission('finance', access_level='WRITE')
 def delete(id):
     """Delete a cost center."""
-    cost_center = CostCenter.query.get_or_404(id)
+    cost_center = db.get_or_404(CostCenter, id)
     
     # Check if any services are associated
     service_count = BusinessService.query.filter_by(cost_center_id=id).count()

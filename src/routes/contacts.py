@@ -25,7 +25,7 @@ def archived_contacts():
 @login_required
 @requires_permission('procurement', access_level='WRITE')
 def archive_contact(id):
-    contact = Contact.query.get_or_404(id)
+    contact = db.get_or_404(Contact, id)
     contact.is_archived = True
     db.session.commit()
     flash(f'Contact "{contact.name}" has been archived.', 'warning')
@@ -35,7 +35,7 @@ def archive_contact(id):
 @login_required
 @requires_permission('procurement', access_level='WRITE')
 def unarchive_contact(id):
-    contact = Contact.query.get_or_404(id)
+    contact = db.get_or_404(Contact, id)
     contact.is_archived = False
     db.session.commit()
     flash(f'Contact "{contact.name}" has been restored.', 'success')
@@ -45,7 +45,7 @@ def unarchive_contact(id):
 @login_required
 @requires_permission('procurement', access_level='READ_ONLY')
 def contact_detail(id):
-    contact = Contact.query.get_or_404(id)
+    contact = db.get_or_404(Contact, id)
     return render_template('contacts/detail.html', contact=contact)
 
 @contacts_bp.route('/new', methods=['GET', 'POST'])
@@ -75,7 +75,7 @@ def new_contact():
 @login_required
 @requires_permission('procurement', access_level='READ_ONLY')
 def edit_contact(id):
-    contact = Contact.query.get_or_404(id)
+    contact = db.get_or_404(Contact, id)
 
     if request.method == 'POST':
         if not has_write_permission('procurement'):
@@ -97,7 +97,7 @@ def edit_contact(id):
 @login_required
 @requires_permission('procurement', access_level='WRITE')
 def delete_contact(id):
-    contact = Contact.query.get_or_404(id)
+    contact = db.get_or_404(Contact, id)
     db.session.delete(contact)
     db.session.commit()
     flash('Contact deleted successfully!', 'success')

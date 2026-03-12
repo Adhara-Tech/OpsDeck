@@ -66,7 +66,7 @@ class AuditPackExporter:
         Args:
             audit_id: ID of the ComplianceAudit to export
         """
-        self.audit = ComplianceAudit.query.get_or_404(audit_id)
+        self.audit = db.get_or_404(ComplianceAudit, audit_id)
         self.temp_dir = None
         self.evidence_dir = None
         self.attachments_dir = None

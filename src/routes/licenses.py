@@ -18,7 +18,7 @@ def list_licenses():
 @login_required
 @requires_permission('core_inventory', access_level='READ_ONLY')
 def detail(id):
-    license = License.query.get_or_404(id)
+    license = db.get_or_404(License, id)
     return render_template('licenses/detail.html', license=license)
 
 @licenses_bp.route('/new', methods=['GET', 'POST'])
@@ -75,7 +75,7 @@ def add_license():
 @login_required
 @requires_permission('core_inventory', access_level='READ_ONLY')
 def edit_license(id):
-    license = License.query.get_or_404(id)
+    license = db.get_or_404(License, id)
     original_purchase = license.purchase # Store original purchase before potential changes
 
     if request.method == 'POST':
@@ -165,7 +165,7 @@ def edit_license(id):
     subscriptions = Subscription.query.filter_by(is_archived=False).order_by(Subscription.name).all()
     software_items = Software.query.filter_by(is_archived=False).order_by(Software.name).all()
     return render_template('licenses/form.html', license=license, users=users, purchases=purchases, subscriptions=subscriptions, software_items=software_items)
-    license = License.query.get_or_404(id)
+    license = db.get_or_404(License, id)
     if request.method == 'POST':
         cost_form = request.form.get('cost')
         purchase_date_form = request.form.get('purchase_date')
@@ -221,7 +221,7 @@ def edit_license(id):
 @login_required
 @requires_permission('core_inventory', access_level='WRITE')
 def archive_license(id):
-    license = License.query.get_or_404(id)
+    license = db.get_or_404(License, id)
     license.is_archived = True
     db.session.commit()
     flash(f'License "{license.name}" has been archived.', 'info')
@@ -238,7 +238,7 @@ def archived_licenses():
 @login_required
 @requires_permission('core_inventory', access_level='WRITE')
 def restore_license(id):
-    license = License.query.get_or_404(id)
+    license = db.get_or_404(License, id)
     license.is_archived = False
     db.session.commit()
     flash(f'License "{license.name}" has been restored.', 'success')

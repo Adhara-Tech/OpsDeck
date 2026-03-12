@@ -520,7 +520,7 @@ def new_assessment(supplier_id):
         if request.method == 'POST':
             flash('You do not have permission to log assessments.', 'danger')
             return redirect(url_for('suppliers.supplier_detail', id=supplier_id))
-    supplier = Supplier.query.get_or_404(supplier_id)
+    supplier = db.get_or_404(Supplier, supplier_id)
     if request.method == 'POST':
         assessment = SecurityAssessment(
             supplier_id=supplier_id,
@@ -561,13 +561,13 @@ def new_assessment(supplier_id):
 @compliance_bp.route('/assessment/<int:id>')
 @requires_permission('compliance')
 def assessment_detail(id):
-    assessment = SecurityAssessment.query.get_or_404(id)
+    assessment = db.get_or_404(SecurityAssessment, id)
     return render_template('compliance/assessment_detail.html', assessment=assessment)
 
 @compliance_bp.route('/assessment/<int:id>/edit', methods=['GET', 'POST'])
 @requires_permission('compliance')
 def edit_assessment(id):
-    assessment = SecurityAssessment.query.get_or_404(id)
+    assessment = db.get_or_404(SecurityAssessment, id)
     if not has_write_permission('compliance'):
         if request.method == 'POST':
             flash('You do not have permission to edit assessments.', 'danger')
@@ -713,7 +713,7 @@ def new_inventory():
 @requires_permission('compliance')
 def inventory_detail(id):
     """Displays details of a specific asset inventory."""
-    inventory = AssetInventory.query.get_or_404(id)
+    inventory = db.get_or_404(AssetInventory, id)
     inventory_items = inventory.items.order_by(AssetInventoryItem.event_time.desc()).all()
     
     # Get assets that are NOT in this inventory yet
@@ -730,7 +730,7 @@ def log_inventory_item(id):
         flash('You do not have permission to log items.', 'danger')
         return redirect(url_for('compliance.inventory_detail', id=id))
     """Logs an asset check during an inventory."""
-    inventory = AssetInventory.query.get_or_404(id)
+    inventory = db.get_or_404(AssetInventory, id)
     
     asset_id = request.form.get('asset_id')
     status = request.form.get('status')
@@ -756,7 +756,7 @@ def complete_inventory(id):
         flash('You do not have permission to complete inventories.', 'danger')
         return redirect(url_for('compliance.inventory_detail', id=id))
     """Marks an inventory as complete."""
-    inventory = AssetInventory.query.get_or_404(id)
+    inventory = db.get_or_404(AssetInventory, id)
     inventory.is_completed = True
     db.session.commit()
     
@@ -804,7 +804,7 @@ def edit_bcdr_plan(id):
         if request.method == 'POST':
             flash('You do not have permission to edit BCDR plans.', 'danger')
             return redirect(url_for('compliance.bcdr_detail', id=id))
-    plan = BCDRPlan.query.get_or_404(id)
+    plan = db.get_or_404(BCDRPlan, id)
     if request.method == 'POST':
         plan.name = request.form['name']
         plan.description = request.form.get('description')
@@ -826,14 +826,14 @@ def edit_bcdr_plan(id):
 @compliance_bp.route('/bcdr/<int:id>')
 @requires_permission('compliance')
 def bcdr_detail(id):
-    plan = BCDRPlan.query.get_or_404(id)
+    plan = db.get_or_404(BCDRPlan, id)
     return render_template('compliance/bcdr_detail.html', plan=plan)
 
 @compliance_bp.route('/bcdr/test/<int:test_id>')
 @requires_permission('compliance')
 def bcdr_test_log_detail(test_id):
     """Muestra los detalles de un único BCDR test log."""
-    test_log = BCDRTestLog.query.get_or_404(test_id)
+    test_log = db.get_or_404(BCDRTestLog, test_id)
     return render_template('compliance/bcdr_test_log_detail.html', test_log=test_log)
 
 @compliance_bp.route('/bcdr/<int:plan_id>/log_test', methods=['GET', 'POST'])
@@ -843,7 +843,7 @@ def log_bcdr_test(plan_id):
         if request.method == 'POST':
             flash('You do not have permission to log BCDR tests.', 'danger')
             return redirect(url_for('compliance.bcdr_detail', id=plan_id))
-    plan = BCDRPlan.query.get_or_404(plan_id)
+    plan = db.get_or_404(BCDRPlan, plan_id)
     if request.method == 'POST':
         test_log = BCDRTestLog(
             plan_id=plan.id,
@@ -889,7 +889,7 @@ def log_bcdr_test(plan_id):
 @compliance_bp.route('/bcdr/test/<int:test_id>/edit', methods=['GET', 'POST'])
 @requires_permission('compliance')
 def edit_bcdr_test(test_id):
-    test_log = BCDRTestLog.query.get_or_404(test_id)
+    test_log = db.get_or_404(BCDRTestLog, test_id)
     if not has_write_permission('compliance'):
         if request.method == 'POST':
             flash('You do not have permission to edit BCDR test logs.', 'danger')
@@ -1000,7 +1000,7 @@ def new_incident():
 @compliance_bp.route('/incidents/<int:id>')
 @requires_permission('compliance')
 def incident_detail(id):
-    incident = SecurityIncident.query.get_or_404(id)
+    incident = db.get_or_404(SecurityIncident, id)
     return render_template('compliance/incident_detail.html', incident=incident)
 
 @compliance_bp.route('/incidents/<int:id>/edit', methods=['GET', 'POST'])
@@ -1010,7 +1010,7 @@ def edit_incident(id):
         if request.method == 'POST':
             flash('You do not have permission to edit incidents.', 'danger')
             return redirect(url_for('compliance.incident_detail', id=id))
-    incident = SecurityIncident.query.get_or_404(id)
+    incident = db.get_or_404(SecurityIncident, id)
     if request.method == 'POST':
         incident.title = request.form['title']
         incident.description = request.form['description']
@@ -1056,7 +1056,7 @@ def incident_review(id):
         if request.method == 'POST':
             flash('You do not have permission to edit incident reviews.', 'danger')
             return redirect(url_for('compliance.incident_detail', id=id))
-    incident = SecurityIncident.query.get_or_404(id)
+    incident = db.get_or_404(SecurityIncident, id)
     review = incident.review
 
     if not review:
@@ -1092,7 +1092,7 @@ def toggle_pir_lock(review_id):
     if not has_write_permission('compliance'):
         return jsonify({'success': False, 'message': 'You do not have permission to lock incident reviews.'}), 403
     """Toggle lock state of a Post-Incident Review."""
-    review = PostIncidentReview.query.get_or_404(review_id)
+    review = db.get_or_404(PostIncidentReview, review_id)
     
     if review.is_locked:
         # Unlock
@@ -1115,7 +1115,7 @@ def toggle_pir_lock(review_id):
 def add_timeline_event(review_id):
     if not has_write_permission('compliance'):
         return jsonify({'error': 'You do not have permission to modify timeline events.'}), 403
-    review = PostIncidentReview.query.get_or_404(review_id)
+    review = db.get_or_404(PostIncidentReview, review_id)
     
     # Block timeline additions when locked
     if review.is_locked:
@@ -1146,7 +1146,7 @@ def add_timeline_event(review_id):
 def delete_timeline_event(event_id):
     if not has_write_permission('compliance'):
         return jsonify({'error': 'You do not have permission to delete timeline events.'}), 403
-    event = IncidentTimelineEvent.query.get_or_404(event_id)
+    event = db.get_or_404(IncidentTimelineEvent, event_id)
     db.session.delete(event)
     db.session.commit()
     return jsonify({'success': True})
@@ -1172,7 +1172,7 @@ def export_pir_pdf(id):
     from flask import make_response
     from ..models.core import OrganizationSettings
     
-    incident = SecurityIncident.query.get_or_404(id)
+    incident = db.get_or_404(SecurityIncident, id)
     review = incident.review
     
     if not review:
@@ -1244,7 +1244,7 @@ def get_frameworks():
 @login_required
 def get_framework_controls(framework_id):
     """Returns a JSON list of controls for a specific framework."""
-    framework = Framework.query.get_or_404(framework_id)
+    framework = db.get_or_404(Framework, framework_id)
     if not framework.is_active:
         return jsonify({'error': 'Framework is disabled'}), 400
         
@@ -1315,7 +1315,7 @@ def delete_compliance_link(link_id):
     if not has_write_permission('compliance'):
         return jsonify({'error': 'Write access required to delete compliance links.'}), 403
 
-    link = ComplianceLink.query.get_or_404(link_id)
+    link = db.get_or_404(ComplianceLink, link_id)
     db.session.delete(link)
     db.session.commit()
     return jsonify({'status': 'success', 'message': 'Link deleted successfully'})
@@ -1627,7 +1627,7 @@ def delete_rule(rule_id):
         flash('Write access required to delete automation rules.', 'danger')
         return redirect(request.referrer or url_for('frameworks.control_detail', id=rule_id)) # Redirect to control detail if rule_id is invalid
 
-    rule = ComplianceRule.query.get_or_404(rule_id)
+    rule = db.get_or_404(ComplianceRule, rule_id)
     rule_name = rule.name
     control_id = rule.framework_control_id
     
@@ -1646,7 +1646,7 @@ def toggle_rule(rule_id):
         flash('Write access required to toggle rules.', 'danger')
         return redirect(request.referrer or url_for('frameworks.control_detail', id=rule_id))
     """Toggles a ComplianceRule enabled/disabled state."""
-    rule = ComplianceRule.query.get_or_404(rule_id)
+    rule = db.get_or_404(ComplianceRule, rule_id)
     
     rule.enabled = not rule.enabled
     db.session.commit()
@@ -1678,7 +1678,7 @@ def uar_automation_form(id=None):
         flash('Write access required to manage UAR automation.', 'danger')
         return redirect(url_for('compliance.uar_automation_list'))
 
-    comparison = UARComparison.query.get_or_404(id) if id else UARComparison()
+    comparison = db.get_or_404(UARComparison, id) if id else UARComparison()
 
     if request.method == 'POST':
         # Parse form data
@@ -1798,7 +1798,7 @@ def uar_automation_form(id=None):
 @requires_permission('compliance')
 def uar_automation_detail(id):
     """View UAR comparison configuration and execution history."""
-    comparison = UARComparison.query.get_or_404(id)
+    comparison = db.get_or_404(UARComparison, id)
     executions = UARExecution.query.filter_by(comparison_id=id)\
         .order_by(UARExecution.started_at.desc())\
         .limit(20)\
@@ -1818,7 +1818,7 @@ def uar_automation_run(id):
         flash('Write access required to run comparisons.', 'danger')
         return redirect(url_for('compliance.uar_automation_detail', id=id))
 
-    comparison = UARComparison.query.get_or_404(id)
+    comparison = db.get_or_404(UARComparison, id)
 
     service = UARAutomationService()
 
@@ -1838,7 +1838,7 @@ def uar_automation_run(id):
 @requires_permission('compliance')
 def uar_execution_detail(execution_id):
     """View UAR execution results with findings."""
-    execution = UARExecution.query.get_or_404(execution_id)
+    execution = db.get_or_404(UARExecution, execution_id)
 
     # Paginate findings
     page = request.args.get('page', 1, type=int)
@@ -1863,10 +1863,10 @@ def uar_finding_resolve(id):
     """Mark finding as resolved."""
     if not has_write_permission('compliance'):
         flash('Write access required to resolve findings.', 'danger')
-        finding = UARFinding.query.get_or_404(id)
+        finding = db.get_or_404(UARFinding, id)
         return redirect(url_for('compliance.uar_execution_detail', execution_id=finding.execution_id))
 
-    finding = UARFinding.query.get_or_404(id)
+    finding = db.get_or_404(UARFinding, id)
 
     finding.status = request.form.get('status')
     finding.resolution_notes = request.form.get('notes')
@@ -1885,10 +1885,10 @@ def uar_finding_promote(id):
     """Manually promote finding to SecurityIncident."""
     if not has_write_permission('compliance'):
         flash('Write access required to create incidents.', 'danger')
-        finding = UARFinding.query.get_or_404(id)
+        finding = db.get_or_404(UARFinding, id)
         return redirect(url_for('compliance.uar_execution_detail', execution_id=finding.execution_id))
 
-    finding = UARFinding.query.get_or_404(id)
+    finding = db.get_or_404(UARFinding, id)
 
     if finding.security_incident_id:
         flash("Finding already linked to an incident", "warning")

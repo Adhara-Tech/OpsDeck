@@ -141,7 +141,7 @@ def new_change():
 @requires_permission('operations')
 def edit_change(id):
     """Edit an existing change request."""
-    change = Change.query.get_or_404(id)
+    change = db.get_or_404(Change, id)
     
     # Allow editing only if not final (you might want to restrict this further based on policy)
     if change.status in ['Completed', 'Cancelled', 'Failed']:
@@ -232,7 +232,7 @@ def edit_change(id):
 @changes_bp.route('/<int:id>')
 @requires_permission('operations')
 def detail_change(id):
-    change = Change.query.get_or_404(id)
+    change = db.get_or_404(Change, id)
     return render_template('changes/detail.html', change=change)
 
 @changes_bp.route('/<int:id>/approve', methods=['POST'])
@@ -241,7 +241,7 @@ def approve_change(id):
     if not has_write_permission('operations'):
         flash('Write access required to approve changes.', 'danger')
         return redirect(url_for('changes.detail_change', id=id))
-    change = Change.query.get_or_404(id)
+    change = db.get_or_404(Change, id)
     user_id = session.get('user_id')
     user = db.session.get(User,user_id)
     
@@ -265,7 +265,7 @@ def start_change(id):
     if not has_write_permission('operations'):
         flash('Write access required to start changes.', 'danger')
         return redirect(url_for('changes.detail_change', id=id))
-    change = Change.query.get_or_404(id)
+    change = db.get_or_404(Change, id)
     if change.status != 'Approved':
         flash('Change must be approved before starting.', 'warning')
         return redirect(url_for('changes.detail_change', id=id))
@@ -283,7 +283,7 @@ def complete_change(id):
     if not has_write_permission('operations'):
         flash('Write access required to complete changes.', 'danger')
         return redirect(url_for('changes.detail_change', id=id))
-    change = Change.query.get_or_404(id)
+    change = db.get_or_404(Change, id)
     
     change.status = 'Completed'
     change.closed_at = now()
@@ -298,7 +298,7 @@ def cancel_change(id):
     if not has_write_permission('operations'):
         flash('Write access required to cancel changes.', 'danger')
         return redirect(url_for('changes.detail_change', id=id))
-    change = Change.query.get_or_404(id)
+    change = db.get_or_404(Change, id)
     change.status = 'Cancelled'
     change.closed_at = now()
     db.session.commit()
@@ -312,7 +312,7 @@ def add_evidence(id):
     if not has_write_permission('operations'):
         flash('Write access required to add evidence.', 'danger')
         return redirect(url_for('changes.detail_change', id=id))
-    change = Change.query.get_or_404(id)
+    change = db.get_or_404(Change, id)
     
     if 'file' not in request.files:
         flash('No file part', 'danger')

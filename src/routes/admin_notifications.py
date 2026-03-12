@@ -32,7 +32,7 @@ def toggle_event(event_id):
         flash('Write access required to toggle notifications.', 'danger')
         return redirect(url_for('admin_notifications.list_events'))
     """Toggle a notification event on/off."""
-    event = NotificationEvent.query.get_or_404(event_id)
+    event = db.get_or_404(NotificationEvent, event_id)
     event.enabled = not event.enabled
     db.session.commit()
     
@@ -49,7 +49,7 @@ def update_event(event_id):
         flash('Write access required to update notifications.', 'danger')
         return redirect(url_for('admin_notifications.list_events'))
     """Update a notification event's template and days offset."""
-    event = NotificationEvent.query.get_or_404(event_id)
+    event = db.get_or_404(NotificationEvent, event_id)
     
     # Update template
     template_id = request.form.get('template_id')

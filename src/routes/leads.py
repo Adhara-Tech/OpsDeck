@@ -38,7 +38,7 @@ def new_lead():
 @login_required
 @requires_permission('procurement', access_level='READ_ONLY')
 def edit_lead(id):
-    lead = Lead.query.get_or_404(id)
+    lead = db.get_or_404(Lead, id)
     if request.method == 'POST':
         if not has_write_permission('procurement'):
             flash('Write access required to update leads.', 'danger')
@@ -58,7 +58,7 @@ def edit_lead(id):
 @login_required
 @requires_permission('procurement', access_level='READ_ONLY')
 def convert_lead(id):
-    lead = Lead.query.get_or_404(id)
+    lead = db.get_or_404(Lead, id)
     if lead.status == 'Converted':
         flash('This lead has already been converted.', 'warning')
         return redirect(url_for('leads.list_leads'))

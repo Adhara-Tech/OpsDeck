@@ -20,7 +20,7 @@ def list_logs():
 @login_required
 @requires_permission('operations')
 def log_detail(id):
-    log = MaintenanceLog.query.get_or_404(id)
+    log = db.get_or_404(MaintenanceLog, id)
     return render_template('maintenance/detail.html', log=log)
 
 @maintenance_bp.route('/new', methods=['GET', 'POST'])
@@ -94,7 +94,7 @@ def new_log():
 @login_required
 @requires_permission('operations')
 def edit_log(id):
-    log = MaintenanceLog.query.get_or_404(id)
+    log = db.get_or_404(MaintenanceLog, id)
     if request.method == 'POST':
         if not has_write_permission('operations'):
             flash('Write access required to update maintenance logs.', 'danger')

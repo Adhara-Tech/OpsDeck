@@ -21,7 +21,7 @@ def index():
 @login_required
 @requires_permission('core_inventory', access_level='READ_ONLY')
 def detail(id):
-    config = Configuration.query.get_or_404(id)
+    config = db.get_or_404(Configuration, id)
     latest = config.latest_version
     
     # If no version exists, start with empty structure
@@ -76,7 +76,7 @@ def new():
 @login_required
 @requires_permission('core_inventory', access_level='WRITE')
 def snapshot(id):
-    config = Configuration.query.get_or_404(id)
+    config = db.get_or_404(Configuration, id)
     
     # Parse the JSON form data. 
     # For now, let's assume the frontend sends a 'config_data' field with JSON string
@@ -117,7 +117,7 @@ def snapshot(id):
 @login_required
 @requires_permission('core_inventory', access_level='READ_ONLY')
 def compare(id):
-    config = Configuration.query.get_or_404(id)
+    config = db.get_or_404(Configuration, id)
     
     v1_id = request.args.get('v1', type=int)
     v2_id = request.args.get('v2', type=int)
@@ -132,8 +132,8 @@ def compare(id):
             flash('Not enough versions to compare', 'warning')
             return redirect(url_for('configuration.detail', id=id))
     else:
-        v1 = ConfigurationVersion.query.get_or_404(v1_id)
-        v2 = ConfigurationVersion.query.get_or_404(v2_id)
+        v1 = db.get_or_404(ConfigurationVersion, v1_id)
+        v2 = db.get_or_404(ConfigurationVersion, v2_id)
         
     diff = get_semantic_diff(v1.data, v2.data)
     
@@ -147,7 +147,7 @@ def compare(id):
 @login_required
 @requires_permission('core_inventory', access_level='READ_ONLY')
 def history(id):
-    config = Configuration.query.get_or_404(id)
+    config = db.get_or_404(Configuration, id)
     versions = config.versions.order_by(ConfigurationVersion.version_number.desc()).all()
     return render_template('configuration/history.html', configuration=config, versions=versions)
 
@@ -156,7 +156,7 @@ def history(id):
 @requires_permission('core_inventory', access_level='READ_ONLY')
 def get_versions(id):
     """API endpoint to get versions for a configuration."""
-    config = Configuration.query.get_or_404(id)
+    config = db.get_or_404(Configuration, id)
     versions = config.versions.order_by(ConfigurationVersion.version_number.desc()).all()
     return jsonify([{
         'id': v.id,
@@ -170,7 +170,7 @@ def get_versions(id):
 @requires_permission('core_inventory', access_level='WRITE')
 def create_version_from_change(id):
     """API endpoint to create a new version (clone latest) directly from change request context."""
-    config = Configuration.query.get_or_404(id)
+    config = db.get_or_404(Configuration, id)
     latest = config.latest_version
     
     # Calculate new version number

@@ -229,7 +229,7 @@ def dashboard_pdf():
 @risk_bp.route('/<int:id>')
 @requires_permission('risk_governance')
 def detail(id):
-    risk = Risk.query.get_or_404(id)
+    risk = db.get_or_404(Risk, id)
     return render_template('risk/detail.html', risk=risk)
 
 @risk_bp.route('/catalog')
@@ -241,7 +241,7 @@ def catalog_list():
 @risk_bp.route('/catalog/<int:id>')
 @requires_permission('risk_governance')
 def catalog_detail(id):
-    catalog = RiskCatalog.query.get_or_404(id)
+    catalog = db.get_or_404(RiskCatalog, id)
     return render_template('risk/catalog_detail.html', catalog=catalog)
 
 from ..models.security import ThreatType
@@ -364,7 +364,7 @@ def new_risk():
 @risk_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @requires_permission('risk_governance')
 def edit_risk(id):
-    risk = Risk.query.get_or_404(id)
+    risk = db.get_or_404(Risk, id)
     if not has_write_permission('risk_governance'):
         if request.method == 'POST':
             flash('You do not have permission to edit risks.', 'danger')
@@ -443,7 +443,7 @@ def add_affected_item(id):
     if not has_write_permission('risk_governance'):
         flash('You do not have permission to modify risk items.', 'danger')
         return redirect(url_for('risk.detail', id=id))
-    risk = Risk.query.get_or_404(id)
+    risk = db.get_or_404(Risk, id)
     linkable_type = request.form.get('linkable_type')
     linkable_id = request.form.get('linkable_id')
     
@@ -491,10 +491,10 @@ def add_affected_item(id):
 @requires_permission('risk_governance')
 def remove_affected_item(item_id):
     if not has_write_permission('risk_governance'):
-        item = RiskAffectedItem.query.get_or_404(item_id)
+        item = db.get_or_404(RiskAffectedItem, item_id)
         flash('You do not have permission to modify risk items.', 'danger')
         return redirect(url_for('risk.detail', id=item.risk_id))
-    item = RiskAffectedItem.query.get_or_404(item_id)
+    item = db.get_or_404(RiskAffectedItem, item_id)
     risk_id = item.risk_id
     db.session.delete(item)
     db.session.commit()
@@ -568,7 +568,7 @@ def add_reference(id):
         flash('You do not have permission to modify risk references.', 'danger')
         return redirect(url_for('risk.detail', id=id))
     """Add a reference (Policy, Documentation, Link) to a risk."""
-    risk = Risk.query.get_or_404(id)
+    risk = db.get_or_404(Risk, id)
     linkable_type = request.form.get('linkable_type')
     linkable_id = request.form.get('linkable_id')
     
@@ -616,11 +616,11 @@ def add_reference(id):
 @requires_permission('risk_governance')
 def remove_reference(ref_id):
     if not has_write_permission('risk_governance'):
-        ref = RiskReference.query.get_or_404(ref_id)
+        ref = db.get_or_404(RiskReference, ref_id)
         flash('You do not have permission to modify risk references.', 'danger')
         return redirect(url_for('risk.detail', id=ref.risk_id))
     """Remove a reference from a risk."""
-    ref = RiskReference.query.get_or_404(ref_id)
+    ref = db.get_or_404(RiskReference, ref_id)
     risk_id = ref.risk_id
     db.session.delete(ref)
     db.session.commit()

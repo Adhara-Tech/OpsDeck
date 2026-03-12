@@ -272,28 +272,29 @@ class CustomPropertiesMixin:
         Expects keys like 'custom_field_github_user'.
         """
         my_type = self.__class__.__name__
-        definitions = CustomFieldDefinition.query.filter_by(entity_type=my_type).all()
-        
-        for d in definitions:
-            form_key = f"{prefix}{d.name}"
-            if form_key in form_data:
-                new_val = form_data.get(form_key)
-                
-                # Check for existing value
-                existing = CustomFieldValue.query.filter_by(
-                    field_definition_id=d.id,
-                    linkable_type=my_type,
-                    linkable_id=self.id
-                ).first()
-                
-                if existing:
-                    existing.value = new_val
-                else:
-                    cv = CustomFieldValue(
+        with db.session.no_autoflush:
+            definitions = CustomFieldDefinition.query.filter_by(entity_type=my_type).all()
+
+            for d in definitions:
+                form_key = f"{prefix}{d.name}"
+                if form_key in form_data:
+                    new_val = form_data.get(form_key)
+
+                    # Check for existing value
+                    existing = CustomFieldValue.query.filter_by(
                         field_definition_id=d.id,
                         linkable_type=my_type,
-                        linkable_id=self.id,
-                        value=new_val
-                    )
-                    db.session.add(cv)
+                        linkable_id=self.id
+                    ).first()
+
+                    if existing:
+                        existing.value = new_val
+                    else:
+                        cv = CustomFieldValue(
+                            field_definition_id=d.id,
+                            linkable_type=my_type,
+                            linkable_id=self.id,
+                            value=new_val
+                        )
+                        db.session.add(cv)
 

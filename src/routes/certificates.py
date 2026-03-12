@@ -84,14 +84,14 @@ def create_certificate():
 @login_required
 @requires_permission('core_inventory', access_level='READ_ONLY')
 def certificate_detail(id):
-    cert = Certificate.query.get_or_404(id)
+    cert = db.get_or_404(Certificate, id)
     return render_template('certificates/detail.html', certificate=cert)
 
 @certificates_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
 @requires_permission('core_inventory', access_level='READ_ONLY')
 def edit_certificate(id):
-    cert = Certificate.query.get_or_404(id)
+    cert = db.get_or_404(Certificate, id)
     
     if request.method == 'POST':
         if not has_write_permission('core_inventory'):
@@ -126,7 +126,7 @@ def edit_certificate(id):
 @login_required
 @requires_permission('core_inventory', access_level='READ_ONLY')
 def new_version(id):
-    cert = Certificate.query.get_or_404(id)
+    cert = db.get_or_404(Certificate, id)
     
     if request.method == 'POST':
         if not has_write_permission('core_inventory'):

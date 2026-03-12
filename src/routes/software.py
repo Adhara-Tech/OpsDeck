@@ -17,8 +17,8 @@ def list_software():
 @login_required
 @requires_permission('core_inventory', access_level='READ_ONLY')
 def detail(id):
-    software = Software.query.get_or_404(id)
-    
+    software = db.get_or_404(Software, id)
+
     # --- Collect all Licenses (Direct and Indirect) ---
     combined_licenses = []
 
@@ -76,7 +76,7 @@ def add_software():
 @login_required
 @requires_permission('core_inventory', access_level='READ_ONLY')
 def edit_software(id):
-    software = Software.query.get_or_404(id)
+    software = db.get_or_404(Software, id)
     if request.method == 'POST':
         if not has_write_permission('core_inventory'):
                 flash('Write access required for this action.', 'danger')

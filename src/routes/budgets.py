@@ -19,7 +19,7 @@ def budgets():
 @login_required
 @requires_permission('finance', access_level='READ_ONLY')
 def budget_detail(id):
-    budget = Budget.query.get_or_404(id)
+    budget = db.get_or_404(Budget, id)
     return render_template('budgets/detail.html', budget=budget)
 
 @budgets_bp.route('/new', methods=['GET', 'POST'])
@@ -61,7 +61,7 @@ def new_budget():
 @login_required
 @requires_permission('finance', access_level='READ_ONLY')
 def edit_budget(id):
-    budget = Budget.query.get_or_404(id)
+    budget = db.get_or_404(Budget, id)
 
     if request.method == 'POST':
         if not has_write_permission('finance'):

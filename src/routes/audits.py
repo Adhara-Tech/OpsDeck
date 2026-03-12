@@ -132,7 +132,7 @@ def new_audit():
 @login_required
 @requires_permission('compliance')
 def view_audit(id):
-    audit = ComplianceAudit.query.get_or_404(id)
+    audit = db.get_or_404(ComplianceAudit, id)
     users = User.query.filter_by(is_archived=False).all()
     
     # Calculate progress stats
@@ -166,7 +166,7 @@ def update_audit_header(id):
     if not has_write_permission('compliance'):
         flash('Write access required to update audit header.', 'danger')
         return redirect(url_for('audits.view_audit', id=id))
-    audit = ComplianceAudit.query.get_or_404(id)
+    audit = db.get_or_404(ComplianceAudit, id)
     
     # Lock check
     if audit.is_locked:
@@ -195,7 +195,7 @@ def update_audit_items(id):
     if not has_write_permission('compliance'):
         flash('Write access required to update audit items.', 'danger')
         return redirect(url_for('audits.view_audit', id=id))
-    audit = ComplianceAudit.query.get_or_404(id)
+    audit = db.get_or_404(ComplianceAudit, id)
     
     # Lock check
     if audit.is_locked:
@@ -235,7 +235,7 @@ def add_participant(id):
     if not has_write_permission('compliance'):
         flash('Write access required to add participants.', 'danger')
         return redirect(url_for('audits.view_audit', id=id))
-    audit = ComplianceAudit.query.get_or_404(id)
+    audit = db.get_or_404(ComplianceAudit, id)
     
     # Lock check
     if audit.is_locked:
@@ -260,14 +260,14 @@ def remove_participant(id, user_id):
     if not has_write_permission('compliance'):
         flash('Write access required to remove participants.', 'danger')
         return redirect(url_for('audits.view_audit', id=id))
-    audit = ComplianceAudit.query.get_or_404(id)
+    audit = db.get_or_404(ComplianceAudit, id)
     
     # Lock check
     if audit.is_locked:
         flash('Audit is locked and cannot be modified.', 'warning')
         return redirect(url_for('audits.view_audit', id=id))
     
-    user = User.query.get_or_404(user_id)
+    user = db.get_or_404(User, user_id)
     
     if user in audit.participants:
         audit.participants.remove(user)
@@ -289,7 +289,7 @@ def upload_audit_attachment(id):
         return redirect(url_for('audits.view_audit', id=id))
     from flask import current_app
     
-    audit = ComplianceAudit.query.get_or_404(id)
+    audit = db.get_or_404(ComplianceAudit, id)
     
     # Lock check
     if audit.is_locked:
@@ -336,8 +336,8 @@ def upload_item_attachment(id, item_id):
         return redirect(url_for('audits.view_audit', id=id))
     from flask import current_app
     
-    audit = ComplianceAudit.query.get_or_404(id)
-    item = AuditControlItem.query.get_or_404(item_id)
+    audit = db.get_or_404(ComplianceAudit, id)
+    item = db.get_or_404(AuditControlItem, item_id)
     
     # Lock check
     if audit.is_locked:
@@ -382,8 +382,8 @@ def add_item_link(id, item_id):
     if not has_write_permission('compliance'):
         flash('Write access required to link evidence.', 'danger')
         return redirect(url_for('audits.view_audit', id=id))
-    audit = ComplianceAudit.query.get_or_404(id)
-    item = AuditControlItem.query.get_or_404(item_id)
+    audit = db.get_or_404(ComplianceAudit, id)
+    item = db.get_or_404(AuditControlItem, item_id)
     
     # Lock check
     if audit.is_locked:
@@ -418,14 +418,14 @@ def delete_item_link(id, item_id, link_id):
     if not has_write_permission('compliance'):
         flash('Write access required to delete links.', 'danger')
         return redirect(url_for('audits.view_audit', id=id))
-    audit = ComplianceAudit.query.get_or_404(id)
+    audit = db.get_or_404(ComplianceAudit, id)
     
     # Lock check
     if audit.is_locked:
         flash('Audit is locked and cannot be modified.', 'warning')
         return redirect(url_for('audits.view_audit', id=id))
     
-    link = AuditControlLink.query.get_or_404(link_id)
+    link = db.get_or_404(AuditControlLink, link_id)
     db.session.delete(link)
     db.session.commit()
     flash('Link removed.', 'success')
@@ -438,7 +438,7 @@ def link_evidence(id):
     if not has_write_permission('compliance'):
         flash('Write access required to link evidence.', 'danger')
         return redirect(url_for('audits.view_audit', id=id))
-    audit = ComplianceAudit.query.get_or_404(id)
+    audit = db.get_or_404(ComplianceAudit, id)
     
     # Lock check
     if audit.is_locked:
@@ -474,7 +474,7 @@ def unlink_evidence(id):
     if not has_write_permission('compliance'):
         flash('Write access required to unlink evidence.', 'danger')
         return redirect(url_for('audits.view_audit', id=id))
-    audit = ComplianceAudit.query.get_or_404(id)
+    audit = db.get_or_404(ComplianceAudit, id)
     
     if audit.is_locked:
         flash('Audit is locked.', 'warning')
@@ -509,7 +509,7 @@ def api_update_control_status(id):
     if not has_write_permission('compliance'):
         return jsonify({'success': False, 'error': 'Write access required'}), 403
     """AJAX endpoint for instant status updates on audit controls."""
-    item = AuditControlItem.query.get_or_404(id)
+    item = db.get_or_404(AuditControlItem, id)
     
     # Security: Check if the audit is locked
     if item.audit.is_locked:
@@ -542,7 +542,7 @@ def lock_audit(id):
         flash('Write access required to lock audits.', 'danger')
         return redirect(url_for('audits.view_audit', id=id))
     """Lock the audit to prevent further modifications."""
-    audit = ComplianceAudit.query.get_or_404(id)
+    audit = db.get_or_404(ComplianceAudit, id)
     
     if audit.is_locked:
         flash('Audit is already locked.', 'info')
@@ -561,7 +561,7 @@ def unlock_audit(id):
         flash('Write access required to unlock audits.', 'danger')
         return redirect(url_for('audits.view_audit', id=id))
     """Unlock the audit to allow modifications again."""
-    audit = ComplianceAudit.query.get_or_404(id)
+    audit = db.get_or_404(ComplianceAudit, id)
     
     if not audit.is_locked:
         flash('Audit is not locked.', 'info')
@@ -580,7 +580,7 @@ def unlock_audit(id):
 @login_required
 @requires_permission('compliance')
 def export_audit(id):
-    audit = ComplianceAudit.query.get_or_404(id)
+    audit = db.get_or_404(ComplianceAudit, id)
     
     html = render_template('audits/export_pdf.html', audit=audit, now=now())
     pdf = HTML(string=html).write_pdf()
@@ -599,7 +599,7 @@ def delete_audit(id):
     if not has_write_permission('compliance'):
         flash('Write access required to delete audits.', 'danger')
         return redirect(url_for('audits.list_audits'))
-    audit = ComplianceAudit.query.get_or_404(id)
+    audit = db.get_or_404(ComplianceAudit, id)
     db.session.delete(audit)
     db.session.commit()
     flash('Audit deleted.', 'success')
@@ -765,7 +765,7 @@ def export_defense_pack(id):
     from flask import send_file
     import os
 
-    audit = ComplianceAudit.query.get_or_404(id)
+    audit = db.get_or_404(ComplianceAudit, id)
 
     try:
         # Generate the export pack

@@ -117,8 +117,8 @@ def download_file(attachment_id):
     """
     Provides a secure download link for an attachment.
     """
-    attachment = Attachment.query.get_or_404(attachment_id)
-    
+    attachment = db.get_or_404(Attachment, attachment_id)
+
     # Send the file from the upload folder
     return send_from_directory(
         current_app.config['UPLOAD_FOLDER'],
@@ -134,8 +134,8 @@ def delete_attachment(attachment_id):
     """
     Deletes an attachment from the filesystem and the database.
     """
-    attachment = Attachment.query.get_or_404(attachment_id)
-    
+    attachment = db.get_or_404(Attachment, attachment_id)
+
     # Check permissions based on the linked object
     type_to_perm = {
         'Asset': 'core_inventory',

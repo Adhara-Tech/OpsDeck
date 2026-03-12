@@ -247,7 +247,7 @@ def impersonate(user_id):
         return redirect(url_for('users.users'))
     
     # Get target user
-    target_user = User.query.get_or_404(user_id)
+    target_user = db.get_or_404(User, user_id)
     
     # Prevent impersonating yourself
     if current_user.id == target_user.id:

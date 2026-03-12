@@ -37,7 +37,7 @@ def new_group():
 @login_required
 @requires_permission('administration', access_level='READ_ONLY')
 def edit_group(id):
-    group = Group.query.get_or_404(id)
+    group = db.get_or_404(Group, id)
     if request.method == 'POST':
         if not has_write_permission('administration'):
                 flash('Write access required for this action.', 'danger')

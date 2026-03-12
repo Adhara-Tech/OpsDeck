@@ -92,7 +92,7 @@ def new_contract():
 @login_required
 @requires_permission('procurement')
 def contract_detail(id):
-    contract = Contract.query.get_or_404(id)
+    contract = db.get_or_404(Contract, id)
     
     if request.method == 'POST':
         # Handle Edit
@@ -153,7 +153,7 @@ def link_item(id):
     if not has_write_permission('procurement'):
         flash('Write access required to link items.', 'danger')
         return redirect(url_for('contracts.contract_detail', id=id))
-    contract = Contract.query.get_or_404(id)
+    contract = db.get_or_404(Contract, id)
     item_type = request.form.get('item_type') # 'Asset', 'Subscription', etc.
     item_id = request.form.get('item_id')
     
@@ -194,10 +194,10 @@ def link_item(id):
 @requires_permission('procurement')
 def unlink_item(link_id):
     if not has_write_permission('procurement'):
-        link = ContractItem.query.get_or_404(link_id)
+        link = db.get_or_404(ContractItem, link_id)
         flash('Write access required to unlink items.', 'danger')
         return redirect(url_for('contracts.contract_detail', id=link.contract_id))
-    link = ContractItem.query.get_or_404(link_id)
+    link = db.get_or_404(ContractItem, link_id)
     contract_id = link.contract_id
     db.session.delete(link)
     db.session.commit()
@@ -211,7 +211,7 @@ def delete_contract(id):
     if not has_write_permission('procurement'):
         flash('Write access required to delete contracts.', 'danger')
         return redirect(url_for('contracts.contract_detail', id=id))
-    contract = Contract.query.get_or_404(id)
+    contract = db.get_or_404(Contract, id)
     db.session.delete(contract)
     db.session.commit()
     flash('Contract deleted.', 'success')

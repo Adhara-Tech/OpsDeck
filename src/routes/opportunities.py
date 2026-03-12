@@ -52,7 +52,7 @@ def new_opportunity():
 @login_required
 @requires_permission('procurement', access_level='READ_ONLY')
 def detail(id):
-    opportunity = Opportunity.query.get_or_404(id)
+    opportunity = db.get_or_404(Opportunity, id)
     return render_template('opportunities/detail.html', opportunity=opportunity)
 
 # --- ADD THIS EDIT ROUTE ---
@@ -60,7 +60,7 @@ def detail(id):
 @login_required
 @requires_permission('procurement', access_level='READ_ONLY')
 def edit_opportunity(id):
-    opportunity = Opportunity.query.get_or_404(id)
+    opportunity = db.get_or_404(Opportunity, id)
     if request.method == 'POST':
         if not has_write_permission('procurement'):
             flash('Write access required to update opportunities.', 'danger')
@@ -96,7 +96,7 @@ def add_activity(id):
     if not has_write_permission('procurement'):
         flash('Write access required to add activities.', 'danger')
         return redirect(url_for('opportunities.detail', id=id))
-    Opportunity.query.get_or_404(id)
+    db.get_or_404(Opportunity, id)
     activity_type = request.form.get('type')
     notes = request.form.get('notes')
 
@@ -137,8 +137,8 @@ def add_task(opportunity_id):
 def toggle_task(task_id):
     if not has_write_permission('procurement'):
         flash('Write access required to update tasks.', 'danger')
-        return redirect(url_for('opportunities.detail', id=OpportunityTask.query.get_or_404(task_id).opportunity_id))
-    task = OpportunityTask.query.get_or_404(task_id)
+        return redirect(url_for('opportunities.detail', id=db.get_or_404(OpportunityTask, task_id).opportunity_id))
+    task = db.get_or_404(OpportunityTask, task_id)
     task.is_completed = not task.is_completed
     db.session.commit()
     flash('Task status updated.', 'info')
@@ -150,8 +150,8 @@ def toggle_task(task_id):
 def delete_task(task_id):
     if not has_write_permission('procurement'):
         flash('Write access required to delete tasks.', 'danger')
-        return redirect(url_for('opportunities.detail', id=OpportunityTask.query.get_or_404(task_id).opportunity_id))
-    task = OpportunityTask.query.get_or_404(task_id)
+        return redirect(url_for('opportunities.detail', id=db.get_or_404(OpportunityTask, task_id).opportunity_id))
+    task = db.get_or_404(OpportunityTask, task_id)
     opportunity_id = task.opportunity_id
     db.session.delete(task)
     db.session.commit()

@@ -132,7 +132,7 @@ def new_evaluation():
 @login_required
 @requires_permission('procurement', access_level='READ_ONLY')
 def detail(id):
-    evaluation = Opportunity.query.get_or_404(id)
+    evaluation = db.get_or_404(Opportunity, id)
     # Filter out hidden activities and tasks
     visible_activities = [activity for activity in evaluation.activities if not activity.is_hidden]
     visible_tasks = [task for task in evaluation.tasks if not task.is_hidden]
@@ -145,7 +145,7 @@ def detail(id):
 @login_required
 @requires_permission('procurement', access_level='READ_ONLY')
 def edit_evaluation(id):
-    evaluation = Opportunity.query.get_or_404(id)
+    evaluation = db.get_or_404(Opportunity, id)
     if request.method == 'POST':
         if not has_write_permission('procurement'):
             flash('Write access required to update evaluations.', 'danger')
@@ -192,7 +192,7 @@ def add_activity(id):
         flash('Write access required to add activities.', 'danger')
         return redirect(url_for('evaluations.detail', id=id))
 
-    Opportunity.query.get_or_404(id)
+    db.get_or_404(Opportunity, id)
     activity_type = request.form.get('type')
     notes = request.form.get('notes')
 
@@ -216,10 +216,10 @@ def add_activity(id):
 def edit_activity(activity_id):
     if not has_write_permission('procurement'):
         flash('Write access required to edit activities.', 'danger')
-        activity = Activity.query.get_or_404(activity_id)
+        activity = db.get_or_404(Activity, activity_id)
         return redirect(url_for('evaluations.detail', id=activity.opportunity_id))
 
-    activity = Activity.query.get_or_404(activity_id)
+    activity = db.get_or_404(Activity, activity_id)
     activity.notes = request.form.get('notes')
     activity.type = request.form.get('type')
     activity.edited_at = now()
@@ -234,10 +234,10 @@ def edit_activity(activity_id):
 def toggle_activity_hidden(activity_id):
     if not has_write_permission('procurement'):
         flash('Write access required to hide/show activities.', 'danger')
-        activity = Activity.query.get_or_404(activity_id)
+        activity = db.get_or_404(Activity, activity_id)
         return redirect(url_for('evaluations.detail', id=activity.opportunity_id))
 
-    activity = Activity.query.get_or_404(activity_id)
+    activity = db.get_or_404(Activity, activity_id)
     activity.is_hidden = not activity.is_hidden
     db.session.commit()
     flash('Activity visibility updated.', 'info')
@@ -250,10 +250,10 @@ def toggle_activity_hidden(activity_id):
 def delete_activity(activity_id):
     if not has_write_permission('procurement'):
         flash('Write access required to delete activities.', 'danger')
-        activity = Activity.query.get_or_404(activity_id)
+        activity = db.get_or_404(Activity, activity_id)
         return redirect(url_for('evaluations.detail', id=activity.opportunity_id))
 
-    activity = Activity.query.get_or_404(activity_id)
+    activity = db.get_or_404(Activity, activity_id)
     opportunity_id = activity.opportunity_id
     db.session.delete(activity)
     db.session.commit()
@@ -294,10 +294,10 @@ def add_task(evaluation_id):
 def toggle_task(task_id):
     if not has_write_permission('procurement'):
         flash('Write access required to update tasks.', 'danger')
-        task = OpportunityTask.query.get_or_404(task_id)
+        task = db.get_or_404(OpportunityTask, task_id)
         return redirect(url_for('evaluations.detail', id=task.opportunity_id))
 
-    task = OpportunityTask.query.get_or_404(task_id)
+    task = db.get_or_404(OpportunityTask, task_id)
     task.is_completed = not task.is_completed
     if task.is_completed:
         task.completed_at = now()
@@ -314,10 +314,10 @@ def toggle_task(task_id):
 def edit_task(task_id):
     if not has_write_permission('procurement'):
         flash('Write access required to edit tasks.', 'danger')
-        task = OpportunityTask.query.get_or_404(task_id)
+        task = db.get_or_404(OpportunityTask, task_id)
         return redirect(url_for('evaluations.detail', id=task.opportunity_id))
 
-    task = OpportunityTask.query.get_or_404(task_id)
+    task = db.get_or_404(OpportunityTask, task_id)
     task.description = request.form.get('description')
     due_date_str = request.form.get('due_date')
     task.due_date = datetime.strptime(due_date_str, '%Y-%m-%d').date() if due_date_str else None
@@ -332,10 +332,10 @@ def edit_task(task_id):
 def toggle_task_hidden(task_id):
     if not has_write_permission('procurement'):
         flash('Write access required to hide/show tasks.', 'danger')
-        task = OpportunityTask.query.get_or_404(task_id)
+        task = db.get_or_404(OpportunityTask, task_id)
         return redirect(url_for('evaluations.detail', id=task.opportunity_id))
 
-    task = OpportunityTask.query.get_or_404(task_id)
+    task = db.get_or_404(OpportunityTask, task_id)
     task.is_hidden = not task.is_hidden
     db.session.commit()
     flash('Task visibility updated.', 'info')
@@ -348,10 +348,10 @@ def toggle_task_hidden(task_id):
 def delete_task(task_id):
     if not has_write_permission('procurement'):
         flash('Write access required to delete tasks.', 'danger')
-        task = OpportunityTask.query.get_or_404(task_id)
+        task = db.get_or_404(OpportunityTask, task_id)
         return redirect(url_for('evaluations.detail', id=task.opportunity_id))
 
-    task = OpportunityTask.query.get_or_404(task_id)
+    task = db.get_or_404(OpportunityTask, task_id)
     opportunity_id = task.opportunity_id
     db.session.delete(task)
     db.session.commit()
@@ -370,7 +370,7 @@ def update_status(evaluation_id):
     if not has_write_permission('procurement'):
         return jsonify({'success': False, 'error': 'Write access required'}), 403
 
-    evaluation = Opportunity.query.get_or_404(evaluation_id)
+    evaluation = db.get_or_404(Opportunity, evaluation_id)
     data = request.get_json()
     new_status = data.get('status')
 

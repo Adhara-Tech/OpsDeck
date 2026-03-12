@@ -76,7 +76,7 @@ def new_activity():
 @requires_permission('operations')
 def activity_detail(id):
     """Displays details of a specific security activity."""
-    activity = SecurityActivity.query.get_or_404(id)
+    activity = db.get_or_404(SecurityActivity, id)
     executions = activity.executions.all()
     
     return render_template('activities/detail.html', activity=activity, executions=executions)
@@ -86,7 +86,7 @@ def activity_detail(id):
 @requires_permission('operations')
 def edit_activity(id):
     """Edits an existing security activity."""
-    activity = SecurityActivity.query.get_or_404(id)
+    activity = db.get_or_404(SecurityActivity, id)
     
     if request.method == 'POST':
         if not has_write_permission('operations'):
@@ -133,7 +133,7 @@ def delete_activity(id):
         flash('Write access required to delete activities.', 'danger')
         return redirect(url_for('activities.activity_detail', id=id))
     """Deletes a security activity."""
-    activity = SecurityActivity.query.get_or_404(id)
+    activity = db.get_or_404(SecurityActivity, id)
     activity_name = activity.name
     
     db.session.delete(activity)
@@ -147,7 +147,7 @@ def delete_activity(id):
 @requires_permission('operations')
 def execute_activity(id):
     """Records a new execution for a security activity."""
-    activity = SecurityActivity.query.get_or_404(id)
+    activity = db.get_or_404(SecurityActivity, id)
     
     if request.method == 'POST':
         if not has_write_permission('operations'):
@@ -209,7 +209,7 @@ def execute_activity(id):
 @requires_permission('operations')
 def execution_detail(id):
     """Displays details of a specific execution."""
-    execution = ActivityExecution.query.get_or_404(id)
+    execution = db.get_or_404(ActivityExecution, id)
     return render_template('activities/execution_detail.html', execution=execution)
 
 @activities_bp.route('/execution/<int:id>/edit', methods=['GET', 'POST'])
@@ -217,7 +217,7 @@ def execution_detail(id):
 @requires_permission('operations')
 def edit_execution(id):
     """Edits an existing execution."""
-    execution = ActivityExecution.query.get_or_404(id)
+    execution = db.get_or_404(ActivityExecution, id)
     activity = execution.activity
     
     if request.method == 'POST':
@@ -327,7 +327,7 @@ def link_object(id):
         flash('Write access required to link objects.', 'danger')
         return redirect(url_for('activities.activity_detail', id=id))
     """Links an object to a security activity."""
-    SecurityActivity.query.get_or_404(id)
+    db.get_or_404(SecurityActivity, id)
     
     object_type = request.form.get('object_type')
     object_id = request.form.get('object_id')
@@ -368,8 +368,8 @@ def unlink_object(id, link_id):
         flash('Write access required to unlink objects.', 'danger')
         return redirect(url_for('activities.activity_detail', id=id))
     """Removes a link between an activity and an object."""
-    SecurityActivity.query.get_or_404(id)
-    link = ActivityRelatedObject.query.get_or_404(link_id)
+    db.get_or_404(SecurityActivity, id)
+    link = db.get_or_404(ActivityRelatedObject, link_id)
     
     # Verify the link belongs to this activity
     if link.activity_id != id:

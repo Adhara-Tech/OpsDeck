@@ -61,17 +61,17 @@ def new_assessment():
 @risk_assessment_bp.route('/<int:id>')
 @requires_permission('risk_governance')
 def view_assessment(id):
-    assessment = RiskAssessment.query.get_or_404(id)
+    assessment = db.get_or_404(RiskAssessment, id)
     return render_template('risk_assessment/detail.html', assessment=assessment)
 
 @risk_assessment_bp.route('/item/<int:id>/edit', methods=['POST'])
 @requires_permission('risk_governance')
 def edit_assessment_item(id):
     if not has_write_permission('risk_governance'):
-        item = RiskAssessmentItem.query.get_or_404(id)
+        item = db.get_or_404(RiskAssessmentItem, id)
         flash('You do not have permission to edit assessment items.', 'danger')
         return redirect(url_for('risk_assessment.view_assessment', id=item.assessment_id))
-    item = RiskAssessmentItem.query.get_or_404(id)
+    item = db.get_or_404(RiskAssessmentItem, id)
     if item.assessment.status == 'Locked':
         flash('Cannot edit items in a locked assessment.', 'warning')
         return redirect(url_for('risk_assessment.view_assessment', id=item.assessment_id))
@@ -94,7 +94,7 @@ def lock_assessment(id):
     if not has_write_permission('risk_governance'):
         flash('You do not have permission to lock assessments.', 'danger')
         return redirect(url_for('risk_assessment.view_assessment', id=id))
-    assessment = RiskAssessment.query.get_or_404(id)
+    assessment = db.get_or_404(RiskAssessment, id)
     
     # Checkbox from the sync modal
     sync_to_live = request.form.get('sync_to_live') == 'on'
@@ -142,7 +142,7 @@ def lock_assessment(id):
 @risk_assessment_bp.route('/<int:id>/pdf')
 @requires_permission('risk_governance')
 def export_pdf(id):
-    assessment = RiskAssessment.query.get_or_404(id)
+    assessment = db.get_or_404(RiskAssessment, id)
     from weasyprint import HTML
     
     html = render_template('risk_assessment/pdf_report.html', assessment=assessment, now=now())
@@ -171,8 +171,8 @@ def upload_evidence(id, item_id):
     import uuid
     import os
     
-    assessment = RiskAssessment.query.get_or_404(id)
-    item = RiskAssessmentItem.query.get_or_404(item_id)
+    assessment = db.get_or_404(RiskAssessment, id)
+    item = db.get_or_404(RiskAssessmentItem, item_id)
     
     if item.assessment_id != assessment.id:
         flash('Invalid item for this assessment.', 'danger')
@@ -226,8 +226,8 @@ def link_evidence(id, item_id):
     """Link an existing OpsDeck object as evidence for an assessment item."""
     from ..models import RiskAssessmentEvidence
     
-    assessment = RiskAssessment.query.get_or_404(id)
-    item = RiskAssessmentItem.query.get_or_404(item_id)
+    assessment = db.get_or_404(RiskAssessment, id)
+    item = db.get_or_404(RiskAssessmentItem, item_id)
     
     if item.assessment_id != assessment.id:
         flash('Invalid item for this assessment.', 'danger')
@@ -267,8 +267,8 @@ def delete_evidence(id, evidence_id):
     """Remove an evidence item from an assessment."""
     from ..models import RiskAssessmentEvidence
     
-    assessment = RiskAssessment.query.get_or_404(id)
-    evidence = RiskAssessmentEvidence.query.get_or_404(evidence_id)
+    assessment = db.get_or_404(RiskAssessment, id)
+    evidence = db.get_or_404(RiskAssessmentEvidence, evidence_id)
     
     if evidence.item.assessment_id != assessment.id:
         flash('Invalid evidence for this assessment.', 'danger')

@@ -85,7 +85,7 @@ def archived_users():
 @login_required
 @requires_permission('administration', access_level='WRITE')
 def archive_user(id):
-    user = User.query.get_or_404(id)
+    user = db.get_or_404(User, id)
 
     # Validate that user can be archived
     can_archive, errors = user.can_be_archived()
@@ -111,7 +111,7 @@ def archive_user(id):
 @login_required
 @requires_permission('administration', access_level='WRITE')
 def unarchive_user(id):
-    user = User.query.get_or_404(id)
+    user = db.get_or_404(User, id)
     user.is_archived = False
     db.session.commit()
     flash(f'User "{user.name}" has been restored.', 'success')
@@ -121,7 +121,7 @@ def unarchive_user(id):
 @login_required
 @requires_permission('administration', access_level='READ_ONLY')
 def user_detail(id):
-    user = User.query.get_or_404(id)
+    user = db.get_or_404(User, id)
     custom_field_definitions = CustomFieldDefinition.query.filter_by(entity_type='User').all()
     return render_template('users/detail.html', user=user, custom_field_definitions=custom_field_definitions)
 
@@ -163,7 +163,7 @@ def new_user():
 @login_required
 @requires_permission('administration', access_level='READ_ONLY')
 def edit_user(id):
-    user = User.query.get_or_404(id)
+    user = db.get_or_404(User, id)
 
     users = User.query.filter_by(is_archived=False).order_by(User.name).all()
     custom_field_definitions = CustomFieldDefinition.query.filter_by(entity_type='User').all()
@@ -203,7 +203,7 @@ def generate_inventory(id):
     Genera un snapshot en PDF del inventario del usuario y lo guarda
     como un adjunto enlazado a ese usuario.
     """
-    user = User.query.get_or_404(id)
+    user = db.get_or_404(User, id)
     
     # 1. Renderizar la plantilla HTML específica para el PDF
     html_content = render_template(
@@ -255,7 +255,7 @@ def generate_inventory(id):
 @requires_permission('administration', access_level='WRITE')
 def generate_token(id):
     """Generates a new API token for the user."""
-    user = User.query.get_or_404(id)
+    user = db.get_or_404(User, id)
     user.generate_token()
     db.session.commit()
     
@@ -328,7 +328,7 @@ def list_org_snapshots():
 @login_required
 @requires_permission('administration', access_level='READ_ONLY')
 def view_org_snapshot(id):
-    snapshot = OrgChartSnapshot.query.get_or_404(id)
+    snapshot = db.get_or_404(OrgChartSnapshot, id)
 
     # Build nested tree from flat chart_data for OrgChart.js
     flat = snapshot.chart_data or []
