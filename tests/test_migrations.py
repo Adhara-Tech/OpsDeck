@@ -117,9 +117,14 @@ class TestMigrations:
                 migration_ctx = MigrationContext.configure(conn)
                 diff = compare_metadata(migration_ctx, db.metadata)
 
-            if diff:
-                changes = "\n".join(f"  - {d}" for d in diff)
+            # Ignore 'remove_table' diffs — these are tables from optional
+            # plugins (e.g. opsdeck-enterprise) that exist in migrations
+            # but whose models aren't installed in this environment.
+            meaningful = [d for d in diff if d[0] != 'remove_table']
+
+            if meaningful:
+                changes = "\n".join(f"  - {d}" for d in meaningful)
                 pytest.fail(
                     f"Models and migrations are out of sync.\n"
-                    f"Detected {len(diff)} difference(s):\n{changes}"
+                    f"Detected {len(meaningful)} difference(s):\n{changes}"
                 )
