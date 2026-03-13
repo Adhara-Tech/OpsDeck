@@ -164,6 +164,8 @@ def admin_complete_course(assignment_id):
         notes=notes,
         completion_date=completion_date
     )
+    db.session.add(completion)
+    db.session.flush()  # Get completion.id before creating the attachment
 
     # Handle file upload for certificate
     if 'certificate' in request.files:
@@ -172,16 +174,17 @@ def admin_complete_course(assignment_id):
             original_filename = secure_filename(file.filename)
             file_ext = os.path.splitext(original_filename)[1]
             unique_filename = f"{uuid.uuid4().hex}{file_ext}"
-            
+
             file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], unique_filename))
-            
+
             attachment = Attachment(
                 filename=original_filename,
-                secure_filename=unique_filename
+                secure_filename=unique_filename,
+                linkable_type='CourseCompletion',
+                linkable_id=completion.id
             )
-            completion.attachment = attachment
+            db.session.add(attachment)
 
-    db.session.add(completion)
     db.session.commit()
     flash(f'Successfully marked "{assignment.course.title}" as complete for {assignment.user.name}!', 'success')
     return redirect(url_for('training.course_detail', id=assignment.course_id))
