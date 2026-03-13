@@ -152,7 +152,7 @@ def new_candidate():
 @requires_permission('hr_people')
 def edit_candidate(id):
     """View/Edit a candidate."""
-    candidate = Candidate.query.get_or_404(id)
+    candidate = db.get_or_404(Candidate, id)
     
     if request.method == 'POST':
         if not has_write_permission('hr_people'):
@@ -211,7 +211,7 @@ def delete_candidate(id):
         flash('Write access required to delete candidates.', 'danger')
         return redirect(url_for('hiring.board'))
     """Delete a candidate."""
-    candidate = Candidate.query.get_or_404(id)
+    candidate = db.get_or_404(Candidate, id)
     name = candidate.name
     db.session.delete(candidate)
     db.session.commit()
@@ -226,7 +226,7 @@ def archive_candidate(id):
         flash('Write access required to archive candidates.', 'danger')
         return redirect(request.referrer or url_for('hiring.board'))
     """Archive a candidate."""
-    candidate = Candidate.query.get_or_404(id)
+    candidate = db.get_or_404(Candidate, id)
     candidate.is_archived = True
     db.session.commit()
     flash(f'Candidate "{candidate.name}" archived.', 'success')
@@ -240,7 +240,7 @@ def unarchive_candidate(id):
         flash('Write access required to unarchive candidates.', 'danger')
         return redirect(request.referrer or url_for('hiring.list_candidates'))
     """Unarchive a candidate."""
-    candidate = Candidate.query.get_or_404(id)
+    candidate = db.get_or_404(Candidate, id)
     candidate.is_archived = False
     db.session.commit()
     flash(f'Candidate "{candidate.name}" unarchived.', 'success')
@@ -251,7 +251,7 @@ def unarchive_candidate(id):
 @requires_permission('hr_people')
 def download_resume(id):
     """Download the candidate's resume."""
-    candidate = Candidate.query.get_or_404(id)
+    candidate = db.get_or_404(Candidate, id)
     
     if not candidate.resume_link:
         flash('No resume attached.', 'warning')
@@ -292,8 +292,8 @@ def move_candidate():
     if not candidate_id or not new_stage_id:
         return jsonify({'status': 'error', 'message': 'Missing parameters'}), 400
     
-    candidate = Candidate.query.get_or_404(candidate_id)
-    new_stage = HiringStage.query.get_or_404(new_stage_id)
+    candidate = db.get_or_404(Candidate, candidate_id)
+    new_stage = db.get_or_404(HiringStage, new_stage_id)
     
     # Validation: Prevent moving out/within if already hired (frontend should block, but safer here)
     if candidate.stage.is_hired_stage:
@@ -455,7 +455,7 @@ def delete_stage(id):
         flash('Write access required to delete stages.', 'danger')
         return redirect(url_for('hiring.manage_stages'))
     """Delete a hiring stage."""
-    stage = HiringStage.query.get_or_404(id)
+    stage = db.get_or_404(HiringStage, id)
     
     # Protected stages
     PROTECTED_STAGES = ['Applied', 'Offer', 'Hired', 'Rejected']
@@ -504,7 +504,7 @@ def update_stage(id):
         flash('Write access required to update stages.', 'danger')
         return redirect(url_for('hiring.manage_stages'))
     """Update a hiring stage (rename)."""
-    stage = HiringStage.query.get_or_404(id)
+    stage = db.get_or_404(HiringStage, id)
     
     name = request.form.get('name')
     if not name:

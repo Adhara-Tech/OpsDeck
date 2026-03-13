@@ -106,7 +106,7 @@ def detail_credential(id):
     """
     Show credential details including active secret and secret history.
     """
-    credential = Credential.query.get_or_404(id)
+    credential = db.get_or_404(Credential, id)
     
     # Get all secrets ordered by created_at descending (newest first)
     secrets = credential.secrets.order_by(CredentialSecret.created_at.desc()).all()
@@ -250,7 +250,7 @@ def edit_credential(id):
     Edit an existing credential's metadata (not the secret).
     Use rotate_secret to change the actual secret value.
     """
-    credential = Credential.query.get_or_404(id)
+    credential = db.get_or_404(Credential, id)
     
     if request.method == 'POST':
         if not has_write_permission('core_inventory'):
@@ -342,7 +342,7 @@ def rotate_secret(id):
     Rotate the secret for a credential.
     Deactivates all existing secrets and creates a new active one.
     """
-    credential = Credential.query.get_or_404(id)
+    credential = db.get_or_404(Credential, id)
     
     # Extract form data
     new_secret_value = request.form.get('new_secret_value')
@@ -386,7 +386,7 @@ def delete_credential(id):
     """
     Delete a credential and all its associated secrets (cascade).
     """
-    credential = Credential.query.get_or_404(id)
+    credential = db.get_or_404(Credential, id)
     credential_name = credential.name
     
     db.session.delete(credential)

@@ -129,7 +129,7 @@ def new_campaign():
 @requires_permission('communications', access_level='READ_ONLY')
 def detail(id):
     """Campaign detail/report view."""
-    campaign = Campaign.query.get_or_404(id)
+    campaign = db.get_or_404(Campaign, id)
     
     # Get scheduled communications for this campaign
     communications = ScheduledCommunication.query.filter_by(
@@ -164,7 +164,7 @@ def detail(id):
 @requires_permission('communications', access_level='WRITE')
 def edit_campaign(id):
     """Edit a draft campaign."""
-    campaign = Campaign.query.get_or_404(id)
+    campaign = db.get_or_404(Campaign, id)
     
     if campaign.status != 'draft':
         flash('Only draft campaigns can be edited.', 'warning')
@@ -253,7 +253,7 @@ def archive_campaign(id):
     Archive a campaign (replaces delete).
     Only allowed from 'draft' or 'finished' states.
     """
-    campaign = Campaign.query.get_or_404(id)
+    campaign = db.get_or_404(Campaign, id)
     
     if not campaign.can_be_archived:
         flash(f'Cannot archive campaign in "{campaign.status}" state. Cancel it first.', 'danger')
@@ -277,7 +277,7 @@ def clone_campaign(id):
     Clone a campaign - copies title (with -copy suffix), subject, and body.
     Does NOT copy recipients or scheduling.
     """
-    original = Campaign.query.get_or_404(id)
+    original = db.get_or_404(Campaign, id)
     
     # Create new campaign with copied content
     new_campaign = Campaign(
@@ -312,7 +312,7 @@ def schedule_campaign(id):
     Schedule/launch a campaign.
     This spawns individual ScheduledCommunication records for each recipient.
     """
-    campaign = Campaign.query.get_or_404(id)
+    campaign = db.get_or_404(Campaign, id)
     
     if campaign.status != 'draft':
         flash('Campaign has already been scheduled or processed.', 'warning')
@@ -370,7 +370,7 @@ def cancel_campaign(id):
     Only allowed from 'scheduled' or 'ongoing' states.
     Resets the campaign to draft status so it can be edited and re-scheduled.
     """
-    campaign = Campaign.query.get_or_404(id)
+    campaign = db.get_or_404(Campaign, id)
     
     if not campaign.can_be_cancelled:
         flash(f'Cannot cancel campaign in "{campaign.status}" state.', 'danger')
@@ -412,7 +412,7 @@ def send_campaign_now(id):
     from .. import notifications
     from flask import current_app
     
-    campaign = Campaign.query.get_or_404(id)
+    campaign = db.get_or_404(Campaign, id)
     
     # Get pending communications
     pending = ScheduledCommunication.query.filter_by(
@@ -471,7 +471,7 @@ def retry_failed(id):
     Reset all failed communications for this campaign to pending,
     allowing them to be retried by the communications queue processor.
     """
-    campaign = Campaign.query.get_or_404(id)
+    campaign = db.get_or_404(Campaign, id)
     
     # Find all failed communications for this campaign
     failed_comms = ScheduledCommunication.query.filter_by(
@@ -509,7 +509,7 @@ def finish_campaign(id):
     Manually finish an ongoing campaign.
     Marks campaign as 'finished' and stops any further retry attempts.
     """
-    campaign = Campaign.query.get_or_404(id)
+    campaign = db.get_or_404(Campaign, id)
     
     if campaign.status != 'ongoing':
         flash(f'Cannot finish campaign in "{campaign.status}" state.', 'warning')
@@ -534,7 +534,7 @@ def get_stats(id):
     """
     from flask import jsonify
     
-    campaign = Campaign.query.get_or_404(id)
+    campaign = db.get_or_404(Campaign, id)
     
     # Update status based on progress (scheduled->ongoing->finished)
     if campaign.update_auto_status():

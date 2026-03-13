@@ -75,7 +75,7 @@ def create_service():
 @login_required
 @requires_permission('core_inventory', access_level='READ_ONLY')
 def detail(id):
-    service = BusinessService.query.get_or_404(id)
+    service = db.get_or_404(BusinessService, id)
     all_services = BusinessService.query.filter(BusinessService.id != id).all()
     
     # Context data for Service Context tab
@@ -146,7 +146,7 @@ from src.utils.logger import log_audit
 @login_required
 @requires_permission('core_inventory', access_level='READ_ONLY')
 def edit_service(id):
-    service = BusinessService.query.get_or_404(id)
+    service = db.get_or_404(BusinessService, id)
     
     if request.method == 'POST':
         if not has_write_permission('core_inventory'):
@@ -193,7 +193,7 @@ def edit_service(id):
 @login_required
 @requires_permission('core_inventory', access_level='WRITE')
 def delete_service(id):
-    service = BusinessService.query.get_or_404(id)
+    service = db.get_or_404(BusinessService, id)
     try:
         service_info = service.name
         db.session.delete(service)
@@ -217,7 +217,7 @@ def delete_service(id):
 @login_required
 @requires_permission('core_inventory', access_level='WRITE')
 def add_dependency(id):
-    service = BusinessService.query.get_or_404(id)
+    service = db.get_or_404(BusinessService, id)
     target_service_id = request.form.get('target_service_id')
     dependency_type = request.form.get('dependency_type') # 'upstream' (depends on) or 'downstream' (supports)
     
@@ -261,8 +261,8 @@ def add_dependency(id):
 @login_required
 @requires_permission('core_inventory', access_level='WRITE')
 def remove_dependency(id, target_id):
-    service = BusinessService.query.get_or_404(id)
-    target_service = BusinessService.query.get_or_404(target_id)
+    service = db.get_or_404(BusinessService, id)
+    target_service = db.get_or_404(BusinessService, target_id)
     
     # We don't know if it was upstream or downstream just by ID, so check both or pass type.
     # Assuming the user clicks 'remove' from a specific list.
@@ -288,7 +288,7 @@ def remove_dependency(id, target_id):
 @login_required
 @requires_permission('core_inventory', access_level='WRITE')
 def add_component(id):
-    service = BusinessService.query.get_or_404(id)
+    service = db.get_or_404(BusinessService, id)
     comp_type = request.form.get('component_type')
     comp_id = request.form.get('component_id')
     notes = request.form.get('notes')
@@ -319,7 +319,7 @@ def add_component(id):
 @login_required
 @requires_permission('core_inventory', access_level='WRITE')
 def delete_component(comp_id):
-    comp = ServiceComponent.query.get_or_404(comp_id)
+    comp = db.get_or_404(ServiceComponent, comp_id)
     service_id = comp.service_id
     try:
         db.session.delete(comp)
@@ -377,7 +377,7 @@ def search_components(component_type):
 @login_required
 @requires_permission('core_inventory', access_level='WRITE')
 def link_document(id):
-    service = BusinessService.query.get_or_404(id)
+    service = db.get_or_404(BusinessService, id)
     doc_id = request.form.get('document_id')
     if doc_id:
         doc = db.session.get(Documentation,doc_id)
@@ -392,7 +392,7 @@ def link_document(id):
 @login_required
 @requires_permission('core_inventory', access_level='WRITE')
 def unlink_document(id, doc_id):
-    service = BusinessService.query.get_or_404(id)
+    service = db.get_or_404(BusinessService, id)
     doc = db.session.get(Documentation,doc_id)
     if doc and doc in service.documents:
         service.documents.remove(doc)
@@ -405,7 +405,7 @@ def unlink_document(id, doc_id):
 @login_required
 @requires_permission('core_inventory', access_level='WRITE')
 def link_policy(id):
-    service = BusinessService.query.get_or_404(id)
+    service = db.get_or_404(BusinessService, id)
     policy_id = request.form.get('policy_id')
     if policy_id:
         policy = db.session.get(Policy,policy_id)
@@ -420,7 +420,7 @@ def link_policy(id):
 @login_required
 @requires_permission('core_inventory', access_level='WRITE')
 def unlink_policy(id, policy_id):
-    service = BusinessService.query.get_or_404(id)
+    service = db.get_or_404(BusinessService, id)
     policy = db.session.get(Policy,policy_id)
     if policy and policy in service.policies:
         service.policies.remove(policy)
@@ -433,7 +433,7 @@ def unlink_policy(id, policy_id):
 @login_required
 @requires_permission('core_inventory', access_level='WRITE')
 def link_activity(id):
-    service = BusinessService.query.get_or_404(id)
+    service = db.get_or_404(BusinessService, id)
     activity_id = request.form.get('activity_id')
     if activity_id:
         activity = db.session.get(SecurityActivity,activity_id)
@@ -448,7 +448,7 @@ def link_activity(id):
 @login_required
 @requires_permission('core_inventory', access_level='WRITE')
 def unlink_activity(id, activity_id):
-    service = BusinessService.query.get_or_404(id)
+    service = db.get_or_404(BusinessService, id)
     activity = db.session.get(SecurityActivity,activity_id)
     if activity and activity in service.activities:
         service.activities.remove(activity)
@@ -461,7 +461,7 @@ def unlink_activity(id, activity_id):
 @login_required
 @requires_permission('core_inventory', access_level='WRITE')
 def add_link(id):
-    BusinessService.query.get_or_404(id)
+    db.get_or_404(BusinessService, id)
     name = request.form.get('name')
     url = request.form.get('url')
     
@@ -482,7 +482,7 @@ def add_link(id):
 @login_required
 @requires_permission('core_inventory', access_level='WRITE')
 def remove_link(id, link_id):
-    link = Link.query.get_or_404(link_id)
+    link = db.get_or_404(Link, link_id)
     if link.owner_type == 'BusinessService' and link.owner_id == id:
         db.session.delete(link)
         db.session.commit()
@@ -494,7 +494,7 @@ def remove_link(id, link_id):
 @login_required
 @requires_permission('core_inventory', access_level='WRITE')
 def upload_attachment(id):
-    BusinessService.query.get_or_404(id)
+    db.get_or_404(BusinessService, id)
     
     if 'file' not in request.files:
         flash('No file selected.', 'warning')
@@ -534,7 +534,7 @@ def upload_attachment(id):
 @login_required
 @requires_permission('core_inventory', access_level='WRITE')
 def remove_attachment(id, att_id):
-    attachment = Attachment.query.get_or_404(att_id)
+    attachment = db.get_or_404(Attachment, att_id)
     if attachment.linkable_type == 'BusinessService' and attachment.linkable_id == id:
         # Optionally delete the file from disk
         try:
@@ -557,7 +557,7 @@ def remove_attachment(id, att_id):
 @login_required
 @requires_permission('core_inventory', access_level='WRITE')
 def add_user_access(id):
-    service = BusinessService.query.get_or_404(id)
+    service = db.get_or_404(BusinessService, id)
     user_id = request.form.get('user_id')
     
     if user_id:
@@ -573,8 +573,8 @@ def add_user_access(id):
 @login_required
 @requires_permission('core_inventory', access_level='WRITE')
 def remove_user_access(id, user_id):
-    service = BusinessService.query.get_or_404(id)
-    user = User.query.get_or_404(user_id)
+    service = db.get_or_404(BusinessService, id)
+    user = db.get_or_404(User, user_id)
     
     if user in service.users:
         service.users.remove(user)
@@ -592,8 +592,8 @@ def check_user_access(id, user_id):
     
     Returns JSON: {'exists': bool, 'sources': [str]}
     """
-    service = BusinessService.query.get_or_404(id)
-    user = User.query.get_or_404(user_id)
+    service = db.get_or_404(BusinessService, id)
+    user = db.get_or_404(User, user_id)
     
     inherited_sources = []
     
@@ -618,7 +618,7 @@ def check_user_access(id, user_id):
 @login_required
 @requires_permission('core_inventory', access_level='WRITE')
 def link_certificate(id):
-    service = BusinessService.query.get_or_404(id)
+    service = db.get_or_404(BusinessService, id)
     cert_id = request.form.get('certificate_id')
     
     if cert_id:
@@ -648,8 +648,8 @@ def link_certificate(id):
 @login_required
 @requires_permission('core_inventory', access_level='WRITE')
 def unlink_certificate(id, cert_id):
-    service = BusinessService.query.get_or_404(id)
-    cert = Certificate.query.get_or_404(cert_id)
+    service = db.get_or_404(BusinessService, id)
+    cert = db.get_or_404(Certificate, cert_id)
 
     if cert in service.certificates:
         service.certificates.remove(cert)
@@ -672,7 +672,7 @@ def unlink_certificate(id, cert_id):
 @login_required
 @requires_permission('core_inventory', access_level='WRITE')
 def link_credential(id):
-    service = BusinessService.query.get_or_404(id)
+    service = db.get_or_404(BusinessService, id)
     cred_id = request.form.get('credential_id')
     
     if cred_id:
@@ -702,8 +702,8 @@ def link_credential(id):
 @login_required
 @requires_permission('core_inventory', access_level='WRITE')
 def unlink_credential(id, cred_id):
-    service = BusinessService.query.get_or_404(id)
-    cred = Credential.query.get_or_404(cred_id)
+    service = db.get_or_404(BusinessService, id)
+    cred = db.get_or_404(Credential, cred_id)
 
     if cred in service.credentials:
         service.credentials.remove(cred)

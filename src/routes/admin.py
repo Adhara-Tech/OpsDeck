@@ -53,7 +53,7 @@ def create_user():
 @login_required
 @requires_permission('administration', access_level='WRITE')
 def edit_user(id):
-    user = User.query.get_or_404(id)
+    user = db.get_or_404(User, id)
     if user.name == 'admin':
         flash('The default admin user cannot be edited.', 'danger')
         return redirect(url_for('admin.list_users'))
@@ -103,7 +103,7 @@ def edit_user(id):
 @login_required
 @requires_permission('administration', access_level='WRITE')
 def delete_user(id):
-    user_to_delete = User.query.get_or_404(id)
+    user_to_delete = db.get_or_404(User, id)
     if user_to_delete.name == 'admin':
         flash('The default admin user cannot be deleted.', 'danger')
         return redirect(url_for('admin.list_users'))
@@ -184,7 +184,7 @@ def delete_custom_field(id):
     if not has_write_permission('administration'):
         flash('Write access required to delete custom fields.', 'danger')
         return redirect(url_for('admin.custom_fields'))
-    field = CustomFieldDefinition.query.get_or_404(id)
+    field = db.get_or_404(CustomFieldDefinition, id)
     info = f"{field.entity_type}.{field.name}"
     
     CustomFieldValue.query.filter_by(field_definition_id=id).delete()
@@ -360,7 +360,7 @@ def audit_log_detail(id):
     Get detailed information about a specific audit log entry (for AJAX).
     """
     from flask import jsonify
-    entry = AuditLog.query.get_or_404(id)
+    entry = db.get_or_404(AuditLog, id)
 
     changes = None
     if entry.changes:

@@ -29,7 +29,7 @@ def archive_payment_method(id):
     if not has_write_permission('finance'):
         flash('Write access required to archive payment methods.', 'danger')
         return redirect(url_for('payment_methods.payment_methods'))
-    method = PaymentMethod.query.get_or_404(id)
+    method = db.get_or_404(PaymentMethod, id)
     method.is_archived = True
     db.session.commit()
     flash(f'Payment method "{method.name}" has been archived.', 'warning')
@@ -42,7 +42,7 @@ def unarchive_payment_method(id):
     if not has_write_permission('finance'):
         flash('Write access required to restore payment methods.', 'danger')
         return redirect(url_for('payment_methods.archived_payment_methods'))
-    method = PaymentMethod.query.get_or_404(id)
+    method = db.get_or_404(PaymentMethod, id)
     method.is_archived = False
     db.session.commit()
     flash(f'Payment method "{method.name}" has been restored.', 'success')
@@ -53,7 +53,7 @@ def unarchive_payment_method(id):
 @login_required
 @requires_permission('finance', access_level='READ_ONLY')
 def payment_method_detail(id):
-    method = PaymentMethod.query.get_or_404(id)
+    method = db.get_or_404(PaymentMethod, id)
     return render_template('payment_methods/detail.html', method=method)
 
 @payment_methods_bp.route('/new', methods=['GET', 'POST'])
@@ -91,7 +91,7 @@ def new_payment_method():
 @login_required
 @requires_permission('finance', access_level='READ_ONLY')
 def edit_payment_method(id):
-    method = PaymentMethod.query.get_or_404(id)
+    method = db.get_or_404(PaymentMethod, id)
     users = User.query.filter_by(is_archived=False).all()
 
     if request.method == 'POST':
@@ -124,7 +124,7 @@ def delete_payment_method(id):
     if not has_write_permission('finance'):
         flash('You do not have permission to delete payment methods.', 'danger')
         return redirect(url_for('payment_methods.payment_methods'))
-    method = PaymentMethod.query.get_or_404(id)
+    method = db.get_or_404(PaymentMethod, id)
     db.session.delete(method)
     db.session.commit()
     flash('Payment method deleted successfully!', 'success')

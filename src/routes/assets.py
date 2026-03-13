@@ -36,7 +36,7 @@ def archived_assets():
 @requires_permission('core_inventory', access_level='WRITE')
 def archive_asset(id):
     """Sets an asset's status to archived."""
-    asset = Asset.query.get_or_404(id)
+    asset = db.get_or_404(Asset, id)
     asset.is_archived = True
     db.session.commit()
     
@@ -56,7 +56,7 @@ def archive_asset(id):
 @requires_permission('core_inventory', access_level='WRITE')
 def unarchive_asset(id):
     """Restores an archived asset to active."""
-    asset = Asset.query.get_or_404(id)
+    asset = db.get_or_404(Asset, id)
     asset.is_archived = False
     db.session.commit()
     
@@ -125,7 +125,7 @@ def new_asset():
 @login_required
 @requires_permission('core_inventory', access_level='READ_ONLY')
 def edit_asset(id):
-    asset = Asset.query.get_or_404(id)
+    asset = db.get_or_404(Asset, id)
 
     if request.method == 'POST':
         # Manual check for WRITE access
@@ -249,7 +249,7 @@ def edit_asset(id):
 @login_required
 @requires_permission('core_inventory', access_level='READ_ONLY')
 def asset_detail(id):
-    asset = Asset.query.get_or_404(id)
+    asset = db.get_or_404(Asset, id)
     locations = Location.query.filter_by(is_archived=False).order_by(Location.name).all()
     custom_field_definitions = CustomFieldDefinition.query.filter_by(entity_type='Asset').all()
     return render_template('assets/detail.html', asset=asset, locations=locations, custom_field_definitions=custom_field_definitions)
@@ -258,7 +258,7 @@ def asset_detail(id):
 @login_required
 @requires_permission('core_inventory', access_level='READ_ONLY')
 def checkout_asset(id):
-    asset = Asset.query.get_or_404(id)
+    asset = db.get_or_404(Asset, id)
     if asset.user:
         flash('This asset is already checked out.', 'warning')
         return redirect(url_for('assets.asset_detail', id=id))
@@ -312,7 +312,7 @@ def checkout_asset(id):
 @login_required
 @requires_permission('core_inventory', access_level='WRITE')
 def checkin_asset(id):
-    asset = Asset.query.get_or_404(id)
+    asset = db.get_or_404(Asset, id)
     redirect_url = request.form.get('redirect_url')
     
     if not asset.user:
@@ -344,14 +344,15 @@ def checkin_asset(id):
     
     # Auto-complete related offboarding item if exists
     from ..models.onboarding import ProcessItem
-    offboarding_item = ProcessItem.query.filter_by(
-        item_type='Asset', 
-        linked_object_id=id, 
-        is_completed=False
-    ).first()
+    with db.session.no_autoflush:
+        offboarding_item = ProcessItem.query.filter_by(
+            item_type='Asset',
+            linked_object_id=id,
+            is_completed=False
+        ).first()
     if offboarding_item and offboarding_item.offboarding_process_id:
         offboarding_item.is_completed = True
-    
+
     db.session.commit()
     flash(f'Asset "{asset.name}" has been returned to {target_location.name}.', 'success')
     return redirect(redirect_url or url_for('assets.asset_detail', id=id))
@@ -378,7 +379,7 @@ def warranties():
 @requires_permission('core_inventory', access_level='READ_ONLY')
 def asset_history(id):
     """Displays the full history for a single asset as a visual timeline."""
-    asset = Asset.query.get_or_404(id)
+    asset = db.get_or_404(Asset, id)
     
     # Build unified timeline from multiple sources
     timeline_events = []

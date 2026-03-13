@@ -133,7 +133,7 @@ def new_requirement():
 @login_required
 @requires_permission('procurement', access_level='READ_ONLY')
 def detail(id):
-    requirement = Requirement.query.get_or_404(id)
+    requirement = db.get_or_404(Requirement, id)
     # Get non-hidden actions
     visible_actions = [action for action in requirement.actions if not action.is_hidden]
     return render_template('requirements/detail.html', requirement=requirement, visible_actions=visible_actions)
@@ -142,7 +142,7 @@ def detail(id):
 @login_required
 @requires_permission('procurement', access_level='READ_ONLY')
 def edit_requirement(id):
-    requirement = Requirement.query.get_or_404(id)
+    requirement = db.get_or_404(Requirement, id)
     if request.method == 'POST':
         if not has_write_permission('procurement'):
             flash('Write access required to update requirements.', 'danger')
@@ -167,7 +167,7 @@ def edit_requirement(id):
 @login_required
 @requires_permission('procurement', access_level='READ_ONLY')
 def convert_requirement(id):
-    requirement = Requirement.query.get_or_404(id)
+    requirement = db.get_or_404(Requirement, id)
     if requirement.status == 'Converted':
         flash('This requirement has already been converted.', 'warning')
         return redirect(url_for('requirements.list_requirements'))
@@ -214,7 +214,7 @@ def add_action(id):
         flash('Write access required to add actions.', 'danger')
         return redirect(url_for('requirements.detail', id=id))
 
-    requirement = Requirement.query.get_or_404(id)
+    requirement = db.get_or_404(Requirement, id)
     action_type = request.form.get('action_type', 'Note')
     description = request.form.get('description')
 
@@ -238,10 +238,10 @@ def add_action(id):
 def edit_action(action_id):
     if not has_write_permission('procurement'):
         flash('Write access required to edit actions.', 'danger')
-        action = RequirementAction.query.get_or_404(action_id)
+        action = db.get_or_404(RequirementAction, action_id)
         return redirect(url_for('requirements.detail', id=action.requirement_id))
 
-    action = RequirementAction.query.get_or_404(action_id)
+    action = db.get_or_404(RequirementAction, action_id)
     action.description = request.form.get('description')
     action.action_type = request.form.get('action_type')
     action.edited_at = now()
@@ -256,10 +256,10 @@ def edit_action(action_id):
 def toggle_action_hidden(action_id):
     if not has_write_permission('procurement'):
         flash('Write access required to hide/show actions.', 'danger')
-        action = RequirementAction.query.get_or_404(action_id)
+        action = db.get_or_404(RequirementAction, action_id)
         return redirect(url_for('requirements.detail', id=action.requirement_id))
 
-    action = RequirementAction.query.get_or_404(action_id)
+    action = db.get_or_404(RequirementAction, action_id)
     action.is_hidden = not action.is_hidden
     db.session.commit()
     flash('Action visibility updated.', 'info')
@@ -272,10 +272,10 @@ def toggle_action_hidden(action_id):
 def delete_action(action_id):
     if not has_write_permission('procurement'):
         flash('Write access required to delete actions.', 'danger')
-        action = RequirementAction.query.get_or_404(action_id)
+        action = db.get_or_404(RequirementAction, action_id)
         return redirect(url_for('requirements.detail', id=action.requirement_id))
 
-    action = RequirementAction.query.get_or_404(action_id)
+    action = db.get_or_404(RequirementAction, action_id)
     requirement_id = action.requirement_id
     db.session.delete(action)
     db.session.commit()

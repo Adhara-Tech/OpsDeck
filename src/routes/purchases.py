@@ -21,7 +21,7 @@ def purchases():
 @login_required
 @requires_permission('finance', access_level='READ_ONLY')
 def purchase_detail(id):
-    purchase = Purchase.query.get_or_404(id)
+    purchase = db.get_or_404(Purchase, id)
     return render_template('purchases/detail.html', purchase=purchase)
 
 @purchases_bp.route('/new', methods=['GET', 'POST'])
@@ -74,7 +74,7 @@ def new_purchase():
 @login_required
 @requires_permission('finance', access_level='READ_ONLY')
 def edit_purchase(id):
-    purchase = Purchase.query.get_or_404(id)
+    purchase = db.get_or_404(Purchase, id)
     if request.method == 'POST':
         # Manual check for WRITE access
         if not has_write_permission('finance'):
@@ -123,7 +123,7 @@ def approve_purchase(id):
     if not has_write_permission('finance'):
         flash('Write access required to approve purchases.', 'danger')
         return redirect(url_for('purchases.purchase_detail', id=id))
-    purchase = Purchase.query.get_or_404(id)
+    purchase = db.get_or_404(Purchase, id)
     user_id = session.get('user_id')
     purchase.validated_cost = purchase.calculated_cost
     purchase.cost_validated_at = now()
@@ -143,7 +143,7 @@ def unvalidate_cost(id):
     if not has_write_permission('finance'):
         flash('Write access required to unvalidate costs.', 'danger')
         return redirect(url_for('purchases.purchase_detail', id=id))
-    purchase = Purchase.query.get_or_404(id)
+    purchase = db.get_or_404(Purchase, id)
     user_id = session.get('user_id')
     history_log = PurchaseCostHistory(
         purchase_id=id, action='Un-validated', cost=purchase.validated_cost, user_id=user_id

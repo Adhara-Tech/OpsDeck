@@ -26,7 +26,7 @@ def archived_locations():
 @login_required
 @requires_permission('core_inventory', access_level='WRITE')
 def archive_location(id):
-    location = Location.query.get_or_404(id)
+    location = db.get_or_404(Location, id)
     location.is_archived = True
     db.session.commit()
     flash(f'Location "{location.name}" has been archived.', 'warning')
@@ -37,7 +37,7 @@ def archive_location(id):
 @login_required
 @requires_permission('core_inventory', access_level='WRITE')
 def unarchive_location(id):
-    location = Location.query.get_or_404(id)
+    location = db.get_or_404(Location, id)
     location.is_archived = False
     db.session.commit()
     flash(f'Location "{location.name}" has been restored.', 'success')
@@ -71,7 +71,7 @@ def new_location():
 @login_required
 @requires_permission('core_inventory', access_level='WRITE')
 def edit_location(id):
-    location = Location.query.get_or_404(id)
+    location = db.get_or_404(Location, id)
 
     if request.method == 'POST':
         location.name = request.form['name']
@@ -92,5 +92,5 @@ def edit_location(id):
 @locations_bp.route('/<int:id>')
 @login_required
 def location_detail(id):
-    location = Location.query.get_or_404(id)
+    location = db.get_or_404(Location, id)
     return render_template('locations/detail.html', location=location)

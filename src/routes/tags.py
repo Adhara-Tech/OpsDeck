@@ -29,7 +29,7 @@ def archive_tag(id):
     if not has_write_permission('core_inventory'):
         flash('Write access required to archive tags.', 'danger')
         return redirect(url_for('tags.tags'))
-    tag = Tag.query.get_or_404(id)
+    tag = db.get_or_404(Tag, id)
     tag.is_archived = True
     db.session.commit()
     flash(f'Tag "{tag.name}" has been archived.', 'warning')
@@ -43,7 +43,7 @@ def unarchive_tag(id):
     if not has_write_permission('core_inventory'):
         flash('Write access required to restore tags.', 'danger')
         return redirect(url_for('tags.archived_tags'))
-    tag = Tag.query.get_or_404(id)
+    tag = db.get_or_404(Tag, id)
     tag.is_archived = False
     db.session.commit()
     flash(f'Tag "{tag.name}" has been restored.', 'success')
@@ -72,7 +72,7 @@ def new_tag():
 @login_required
 @requires_permission('core_inventory')
 def edit_tag(id):
-    tag = Tag.query.get_or_404(id)
+    tag = db.get_or_404(Tag, id)
     if request.method == 'POST':
         if not has_write_permission('core_inventory'):
             flash('Write access required to update tags.', 'danger')
@@ -92,7 +92,7 @@ def delete_tag(id):
     if not has_write_permission('core_inventory'):
         flash('Write access required to delete tags.', 'danger')
         return redirect(url_for('tags.tags'))
-    tag = Tag.query.get_or_404(id)
+    tag = db.get_or_404(Tag, id)
     db.session.delete(tag)
     db.session.commit()
     flash(f'Tag "{tag.name}" deleted successfully.', 'success')

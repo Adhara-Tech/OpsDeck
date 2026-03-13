@@ -27,7 +27,7 @@ def archived_suppliers():
 @login_required
 @requires_permission('procurement', access_level='WRITE')
 def archive_supplier(id):
-    supplier = Supplier.query.get_or_404(id)
+    supplier = db.get_or_404(Supplier, id)
     supplier.is_archived = True
     db.session.commit()
     flash(f'Supplier "{supplier.name}" has been archived.', 'warning')
@@ -38,7 +38,7 @@ def archive_supplier(id):
 @login_required
 @requires_permission('procurement', access_level='WRITE')
 def unarchive_supplier(id):
-    supplier = Supplier.query.get_or_404(id)
+    supplier = db.get_or_404(Supplier, id)
     supplier.is_archived = False
     db.session.commit()
     flash(f'Supplier "{supplier.name}" has been restored.', 'success')
@@ -74,14 +74,14 @@ def new_supplier():
 @login_required
 @requires_permission('procurement', access_level='READ_ONLY')
 def supplier_detail(id):
-    supplier = Supplier.query.get_or_404(id)
+    supplier = db.get_or_404(Supplier, id)
     return render_template('suppliers/detail.html', supplier=supplier)
 
 @suppliers_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
 @login_required
 @requires_permission('procurement', access_level='READ_ONLY')
 def edit_supplier(id):
-    supplier = Supplier.query.get_or_404(id)
+    supplier = db.get_or_404(Supplier, id)
     
     if request.method == 'POST':
         if not has_write_permission('procurement'):
@@ -107,7 +107,7 @@ def edit_supplier(id):
 @login_required
 @requires_permission('procurement', access_level='WRITE')
 def delete_supplier(id):
-    supplier = Supplier.query.get_or_404(id)
+    supplier = db.get_or_404(Supplier, id)
     db.session.delete(supplier)
     db.session.commit()
     flash('Supplier deleted successfully!', 'success')

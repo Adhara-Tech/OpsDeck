@@ -19,7 +19,7 @@ def list_disposals():
 @requires_permission('operations')
 def disposal_detail(id):
     """Shows the details of a single disposal record."""
-    record = DisposalRecord.query.get_or_404(id)
+    record = db.get_or_404(DisposalRecord, id)
     return render_template('disposal/detail.html', record=record)
 
 @disposal_bp.route('/record', methods=['GET', 'POST'])
@@ -35,9 +35,9 @@ def record_disposal():
     item = None
     
     if asset_id:
-        item = Asset.query.get_or_404(asset_id)
+        item = db.get_or_404(Asset, asset_id)
     elif peripheral_id:
-        item = Peripheral.query.get_or_404(peripheral_id)
+        item = db.get_or_404(Peripheral, peripheral_id)
     else:
         return "No asset or peripheral specified", 400
 
@@ -78,7 +78,7 @@ def record_disposal():
 @login_required
 @requires_permission('operations')
 def edit_disposal(id):
-    record = DisposalRecord.query.get_or_404(id)
+    record = db.get_or_404(DisposalRecord, id)
     item = record.asset or record.peripheral
 
     if request.method == 'POST':

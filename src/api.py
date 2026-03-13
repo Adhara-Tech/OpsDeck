@@ -109,7 +109,7 @@ def register_read_only_resource(blueprint, model, schema, url_name):
         @blueprint.response(200, schema)
         def get(self, id):
             """Get specific {url_name} by ID (Protected)"""
-            return model.query.get_or_404(id)
+            return db.get_or_404(model, id)
 
 # --- Register Routes ---
 register_read_only_resource(api_bp, User, UserSchema, 'users')

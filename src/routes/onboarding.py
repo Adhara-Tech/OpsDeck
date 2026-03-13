@@ -83,7 +83,7 @@ def users_api():
 @login_required
 @requires_permission('hr_people')
 def pack_detail(id):
-    pack = OnboardingPack.query.get_or_404(id)
+    pack = db.get_or_404(OnboardingPack, id)
     
     # Añadir item al pack
     if request.method == 'POST':
@@ -145,7 +145,7 @@ def add_pack_communication(pack_id):
         flash('Write access required to add communications.', 'danger')
         return redirect(url_for('onboarding.pack_detail', id=pack_id))
     """Add a communication rule to a pack."""
-    pack = OnboardingPack.query.get_or_404(pack_id)
+    pack = db.get_or_404(OnboardingPack, pack_id)
     
     template_id = request.form.get('template_id')
     offset_days = request.form.get('offset_days', 0)
@@ -176,7 +176,7 @@ def delete_pack_communication(pack_id, comm_id):
         flash('Write access required to delete communications.', 'danger')
         return redirect(url_for('onboarding.pack_detail', id=pack_id))
     """Delete a communication rule from a pack."""
-    comm = PackCommunication.query.get_or_404(comm_id)
+    comm = db.get_or_404(PackCommunication, comm_id)
     
     if comm.pack_id != pack_id:
         flash('Invalid communication for this pack.', 'danger')
@@ -307,7 +307,7 @@ def new_onboarding():
 @login_required
 @requires_permission('hr_people')
 def onboarding_detail(id):
-    process = OnboardingProcess.query.get_or_404(id)
+    process = db.get_or_404(OnboardingProcess, id)
     communications = get_process_communications('onboarding', id)
     users = User.query.filter_by(is_archived=False).order_by(User.name).all() # For edit modal
     return render_template('onboarding/process_detail.html', process=process, type='onboarding', communications=communications, users=users)
@@ -319,7 +319,7 @@ def update_process_details(id):
     if not has_write_permission('hr_people'):
         flash('Write access required to update process details.', 'danger')
         return redirect(url_for('onboarding.onboarding_detail', id=id))
-    process = OnboardingProcess.query.get_or_404(id)
+    process = db.get_or_404(OnboardingProcess, id)
     
     process.target_email = request.form.get('target_email')
     process.personal_email = request.form.get('personal_email')
@@ -348,7 +348,7 @@ def new_offboarding():
             return redirect(url_for('onboarding.index'))
         user_id = request.form['user_id']
         departure_date = datetime.strptime(request.form['departure_date'], '%Y-%m-%d').date()
-        target_user = User.query.get_or_404(user_id)
+        target_user = db.get_or_404(User, user_id)
         
         manager_id = session.get('user_id') 
 
@@ -489,7 +489,7 @@ def new_offboarding():
 @login_required
 @requires_permission('hr_people')
 def offboarding_detail(id):
-    process = OffboardingProcess.query.get_or_404(id)
+    process = db.get_or_404(OffboardingProcess, id)
     users = User.query.filter_by(is_archived=False).order_by(User.name).all()
     
     # Pre-fetch payment methods for the template
@@ -518,7 +518,7 @@ def offboarding_detail(id):
 def toggle_item(id):
     if not has_write_permission('hr_people'):
         return jsonify({'status': 'error', 'message': 'Write access required to toggle items.'}), 403
-    item = ProcessItem.query.get_or_404(id)
+    item = db.get_or_404(ProcessItem, id)
     target_state = not item.is_completed
     item.is_completed = target_state
 
@@ -553,12 +553,12 @@ def complete_process(type, id):
         return redirect(request.referrer)
     """Marca el proceso entero como completado y archiva usuario si es offboarding."""
     if type == 'onboarding':
-        process = OnboardingProcess.query.get_or_404(id)
+        process = db.get_or_404(OnboardingProcess, id)
         process.status = 'Completed'
         flash(f'Onboarding de {process.new_hire_name} completado.', 'success')
         
     else: # Offboarding
-        process = OffboardingProcess.query.get_or_404(id)
+        process = db.get_or_404(OffboardingProcess, id)
         process.status = 'Completed'
         process.departure_date = today() # Fijar fecha real de cierre
         
@@ -578,8 +578,8 @@ def revoke_service_access(process_id, item_id):
     if not has_write_permission('hr_people'):
         flash('Write access required to revoke access.', 'danger')
         return redirect(url_for('onboarding.offboarding_detail', id=process_id))
-    process = OffboardingProcess.query.get_or_404(process_id)
-    item = ProcessItem.query.get_or_404(item_id)
+    process = db.get_or_404(OffboardingProcess, process_id)
+    item = db.get_or_404(ProcessItem, item_id)
     
     # Validation
     # Let's check the model. ProcessItem has separate FKs or a single one?
@@ -620,8 +620,8 @@ def revoke_subscription_access(process_id, item_id):
     if not has_write_permission('hr_people'):
         flash('Write access required to revoke access.', 'danger')
         return redirect(url_for('onboarding.offboarding_detail', id=process_id))
-    process = OffboardingProcess.query.get_or_404(process_id)
-    item = ProcessItem.query.get_or_404(item_id)
+    process = db.get_or_404(OffboardingProcess, process_id)
+    item = db.get_or_404(ProcessItem, item_id)
     
     if item.offboarding_process_id != process.id:
         flash('Invalid item for this process.', 'danger')
@@ -660,8 +660,8 @@ def create_user_account(process_id, item_id):
     if not has_write_permission('hr_people'):
         flash('Write access required to create user.', 'danger')
         return redirect(url_for('onboarding.onboarding_detail', id=process_id))
-    process = OnboardingProcess.query.get_or_404(process_id)
-    item = ProcessItem.query.get_or_404(item_id)
+    process = db.get_or_404(OnboardingProcess, process_id)
+    item = db.get_or_404(ProcessItem, item_id)
     
     # Validation
     if item.onboarding_process_id != process.id:
@@ -721,8 +721,8 @@ def add_user_to_service(process_id, item_id):
     if not has_write_permission('hr_people'):
         flash('Write access required to add user to service.', 'danger')
         return redirect(url_for('onboarding.onboarding_detail', id=process_id))
-    process = OnboardingProcess.query.get_or_404(process_id)
-    item = ProcessItem.query.get_or_404(item_id)
+    process = db.get_or_404(OnboardingProcess, process_id)
+    item = db.get_or_404(ProcessItem, item_id)
     
     if item.item_type != 'ServiceAccess' or not item.linked_object_id:
         flash('Invalid item type.', 'danger')
@@ -758,8 +758,8 @@ def add_user_to_subscription(process_id, item_id):
     if not has_write_permission('hr_people'):
         flash('Write access required to add user to subscription.', 'danger')
         return redirect(url_for('onboarding.onboarding_detail', id=process_id))
-    process = OnboardingProcess.query.get_or_404(process_id)
-    item = ProcessItem.query.get_or_404(item_id)
+    process = db.get_or_404(OnboardingProcess, process_id)
+    item = db.get_or_404(ProcessItem, item_id)
     
     if item.item_type != 'Subscription' or not item.linked_object_id:
         flash('Invalid item type.', 'danger')
@@ -801,8 +801,8 @@ def add_user_to_course(process_id, item_id):
     from datetime import date, timedelta
     from ..models import CourseAssignment
     
-    process = OnboardingProcess.query.get_or_404(process_id)
-    item = ProcessItem.query.get_or_404(item_id)
+    process = db.get_or_404(OnboardingProcess, process_id)
+    item = db.get_or_404(ProcessItem, item_id)
     
     if item.item_type != 'Course' or not item.linked_object_id:
         flash('Invalid item type.', 'danger')
@@ -867,7 +867,7 @@ def toggle_template_task(id):
     if not has_write_permission('hr_people'):
         flash('Write access required to toggle templates.', 'danger')
         return redirect(url_for('onboarding.list_templates'))
-    t = ProcessTemplate.query.get_or_404(id)
+    t = db.get_or_404(ProcessTemplate, id)
     t.is_active = not t.is_active
     db.session.commit()
     flash('Task status updated.', 'success')
@@ -900,7 +900,7 @@ def transfer_risk(id):
     if not has_write_permission('hr_people'):
         flash('Write access required to transfer risks.', 'danger')
         return redirect(request.referrer)
-    risk = Risk.query.get_or_404(id)
+    risk = db.get_or_404(Risk, id)
     new_owner_id = request.form.get('new_owner_id')
     redirect_url = request.form.get('redirect_url')
     
@@ -932,7 +932,7 @@ def transfer_service(id):
     if not has_write_permission('hr_people'):
         flash('Write access required to transfer services.', 'danger')
         return redirect(request.referrer)
-    service = BusinessService.query.get_or_404(id)
+    service = db.get_or_404(BusinessService, id)
     new_owner_id = request.form.get('new_owner_id')
     redirect_url = request.form.get('redirect_url')
     
@@ -966,7 +966,7 @@ def transfer_credential(id):
         return redirect(request.referrer)
     from ..models.credentials import Credential
     
-    credential = Credential.query.get_or_404(id)
+    credential = db.get_or_404(Credential, id)
     new_owner_id = request.form.get('new_owner_id')
     redirect_url = request.form.get('redirect_url')
     
@@ -1012,7 +1012,7 @@ def send_communication_now(id):
     from .. import notifications
     from flask import current_app
     
-    comm = ScheduledCommunication.query.get_or_404(id)
+    comm = db.get_or_404(ScheduledCommunication, id)
     
     if comm.status != 'pending':
         flash(f'Communication is already {comm.status}.', 'warning')
@@ -1062,7 +1062,7 @@ def cancel_communication(id):
         flash('Write access required to cancel communications.', 'danger')
         return redirect(request.referrer)
     """Cancel a pending scheduled communication."""
-    comm = ScheduledCommunication.query.get_or_404(id)
+    comm = db.get_or_404(ScheduledCommunication, id)
     
     if comm.status != 'pending':
         flash(f'Cannot cancel - communication is already {comm.status}.', 'warning')

@@ -27,7 +27,7 @@ def subscriptions():
         query = query.filter(Subscription.subscription_type == subscription_type_filter)
 
     if tag_filter:
-        tag = Tag.query.get_or_404(tag_filter)
+        tag = db.get_or_404(Tag, tag_filter)
         query = query.filter(Subscription.tags.contains(tag))
 
     all_subscriptions = query.order_by(Subscription.name).all()
@@ -69,7 +69,7 @@ def subscriptions():
 @login_required
 @requires_permission('core_inventory', access_level='READ_ONLY')
 def subscription_detail(id):
-    subscription = Subscription.query.get_or_404(id)
+    subscription = db.get_or_404(Subscription, id)
     cost_history_labels = [entry.changed_date.strftime('%Y-%m-%d') for entry in subscription.cost_history]
     cost_history_data = [
         round(
@@ -240,7 +240,7 @@ def new_subscription():
 @login_required
 @requires_permission('core_inventory', access_level='READ_ONLY')
 def edit_subscription(id):
-    subscription = Subscription.query.get_or_404(id)
+    subscription = db.get_or_404(Subscription, id)
     software_items = Software.query.filter_by(is_archived=False).order_by(Software.name).all()
 
     users = User.query.filter_by(is_archived=False).all()
@@ -404,7 +404,7 @@ def edit_subscription(id):
 @login_required
 @requires_permission('core_inventory', access_level='WRITE')
 def delete_subscription(id):
-    subscription = Subscription.query.get_or_404(id)
+    subscription = db.get_or_404(Subscription, id)
     db.session.delete(subscription)
     db.session.commit()
     flash('Subscription deleted successfully!', 'success')
@@ -421,7 +421,7 @@ def archived_subscriptions():
 @login_required
 @requires_permission('core_inventory', access_level='WRITE')
 def archive_subscription(id):
-    subscription = Subscription.query.get_or_404(id)
+    subscription = db.get_or_404(Subscription, id)
     subscription.is_archived = True
     db.session.commit()
     flash(f'Subscription "{subscription.name}" has been archived.', 'warning')
@@ -431,7 +431,7 @@ def archive_subscription(id):
 @login_required
 @requires_permission('core_inventory', access_level='WRITE')
 def unarchive_subscription(id):
-    subscription = Subscription.query.get_or_404(id)
+    subscription = db.get_or_404(Subscription, id)
     subscription.is_archived = False
     db.session.commit()
     flash(f'Subscription "{subscription.name}" has been restored.', 'success')
@@ -593,7 +593,7 @@ def calendar_events():
 @login_required
 @requires_permission('core_inventory', access_level='WRITE')
 def add_user_access(id):
-    subscription = Subscription.query.get_or_404(id)
+    subscription = db.get_or_404(Subscription, id)
     user_ids = request.form.getlist('user_ids')
 
     added = []
@@ -613,7 +613,7 @@ def add_user_access(id):
 @login_required
 @requires_permission('core_inventory', access_level='WRITE')
 def add_all_users(id):
-    subscription = Subscription.query.get_or_404(id)
+    subscription = db.get_or_404(Subscription, id)
     all_users = User.query.filter_by(is_archived=False).all()
 
     added = []
@@ -634,8 +634,8 @@ def add_all_users(id):
 @login_required
 @requires_permission('core_inventory', access_level='WRITE')
 def remove_user_access(id, user_id):
-    subscription = Subscription.query.get_or_404(id)
-    user = User.query.get_or_404(user_id)
+    subscription = db.get_or_404(Subscription, id)
+    user = db.get_or_404(User, user_id)
 
     if user in subscription.users:
         subscription.users.remove(user)

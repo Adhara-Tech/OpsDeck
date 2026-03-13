@@ -80,8 +80,8 @@ def new_template():
 @requires_permission('hr_people')
 def edit_template(id):
     """Edit an existing email template."""
-    template = EmailTemplate.query.get_or_404(id)
-    
+    template = db.get_or_404(EmailTemplate, id)
+
     if request.method == 'POST':
         if not has_write_permission('hr_people'):
             flash('Write access required to update templates.', 'danger')
@@ -135,8 +135,8 @@ def delete_template(id):
         flash('Write access required to delete templates.', 'danger')
         return redirect(url_for('admin_communications.list_templates'))
     """Delete an email template."""
-    template = EmailTemplate.query.get_or_404(id)
-    
+    template = db.get_or_404(EmailTemplate, id)
+
     # Check if system template
 
     if template.is_system:
@@ -169,8 +169,8 @@ def toggle_template(id):
         flash('Write access required to toggle templates.', 'danger')
         return redirect(url_for('admin_communications.list_templates'))
     """Toggle template active status."""
-    template = EmailTemplate.query.get_or_404(id)
-    
+    template = db.get_or_404(EmailTemplate, id)
+
     # Check if system template
 
     if template.is_system:
@@ -192,8 +192,8 @@ def test_send_template(id):
     if not has_write_permission('hr_people'):
         return jsonify({'success': False, 'message': 'Write access required to send test emails.'}), 403
     """Send a test email to the current admin user with dummy data."""
-    template = EmailTemplate.query.get_or_404(id)
-    
+    template = db.get_or_404(EmailTemplate, id)
+
     # Get recipient email from request or fallback to current user
     recipient_email = None
     if request.is_json:

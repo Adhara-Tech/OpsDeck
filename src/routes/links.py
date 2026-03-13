@@ -48,7 +48,7 @@ def list_links():
 @requires_permission('knowledge_policy')
 def detail(id):
     """Muestra los detalles de un enlace."""
-    link = Link.query.get_or_404(id)
+    link = db.get_or_404(Link, id)
     return render_template('links/detail.html', link=link)
 
 @links_bp.route('/new', methods=['GET', 'POST'])
@@ -106,7 +106,7 @@ def new_link():
 @requires_permission('knowledge_policy')
 def edit_link(id):
     """Edita un enlace existente."""
-    link = Link.query.get_or_404(id)
+    link = db.get_or_404(Link, id)
 
     if request.method == 'POST':
         if not has_write_permission('knowledge_policy'):
@@ -155,7 +155,7 @@ def delete_link(id):
         flash('Write access required to delete links.', 'danger')
         return redirect(url_for('links.detail', id=id))
     """Elimina un enlace."""
-    link = Link.query.get_or_404(id)
+    link = db.get_or_404(Link, id)
     
     db.session.delete(link)
     db.session.commit()

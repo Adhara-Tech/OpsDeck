@@ -24,7 +24,7 @@ def list():
 @requires_permission('compliance')
 def detail(id):
     """Muestra los detalles de un framework y sus controles."""
-    framework = Framework.query.get_or_404(id)
+    framework = db.get_or_404(Framework, id)
     controls = framework.framework_controls.order_by(FrameworkControl.control_id).all()
     return render_template(
         'frameworks/detail.html',
@@ -91,7 +91,7 @@ def edit(id):
         flash('You do not have permission to edit frameworks.', 'danger')
         return redirect(url_for('frameworks.detail', id=id))
     """Edita un framework."""
-    framework = Framework.query.get_or_404(id)
+    framework = db.get_or_404(Framework, id)
     
     if request.method == 'POST':
         # Activar/Desactivar SÍ se permite para todos
@@ -141,7 +141,7 @@ def delete(id):
     Elimina un framework (solo si es 'custom').
     Llamado por fetch() desde el botón de 'Zona de Peligro'.
     """
-    framework = Framework.query.get_or_404(id)
+    framework = db.get_or_404(Framework, id)
     if not framework.is_custom:
         return jsonify({'success': False, 'message': 'No se pueden eliminar los frameworks incorporados.'}), 403
         
@@ -173,7 +173,7 @@ def add_control():
     if not framework_id or not control_id_text or not name:
         return jsonify({'success': False, 'message': 'ID del Control y Nombre son obligatorios.'}), 400
 
-    fw = Framework.query.get_or_404(framework_id)
+    fw = db.get_or_404(Framework, framework_id)
     if not fw.is_custom:
         return jsonify({'success': False, 'message': 'No se pueden añadir controles a frameworks incorporados.'}), 403
 
@@ -196,7 +196,7 @@ def add_control():
 @requires_permission('compliance')
 def get_control_data(id):
     # Esta ruta no necesita 'forms' y puede quedar igual
-    control = FrameworkControl.query.get_or_404(id)
+    control = db.get_or_404(FrameworkControl, id)
     if not control.framework.is_custom:
          return jsonify({'error': 'No se pueden editar controles de frameworks incorporados.'}), 403
     return jsonify({
@@ -212,7 +212,7 @@ def edit_control(id):
     if not has_write_permission('compliance'):
         return jsonify({'success': False, 'message': 'You do not have permission to modify controls.'}), 403
     """Actualiza un control."""
-    control = FrameworkControl.query.get_or_404(id)
+    control = db.get_or_404(FrameworkControl, id)
     if not control.framework.is_custom:
         return jsonify({'success': False, 'message': 'No se pueden editar controles de frameworks incorporados.'}), 403
         
@@ -243,7 +243,7 @@ def delete_control(id):
     Elimina un control.
     Llamado por fetch() desde el botón de 'eliminar' de la fila.
     """
-    control = FrameworkControl.query.get_or_404(id)
+    control = db.get_or_404(FrameworkControl, id)
     if not control.framework.is_custom:
         return jsonify({'success': False, 'message': 'No se pueden eliminar controles de frameworks incorporados.'}), 403
 
@@ -269,7 +269,7 @@ def control_detail(id):
     from ..models.services import BusinessService
     from ..services.compliance_service import get_compliance_evaluator
     
-    control = FrameworkControl.query.get_or_404(id)
+    control = db.get_or_404(FrameworkControl, id)
     all_frameworks = Framework.query.order_by(Framework.name).all()
     all_tags = Tag.query.filter_by(is_archived=False).order_by(Tag.name).all()
     
@@ -319,7 +319,7 @@ def update_control_soa(id):
         flash('Write access required to update SOA.', 'danger')
         return redirect(url_for('frameworks.control_detail', id=id))
 
-    control = FrameworkControl.query.get_or_404(id)
+    control = db.get_or_404(FrameworkControl, id)
 
     control.is_applicable = request.form.get('is_applicable') == 'on'
     if not control.is_applicable:
@@ -344,7 +344,7 @@ def map_control(id):
         flash('You do not have permission to modify control mappings.', 'danger')
         return redirect(url_for('frameworks.control_detail', id=id))
     """Links a control to another control (cross-framework mapping)."""
-    control = FrameworkControl.query.get_or_404(id)
+    control = db.get_or_404(FrameworkControl, id)
     target_control_id = request.form.get('target_control_id')
     
     if not target_control_id:
@@ -383,8 +383,8 @@ def unmap_control(id, target_id):
         flash('You do not have permission to modify control mappings.', 'danger')
         return redirect(url_for('frameworks.control_detail', id=id))
     """Removes a cross-framework mapping between two controls."""
-    control = FrameworkControl.query.get_or_404(id)
-    target_control = FrameworkControl.query.get_or_404(target_id)
+    control = db.get_or_404(FrameworkControl, id)
+    target_control = db.get_or_404(FrameworkControl, target_id)
     
     try:
         # Check both directions since mapping can be in either direction

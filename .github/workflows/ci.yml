@@ -39,11 +39,48 @@ jobs:
           exit-code: '1' # Fail the pipeline if vulns are found
           severity: 'CRITICAL,HIGH' # Only look for these severities
 
-      # Step 5: Run the tests!
-      - name: Run tests (suppressing warnings)
+      # Step 5: Run unit tests (SQLite in-memory, no DB required)
+      - name: Run unit tests
         env:
-          # This is critical: It respects your pytest.ini setting (pythonpath = . src)
-          # so that Python can find your 'src' modules.
           PYTHONPATH: ./src
         run: |
-          pytest --disable-warnings
+          pytest --disable-warnings --ignore=tests/test_migrations.py
+
+  integration:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: opsdeck
+          POSTGRES_PASSWORD: opsdeck
+          POSTGRES_DB: opsdeck_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U opsdeck -d opsdeck_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Run migration tests
+        env:
+          DATABASE_URL: postgresql://opsdeck:opsdeck@localhost:5432/opsdeck_test
+          PYTHONPATH: ./src
+        run: |
+          pytest tests/test_migrations.py -v

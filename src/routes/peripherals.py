@@ -23,7 +23,7 @@ def peripherals():
 @login_required
 @requires_permission('core_inventory', access_level='READ_ONLY')
 def peripheral_detail(id):
-    peripheral = Peripheral.query.get_or_404(id)
+    peripheral = db.get_or_404(Peripheral, id)
     custom_field_definitions = CustomFieldDefinition.query.filter_by(entity_type='Peripheral').all()
     return render_template('peripherals/detail.html', peripheral=peripheral, custom_field_definitions=custom_field_definitions)
 
@@ -67,7 +67,7 @@ def new_peripheral():
 @login_required
 @requires_permission('core_inventory', access_level='READ_ONLY')
 def edit_peripheral(id):
-    peripheral = Peripheral.query.get_or_404(id)
+    peripheral = db.get_or_404(Peripheral, id)
     
     if request.method == 'POST':
         if not has_write_permission('core_inventory'):
@@ -122,7 +122,7 @@ def edit_peripheral(id):
 @login_required
 @requires_permission('core_inventory', access_level='READ_ONLY')
 def checkout_peripheral(id):
-    peripheral = Peripheral.query.get_or_404(id)
+    peripheral = db.get_or_404(Peripheral, id)
     if peripheral.user:
         flash('This peripheral is already checked out.', 'warning')
         return redirect(url_for('peripherals.peripheral_detail', id=id))
@@ -159,7 +159,7 @@ def checkout_peripheral(id):
 @login_required
 @requires_permission('core_inventory', access_level='WRITE')
 def checkin_peripheral(id):
-    peripheral = Peripheral.query.get_or_404(id)
+    peripheral = db.get_or_404(Peripheral, id)
     redirect_url = request.form.get('redirect_url')
     
     if not peripheral.user:
@@ -216,7 +216,7 @@ def archived_peripherals():
 @requires_permission('core_inventory', access_level='WRITE')
 def archive_peripheral(id):
     """Sets a peripheral's status to archived."""
-    peripheral = Peripheral.query.get_or_404(id)
+    peripheral = db.get_or_404(Peripheral, id)
     peripheral.is_archived = True
     db.session.commit()
     flash(f'Peripheral "{peripheral.name}" has been archived.', 'warning')
@@ -228,7 +228,7 @@ def archive_peripheral(id):
 @requires_permission('core_inventory', access_level='WRITE')
 def unarchive_peripheral(id):
     """Restores an archived peripheral to active."""
-    peripheral = Peripheral.query.get_or_404(id)
+    peripheral = db.get_or_404(Peripheral, id)
     peripheral.is_archived = False
     db.session.commit()
     flash(f'Peripheral "{peripheral.name}" has been restored.', 'success')
@@ -240,7 +240,7 @@ def unarchive_peripheral(id):
 @requires_permission('core_inventory', access_level='READ_ONLY')
 def peripheral_history(id):
     """Displays the full history for a peripheral as a visual timeline."""
-    peripheral = Peripheral.query.get_or_404(id)
+    peripheral = db.get_or_404(Peripheral, id)
     
     # Build unified timeline from multiple sources
     timeline_events = []

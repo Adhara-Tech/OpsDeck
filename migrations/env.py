@@ -16,12 +16,7 @@ logger = logging.getLogger('alembic.env')
 
 
 def get_engine():
-    try:
-        # this works with Flask-SQLAlchemy<3 and Alchemical
-        return current_app.extensions['migrate'].db.get_engine()
-    except (TypeError, AttributeError):
-        # this works with Flask-SQLAlchemy>=3
-        return current_app.extensions['migrate'].db.engine
+    return current_app.extensions['migrate'].db.engine
 
 
 def get_engine_url():
@@ -89,6 +84,18 @@ def run_migrations_online():
             if script.upgrade_ops.is_empty():
                 directives[:] = []
                 logger.info('No changes in schema detected.')
+                return
+
+            # Auto-number: scan versions/ for the highest NNN prefix and increment
+            import os
+            import re
+            versions_dir = os.path.join(os.path.dirname(__file__), 'versions')
+            max_num = 0
+            for fname in os.listdir(versions_dir):
+                match = re.match(r'^(\d+)_', fname)
+                if match:
+                    max_num = max(max_num, int(match.group(1)))
+            script.rev_id = f'{max_num + 1:03d}'
 
     conf_args = current_app.extensions['migrate'].configure_args
     if conf_args.get("process_revision_directives") is None:

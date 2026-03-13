@@ -7,19 +7,19 @@
         "build-assets": "node copy-assets.js"
     },
     "dependencies": {
-        "@fortawesome/fontawesome-free": "^6.5.0",
-        "@popperjs/core": "^2.11.0",
-        "bootstrap": "^5.3.0",
-        "chart.js": "^4.4.0",
-        "easymde": "^2.18.0",
-        "fullcalendar": "^6.1.0",
+        "@fortawesome/fontawesome-free": "^7.2.0",
+        "@popperjs/core": "^2.11.8",
+        "bootstrap": "^5.3.8",
+        "chart.js": "^4.5.1",
+        "easymde": "^2.20.0",
+        "fullcalendar": "^6.1.20",
         "html2canvas": "^1.4.1",
-        "mermaid": "^10.9.0",
+        "mermaid": "^11.13.0",
         "orgchart.js": "^0.0.4",
-        "simple-datatables": "^9.0.0",
-        "sortablejs": "^1.15.0",
+        "simple-datatables": "^10.2.0",
+        "sortablejs": "^1.15.7",
         "suneditor": "^2.47.8",
-        "swagger-ui-dist": "5.31.0",
-        "tom-select": "^2.3.0"
+        "swagger-ui-dist": "5.32.0",
+        "tom-select": "^2.5.2"
     }
 }
