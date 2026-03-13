@@ -125,6 +125,7 @@ def create_app(test_config=None):
     app.config['SMTP_PORT'] = int(os.environ.get('SMTP_PORT', '587'))
     app.config['EMAIL_USERNAME'] = os.environ.get('EMAIL_USERNAME', '')
     app.config['EMAIL_PASSWORD'] = os.environ.get('EMAIL_PASSWORD', '')
+    app.config['EMAIL_SENDER_NAME'] = os.environ.get('EMAIL_SENDER_NAME', '')
     app.config['WEBHOOK_URL'] = os.environ.get('WEBHOOK_URL', '')
 
     # --- Google OAuth Configuration ---

@@ -3,6 +3,7 @@ import smtplib
 import traceback
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.utils import formataddr
 from datetime import datetime
 from smtplib import SMTPException, SMTPAuthenticationError, SMTPConnectError, SMTPRecipientsRefused
 
@@ -34,7 +35,9 @@ def send_email(app, subject, body, to_emails):
     
     try:
         msg = MIMEMultipart()
-        msg['From'] = app.config['EMAIL_USERNAME']
+        sender_name = app.config.get('EMAIL_SENDER_NAME', '')
+        sender_addr = app.config['EMAIL_USERNAME']
+        msg['From'] = formataddr((sender_name, sender_addr)) if sender_name else sender_addr
         msg['To'] = ', '.join(to_emails)
         msg['Subject'] = subject
         msg.attach(MIMEText(body, 'html'))
