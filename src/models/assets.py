@@ -180,7 +180,7 @@ class Asset(db.Model, CustomPropertiesMixin):
                 'title': log.description,
                 'status': log.status,
                 'date': datetime.combine(log.event_date, datetime.min.time()),
-                'url': f"/maintenance/log/{log.id}/edit",
+                'url': f"/maintenance/{log.id}/edit",
                 'tags': [], 
                 'id': log.id,
                 'assignee': log.assigned_to.name if log.assigned_to else None

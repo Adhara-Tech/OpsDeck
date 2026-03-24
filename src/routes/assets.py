@@ -197,6 +197,11 @@ def edit_asset(id):
 
 
         for field, old_value, new_value in changes:
+            # Normalize None and empty strings so we don't log no-op changes
+            norm_old = old_value if old_value is not None and old_value != '' else None
+            norm_new = new_value if new_value is not None and new_value != '' else None
+            if norm_old == norm_new:
+                continue
             history_entry = AssetHistory(asset_id=asset.id, field_changed=field, old_value=str(old_value), new_value=str(new_value))
             db.session.add(history_entry)
 
