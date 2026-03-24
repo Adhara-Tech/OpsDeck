@@ -24,8 +24,10 @@ fi
 # For fresh databases: creates all tables from the migration chain
 # For existing databases: applies only pending migrations
 #
-# If alembic_version references a revision that no longer exists (e.g. after
-# a migration squash), clear it and stamp the current DB state before upgrading.
+# Handles three edge cases:
+# 1. alembic_version references a revision that no longer exists (e.g. after squash)
+# 2. Database has tables but no alembic_version tracking (pre-migration DB)
+# 3. alembic_version table exists but is empty
 python3 -c "
 from src import create_app
 from src.extensions import db
@@ -45,14 +47,49 @@ with app.app_context():
                 print(f'  Stale revision {result[0]} — clearing alembic_version')
                 db.session.execute(db.text('DELETE FROM alembic_version'))
                 db.session.commit()
-    except:
+                import sys
+                sys.exit(99)
+        else:
+            # alembic_version exists but is empty — check if DB has tables
+            tables = db.session.execute(db.text(
+                \"SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE' AND table_name != 'alembic_version'\"
+            )).scalar()
+            if tables and tables > 0:
+                print(f'  Pre-existing DB detected ({tables} tables, empty alembic_version) — will stamp')
+                import subprocess, sys
+                sys.exit(99)
+    except Exception as e:
+        err = str(e)
+        if 'alembic_version' in err or 'does not exist' in err or 'UndefinedTable' in err:
+            # No alembic_version table — check if other tables exist
+            try:
+                tables = db.session.rollback() or db.session.execute(db.text(
+                    \"SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE'\"
+                )).scalar()
+                if tables and tables > 0:
+                    print(f'  Pre-existing DB detected ({tables} tables, no alembic_version) — will stamp')
+                    import sys
+                    sys.exit(99)
+            except:
+                pass
         pass
-" 2>/dev/null
+"
+PRECHECK_EXIT=$?
 
 echo "Applying database migrations..."
-if ! flask db upgrade; then
-    echo "ERROR: Migration failed. Not stamping — fix the migration and redeploy."
-    exit 1
+if [ "$PRECHECK_EXIT" = "99" ]; then
+    echo "Pre-existing database detected without migration tracking. Stamping current state..."
+    flask db stamp head
+    echo "Running any pending migrations..."
+    if ! flask db upgrade; then
+        echo "ERROR: Migration failed after stamp."
+        exit 1
+    fi
+else
+    if ! flask db upgrade; then
+        echo "ERROR: Migration failed. Not stamping — fix the migration and redeploy."
+        exit 1
+    fi
 fi
 
 # Create the default admin user
