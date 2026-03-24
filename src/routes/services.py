@@ -295,7 +295,7 @@ def add_component(id):
     
     if not comp_type or not comp_id:
         flash('Invalid component selection.', 'warning')
-        return redirect(url_for('services.detail', id=id))
+        return redirect(url_for('services.detail', id=id) + '#infrastructure')
         
     # Create component link
     comp = ServiceComponent(
@@ -312,8 +312,8 @@ def add_component(id):
     except Exception as e:
         db.session.rollback()
         flash(f'Error linking component: {str(e)}', 'danger')
-        
-    return redirect(url_for('services.detail', id=id))
+
+    return redirect(url_for('services.detail', id=id) + '#infrastructure')
 
 @services_bp.route('/component/<int:comp_id>/delete', methods=['POST'])
 @login_required
@@ -328,7 +328,7 @@ def delete_component(comp_id):
     except Exception as e:
         db.session.rollback()
         flash(f'Error removing component: {str(e)}', 'danger')
-    return redirect(url_for('services.detail', id=service_id))
+    return redirect(url_for('services.detail', id=service_id) + '#infrastructure')
 
 
 @services_bp.route('/api/search-components/<component_type>')
@@ -385,7 +385,7 @@ def link_document(id):
             service.documents.append(doc)
             db.session.commit()
             flash('Documentation linked.', 'success')
-    return redirect(url_for('services.detail', id=id))
+    return redirect(url_for('services.detail', id=id) + '#context')
 
 
 @services_bp.route('/<int:id>/unlink-document/<int:doc_id>', methods=['POST'])
@@ -398,7 +398,7 @@ def unlink_document(id, doc_id):
         service.documents.remove(doc)
         db.session.commit()
         flash('Documentation unlinked.', 'success')
-    return redirect(url_for('services.detail', id=id))
+    return redirect(url_for('services.detail', id=id) + '#context')
 
 
 @services_bp.route('/<int:id>/link-policy', methods=['POST'])
@@ -413,7 +413,7 @@ def link_policy(id):
             service.policies.append(policy)
             db.session.commit()
             flash('Policy linked.', 'success')
-    return redirect(url_for('services.detail', id=id))
+    return redirect(url_for('services.detail', id=id) + '#context')
 
 
 @services_bp.route('/<int:id>/unlink-policy/<int:policy_id>', methods=['POST'])
@@ -426,7 +426,7 @@ def unlink_policy(id, policy_id):
         service.policies.remove(policy)
         db.session.commit()
         flash('Policy unlinked.', 'success')
-    return redirect(url_for('services.detail', id=id))
+    return redirect(url_for('services.detail', id=id) + '#context')
 
 
 @services_bp.route('/<int:id>/link-activity', methods=['POST'])
@@ -441,7 +441,7 @@ def link_activity(id):
             service.activities.append(activity)
             db.session.commit()
             flash('Security activity linked.', 'success')
-    return redirect(url_for('services.detail', id=id))
+    return redirect(url_for('services.detail', id=id) + '#context')
 
 
 @services_bp.route('/<int:id>/unlink-activity/<int:activity_id>', methods=['POST'])
@@ -454,7 +454,7 @@ def unlink_activity(id, activity_id):
         service.activities.remove(activity)
         db.session.commit()
         flash('Security activity unlinked.', 'success')
-    return redirect(url_for('services.detail', id=id))
+    return redirect(url_for('services.detail', id=id) + '#context')
 
 
 @services_bp.route('/<int:id>/add-link', methods=['POST'])
@@ -475,7 +475,7 @@ def add_link(id):
         db.session.add(link)
         db.session.commit()
         flash('External link added.', 'success')
-    return redirect(url_for('services.detail', id=id))
+    return redirect(url_for('services.detail', id=id) + '#context')
 
 
 @services_bp.route('/<int:id>/remove-link/<int:link_id>', methods=['POST'])
@@ -487,7 +487,7 @@ def remove_link(id, link_id):
         db.session.delete(link)
         db.session.commit()
         flash('External link removed.', 'success')
-    return redirect(url_for('services.detail', id=id))
+    return redirect(url_for('services.detail', id=id) + '#context')
 
 
 @services_bp.route('/<int:id>/upload-attachment', methods=['POST'])
@@ -498,12 +498,12 @@ def upload_attachment(id):
     
     if 'file' not in request.files:
         flash('No file selected.', 'warning')
-        return redirect(url_for('services.detail', id=id))
-    
+        return redirect(url_for('services.detail', id=id) + '#context')
+
     file = request.files['file']
     if file.filename == '':
         flash('No file selected.', 'warning')
-        return redirect(url_for('services.detail', id=id))
+        return redirect(url_for('services.detail', id=id) + '#context')
     
     # Secure the filename and generate a unique stored name
     original_filename = file.filename
@@ -526,8 +526,8 @@ def upload_attachment(id):
     db.session.add(attachment)
     db.session.commit()
     flash('File uploaded successfully.', 'success')
-    
-    return redirect(url_for('services.detail', id=id))
+
+    return redirect(url_for('services.detail', id=id) + '#context')
 
 
 @services_bp.route('/<int:id>/remove-attachment/<int:att_id>', methods=['POST'])
@@ -547,7 +547,7 @@ def remove_attachment(id, att_id):
         db.session.delete(attachment)
         db.session.commit()
         flash('Attachment removed.', 'success')
-    return redirect(url_for('services.detail', id=id))
+    return redirect(url_for('services.detail', id=id) + '#context')
 
 # ==========================================
 # USER ACCESS MANAGEMENT
@@ -558,16 +558,41 @@ def remove_attachment(id, att_id):
 @requires_permission('core_inventory', access_level='WRITE')
 def add_user_access(id):
     service = db.get_or_404(BusinessService, id)
-    user_id = request.form.get('user_id')
-    
-    if user_id:
-        user = db.session.get(User,user_id)
+    user_ids = request.form.getlist('user_ids')
+
+    added = []
+    for uid in user_ids:
+        user = db.session.get(User, int(uid))
         if user and user not in service.users:
             service.users.append(user)
-            db.session.commit()
-            flash(f'User {user.name} added to {service.name}.', 'success')
-            
-    return redirect(url_for('services.detail', id=id))
+            added.append(user.name)
+
+    if added:
+        db.session.commit()
+        flash(f'Added {len(added)} user(s) to {service.name}.', 'success')
+
+    return redirect(url_for('services.detail', id=id) + '#users')
+
+@services_bp.route('/<int:id>/users/add-all', methods=['POST'])
+@login_required
+@requires_permission('core_inventory', access_level='WRITE')
+def add_all_users(id):
+    service = db.get_or_404(BusinessService, id)
+    all_users = User.query.filter_by(is_archived=False).all()
+
+    added = []
+    for user in all_users:
+        if user not in service.users:
+            service.users.append(user)
+            added.append(user.name)
+
+    if added:
+        db.session.commit()
+        flash(f'Added {len(added)} users to {service.name}.', 'success')
+    else:
+        flash('All users already have access.', 'info')
+
+    return redirect(url_for('services.detail', id=id) + '#users')
 
 @services_bp.route('/<int:id>/users/remove/<int:user_id>', methods=['POST'])
 @login_required
@@ -580,8 +605,8 @@ def remove_user_access(id, user_id):
         service.users.remove(user)
         db.session.commit()
         flash(f'User {user.name} removed from {service.name}.', 'warning')
-        
-    return redirect(url_for('services.detail', id=id))
+
+    return redirect(url_for('services.detail', id=id) + '#users')
 
 @services_bp.route('/<int:id>/check_access/<int:user_id>')
 @login_required
