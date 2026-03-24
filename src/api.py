@@ -89,19 +89,9 @@ def register_read_only_resource(blueprint, model, schema, url_name):
         # @blueprint.paginate(Page) # Disabled due to injection issue
         def get(self):
             """List all {url_name} (Protected)"""
-            # Manual Pagination Fallback
-            page = request.args.get('page', 1, type=int)
-            per_page = request.args.get('page_size', 10, type=int)
-            
-            # Use SQLAlchemy pagination but return only items list
-            # flask-smorest will serialize the list
-            pagination = model.query.paginate(page=page, per_page=per_page, error_out=False)
-            
-            # Optional: We could set response headers for total count if needed
-            # headers = {'X-Total-Count': str(pagination.total)}
-            # But MethodView return is (data, code, headers) or just data.
-            
-            return pagination.items
+            limit = request.args.get('limit', 100, type=int)
+            offset = request.args.get('offset', 0, type=int)
+            return model.query.limit(limit).offset(offset).all()
 
     @blueprint.route(f'/{url_name}/<int:id>')
     class DetailResource(MethodView):
