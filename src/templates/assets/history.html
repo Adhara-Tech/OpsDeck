@@ -89,6 +89,24 @@
         border-left: 4px solid var(--bs-secondary) !important;
     }
 
+    .timeline-content.border-info {
+        border-left: 4px solid var(--bs-info) !important;
+    }
+
+    .timeline-content.border-dark {
+        border-left: 4px solid var(--bs-dark) !important;
+    }
+
+    a.timeline-content {
+        text-decoration: none;
+        color: inherit;
+        display: block;
+    }
+
+    a.timeline-content:hover {
+        border-color: var(--bs-primary) !important;
+    }
+
     .timeline-date {
         font-size: 0.8rem;
         color: var(--bs-secondary);
@@ -186,7 +204,13 @@
                         <span class="legend-dot bg-danger"></span> Maintenance
                     </div>
                     <div class="legend-item">
-                        <span class="legend-dot bg-secondary"></span> Changes
+                        <span class="legend-dot bg-info"></span> Changes
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-dot bg-dark"></span> Disposal
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-dot bg-secondary"></span> Field Changes
                     </div>
                 </div>
             </div>
@@ -204,16 +228,27 @@
                 <div class="timeline-marker bg-{{ event.color }}">
                     <i class="fas {{ event.icon }}"></i>
                 </div>
+                {% if event.url %}
+                <a href="{{ event.url }}" class="timeline-content border-{{ event.color }}">
+                {% else %}
                 <div class="timeline-content border-{{ event.color }}">
+                {% endif %}
                     <div class="timeline-date">
                         <i class="far fa-clock"></i> {{ event.date.strftime('%Y-%m-%d %H:%M') }}
                         {% if event.status %}
                         <span class="badge bg-info timeline-status">{{ event.status }}</span>
                         {% endif %}
+                        {% if event.url %}
+                        <i class="fas fa-external-link-alt ms-2" style="font-size: 0.75rem;"></i>
+                        {% endif %}
                     </div>
                     <div class="timeline-title">{{ event.title }}</div>
                     <p class="timeline-description">{{ event.description|truncate(150) }}</p>
+                {% if event.url %}
+                </a>
+                {% else %}
                 </div>
+                {% endif %}
             </div>
             {% endfor %}
         </div>

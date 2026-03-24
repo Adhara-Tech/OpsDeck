@@ -1,39 +1,126 @@
 {% extends "layout.html" %}
 {% from "components/compliance_link_macro.html" import compliance_links %}
-
 {% block title %}Inventory: {{ inventory.name }} - {{ super() }}{% endblock %}
+
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="fas fa-clipboard-check"></i> Inventory: {{ inventory.name }}</h2>
     <div>
-        {% if not inventory.is_completed %}
-        <form action="{{ url_for('compliance.complete_inventory', id=inventory.id) }}" method="POST" class="d-inline"
-            data-confirm='Are you sure you want to complete this inventory? No further changes can be made.'>
+        <h2><i class="fas fa-clipboard-check"></i> {{ inventory.name }}</h2>
+        <span class="text-muted">
+            Created {{ inventory.created_at.strftime('%Y-%m-%d') }}
+            {% if inventory.conducted_by %} &middot; Conducted by {{ inventory.conducted_by.name }}{% endif %}
+        </span>
+    </div>
+    <div class="d-flex gap-2">
+        {% if not inventory.is_completed and can_write('compliance') %}
+        <form action="{{ url_for('compliance.complete_inventory', id=inventory.id) }}" method="POST"
+            data-confirm="Are you sure you want to complete this inventory? No further changes can be made.">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-            <button type="submit" class="btn btn-primary">Mark Inventory as Complete</button>
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-check"></i> Mark as Complete
+            </button>
+        </form>
+        {% endif %}
+        <a href="{{ url_for('compliance.list_inventory') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back
+        </a>
+    </div>
+</div>
+
+{% if inventory.description %}
+<div class="card mb-4">
+    <div class="card-body text-muted">{{ inventory.description }}</div>
+</div>
+{% endif %}
+
+{% if inventory.is_completed %}
+<div class="alert alert-success"><i class="fas fa-lock"></i> This inventory is complete. No further changes can be made.</div>
+{% endif %}
+
+<!-- Log new asset -->
+{% if not inventory.is_completed and can_write('compliance') %}
+<div class="card mb-4">
+    <div class="card-header"><i class="fas fa-plus"></i> Log Asset</div>
+    <div class="card-body">
+        {% if assets_to_audit %}
+        <form action="{{ url_for('compliance.log_inventory_item', id=inventory.id) }}" method="POST" class="row g-2 align-items-end">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+            <div class="col-md-4">
+                <label for="log-asset-id" class="form-label">Asset</label>
+                <select id="log-asset-id" name="asset_id" class="form-select" required>
+                    <option value="">Select asset...</option>
+                    {% for asset in assets_to_audit %}
+                    <option value="{{ asset.id }}">{{ asset.name }}{% if asset.serial_number %} ({{ asset.serial_number }}){% endif %}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="log-status" class="form-label">Status</label>
+                <select id="log-status" name="status" class="form-select" required>
+                    <option value="Verified">Verified</option>
+                    <option value="Flagged">Flagged</option>
+                    <option value="Missing">Missing</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label for="log-notes" class="form-label">Notes</label>
+                <input id="log-notes" type="text" name="notes" class="form-control" placeholder="Optional notes">
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">Log</button>
+            </div>
         </form>
         {% else %}
+        <p class="text-muted mb-0">All assets have been logged in this inventory.</p>
+        {% endif %}
     </div>
-    <form action="{{ url_for('compliance.record_audit_event', id=audit.id) }}" method="POST">
-        <div class="modal-body">
-            <input type="hidden" name="asset_id" value="{{ asset.id }}">
-            <input type="hidden" name="status" value="Flagged">
-            <div class="mb-3">
-                <label for="notes-{{ asset.id }}" class="form-label">Notes *</label>
-                <textarea class="form-control" id="notes-{{ asset.id }}" name="notes" rows="3" required
-                    placeholder="e.g., Asset is missing, assigned user has a different device, etc."></textarea>
-            </div>
-        </div>
-        <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-            <button type="submit" class="btn btn-warning">Flag Issue</button>
-        </div>
-    </form>
 </div>
-</div>
-</div>
-{% endfor %}
+{% endif %}
 
-{{ compliance_links(audit, 'Audit') }}
+<!-- Inventory items -->
+<div class="card mb-4">
+    <div class="card-header"><i class="fas fa-list"></i> Logged Assets ({{ inventory_items|length }})</div>
+    <div class="card-body p-0">
+        <table class="table table-striped mb-0 datatable">
+            <thead>
+                <tr>
+                    <th>Asset</th>
+                    <th>Serial Number</th>
+                    <th>Status</th>
+                    <th>Notes</th>
+                    <th>Logged By</th>
+                    <th>Time</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in inventory_items %}
+                <tr>
+                    <td>
+                        {% if item.asset %}
+                        <a href="{{ url_for('assets.asset_detail', id=item.asset.id) }}">{{ item.asset.name }}</a>
+                        {% else %}
+                        <span class="text-muted">Deleted asset</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ item.asset.serial_number if item.asset and item.asset.serial_number else '—' }}</td>
+                    <td>
+                        {% if item.status == 'Verified' %}<span class="badge bg-success">Verified</span>
+                        {% elif item.status == 'Flagged' %}<span class="badge bg-warning">Flagged</span>
+                        {% elif item.status == 'Missing' %}<span class="badge bg-danger">Missing</span>
+                        {% else %}<span class="badge bg-secondary">{{ item.status }}</span>{% endif %}
+                    </td>
+                    <td>{{ item.notes or '—' }}</td>
+                    <td>{{ item.user.name if item.user else '—' }}</td>
+                    <td>{{ item.event_time.strftime('%Y-%m-%d %H:%M') if item.event_time else '—' }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="text-center text-muted">No assets logged yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{{ compliance_links(inventory, 'AssetInventory') }}
 
 {% endblock %}
