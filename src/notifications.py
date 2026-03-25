@@ -13,7 +13,7 @@ from .models import Subscription, NotificationSetting
 from .models.credentials import Credential, CredentialSecret
 from .models.certificates import Certificate, CertificateVersion
 from .models.communications import ScheduledCommunication
-from src.utils.timezone_helper import now, today
+from src.utils.timezone_helper import now, today as get_today
 
 
 # --- Notification Functions ---
@@ -64,7 +64,7 @@ def send_email(app, subject, body, to_emails):
     except SMTPRecipientsRefused as e:
         refused = list(e.recipients.keys()) if hasattr(e, 'recipients') else to_emails
         app.logger.error(f"❌ SMTP Recipients Refused: {refused}")
-        app.logger.error(f"   Server rejected these email addresses as invalid")
+        app.logger.error("   Server rejected these email addresses as invalid")
         return False
     
     except SMTPException as e:
@@ -103,7 +103,7 @@ def check_upcoming_renewals(app):
     from .models.auth import User
     
     with app.app_context():
-        today = today()
+        today = get_today()
         queued_count = 0
         
         # ============================================================
@@ -240,7 +240,7 @@ def check_credential_expirations(app):
         # Notification thresholds (days before expiry)
         NOTIFY_DAYS = [30, 14, 7]
         
-        today = today()
+        today = get_today()
         credentials_to_notify = []
         
         # Query all active secrets with expiry dates
@@ -344,7 +344,7 @@ def check_certificate_expirations(app):
         # Notification thresholds (days before expiry)
         NOTIFY_DAYS = [30, 7, 1]
         
-        today = today()
+        today = get_today()
         certificates_to_notify = []
         
         # Query all active certificate versions using the CertificateVersion model directly
@@ -450,7 +450,7 @@ def check_compliance_breaches(app):
     from .services.compliance_service import get_compliance_evaluator
     
     with app.app_context():
-        today = today()
+        today = get_today()
         current_time = now()
         queued_count = 0
         

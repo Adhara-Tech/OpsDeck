@@ -611,7 +611,12 @@ def organizational_health():
         Asset.is_archived == False,
         Asset.status != 'Decommissioned'
     ).count()
-    healthy_assets = Asset.query.filter_by(is_archived=False, status='In Use').count()
+    unhealthy_statuses = ['In Repair', 'Awaiting Disposal', 'Disposed', 'Sold']
+    healthy_assets = Asset.query.filter(
+        Asset.is_archived == False,
+        Asset.status != 'Decommissioned',
+        Asset.status.notin_(unhealthy_statuses)
+    ).count()
     asset_health = int((healthy_assets / total_assets * 100) if total_assets > 0 else 100)
     
     # Monthly spend projection from subscriptions

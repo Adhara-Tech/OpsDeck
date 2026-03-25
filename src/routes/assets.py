@@ -197,6 +197,11 @@ def edit_asset(id):
 
 
         for field, old_value, new_value in changes:
+            # Normalize None and empty strings so we don't log no-op changes
+            norm_old = old_value if old_value is not None and old_value != '' else None
+            norm_new = new_value if new_value is not None and new_value != '' else None
+            if norm_old == norm_new:
+                continue
             history_entry = AssetHistory(asset_id=asset.id, field_changed=field, old_value=str(old_value), new_value=str(new_value))
             db.session.add(history_entry)
 
@@ -407,7 +412,7 @@ def asset_history(id):
     # 2. Assignment events (checkout/checkin)
     for assignment in asset.assignments:
         user_name = assignment.user.name if assignment.user else 'Unknown User'
-        
+
         # Checkout event
         timeline_events.append({
             'date': assignment.checked_out_date,
@@ -417,7 +422,7 @@ def asset_history(id):
             'title': f'Checked Out to {user_name}',
             'description': assignment.notes or 'Assigned to employee'
         })
-        
+
         # Checkin event (if returned)
         if assignment.checked_in_date:
             timeline_events.append({
@@ -428,7 +433,7 @@ def asset_history(id):
                 'title': f'Checked In from {user_name}',
                 'description': 'Asset returned'
             })
-    
+
     # 3. Maintenance events
     for log in asset.maintenance_logs:
         timeline_events.append({
@@ -438,9 +443,10 @@ def asset_history(id):
             'color': 'danger',
             'title': f'{log.event_type}',
             'description': log.description,
-            'status': log.status
+            'status': log.status,
+            'url': url_for('maintenance.log_detail', id=log.id)
         })
-    
+
     # 4. Field change history
     for entry in asset.history:
         timeline_events.append({
@@ -450,6 +456,37 @@ def asset_history(id):
             'color': 'secondary',
             'title': f'Field Changed: {entry.field_changed}',
             'description': f'{entry.old_value or "N/A"} → {entry.new_value or "N/A"}'
+        })
+
+    # 5. Disposal record
+    if asset.disposal_record:
+        rec = asset.disposal_record
+        desc = f'Method: {rec.disposal_method}'
+        if rec.disposal_partner:
+            desc += f' — Partner: {rec.disposal_partner}'
+        if rec.notes:
+            desc += f' — {rec.notes}'
+        timeline_events.append({
+            'date': datetime.combine(rec.disposal_date, datetime.min.time()),
+            'event_type': 'disposal',
+            'icon': 'fa-trash-alt',
+            'color': 'dark',
+            'title': 'Asset Disposed',
+            'description': desc,
+            'url': url_for('disposal.disposal_detail', id=rec.id)
+        })
+
+    # 6. Related changes
+    for change in asset.changes:
+        timeline_events.append({
+            'date': change.created_at,
+            'event_type': 'change_ticket',
+            'icon': 'fa-exchange-alt',
+            'color': 'info',
+            'title': f'{change.change_type} Change: {change.title}',
+            'description': f'Status: {change.status}',
+            'status': change.status,
+            'url': url_for('changes.detail_change', id=change.id)
         })
     
     # Sort by date descending (newest first)

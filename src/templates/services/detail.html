@@ -275,9 +275,17 @@
             <div class="card-header py-3 d-flex justify-content-between align-items-center">
                 <h6 class="m-0 font-weight-bold text-primary">User Access ({{ effective_users|length }})</h6>
                 {% if can_write('core_inventory') %}
-                <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addUserAccessModal">
-                    <i class="fas fa-user-plus"></i> Add User
-                </button>
+                <div class="d-flex gap-2">
+                    <form action="{{ url_for('services.add_all_users', id=service.id) }}" method="POST" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-users"></i> Add All
+                        </button>
+                    </form>
+                    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addUserAccessModal">
+                        <i class="fas fa-user-plus"></i> Add User
+                    </button>
+                </div>
                 {% endif %}
             </div>
             <div class="card-body">
@@ -760,9 +768,8 @@
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label">Select User</label>
-                        <select class="form-select tom-select" name="user_id" required>
-                            <option value="">Search users...</option>
+                        <label class="form-label">Select Users</label>
+                        <select class="form-select tom-select" name="user_ids" multiple>
                             {% for user in all_users %}
                             <option value="{{ user.id }}">{{ user.name }} ({{ user.email }})</option>
                             {% endfor %}
@@ -1034,6 +1041,14 @@
 
 {% block scripts_extra %}
 <script>
+    // Activate tab from URL hash
+    document.addEventListener('DOMContentLoaded', function() {
+        if (window.location.hash) {
+            const tab = document.querySelector(`[data-bs-target="${window.location.hash}"]`);
+            if (tab) new bootstrap.Tab(tab).show();
+        }
+    });
+
     function setDependencyType(type) {
         document.getElementById('dependency_type_input').value = type;
         if (type === 'upstream') {
@@ -1093,44 +1108,47 @@
     // Soft-lock for user access assignment
     document.addEventListener('DOMContentLoaded', function () {
         const addUserForm = document.querySelector('#addUserAccessModal form');
-        const userSelect = addUserForm.querySelector('select[name="user_id"]');
+        const userSelect = addUserForm.querySelector('select[name="user_ids"]');
 
         addUserForm.addEventListener('submit', async function (e) {
             e.preventDefault();
 
-            const userId = userSelect.value;
-            if (!userId) {
-                this.submit();
+            // For multi-select, get all selected values
+            const selectedIds = userSelect.tomselect
+                ? userSelect.tomselect.getValue()
+                : Array.from(userSelect.selectedOptions).map(o => o.value);
+
+            if (!selectedIds.length) {
                 return;
             }
 
-            try {
-                // Check if user already has inherited access
-                const response = await fetch(`{{ url_for('services.detail', id=service.id) }}/check_access/${userId}`);
-                const data = await response.json();
+            // Skip inherited-access check for multi-select (only practical for single user)
+            if (selectedIds.length === 1) {
+                try {
+                    const response = await fetch(`{{ url_for('services.detail', id=service.id) }}/check_access/${selectedIds[0]}`);
+                    const data = await response.json();
 
-                if (data.exists) {
-                    const sources = data.sources.join('\n• ');
-                    const confirmed = await OpsDeck.showConfirm({
-                        title: 'Warning',
-                        body: `This user already has access through:\n• ${sources}\n\nDo you want to assign them manually anyway? This could create duplicates.`,
-                        okText: 'Yes, Assign',
-                        cancelText: 'Cancel',
-                        variant: 'warning'
-                    });
+                    if (data.exists) {
+                        const sources = data.sources.join('\n• ');
+                        const confirmed = await OpsDeck.showConfirm({
+                            title: 'Warning',
+                            body: `This user already has access through:\n• ${sources}\n\nDo you want to assign them manually anyway? This could create duplicates.`,
+                            okText: 'Yes, Assign',
+                            cancelText: 'Cancel',
+                            variant: 'warning'
+                        });
 
-                    if (!confirmed) {
-                        return;
+                        if (!confirmed) {
+                            return;
+                        }
                     }
+                } catch (error) {
+                    console.error('Error checking user access:', error);
                 }
-
-                // Proceed with submission
-                this.submit();
-            } catch (error) {
-                console.error('Error checking user access:', error);
-                // On error, allow submission to proceed
-                this.submit();
             }
+
+            // Proceed with submission
+            this.submit();
         });
     });
 </script>
