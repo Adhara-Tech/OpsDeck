@@ -16,7 +16,7 @@ Flask-Limiter==4.1.1
 Flask-Dance==7.1.0
 Flask-WTF==1.2.2
 flask-talisman==1.1.0
-flask-smorest==0.46.2
+flask-smorest==0.47.0
 marshmallow-sqlalchemy==1.4.2
 psycopg2-binary==2.9.11
 deepdiff==8.6.2
