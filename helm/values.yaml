@@ -94,8 +94,8 @@ loggingSidecar:
     host: "elasticsearch"
     port: 9200
     protocol: "http"
-    username: "elastic"
-    password: "changeme"
+    # Secret containing ELASTICSEARCH_USERNAME and ELASTICSEARCH_PASSWORD keys
+    existingSecret: ""
   # Optional: Extra Filebeat config (merged into filebeat.yml)
   config: {}
 
