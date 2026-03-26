@@ -26,7 +26,7 @@ services_bp = Blueprint('services', __name__,
 @login_required
 @requires_permission('core_inventory', access_level='READ_ONLY')
 def list_services():
-    services = BusinessService.query.all()
+    services = BusinessService.query.order_by(BusinessService.name).all()
     return render_template('services/list.html', services=services)
 
 @services_bp.route('/new', methods=['GET', 'POST'])

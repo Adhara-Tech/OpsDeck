@@ -309,7 +309,7 @@
                             {% set _ = user_access_map[uid].append(access) %}
                             {% endfor %}
 
-                            {% for user_id, accesses in user_access_map.items() %}
+                            {% for user_id, accesses in user_access_map.items()|sort(attribute='1.0.user.name', case_sensitive=false) %}
                             <tr>
                                 <td>
                                     <div class="d-flex align-items-center">
