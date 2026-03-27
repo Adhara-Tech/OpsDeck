@@ -3,12 +3,31 @@ from src.utils.timezone_helper import now
 from ..extensions import db
 from sqlalchemy.orm import foreign
 from sqlalchemy import and_
+import enum
 
-# Association table for self-referential Many-to-Many relationship (Dependencies)
-service_dependencies = db.Table('service_dependencies',
-    db.Column('parent_id', db.Integer, db.ForeignKey('business_service.id'), primary_key=True),
-    db.Column('child_id', db.Integer, db.ForeignKey('business_service.id'), primary_key=True)
-)
+
+class DependencyType(enum.Enum):
+    hosts = 'hosts'
+    authenticates = 'authenticates'
+    provides_access = 'provides_access'
+    stores_data = 'stores_data'
+    processes_data = 'processes_data'
+    monitors = 'monitors'
+    backs_up = 'backs_up'
+    routes_traffic = 'routes_traffic'
+    calls_api = 'calls_api'
+    sends_data = 'sends_data'
+
+
+class ServiceDependency(db.Model):
+    __tablename__ = 'service_dependencies'
+
+    parent_id = db.Column(db.Integer, db.ForeignKey('business_service.id'), primary_key=True)
+    child_id = db.Column(db.Integer, db.ForeignKey('business_service.id'), primary_key=True)
+    label = db.Column(db.Enum(DependencyType), nullable=True)
+
+    parent = db.relationship('BusinessService', foreign_keys=[parent_id], overlaps="upstream_dependencies,downstream_dependencies,upstream_links,downstream_links")
+    child = db.relationship('BusinessService', foreign_keys=[child_id], overlaps="upstream_dependencies,downstream_dependencies,upstream_links,downstream_links")
 
 # Association table for User Access (M2M)
 service_users = db.Table('service_users',
@@ -56,11 +75,28 @@ class BusinessService(db.Model):
     # downstream_dependencies: Services that depend on me.
     upstream_dependencies = db.relationship(
         'BusinessService',
-        secondary=service_dependencies,
-        primaryjoin=(id == service_dependencies.c.child_id),
-        secondaryjoin=(id == service_dependencies.c.parent_id),
+        secondary=ServiceDependency.__table__,
+        primaryjoin=(id == ServiceDependency.__table__.c.child_id),
+        secondaryjoin=(id == ServiceDependency.__table__.c.parent_id),
         backref=db.backref('downstream_dependencies', lazy='dynamic'),
-        lazy='dynamic'
+        lazy='dynamic',
+        overlaps="parent,child,upstream_links,downstream_links"
+    )
+
+    # Links to ServiceDependency objects (for accessing label)
+    upstream_links = db.relationship(
+        'ServiceDependency',
+        foreign_keys=[ServiceDependency.child_id],
+        primaryjoin=(id == ServiceDependency.child_id),
+        lazy='dynamic',
+        overlaps="child,upstream_dependencies,downstream_dependencies,parent"
+    )
+    downstream_links = db.relationship(
+        'ServiceDependency',
+        foreign_keys=[ServiceDependency.parent_id],
+        primaryjoin=(id == ServiceDependency.parent_id),
+        lazy='dynamic',
+        overlaps="parent,upstream_dependencies,downstream_dependencies,child"
     )
     
     # Compliance Links

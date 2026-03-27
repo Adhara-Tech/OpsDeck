@@ -83,6 +83,29 @@ env:
 # pon el nombre aquí. La chart cargará todo el contenido como variables de entorno.
 existingSecret: ""
 
+# --- Backup Configuration ---
+# CronJob that dumps the database and backs up attachments to a restic repo in S3.
+# Credentials are read from an existing Secret that you create and manage.
+backup:
+  enabled: false
+  schedule: "0 3 * * *"          # Daily at 3 AM
+  image:
+    repository: pixelotes/opsdeck-backup   # Alpine + postgresql-client + restic
+    tag: "latest"
+  # Secret with keys: RESTIC_REPOSITORY, RESTIC_PASSWORD, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+  existingSecret: ""
+  retention:
+    keepDaily: 7
+    keepWeekly: 4
+    keepMonthly: 6
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
 # --- Logging Sidecar Configuration ---
 loggingSidecar:
   enabled: false
