@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, current_app
 from flask_login import current_user
 from ..services.permissions_service import requires_permission, has_write_permission
-from ..models.services import BusinessService, ServiceComponent
+from ..models.services import BusinessService, ServiceComponent, ServiceDependency, DependencyType
 from ..models.auth import User
 from ..models.core import CostCenter, Documentation, Link, Attachment
 from ..models.assets import Asset, Software, License
@@ -120,8 +120,8 @@ def detail(id):
     # Get unified access list (direct + inherited)
     effective_users = service.get_effective_users()
 
-    return render_template('services/detail.html', 
-        service=service, 
+    return render_template('services/detail.html',
+        service=service,
         dependency_map=dependency_map,
         node_styles=node_styles,
         upstream_map=upstream_map,
@@ -137,7 +137,8 @@ def detail(id):
         all_users=all_users,
         effective_users=effective_users,
         all_certificates=all_certificates,
-        all_credentials=Credential.query.order_by(Credential.name).all()
+        all_credentials=Credential.query.order_by(Credential.name).all(),
+        dependency_types=DependencyType
     )
 
 from src.utils.logger import log_audit
@@ -220,68 +221,72 @@ def add_dependency(id):
     service = db.get_or_404(BusinessService, id)
     target_service_id = request.form.get('target_service_id')
     dependency_type = request.form.get('dependency_type') # 'upstream' (depends on) or 'downstream' (supports)
-    
+    label_value = request.form.get('dependency_label') or None
+
     if not target_service_id:
         flash('Please select a service.', 'warning')
         return redirect(url_for('services.detail', id=id))
-        
-    target_service = db.session.get(BusinessService,target_service_id)
+
+    target_service = db.session.get(BusinessService, target_service_id)
     if not target_service:
         flash('Target service not found.', 'danger')
         return redirect(url_for('services.detail', id=id))
-        
+
     if target_service.id == service.id:
         flash('Cannot depend on self.', 'warning')
         return redirect(url_for('services.detail', id=id))
-        
+
+    # Resolve label enum
+    label_enum = None
+    if label_value:
+        try:
+            label_enum = DependencyType(label_value)
+        except ValueError:
+            flash('Invalid dependency label.', 'danger')
+            return redirect(url_for('services.detail', id=id))
+
     try:
         if dependency_type == 'upstream':
-            # Service depends on Target (Service -> Target)
-            # upstream_dependencies list should include Target
-            if target_service not in service.upstream_dependencies:
-                service.upstream_dependencies.append(target_service)
+            parent_id, child_id = target_service.id, service.id
         else:
-            # Target depends on Service (Target -> Service)
-            # downstream list ... or equivalently, Target's upstream includes Service
-            if target_service not in service.downstream_dependencies:
-                # Add target to downstream is equivalent to adding service to target's upstream
-                # But treating it via the relationship on 'service':
-                # 'downstream_dependencies' is a backref. We can append to it? yes dynamic.
-                service.downstream_dependencies.append(target_service)
-                
-        db.session.commit()
-        flash('Dependency added.', 'success')
+            parent_id, child_id = service.id, target_service.id
+
+        existing = ServiceDependency.query.filter_by(parent_id=parent_id, child_id=child_id).first()
+        if not existing:
+            dep = ServiceDependency(parent_id=parent_id, child_id=child_id, label=label_enum)
+            db.session.add(dep)
+            db.session.commit()
+            flash('Dependency added.', 'success')
+        else:
+            flash('Dependency already exists.', 'warning')
     except Exception as e:
         db.session.rollback()
         flash(f'Error adding dependency: {str(e)}', 'danger')
-        
+
     return redirect(url_for('services.detail', id=id))
 
 @services_bp.route('/<int:id>/dependency/remove/<int:target_id>', methods=['POST'])
 @login_required
 @requires_permission('core_inventory', access_level='WRITE')
 def remove_dependency(id, target_id):
-    service = db.get_or_404(BusinessService, id)
-    target_service = db.get_or_404(BusinessService, target_id)
-    
-    # We don't know if it was upstream or downstream just by ID, so check both or pass type.
-    # Assuming the user clicks 'remove' from a specific list.
     dep_type = request.form.get('type') # 'upstream' or 'downstream'
-    
+
     try:
         if dep_type == 'upstream':
-            if target_service in service.upstream_dependencies:
-                service.upstream_dependencies.remove(target_service)
-        elif dep_type == 'downstream':
-            if target_service in service.downstream_dependencies:
-                service.downstream_dependencies.remove(target_service)
-        
-        db.session.commit()
-        flash('Dependency removed.', 'success')
+            dep = ServiceDependency.query.filter_by(parent_id=target_id, child_id=id).first()
+        else:
+            dep = ServiceDependency.query.filter_by(parent_id=id, child_id=target_id).first()
+
+        if dep:
+            db.session.delete(dep)
+            db.session.commit()
+            flash('Dependency removed.', 'success')
+        else:
+            flash('Dependency not found.', 'warning')
     except Exception as e:
         db.session.rollback()
         flash(f'Error removing dependency: {str(e)}', 'danger')
-        
+
     return redirect(url_for('services.detail', id=id))
 
 @services_bp.route('/<int:id>/component/add', methods=['POST'])
