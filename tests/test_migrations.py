@@ -79,7 +79,8 @@ class TestMigrations:
         with self.engine.connect() as conn:
             result = conn.execute(text('SELECT version_num FROM alembic_version')).fetchone()
             assert result is not None
-            assert result[0] == '001'
+            # Should match the latest migration revision
+            assert result[0] == '002'
 
     def test_downgrade_base(self):
         """Migrations can be fully rolled back."""

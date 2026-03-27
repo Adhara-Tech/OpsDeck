@@ -16,11 +16,21 @@ branch_labels = None
 depends_on = None
 
 
+dependency_type = sa.Enum(
+    'hosts', 'authenticates', 'provides_access', 'stores_data',
+    'processes_data', 'monitors', 'backs_up', 'routes_traffic',
+    'calls_api', 'sends_data',
+    name='dependencytype',
+)
+
+
 def upgrade():
+    dependency_type.create(op.get_bind(), checkfirst=True)
     op.add_column('service_dependencies',
-        sa.Column('label', sa.String(length=20), nullable=True)
+        sa.Column('label', dependency_type, nullable=True)
     )
 
 
 def downgrade():
     op.drop_column('service_dependencies', 'label')
+    dependency_type.drop(op.get_bind(), checkfirst=True)
