@@ -268,7 +268,8 @@ class ServiceComponent(db.Model):
         from .assets import Asset, Peripheral, Software, License
         from .procurement import Supplier, Purchase, Subscription, Budget
         from .auth import User
-        
+        from .configuration import Configuration
+
         model_map = {
             'Asset': Asset,
             'Peripheral': Peripheral,
@@ -278,7 +279,8 @@ class ServiceComponent(db.Model):
             'Purchase': Purchase,
             'Subscription': Subscription,
             'Budget': Budget,
-            'User': User
+            'User': User,
+            'Configuration': Configuration
         }
         
         model = model_map.get(self.component_type)
