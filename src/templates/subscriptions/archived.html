@@ -30,7 +30,7 @@
                     <tr>
                         <td><a href="{{ url_for('subscriptions.subscription_detail', id=subscription.id) }}">{{ subscription.name }}</a></td>
                         <td><span class="badge bg-secondary">{{ subscription.subscription_type }}</span></td>
-                        <td>{{ subscription.supplier.name }}</td>
+                        <td>{{ subscription.supplier.name if subscription.supplier else 'N/A' }}</td>
                         <td>
                             <form action="{{ url_for('subscriptions.unarchive_subscription', id=subscription.id) }}" method="POST" class="d-inline">
 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
