@@ -80,6 +80,10 @@ RUN pip install --no-cache-dir -r requirements-dev.txt
 COPY . .
 COPY --from=asset-builder /build/src/static/vendor /app/src/static/vendor
 
-RUN chmod +x ./entrypoint.sh
+# Install enterprise plugin at build time if present (dev only)
+RUN if [ -d /app/opsdeck-enterprise ]; then \
+        pip install --no-cache-dir -e /app/opsdeck-enterprise; \
+    fi \
+    && chmod +x ./entrypoint.sh
 
 ENTRYPOINT ["./entrypoint.sh"]
