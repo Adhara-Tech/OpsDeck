@@ -60,7 +60,51 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Chart 2: Breakdown Rate by Brand (Bar)
+    // Chart 2: Fleet Distribution by Brand (Doughnut)
+    const brandDistCtx = document.getElementById('brandDistributionChart');
+    if (brandDistCtx) {
+        new Chart(brandDistCtx.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: data.brandDistributionLabels,
+                datasets: [{
+                    data: data.brandDistributionData,
+                    backgroundColor: [
+                        '#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b',
+                        '#858796', '#5a5c69', '#6610f2', '#fd7e14', '#20c997'
+                    ],
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 15,
+                            font: { size: 12 }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function (context) {
+                                const label = context.label || '';
+                                const value = context.parsed || 0;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((value / total) * 100).toFixed(1);
+                                return `${label}: ${value} (${percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Chart 3: Breakdown Rate by Brand (Bar)
     const breakdownCtx = document.getElementById('breakdownChart');
     if (breakdownCtx) {
         new Chart(breakdownCtx.getContext('2d'), {

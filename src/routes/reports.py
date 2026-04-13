@@ -322,12 +322,19 @@ def assets_dashboard():
     # Calculate percentages
     brand_labels = []
     brand_breakdown_rates = []
-    
+
     for brand, total in sorted(brand_totals.items(), key=lambda x: x[1], reverse=True)[:10]:  # Top 10 brands
         breakdown_count = brand_breakdown.get(brand, 0)
         rate = round((breakdown_count / total * 100), 1) if total > 0 else 0.0
         brand_labels.append(brand)
         brand_breakdown_rates.append(rate)
+
+    # --- Chart Data 3: Distribution by Brand (fleet count) ---
+    brand_distribution_labels = []
+    brand_distribution_data = []
+    for brand, total in sorted(brand_totals.items(), key=lambda x: x[1], reverse=True):
+        brand_distribution_labels.append(brand)
+        brand_distribution_data.append(total)
     
     return render_template(
         'reports/assets_dashboard.html',
@@ -350,7 +357,9 @@ def assets_dashboard():
         status_labels=status_labels,
         status_data=status_data,
         brand_labels=brand_labels,
-        brand_breakdown_rates=brand_breakdown_rates
+        brand_breakdown_rates=brand_breakdown_rates,
+        brand_distribution_labels=brand_distribution_labels,
+        brand_distribution_data=brand_distribution_data
     )
 
 
