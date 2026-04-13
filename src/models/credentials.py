@@ -158,21 +158,23 @@ class CredentialSecret(db.Model):
             
         Logic:
             - If len(raw_value) <= 4: stores "****"
-            - Else: stores asterisks + last 4 characters
-            
+            - Else: stores asterisks + last 4 characters, capped at 16 chars total
+
         Example:
             "mySecretKey1234" -> "***********1234"
+            "aVeryLongSecretValue1234" -> "************1234"
             "abc" -> "****"
         """
+        MAX_LENGTH = 16
         if not raw_value:
             self.masked_value = "****"
             return
-        
+
         if len(raw_value) <= 4:
             self.masked_value = "****"
         else:
-            # Create masked value: asterisks + last 4 chars
-            num_asterisks = len(raw_value) - 4
+            # Create masked value: asterisks + last 4 chars, capped at MAX_LENGTH
+            num_asterisks = min(len(raw_value) - 4, MAX_LENGTH - 4)
             self.masked_value = ('*' * num_asterisks) + raw_value[-4:]
     
     @property
