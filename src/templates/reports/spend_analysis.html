@@ -34,11 +34,11 @@
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <label for="brand" class="form-label">Brand (Asset/Peripheral)</label> {# Clarified scope #}
-                    <select class="form-select" id="brand" name="brand">
+                    <label for="brand_id" class="form-label">Brand (Asset/Peripheral)</label> {# Clarified scope #}
+                    <select class="form-select" id="brand_id" name="brand_id">
                         <option value="">All Brands</option>
                         {% for b in all_brands %}
-                        <option value="{{ b }}" {% if brand == b %}selected{% endif %}>{{ b }}</option>
+                        <option value="{{ b.id }}" {% if brand_id == b.id %}selected{% endif %}>{{ b.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -132,7 +132,7 @@
                     {# *** Handle Brand/Software Display *** #}
                     <td>
                         {% if item.__class__.__name__ in ['Asset', 'Peripheral'] %}
-                            {{ item.brand or 'N/A' }}
+                            {{ item.brand.name if item.brand else 'N/A' }}
                         {% elif item.__class__.__name__ == 'License' %}
                              {# Show linked software if available #}
                             {{ item.software.name if item.software else 'N/A' }}

@@ -68,7 +68,7 @@
 <!-- Charts Row -->
 <div class="row mb-4">
     <!-- Status Distribution Chart -->
-    <div class="col-md-6">
+    <div class="col-md-4">
         <div class="card h-100">
             <div class="card-header">
                 <h5>Fleet Distribution by Status</h5>
@@ -79,8 +79,20 @@
         </div>
     </div>
 
+    <!-- Brand Distribution Chart -->
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5>Fleet Distribution by Brand</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="brandDistributionChart"></canvas>
+            </div>
+        </div>
+    </div>
+
     <!-- Breakdown Rate by Brand Chart -->
-    <div class="col-md-6">
+    <div class="col-md-4">
         <div class="card h-100">
             <div class="card-header">
                 <h5>Breakdown Rate by Brand <span class="badge bg-warning">Last 12 Months</span></h5>
@@ -125,7 +137,7 @@
                                 <td><a href="{{ url_for('assets.asset_detail', id=item.asset.id) }}">{{ item.asset.name
                                         }}</a>
                                 </td>
-                                <td>{{ item.asset.brand or 'N/A' }}</td>
+                                <td>{{ item.asset.brand.name if item.asset.brand else 'N/A' }}</td>
                                 <td>{{ item.asset.warranty_end_date.strftime('%Y-%m-%d') if item.asset.warranty_end_date
                                     else '-' }}</td>
                                 <td>
@@ -174,7 +186,7 @@
                                 <td><a href="{{ url_for('assets.asset_detail', id=lemon.asset.id) }}">{{
                                         lemon.asset.name
                                         }}</a></td>
-                                <td>{{ lemon.asset.brand or 'N/A' }}</td>
+                                <td>{{ lemon.asset.brand.name if lemon.asset.brand else 'N/A' }}</td>
                                 <td>{{ lemon.asset.status }}</td>
                                 <td>
                                     <span class="badge bg-danger">{{ lemon.incident_count }}</span>
@@ -234,7 +246,9 @@
         statusLabels: {{ status_labels | tojson }},
         statusData: {{ status_data | tojson }},
         brandLabels: {{ brand_labels | tojson }},
-        brandBreakdownRates: {{ brand_breakdown_rates | tojson }}
+        brandBreakdownRates: {{ brand_breakdown_rates | tojson }},
+        brandDistributionLabels: {{ brand_distribution_labels | tojson }},
+        brandDistributionData: {{ brand_distribution_data | tojson }}
     };
 
     // Hide skeleton and show content

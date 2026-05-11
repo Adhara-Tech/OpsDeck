@@ -49,7 +49,7 @@
             {% for asset in user.assets %}
             <tr>
                 <td>{{ asset.name }}</td>
-                <td>{{ asset.model or '-' }}</td>
+                <td>{{ asset.model.name if asset.model else '-' }}</td>
                 <td>{{ asset.serial_number or '-' }}</td>
                 <td>{{ asset.status }}</td>
             </tr>

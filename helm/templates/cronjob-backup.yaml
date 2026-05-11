@@ -21,6 +21,9 @@ spec:
             app.kubernetes.io/component: backup
         spec:
           restartPolicy: OnFailure
+          {{- if or .Values.backup.serviceAccount.create .Values.backup.serviceAccount.name }}
+          serviceAccountName: {{ .Values.backup.serviceAccount.name | default (printf "%s-backup" (include "opsdeck.fullname" .)) }}
+          {{- end }}
           containers:
             - name: backup
               image: "{{ .Values.backup.image.repository }}:{{ .Values.backup.image.tag }}"
@@ -50,6 +53,7 @@ spec:
                     secretKeyRef:
                       name: {{ .Values.backup.existingSecret }}
                       key: RESTIC_PASSWORD
+                {{- if not .Values.backup.aws.useIRSA }}
                 - name: AWS_ACCESS_KEY_ID
                   valueFrom:
                     secretKeyRef:
@@ -60,6 +64,11 @@ spec:
                     secretKeyRef:
                       name: {{ .Values.backup.existingSecret }}
                       key: AWS_SECRET_ACCESS_KEY
+                {{- end }}
+                {{- with .Values.backup.aws.region }}
+                - name: AWS_DEFAULT_REGION
+                  value: {{ . | quote }}
+                {{- end }}
               volumeMounts:
                 - name: backup-script
                   mountPath: /scripts

@@ -7,6 +7,7 @@ from datetime import datetime
 from .extensions import db
 # Import all necessary models
 from .models import User, Asset, Peripheral, Location, Supplier, Contact, Software, Subscription, Budget, Risk, RiskCategory, AssetAssignment, PeripheralAssignment
+from .models.assets import Brand, AssetModel
 from src.utils.timezone_helper import now
 
 
@@ -246,10 +247,30 @@ def register_commands(app):
                         except ValueError:
                             pass
 
+                    # Resolve/auto-create Brand and AssetModel
+                    brand_name = (row.get('brand') or '').strip()
+                    model_name = (row.get('model') or '').strip()
+                    brand_obj = None
+                    model_obj = None
+                    if brand_name:
+                        brand_obj = Brand.query.filter_by(name=brand_name).first()
+                        if not brand_obj:
+                            brand_obj = Brand(name=brand_name)
+                            db.session.add(brand_obj)
+                            db.session.flush()
+                            print(f"🏷️  Brand created: {brand_name}")
+                    if model_name and brand_obj is not None:
+                        model_obj = AssetModel.query.filter_by(name=model_name, brand_id=brand_obj.id).first()
+                        if not model_obj:
+                            model_obj = AssetModel(name=model_name, brand_id=brand_obj.id)
+                            db.session.add(model_obj)
+                            db.session.flush()
+                            print(f"🧩 Model created: {brand_name} / {model_name}")
+
                     asset = Asset(
                         name=row['name'],
-                        model=row.get('model'),
-                        brand=row.get('brand'),
+                        brand_id=brand_obj.id if brand_obj else None,
+                        model_id=model_obj.id if model_obj else None,
                         serial_number=row.get('serial_number'),
                         status=row.get('status', 'In Use'),
                         location_id=location_id,
@@ -323,10 +344,21 @@ def register_commands(app):
                             print(f"📍 Location created for peripheral: {loc_name}")
                         location_id = loc.id
 
+                    # Resolve/auto-create Brand (peripherals have no model column in CSV)
+                    brand_name = (row.get('brand') or '').strip()
+                    brand_obj = None
+                    if brand_name:
+                        brand_obj = Brand.query.filter_by(name=brand_name).first()
+                        if not brand_obj:
+                            brand_obj = Brand(name=brand_name)
+                            db.session.add(brand_obj)
+                            db.session.flush()
+                            print(f"🏷️  Brand created: {brand_name}")
+
                     peripheral = Peripheral(
                         name=row['name'],
                         type=row.get('type', 'Accessory'),
-                        brand=row.get('brand'),
+                        brand_id=brand_obj.id if brand_obj else None,
                         serial_number=row.get('serial_number'),
                         status=row.get('status', 'In Use'),
                         user_id=user_id, # Link user

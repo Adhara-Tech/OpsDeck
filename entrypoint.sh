@@ -3,23 +3,6 @@
 # Ensure the data directory exists (required for attachments)
 mkdir -p /app/data/attachments
 
-# Check if Enterprise mode is enabled and install plugin BEFORE migrations
-if [ "$ENTERPRISE_ENABLED" = "True" ]; then
-    echo "Enterprise mode enabled. Installing enterprise plugin..."
-    if [ -d "/app/opsdeck-enterprise" ]; then
-        # Install the enterprise plugin in editable mode
-        pip install -e /app/opsdeck-enterprise
-        if [ $? -eq 0 ]; then
-             echo "✓ Enterprise plugin installed successfully"
-        else
-             echo "✗ Failed to install enterprise plugin"
-             exit 1
-        fi
-    else
-        echo "⚠ Enterprise mode enabled but opsdeck-enterprise folder not found"
-    fi
-fi
-
 # Apply database migrations (migrations are committed in the repo/image)
 # For fresh databases: creates all tables from the migration chain
 # For existing databases: applies only pending migrations

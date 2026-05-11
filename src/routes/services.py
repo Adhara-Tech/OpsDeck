@@ -6,6 +6,7 @@ from ..models.auth import User
 from ..models.core import CostCenter, Documentation, Link, Attachment
 from ..models.assets import Asset, Software, License
 from ..models.procurement import Supplier, Subscription
+from ..models.configuration import Configuration
 from ..models.policy import Policy
 from ..models.certificates import Certificate
 from ..models.credentials import Credential
@@ -349,6 +350,7 @@ def search_components(component_type):
         'License': (License, 'name'),
         'Supplier': (Supplier, 'name'),
         'Subscription': (Subscription, 'name'),
+        'Configuration': (Configuration, 'name'),
     }
     
     if component_type not in model_map:

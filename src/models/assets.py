@@ -36,11 +36,57 @@ class Location(db.Model):
         """Returns True if this location has physical address info."""
         return bool(self.address or self.city or self.country)
 
+class Brand(db.Model):
+    """Manufacturer/brand of an asset or peripheral (e.g. Dell, Samsung, ASUS).
+    Distinct from Supplier (commercial entity you buy from): the same product
+    can come from different suppliers, and a supplier is not always the brand.
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False, unique=True)
+    website = db.Column(db.String(255), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: now())
+
+    models = db.relationship(
+        'AssetModel', backref='brand', lazy=True,
+        cascade='all, delete-orphan', order_by='AssetModel.name'
+    )
+    assets = db.relationship('Asset', backref='brand', lazy=True)
+    peripherals = db.relationship('Peripheral', backref='brand', lazy=True)
+
+    def __repr__(self):
+        return f'<Brand {self.name}>'
+
+
+class AssetModel(db.Model):
+    """Specific product model under a brand (e.g. Dell XPS 13, Samsung C27F390).
+    A Brand has many AssetModels; a model belongs to exactly one Brand.
+    Shared by Asset and Peripheral.
+    """
+    __tablename__ = 'asset_model'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    brand_id = db.Column(db.Integer, db.ForeignKey('brand.id'), nullable=False, index=True)
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=lambda: now())
+
+    assets = db.relationship('Asset', backref='model', lazy=True)
+    peripherals = db.relationship('Peripheral', backref='model', lazy=True)
+
+    __table_args__ = (
+        db.UniqueConstraint('brand_id', 'name', name='uq_asset_model_brand_name'),
+    )
+
+    def __repr__(self):
+        return f'<AssetModel {self.name} (brand_id={self.brand_id})>'
+
+
 class Asset(db.Model, CustomPropertiesMixin):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
-    model = db.Column(db.String(100))
-    brand = db.Column(db.String(100))
+    brand_id = db.Column(db.Integer, db.ForeignKey('brand.id'), nullable=True, index=True)
+    model_id = db.Column(db.Integer, db.ForeignKey('asset_model.id'), nullable=True, index=True)
     serial_number = db.Column(db.String(100), unique=True)
     status = db.Column(db.String(50), nullable=False, default='In Use', index=True)
     internal_id = db.Column(db.String(100), unique=True)
@@ -243,7 +289,8 @@ class Peripheral(db.Model, CustomPropertiesMixin):
     disposal_record = db.relationship('DisposalRecord', backref='peripheral', uselist=False, cascade='all, delete-orphan')
 
     # --- ADDED/UPDATED FIELDS ---
-    brand = db.Column(db.String(100))
+    brand_id = db.Column(db.Integer, db.ForeignKey('brand.id'), nullable=True, index=True)
+    model_id = db.Column(db.Integer, db.ForeignKey('asset_model.id'), nullable=True, index=True)
     purchase_date = db.Column(db.Date)
     warranty_length = db.Column(db.Integer) # in months
 

@@ -43,20 +43,13 @@
                 </div>
             </div>
 
+            {% with current_brand_id=(asset.brand_id if asset else None),
+                    current_model_id=(asset.model_id if asset else None) %}
+                {% include 'brands/_picker.html' %}
+            {% endwith %}
+
             <div class="row mb-3">
-                <div class="col-md-4">
-                    <label for="brand" class="form-label">Brand</label>
-                    <input type="text" class="form-control" id="brand" name="brand"
-                        value="{{ asset.brand if asset else '' }}" {% if not can_write('core_inventory') %}disabled{%
-                        endif %}>
-                </div>
-                <div class="col-md-4">
-                    <label for="model" class="form-label">Model</label>
-                    <input type="text" class="form-control" id="model" name="model"
-                        value="{{ asset.model if asset else '' }}" {% if not can_write('core_inventory') %}disabled{%
-                        endif %}>
-                </div>
-                <div class="col-md-4">
+                <div class="col-md-12">
                     <label for="serial_number" class="form-label">Serial Number</label>
                     <input type="text" class="form-control" id="serial_number" name="serial_number"
                         value="{{ asset.serial_number if asset else '' }}" {% if not can_write('core_inventory')

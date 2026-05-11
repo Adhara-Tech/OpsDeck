@@ -201,7 +201,7 @@
             {% for item in warranty_expiring_soon %}
             <tr>
                 <td>{{ item.asset.name }}</td>
-                <td>{{ item.asset.brand or 'N/A' }}</td>
+                <td>{{ item.asset.brand.name if item.asset.brand else 'N/A' }}</td>
                 <td>{{ item.asset.warranty_end_date.strftime('%Y-%m-%d') if item.asset.warranty_end_date else '-' }}
                 </td>
                 <td>
@@ -237,7 +237,7 @@
             {% for lemon in lemons %}
             <tr>
                 <td>{{ lemon.asset.name }}</td>
-                <td>{{ lemon.asset.brand or 'N/A' }}</td>
+                <td>{{ lemon.asset.brand.name if lemon.asset.brand else 'N/A' }}</td>
                 <td>{{ lemon.asset.status }}</td>
                 <td><span class="badge badge-danger">{{ lemon.incident_count }}</span></td>
             </tr>
