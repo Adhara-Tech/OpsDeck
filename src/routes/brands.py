@@ -29,75 +29,78 @@ def brand_detail(id):
     return render_template('brands/detail.html', brand=brand)
 
 
-@brands_bp.route('/new', methods=['GET', 'POST'])
+@brands_bp.route('/new', methods=['GET'])
 @login_required
 @requires_permission('core_inventory', access_level='READ_ONLY')
 def new_brand():
-    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
-    if request.method == 'POST':
-        if not has_write_permission('core_inventory'):
-            if is_ajax:
-                return jsonify({'error': 'Write access required'}), 403
-            flash('Write access required for this action.', 'danger')
-            return redirect(url_for('brands.list_brands'))
-        name = (request.form.get('name') or '').strip()
-        if not name:
-            if is_ajax:
-                return jsonify({'error': 'Brand name is required'}), 400
-            flash('Brand name is required.', 'danger')
-            return redirect(url_for('brands.new_brand'))
-        existing = Brand.query.filter_by(name=name).first()
-        if existing:
-            if is_ajax:
-                return jsonify({'id': existing.id, 'name': existing.name, 'existing': True})
-            flash(f'Brand "{name}" already exists.', 'warning')
-            return redirect(url_for('brands.list_brands'))
-        brand = Brand(
-            name=name,
-            website=request.form.get('website') or None,
-            notes=request.form.get('notes') or None,
-        )
-        db.session.add(brand)
-        db.session.commit()
-        log_audit(
-            event_type='brand.created', action='create',
-            target_object=f'Brand:{brand.id}', target_info=brand.name,
-        )
-        if is_ajax:
-            return jsonify({'id': brand.id, 'name': brand.name, 'existing': False})
-        flash(f'Brand "{brand.name}" created.', 'success')
-        return redirect(url_for('brands.brand_detail', id=brand.id))
     return render_template('brands/form.html', brand=None)
 
 
-@brands_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
+@brands_bp.route('/new', methods=['POST'])
+@login_required
+@requires_permission('core_inventory', access_level='WRITE')
+def create_brand():
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+    name = (request.form.get('name') or '').strip()
+    if not name:
+        if is_ajax:
+            return jsonify({'error': 'Brand name is required'}), 400
+        flash('Brand name is required.', 'danger')
+        return redirect(url_for('brands.new_brand'))
+    existing = Brand.query.filter_by(name=name).first()
+    if existing:
+        if is_ajax:
+            return jsonify({'id': existing.id, 'name': existing.name, 'existing': True})
+        flash(f'Brand "{name}" already exists.', 'warning')
+        return redirect(url_for('brands.list_brands'))
+    brand = Brand(
+        name=name,
+        website=request.form.get('website') or None,
+        notes=request.form.get('notes') or None,
+    )
+    db.session.add(brand)
+    db.session.commit()
+    log_audit(
+        event_type='brand.created', action='create',
+        target_object=f'Brand:{brand.id}', target_info=brand.name,
+    )
+    if is_ajax:
+        return jsonify({'id': brand.id, 'name': brand.name, 'existing': False})
+    flash(f'Brand "{brand.name}" created.', 'success')
+    return redirect(url_for('brands.brand_detail', id=brand.id))
+
+
+@brands_bp.route('/<int:id>/edit', methods=['GET'])
 @login_required
 @requires_permission('core_inventory', access_level='READ_ONLY')
 def edit_brand(id):
     brand = db.get_or_404(Brand, id)
-    if request.method == 'POST':
-        if not has_write_permission('core_inventory'):
-            flash('Write access required for this action.', 'danger')
-            return redirect(url_for('brands.brand_detail', id=id))
-        name = (request.form.get('name') or '').strip()
-        if not name:
-            flash('Brand name is required.', 'danger')
-            return redirect(url_for('brands.edit_brand', id=id))
-        clash = Brand.query.filter(Brand.name == name, Brand.id != id).first()
-        if clash:
-            flash(f'Another brand with name "{name}" already exists.', 'danger')
-            return redirect(url_for('brands.edit_brand', id=id))
-        brand.name = name
-        brand.website = request.form.get('website') or None
-        brand.notes = request.form.get('notes') or None
-        db.session.commit()
-        log_audit(
-            event_type='brand.updated', action='update',
-            target_object=f'Brand:{brand.id}', target_info=brand.name,
-        )
-        flash(f'Brand "{brand.name}" updated.', 'success')
-        return redirect(url_for('brands.brand_detail', id=brand.id))
     return render_template('brands/form.html', brand=brand)
+
+
+@brands_bp.route('/<int:id>/edit', methods=['POST'])
+@login_required
+@requires_permission('core_inventory', access_level='WRITE')
+def update_brand(id):
+    brand = db.get_or_404(Brand, id)
+    name = (request.form.get('name') or '').strip()
+    if not name:
+        flash('Brand name is required.', 'danger')
+        return redirect(url_for('brands.edit_brand', id=id))
+    clash = Brand.query.filter(Brand.name == name, Brand.id != id).first()
+    if clash:
+        flash(f'Another brand with name "{name}" already exists.', 'danger')
+        return redirect(url_for('brands.edit_brand', id=id))
+    brand.name = name
+    brand.website = request.form.get('website') or None
+    brand.notes = request.form.get('notes') or None
+    db.session.commit()
+    log_audit(
+        event_type='brand.updated', action='update',
+        target_object=f'Brand:{brand.id}', target_info=brand.name,
+    )
+    flash(f'Brand "{brand.name}" updated.', 'success')
+    return redirect(url_for('brands.brand_detail', id=brand.id))
 
 
 @brands_bp.route('/<int:id>/delete', methods=['POST'])
