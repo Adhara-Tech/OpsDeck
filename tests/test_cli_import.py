@@ -246,7 +246,8 @@ def test_import_assets_basic(app, csv_dir):
         asset = Asset.query.filter_by(serial_number='C02XYZ123').first()
         assert asset is not None
         assert asset.name == 'MacBook Pro'
-        assert asset.brand == 'Apple'
+        assert asset.brand.name == 'Apple'
+        assert asset.model.name == 'MBP16'
         assert asset.cost == 2499.00
         assert asset.warranty_length == 24
         assert asset.location.name == 'HQ Office'
@@ -345,7 +346,7 @@ def test_import_peripherals_basic(app, csv_dir):
         assert monitor is not None
         assert monitor.name == 'Dell Monitor 27'
         assert monitor.type == 'Monitor'
-        assert monitor.brand == 'Dell'
+        assert monitor.brand.name == 'Dell'
 
 
 def test_import_peripherals_default_values(app, csv_dir):

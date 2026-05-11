@@ -7,8 +7,18 @@ from datetime import timedelta
 from src import db
 from src.utils.timezone_helper import today
 from src.models import (
-    Subscription, Supplier, Asset, User, Group, Peripheral, Location, License, Purchase
+    Subscription, Supplier, Asset, User, Group, Peripheral, Location, License, Purchase, Brand
 )
+
+
+def _brand(name):
+    """Get-or-create a Brand by name (brand is now a relationship, not a string column)."""
+    b = Brand.query.filter_by(name=name).first()
+    if not b:
+        b = Brand(name=name)
+        db.session.add(b)
+        db.session.flush()
+    return b
 
 
 @pytest.fixture
@@ -53,7 +63,7 @@ def reports_data(app):
         # Create assets
         asset1 = Asset(
             name="Laptop 01",
-            brand="Dell",
+            brand=_brand("Dell"),
             status="In Use",
             supplier_id=supplier.id,
             user_id=user.id,
@@ -65,7 +75,7 @@ def reports_data(app):
         )
         asset2 = Asset(
             name="Laptop 02",
-            brand="HP",
+            brand=_brand("HP"),
             status="Available",
             cost=1200.0,
             currency="USD",
@@ -77,7 +87,7 @@ def reports_data(app):
         # Create peripheral
         peripheral = Peripheral(
             name="Monitor",
-            brand="Dell",
+            brand=_brand("Dell"),
             supplier_id=supplier.id,
             user_id=user.id,
             cost=300.0,

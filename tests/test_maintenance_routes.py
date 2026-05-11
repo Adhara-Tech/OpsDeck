@@ -6,7 +6,17 @@ import pytest
 from datetime import timedelta
 from src import db
 from src.utils.timezone_helper import today
-from src.models import MaintenanceLog, Asset, Peripheral, User
+from src.models import MaintenanceLog, Asset, Peripheral, User, Brand
+
+
+def _brand(name):
+    """Get-or-create a Brand by name (brand is now a relationship, not a string column)."""
+    b = Brand.query.filter_by(name=name).first()
+    if not b:
+        b = Brand(name=name)
+        db.session.add(b)
+        db.session.flush()
+    return b
 
 
 @pytest.fixture
@@ -23,7 +33,7 @@ def maintenance_data(app):
         asset = Asset(
             name="Server 01",
             status="In Use",
-            brand="HP"
+            brand=_brand("HP")
         )
         db.session.add(asset)
         db.session.commit()
@@ -31,7 +41,7 @@ def maintenance_data(app):
         # Create peripheral
         peripheral = Peripheral(
             name="Network Switch",
-            brand="Cisco"
+            brand=_brand("Cisco")
         )
         db.session.add(peripheral)
         db.session.commit()

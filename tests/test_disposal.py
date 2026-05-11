@@ -6,7 +6,17 @@ import pytest
 from datetime import timedelta
 from src import db
 from src.utils.timezone_helper import today
-from src.models import Asset, Peripheral, DisposalRecord
+from src.models import Asset, Peripheral, DisposalRecord, Brand
+
+
+def _brand(name):
+    """Get-or-create a Brand by name (brand is now a relationship, not a string column)."""
+    b = Brand.query.filter_by(name=name).first()
+    if not b:
+        b = Brand(name=name)
+        db.session.add(b)
+        db.session.flush()
+    return b
 
 
 @pytest.fixture
@@ -17,7 +27,7 @@ def disposal_data(app):
         asset_with_disposal = Asset(
             name="Old Laptop",
             status="In Use",
-            brand="Dell"
+            brand=_brand("Dell")
         )
         db.session.add(asset_with_disposal)
         db.session.commit()
@@ -26,7 +36,7 @@ def disposal_data(app):
         asset_for_disposal = Asset(
             name="Asset For Disposal",
             status="In Use",
-            brand="HP"
+            brand=_brand("HP")
         )
         db.session.add(asset_for_disposal)
         db.session.commit()
@@ -34,7 +44,7 @@ def disposal_data(app):
         # Create peripheral to dispose
         peripheral = Peripheral(
             name="Broken Mouse",
-            brand="Logitech"
+            brand=_brand("Logitech")
         )
         db.session.add(peripheral)
         db.session.commit()
