@@ -3,6 +3,7 @@ from flask import (
 )
 from datetime import datetime
 from ..models import db, Peripheral, Asset, Purchase, Supplier, User, PeripheralAssignment
+from ..models.assets import Brand
 from ..models.core import CustomFieldDefinition
 from .main import login_required
 from ..services.permissions_service import requires_permission, has_write_permission
@@ -40,7 +41,8 @@ def new_peripheral():
         peripheral = Peripheral(
             name=request.form['name'],
             type=request.form.get('type'),
-            brand=request.form.get('brand'),
+            brand_id=int(request.form.get('brand_id')) if request.form.get('brand_id') else None,
+            model_id=int(request.form.get('model_id')) if request.form.get('model_id') else None,
             serial_number=request.form.get('serial_number'),
             status=request.form['status'],
             purchase_date=datetime.strptime(request.form.get('purchase_date'), '%Y-%m-%d').date() if request.form.get('purchase_date') else None,
@@ -61,6 +63,7 @@ def new_peripheral():
                             assets=Asset.query.order_by(Asset.name).all(),
                             purchases=Purchase.query.order_by(Purchase.description).all(),
                             suppliers=Supplier.query.order_by(Supplier.name).all(),
+                            brands=Brand.query.order_by(Brand.name).all(),
                             users=User.query.filter_by(is_archived=False).order_by(User.name).all())
 
 @peripherals_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
@@ -79,11 +82,17 @@ def edit_peripheral(id):
             flash('To dispose of a peripheral, please use the "Record Disposal" action from its detail page. This ensures a proper audit trail.', 'warning')
             return redirect(url_for('peripherals.peripheral_detail', id=id))
 
+        brand_id_form = request.form.get('brand_id')
+        model_id_form = request.form.get('model_id')
+        new_brand_id = int(brand_id_form) if brand_id_form else None
+        new_model_id = int(model_id_form) if model_id_form else None
+
         # Check for validated purchase
         if peripheral.purchase and peripheral.purchase.validated_cost is not None:
             peripheral.name = request.form['name']
             peripheral.type = request.form.get('type')
-            peripheral.brand = request.form.get('brand')
+            peripheral.brand_id = new_brand_id
+            peripheral.model_id = new_model_id
             peripheral.serial_number = request.form.get('serial_number')
             peripheral.status = new_status
             peripheral.user_id = request.form.get('user_id') or None
@@ -94,7 +103,8 @@ def edit_peripheral(id):
         # Full update
         peripheral.name = request.form['name']
         peripheral.type = request.form.get('type')
-        peripheral.brand = request.form.get('brand')
+        peripheral.brand_id = new_brand_id
+        peripheral.model_id = new_model_id
         peripheral.serial_number = request.form.get('serial_number')
         peripheral.status = new_status
         purchase_date_str = request.form.get('purchase_date')

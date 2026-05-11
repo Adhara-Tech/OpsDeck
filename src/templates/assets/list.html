@@ -41,8 +41,8 @@
                     {% for asset in assets %}
                     <tr>
                         <td><a href="{{ url_for('assets.asset_detail', id=asset.id) }}">{{ asset.name }}</a></td>
-                        <td>{{ asset.model or '-' }}</td>
-                        <td>{{ asset.brand or '-' }}</td>
+                        <td>{{ asset.model.name if asset.model else '-' }}</td>
+                        <td>{{ asset.brand.name if asset.brand else '-' }}</td>
                         <td>{{ asset.serial_number or '-' }}</td>
                         <td><span class="badge bg-secondary">{{ asset.status }}</span></td>
                         <td>{{ asset.user.name if asset.user else '-' }}</td>

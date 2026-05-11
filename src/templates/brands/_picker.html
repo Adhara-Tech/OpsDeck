@@ -1,0 +1,244 @@
+{#
+  Brand + Model picker partial. Two dependent <select> controls + inline
+  modals to create a new Brand or a new Model on the fly via AJAX.
+
+  Usage:
+    {% include 'brands/_picker.html' with context %}
+
+  Expects in context:
+    - brands           (iterable of Brand rows, pre-ordered by name)
+    - current_brand_id (optional: int, preselected brand)
+    - current_model_id (optional: int, preselected model)
+    - can_write_core   (optional bool; defaults to can_write('core_inventory'))
+#}
+{% set _can_write = can_write_core if can_write_core is defined else can_write('core_inventory') %}
+{% set _brand_id = current_brand_id if current_brand_id is defined else None %}
+{% set _model_id = current_model_id if current_model_id is defined else None %}
+
+<div class="row mb-3">
+    <div class="col-md-6">
+        <label for="brand_id" class="form-label">Brand</label>
+        <div class="input-group">
+            <select class="form-select" id="brand_id" name="brand_id"
+                data-models-url-template="{{ url_for('brands.list_models_json', brand_id=0) }}"
+                {% if not _can_write %}disabled{% endif %}>
+                <option value="">— Select a brand —</option>
+                {% for b in brands %}
+                <option value="{{ b.id }}" {% if _brand_id == b.id %}selected{% endif %}>{{ b.name }}</option>
+                {% endfor %}
+            </select>
+            {% if _can_write %}
+            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal"
+                data-bs-target="#newBrandInlineModal" title="Add new brand">
+                <i class="fas fa-plus"></i>
+            </button>
+            {% endif %}
+        </div>
+    </div>
+    <div class="col-md-6">
+        <label for="model_id" class="form-label">Model</label>
+        <div class="input-group">
+            <select class="form-select" id="model_id" name="model_id"
+                data-initial-model-id="{{ _model_id or '' }}"
+                {% if not _can_write %}disabled{% endif %}>
+                <option value="">— Select a brand first —</option>
+            </select>
+            {% if _can_write %}
+            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal"
+                data-bs-target="#newModelInlineModal" title="Add new model for selected brand">
+                <i class="fas fa-plus"></i>
+            </button>
+            {% endif %}
+        </div>
+        <div class="form-text">Select a brand to enable model choices.</div>
+    </div>
+</div>
+
+{% if _can_write %}
+<!-- Inline: New Brand -->
+<div class="modal fade" id="newBrandInlineModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-tag"></i> New Brand</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="inline_brand_name" class="form-label">Name *</label>
+                    <input type="text" class="form-control" id="inline_brand_name" maxlength="100">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="inlineBrandCreateBtn">Create Brand</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Inline: New Model -->
+<div class="modal fade" id="newModelInlineModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-cube"></i> New Model</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-3" id="inlineModelBrandHint">Select a brand first.</p>
+                <div class="mb-3">
+                    <label for="inline_model_name" class="form-label">Name *</label>
+                    <input type="text" class="form-control" id="inline_model_name" maxlength="100">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="inlineModelCreateBtn">Create Model</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+(function () {
+    const brandSelect = document.getElementById('brand_id');
+    const modelSelect = document.getElementById('model_id');
+    if (!brandSelect || !modelSelect) return;
+
+    const modelsUrlTemplate = brandSelect.dataset.modelsUrlTemplate || '';
+    const csrfTokenEl = document.querySelector('input[name="csrf_token"]');
+    const csrfToken = csrfTokenEl ? csrfTokenEl.value : '';
+
+    function modelsUrl(brandId) {
+        // url_for(..., brand_id=0) was rendered — swap the trailing /0/ for the real id.
+        return modelsUrlTemplate.replace(/\/0\/models\.json$/, '/' + brandId + '/models.json');
+    }
+
+    async function loadModels(brandId, preselectId) {
+        modelSelect.innerHTML = '<option value="">— Loading… —</option>';
+        modelSelect.disabled = true;
+        if (!brandId) {
+            modelSelect.innerHTML = '<option value="">— Select a brand first —</option>';
+            modelSelect.disabled = brandSelect.disabled;
+            return;
+        }
+        try {
+            const resp = await fetch(modelsUrl(brandId), { credentials: 'same-origin' });
+            if (!resp.ok) throw new Error('Failed to load models');
+            const models = await resp.json();
+            modelSelect.innerHTML = '<option value="">— No model —</option>';
+            for (const m of models) {
+                const opt = document.createElement('option');
+                opt.value = m.id;
+                opt.textContent = m.name;
+                if (preselectId && String(preselectId) === String(m.id)) opt.selected = true;
+                modelSelect.appendChild(opt);
+            }
+        } catch (e) {
+            modelSelect.innerHTML = '<option value="">— Error loading models —</option>';
+        } finally {
+            modelSelect.disabled = brandSelect.disabled;
+        }
+    }
+
+    // Initial load
+    const initialBrandId = brandSelect.value;
+    const initialModelId = modelSelect.dataset.initialModelId || '';
+    if (initialBrandId) loadModels(initialBrandId, initialModelId);
+
+    brandSelect.addEventListener('change', () => loadModels(brandSelect.value, null));
+
+    // ---- Inline create Brand ----
+    const inlineBrandBtn = document.getElementById('inlineBrandCreateBtn');
+    const inlineBrandModal = document.getElementById('newBrandInlineModal');
+    if (inlineBrandBtn) {
+        inlineBrandBtn.addEventListener('click', async () => {
+            const nameEl = document.getElementById('inline_brand_name');
+            const name = (nameEl.value || '').trim();
+            if (!name) { nameEl.focus(); return; }
+            const fd = new FormData();
+            fd.append('name', name);
+            fd.append('csrf_token', csrfToken);
+            const resp = await fetch('{{ url_for("brands.new_brand") }}', {
+                method: 'POST',
+                body: fd,
+                credentials: 'same-origin',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            });
+            if (!resp.ok) { alert('Failed to create brand.'); return; }
+            const data = await resp.json();
+            // Append (if new) and select
+            let opt = Array.from(brandSelect.options).find(o => String(o.value) === String(data.id));
+            if (!opt) {
+                opt = document.createElement('option');
+                opt.value = data.id;
+                opt.textContent = data.name;
+                brandSelect.appendChild(opt);
+            }
+            brandSelect.value = data.id;
+            // Trigger dependent model reload
+            await loadModels(data.id, null);
+            // Close modal + reset input
+            const modalInst = bootstrap.Modal.getInstance(inlineBrandModal);
+            if (modalInst) modalInst.hide();
+            nameEl.value = '';
+        });
+    }
+
+    // ---- Inline create Model ----
+    const inlineModelModal = document.getElementById('newModelInlineModal');
+    if (inlineModelModal) {
+        inlineModelModal.addEventListener('show.bs.modal', () => {
+            const hint = document.getElementById('inlineModelBrandHint');
+            const bId = brandSelect.value;
+            if (!bId) {
+                hint.textContent = 'Select a brand first.';
+                hint.classList.add('text-danger');
+                document.getElementById('inlineModelCreateBtn').disabled = true;
+            } else {
+                const bName = brandSelect.options[brandSelect.selectedIndex].text;
+                hint.textContent = 'Creating model for brand: ' + bName;
+                hint.classList.remove('text-danger');
+                document.getElementById('inlineModelCreateBtn').disabled = false;
+            }
+        });
+    }
+    const inlineModelBtn = document.getElementById('inlineModelCreateBtn');
+    if (inlineModelBtn) {
+        inlineModelBtn.addEventListener('click', async () => {
+            const bId = brandSelect.value;
+            if (!bId) return;
+            const nameEl = document.getElementById('inline_model_name');
+            const name = (nameEl.value || '').trim();
+            if (!name) { nameEl.focus(); return; }
+            const fd = new FormData();
+            fd.append('name', name);
+            fd.append('csrf_token', csrfToken);
+            const url = '{{ url_for("brands.create_model", brand_id=0) }}'.replace(/\/0\/models\/create$/, '/' + bId + '/models/create');
+            const resp = await fetch(url, {
+                method: 'POST',
+                body: fd,
+                credentials: 'same-origin',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            });
+            if (!resp.ok) {
+                alert('Failed to create model.');
+                return;
+            }
+            const data = await resp.json();
+            // Append and select the new model
+            const opt = document.createElement('option');
+            opt.value = data.id;
+            opt.textContent = data.name;
+            opt.selected = true;
+            modelSelect.appendChild(opt);
+            // Close modal
+            const modalInst = bootstrap.Modal.getInstance(inlineModelModal);
+            if (modalInst) modalInst.hide();
+            nameEl.value = '';
+        });
+    }
+})();
+</script>

@@ -258,6 +258,7 @@ def create_app(test_config=None):
     from .routes.main import main_bp
     from .routes.assets import assets_bp
     from .routes.peripherals import peripherals_bp
+    from .routes.brands import brands_bp
     from .routes.locations import locations_bp
     from .routes.suppliers import suppliers_bp
     from .routes.contacts import contacts_bp
@@ -301,6 +302,7 @@ def create_app(test_config=None):
     app.register_blueprint(main_bp)
     app.register_blueprint(assets_bp, url_prefix='/assets')
     app.register_blueprint(peripherals_bp, url_prefix='/peripherals')
+    app.register_blueprint(brands_bp, url_prefix='/brands')
     app.register_blueprint(locations_bp, url_prefix='/locations')
     app.register_blueprint(suppliers_bp, url_prefix='/suppliers')
     app.register_blueprint(contacts_bp, url_prefix='/contacts')

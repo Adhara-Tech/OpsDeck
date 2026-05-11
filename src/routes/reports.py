@@ -5,6 +5,7 @@ from sqlalchemy import func
 from datetime import date, datetime
 from dateutil.relativedelta import relativedelta
 from ..models import db, Subscription, Asset, Supplier, User, Group, Peripheral, Location, License, Purchase
+from ..models.assets import Brand
 from ..services.finance_service import get_conversion_rate
 from .main import login_required
 from ..services.permissions_service import requires_permission
@@ -133,9 +134,22 @@ def subscription_reports():
 @login_required
 @requires_permission('core_inventory')
 def asset_reports():
-    assets_by_brand = db.session.query(Asset.brand, func.count(Asset.id)).filter(Asset.is_archived == False).group_by(Asset.brand).all()
-    brand_labels = [item[0] or 'N/A' for item in assets_by_brand]
+    assets_by_brand = (
+        db.session.query(Brand.name, func.count(Asset.id))
+        .outerjoin(Asset, Asset.brand_id == Brand.id)
+        .filter(Asset.is_archived == False)
+        .group_by(Brand.name)
+        .all()
+    )
+    # Include assets with no brand assigned
+    unbranded_count = db.session.query(func.count(Asset.id)).filter(
+        Asset.is_archived == False, Asset.brand_id.is_(None)
+    ).scalar() or 0
+    brand_labels = [item[0] for item in assets_by_brand]
     brand_data = [item[1] for item in assets_by_brand]
+    if unbranded_count:
+        brand_labels.append('N/A')
+        brand_data.append(unbranded_count)
 
     assets_by_supplier = db.session.query(Supplier.name, func.count(Asset.id)).join(Asset).filter(Asset.is_archived == False).group_by(Supplier.name).all()
     supplier_labels = [item[0] or 'N/A' for item in assets_by_supplier]
@@ -313,9 +327,9 @@ def assets_dashboard():
     brand_totals = {}
     
     for asset in all_assets:
-        brand = asset.brand or 'Unknown'
+        brand = asset.brand.name if asset.brand else 'Unknown'
         brand_totals[brand] = brand_totals.get(brand, 0) + 1
-        
+
         if asset.id in assets_with_repairs:
             brand_breakdown[brand] = brand_breakdown.get(brand, 0) + 1
     
@@ -498,17 +512,15 @@ def spend_analysis():
     groups = Group.query.order_by(Group.name).all()
     locations = Location.query.filter_by(is_archived=False).order_by(Location.name).all()
 
-    # Get a distinct list of brands from assets and peripherals
-    asset_brands = db.session.query(Asset.brand).filter(Asset.brand.isnot(None), Asset.is_archived == False).distinct()
-    peripheral_brands = db.session.query(Peripheral.brand).filter(Peripheral.brand.isnot(None), Peripheral.is_archived == False).distinct()
-    all_brands = sorted([b[0] for b in asset_brands.union(peripheral_brands) if b[0]]) # Filter out None/empty brands
+    # Brand options come from the Brand table (only brands actually in use)
+    all_brands = Brand.query.order_by(Brand.name).all()
 
     # --- Get filter criteria from URL arguments ---
     start_date = request.args.get('start_date')
     end_date = request.args.get('end_date')
     item_type = request.args.get('item_type', 'all') # Changed default to 'all'
     supplier_id = request.args.get('supplier_id', type=int)
-    brand = request.args.get('brand') # Still applies to Asset/Peripheral
+    brand_id = request.args.get('brand_id', type=int)
     user_id = request.args.get('user_id', type=int)
     group_id = request.args.get('group_id', type=int)
     location_id = request.args.get('location_id', type=int) # Only applies to Assets
@@ -543,9 +555,9 @@ def spend_analysis():
         # licenses_query = licenses_query.filter(License.supplier_id == supplier_id)
 
     # Apply brand filter (only to Asset/Peripheral)
-    if brand:
-        assets_query = assets_query.filter(Asset.brand == brand)
-        peripherals_query = peripherals_query.filter(Peripheral.brand == brand)
+    if brand_id:
+        assets_query = assets_query.filter(Asset.brand_id == brand_id)
+        peripherals_query = peripherals_query.filter(Peripheral.brand_id == brand_id)
 
     # Apply location filter (only to Asset)
     if location_id:
@@ -591,7 +603,7 @@ def spend_analysis():
         locations=locations,
         # Pass filters back to template
         start_date=start_date, end_date=end_date, item_type=item_type,
-        supplier_id=supplier_id, brand=brand, user_id=user_id, group_id=group_id,
+        supplier_id=supplier_id, brand_id=brand_id, user_id=user_id, group_id=group_id,
         location_id=location_id
     )
 
@@ -606,9 +618,7 @@ def depreciation_report():
     groups = Group.query.order_by(Group.name).all()
     locations = Location.query.filter_by(is_archived=False).order_by(Location.name).all()
 
-    asset_brands = db.session.query(Asset.brand).filter(Asset.brand.isnot(None), Asset.is_archived == False).distinct()
-    peripheral_brands = db.session.query(Peripheral.brand).filter(Peripheral.brand.isnot(None), Peripheral.is_archived == False).distinct()
-    all_brands = sorted([b[0] for b in asset_brands.union(peripheral_brands) if b[0]]) # Filter out None/empty brands
+    all_brands = Brand.query.order_by(Brand.name).all()
 
     # --- Get filter criteria from URL arguments ---
     start_date = request.args.get('start_date')
@@ -617,7 +627,7 @@ def depreciation_report():
     depreciation_algorithm = request.args.get('depreciation_algorithm', 'linear')
     item_type = request.args.get('item_type', 'both') # 'both', 'assets', 'peripherals'
     supplier_id = request.args.get('supplier_id', type=int)
-    brand = request.args.get('brand')
+    brand_id = request.args.get('brand_id', type=int)
     user_id = request.args.get('user_id', type=int)
     group_id = request.args.get('group_id', type=int)
     location_id = request.args.get('location_id', type=int)
@@ -644,9 +654,9 @@ def depreciation_report():
         peripherals_query = peripherals_query.filter(Peripheral.supplier_id == supplier_id)
 
     # Apply brand filter
-    if brand:
-        assets_query = assets_query.filter(Asset.brand == brand)
-        peripherals_query = peripherals_query.filter(Peripheral.brand == brand)
+    if brand_id:
+        assets_query = assets_query.filter(Asset.brand_id == brand_id)
+        peripherals_query = peripherals_query.filter(Peripheral.brand_id == brand_id)
 
     # Apply location filter (only to Asset)
     if location_id:
@@ -772,7 +782,7 @@ def depreciation_report():
         all_brands=all_brands,
         # Pass filters back
         start_date=start_date, end_date=end_date, item_type=item_type,
-        supplier_id=supplier_id, brand=brand, user_id=user_id, group_id=group_id,
+        supplier_id=supplier_id, brand_id=brand_id, user_id=user_id, group_id=group_id,
         location_id=location_id,
         depreciation_period=depreciation_period,
         depreciation_algorithm=depreciation_algorithm,

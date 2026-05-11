@@ -41,7 +41,7 @@
                         <td><a href="{{ url_for('peripherals.peripheral_detail', id=peripheral.id) }}">{{
                                 peripheral.name }}</a></td>
                         <td>{{ peripheral.type or '-' }}</td>
-                        <td>{{ peripheral.brand or '-' }}</td>
+                        <td>{{ peripheral.brand.name if peripheral.brand else '-' }}</td>
                         <td><span class="badge bg-secondary">{{ peripheral.status }}</span></td>
                         <td>
                             <span class="badge {{ 'bg-info' if peripheral.user else 'bg-secondary' }}">

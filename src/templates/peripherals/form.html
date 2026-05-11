@@ -34,14 +34,13 @@
                 </div>
             </div>
 
+            {% with current_brand_id=(peripheral.brand_id if peripheral else None),
+                    current_model_id=(peripheral.model_id if peripheral else None) %}
+                {% include 'brands/_picker.html' %}
+            {% endwith %}
+
             <div class="row mb-3">
-                <div class="col-md-6">
-                    <label for="brand" class="form-label">Brand</label>
-                    <input type="text" class="form-control" id="brand" name="brand"
-                        value="{{ peripheral.brand if peripheral else '' }}" {% if not can_write('core_inventory')
-                        %}disabled{% endif %}>
-                </div>
-                <div class="col-md-6">
+                <div class="col-md-12">
                     <label for="serial_number" class="form-label">Serial Number</label>
                     <input type="text" class="form-control" id="serial_number" name="serial_number"
                         value="{{ peripheral.serial_number if peripheral else '' }}" {% if not

@@ -134,7 +134,7 @@
         {% for asset in user.assets %}
         <li class="list-group-item d-flex justify-content-between align-items-center">
             <a href="{{ url_for('assets.asset_detail', id=asset.id) }}">{{ asset.name }}</a>
-            <span>{{ asset.model or 'N/A' }}</span>
+            <span>{{ asset.model.name if asset.model else 'N/A' }}</span>
         </li>
         {% else %}
         <li class="list-group-item text-muted">No assets are currently assigned to this user.</li>

@@ -3,6 +3,7 @@ from flask import (
 )
 from datetime import datetime, date
 from ..models import db, Asset, AssetHistory, User, Location, Supplier, Purchase, AssetAssignment, Peripheral
+from ..models.assets import Brand, AssetModel
 from ..models.core import CustomFieldDefinition
 from .main import login_required
 
@@ -81,8 +82,8 @@ def new_asset():
                 return redirect(url_for('assets.assets'))
         asset = Asset(
             name=request.form['name'],
-            model=request.form.get('model'),
-            brand=request.form.get('brand'),
+            brand_id=int(request.form.get('brand_id')) if request.form.get('brand_id') else None,
+            model_id=int(request.form.get('model_id')) if request.form.get('model_id') else None,
             serial_number=request.form.get('serial_number'),
             status=request.form['status'],
             internal_id=request.form.get('internal_id'),
@@ -119,6 +120,7 @@ def new_asset():
                             locations=Location.query.order_by(Location.name).all(),
                             suppliers=Supplier.query.order_by(Supplier.name).all(),
                             purchases=Purchase.query.order_by(Purchase.description).all(),
+                            brands=Brand.query.order_by(Brand.name).all(),
                             custom_field_definitions=CustomFieldDefinition.query.filter_by(entity_type='Asset').all())
 
 @assets_bp.route('/<int:id>/edit', methods=['GET', 'POST'])
@@ -145,10 +147,20 @@ def edit_asset(id):
             changes.append(('name', asset.name, request.form['name']))
         if asset.internal_id != request.form.get('internal_id'):
             changes.append(('internal_id', asset.internal_id, request.form.get('internal_id')))
-        if asset.brand != request.form.get('brand'):
-            changes.append(('brand', asset.brand, request.form.get('brand')))
-        if asset.model != request.form.get('model'):
-            changes.append(('model', asset.model, request.form.get('model')))
+        brand_id_form = request.form.get('brand_id')
+        new_brand_id = int(brand_id_form) if brand_id_form else None
+        if asset.brand_id != new_brand_id:
+            old_brand_name = asset.brand.name if asset.brand else None
+            new_brand_name = Brand.query.get(new_brand_id).name if new_brand_id else None
+            changes.append(('brand', old_brand_name, new_brand_name))
+
+        model_id_form = request.form.get('model_id')
+        new_model_id = int(model_id_form) if model_id_form else None
+        if asset.model_id != new_model_id:
+            old_model_name = asset.model.name if asset.model else None
+            new_model_name = AssetModel.query.get(new_model_id).name if new_model_id else None
+            changes.append(('model', old_model_name, new_model_name))
+
         if asset.serial_number != request.form.get('serial_number'):
             changes.append(('serial_number', asset.serial_number, request.form.get('serial_number')))
         if asset.status != request.form.get('status'):
@@ -206,8 +218,8 @@ def edit_asset(id):
             db.session.add(history_entry)
 
         asset.name = request.form['name']
-        asset.model = request.form.get('model')
-        asset.brand = request.form.get('brand')
+        asset.brand_id = new_brand_id
+        asset.model_id = new_model_id
         asset.serial_number = request.form.get('serial_number')
         asset.status = request.form['status']
         asset.internal_id = request.form.get('internal_id')
@@ -248,6 +260,7 @@ def edit_asset(id):
                             locations=Location.query.order_by(Location.name).all(),
                             suppliers=Supplier.query.order_by(Supplier.name).all(),
                             purchases=Purchase.query.order_by(Purchase.description).all(),
+                            brands=Brand.query.order_by(Brand.name).all(),
                             custom_field_definitions=CustomFieldDefinition.query.filter_by(entity_type='Asset').all())
 
 @assets_bp.route('/<int:id>')

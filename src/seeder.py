@@ -10,6 +10,7 @@ from .models import (
     EmailTemplate, NotificationEvent, Change,
     SecurityActivity, ActivityExecution
 )
+from .models.assets import Brand, AssetModel
 from .models.hiring import HiringStage, Candidate
 from . import create_app
 from src.utils.timezone_helper import now, today
@@ -166,25 +167,42 @@ def seed_data(app=None):
         db.session.add_all(users)
         db.session.add_all(locations)
         db.session.add_all(suppliers)
-        
+
+        # Brands + Models
+        brand_map = {name: Brand(name=name) for name in ('Dell', 'Apple', 'Microsoft', 'Palo Alto', 'Logitech')}
+        db.session.add_all(brand_map.values())
+        db.session.commit()
+        model_map = {}
+        for brand_name, model_name in [
+            ('Dell', 'XPS 15'),
+            ('Apple', 'MacBook Pro 16"'),
+            ('Apple', 'MacBook Pro 13"'),
+            ('Microsoft', 'Surface Laptop 5'),
+            ('Palo Alto', 'PA-440'),
+        ]:
+            m = AssetModel(name=model_name, brand=brand_map[brand_name])
+            model_map[(brand_name, model_name)] = m
+        db.session.add_all(model_map.values())
+        db.session.commit()
+
         assets = [
-            Asset(name='DEV-LT-001', brand='Dell', model='XPS 15', serial_number=fake.uuid4(), status='In Use', purchase=purchase2, user=users[0], location=locations[0], supplier=suppliers[2], cost=2500, currency='EUR', warranty_length=36, purchase_date=purchase2.purchase_date),
-            Asset(name='DEV-LT-002', brand='Dell', model='XPS 15', serial_number=fake.uuid4(), status='In Use', purchase=purchase2, user=users[2], location=locations[0], supplier=suppliers[2], cost=2500, currency='EUR', warranty_length=36, purchase_date=purchase2.purchase_date),
-            Asset(name='DSN-LT-001', brand='Apple', model='MacBook Pro 16"', serial_number=fake.uuid4(), status='In Use', purchase=purchase4, user=users[3], location=locations[1], supplier=suppliers[6], cost=3200, currency='EUR', warranty_length=24, purchase_date=purchase4.purchase_date),
-            Asset(name='DSN-LT-002', brand='Apple', model='MacBook Pro 16"', serial_number=fake.uuid4(), status='In Use', purchase=purchase4, user=users[7], location=locations[1], supplier=suppliers[6], cost=3200, currency='EUR', warranty_length=24, purchase_date=purchase4.purchase_date),
-            Asset(name='SALES-LT-001', brand='Microsoft', model='Surface Laptop 5', serial_number=fake.uuid4(), status='In Storage', location=locations[0], supplier=suppliers[1], cost=1800, currency='USD', warranty_length=24, purchase_date=date(2024, 5, 5)),
-            Asset(name='EOL-LT-001', brand='Apple', model='MacBook Pro 13"', serial_number=fake.uuid4(), status='Awaiting Disposal', location=locations[0], cost=1500, currency='USD', purchase_date=date(2021, 5, 5)),
-            Asset(name='FW-NYC-01', brand='Palo Alto', model='PA-440', serial_number=fake.uuid4(), status='In Use', purchase=purchase5, location=locations[0], supplier=suppliers[13], cost=4000, currency='USD', warranty_length=60, purchase_date=purchase5.purchase_date)
+            Asset(name='DEV-LT-001', brand=brand_map['Dell'], model=model_map[('Dell', 'XPS 15')], serial_number=fake.uuid4(), status='In Use', purchase=purchase2, user=users[0], location=locations[0], supplier=suppliers[2], cost=2500, currency='EUR', warranty_length=36, purchase_date=purchase2.purchase_date),
+            Asset(name='DEV-LT-002', brand=brand_map['Dell'], model=model_map[('Dell', 'XPS 15')], serial_number=fake.uuid4(), status='In Use', purchase=purchase2, user=users[2], location=locations[0], supplier=suppliers[2], cost=2500, currency='EUR', warranty_length=36, purchase_date=purchase2.purchase_date),
+            Asset(name='DSN-LT-001', brand=brand_map['Apple'], model=model_map[('Apple', 'MacBook Pro 16"')], serial_number=fake.uuid4(), status='In Use', purchase=purchase4, user=users[3], location=locations[1], supplier=suppliers[6], cost=3200, currency='EUR', warranty_length=24, purchase_date=purchase4.purchase_date),
+            Asset(name='DSN-LT-002', brand=brand_map['Apple'], model=model_map[('Apple', 'MacBook Pro 16"')], serial_number=fake.uuid4(), status='In Use', purchase=purchase4, user=users[7], location=locations[1], supplier=suppliers[6], cost=3200, currency='EUR', warranty_length=24, purchase_date=purchase4.purchase_date),
+            Asset(name='SALES-LT-001', brand=brand_map['Microsoft'], model=model_map[('Microsoft', 'Surface Laptop 5')], serial_number=fake.uuid4(), status='In Storage', location=locations[0], supplier=suppliers[1], cost=1800, currency='USD', warranty_length=24, purchase_date=date(2024, 5, 5)),
+            Asset(name='EOL-LT-001', brand=brand_map['Apple'], model=model_map[('Apple', 'MacBook Pro 13"')], serial_number=fake.uuid4(), status='Awaiting Disposal', location=locations[0], cost=1500, currency='USD', purchase_date=date(2021, 5, 5)),
+            Asset(name='FW-NYC-01', brand=brand_map['Palo Alto'], model=model_map[('Palo Alto', 'PA-440')], serial_number=fake.uuid4(), status='In Use', purchase=purchase5, location=locations[0], supplier=suppliers[13], cost=4000, currency='USD', warranty_length=60, purchase_date=purchase5.purchase_date)
         ]
         db.session.add_all(assets)
         db.session.commit()
 
         peripherals = [
-            Peripheral(name='Keyboard-001', type='Keyboard', brand='Logitech', cost=100, currency='EUR', serial_number=fake.uuid4(), asset=assets[0], user=users[0], supplier=suppliers[7]),
-            Peripheral(name='Mouse-001', type='Mouse', brand='Logitech', cost=80, currency='EUR', serial_number=fake.uuid4(), asset=assets[0], user=users[0], supplier=suppliers[7]),
-            Peripheral(name='Monitor-001', type='Monitor', brand='Dell', cost=450, currency='EUR', serial_number=fake.uuid4(), asset=assets[0], user=users[0], supplier=suppliers[2]),
-            Peripheral(name='Keyboard-003', type='Keyboard', brand='Apple', cost=150, currency='EUR', asset=assets[2], user=users[3]),
-            Peripheral(name='Mouse-003', type='Mouse', brand='Apple', cost=90, currency='EUR', asset=assets[2], user=users[3]),
+            Peripheral(name='Keyboard-001', type='Keyboard', brand=brand_map['Logitech'], cost=100, currency='EUR', serial_number=fake.uuid4(), asset=assets[0], user=users[0], supplier=suppliers[7]),
+            Peripheral(name='Mouse-001', type='Mouse', brand=brand_map['Logitech'], cost=80, currency='EUR', serial_number=fake.uuid4(), asset=assets[0], user=users[0], supplier=suppliers[7]),
+            Peripheral(name='Monitor-001', type='Monitor', brand=brand_map['Dell'], cost=450, currency='EUR', serial_number=fake.uuid4(), asset=assets[0], user=users[0], supplier=suppliers[2]),
+            Peripheral(name='Keyboard-003', type='Keyboard', brand=brand_map['Apple'], cost=150, currency='EUR', asset=assets[2], user=users[3]),
+            Peripheral(name='Mouse-003', type='Mouse', brand=brand_map['Apple'], cost=90, currency='EUR', asset=assets[2], user=users[3]),
         ]
         db.session.add_all(peripherals)
         db.session.commit()

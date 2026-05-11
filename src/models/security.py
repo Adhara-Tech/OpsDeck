@@ -199,6 +199,7 @@ class RiskAffectedItem(db.Model):
         from .training import Course
         from .bcdr import BCDRPlan
         from .activities import SecurityActivity, ActivityExecution
+        from .services import BusinessService
         
         model_map = {
             'User': User,
@@ -222,7 +223,8 @@ class RiskAffectedItem(db.Model):
             'SecurityIncident': SecurityIncident,
             'SecurityAssessment': SecurityAssessment,
             'Risk': Risk,
-            'AssetInventory': AssetInventory
+            'AssetInventory': AssetInventory,
+            'BusinessService': BusinessService,
         }
         
         model = model_map.get(self.linkable_type)
