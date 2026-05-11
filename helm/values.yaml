@@ -85,15 +85,33 @@ existingSecret: ""
 
 # --- Backup Configuration ---
 # CronJob that dumps the database and backs up attachments to a restic repo in S3.
-# Credentials are read from an existing Secret that you create and manage.
+# Credentials can be provided either via a Secret (AWS access keys) or via IRSA on EKS.
 backup:
   enabled: false
   schedule: "0 3 * * *"          # Daily at 3 AM
   image:
     repository: pixelotes/opsdeck-backup   # Alpine + postgresql-client + restic
     tag: "latest"
-  # Secret with keys: RESTIC_REPOSITORY, RESTIC_PASSWORD, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+  # Required keys: RESTIC_REPOSITORY, RESTIC_PASSWORD
+  # Also required when aws.useIRSA=false: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
   existingSecret: ""
+  aws:
+    # When true, omit AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY env vars so the
+    # AWS SDK (used by restic) picks up the IRSA web identity token injected
+    # into the pod by the EKS pod identity webhook. Requires a ServiceAccount
+    # annotated with eks.amazonaws.com/role-arn (see serviceAccount below).
+    useIRSA: false
+    # Optional: sets AWS_DEFAULT_REGION (required by STS for IRSA in some setups)
+    region: ""
+  serviceAccount:
+    # Create a dedicated ServiceAccount for the backup CronJob.
+    create: false
+    # Name of the ServiceAccount to use. If create=true and empty, defaults to
+    # "<release>-backup". If create=false, must point to an existing SA.
+    name: ""
+    # Annotations applied to the SA. For IRSA on EKS:
+    #   eks.amazonaws.com/role-arn: arn:aws:iam::<account>:role/<role-name>
+    annotations: {}
   retention:
     keepDaily: 7
     keepWeekly: 4
