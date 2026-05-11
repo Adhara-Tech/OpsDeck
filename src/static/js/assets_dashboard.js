@@ -63,7 +63,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Chart 2: Fleet Distribution by Brand (Doughnut)
     const brandDistCtx = document.getElementById('brandDistributionChart');
     if (brandDistCtx) {
-        new Chart(brandDistCtx.getContext('2d'), {
+        void new Chart(brandDistCtx.getContext('2d'), {
             type: 'doughnut',
             data: {
                 labels: data.brandDistributionLabels,
