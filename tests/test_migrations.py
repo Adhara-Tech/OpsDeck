@@ -75,12 +75,19 @@ class TestMigrations:
         assert 'asset' in tables
         assert 'alembic_version' in tables
 
-        # Verify alembic_version is set
+        # Verify alembic_version matches the current head of the script directory,
+        # not a hardcoded revision (which would rot on every new migration).
+        with self.app.app_context():
+            from alembic.config import Config
+            from alembic.script import ScriptDirectory
+            cfg = Config('migrations/alembic.ini')
+            cfg.set_main_option('script_location', 'migrations')
+            expected_head = ScriptDirectory.from_config(cfg).get_current_head()
+
         with self.engine.connect() as conn:
             result = conn.execute(text('SELECT version_num FROM alembic_version')).fetchone()
             assert result is not None
-            # Should match the latest migration revision
-            assert result[0] == '002'
+            assert result[0] == expected_head
 
     def test_downgrade_base(self):
         """Migrations can be fully rolled back."""
