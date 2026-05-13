@@ -516,9 +516,9 @@ def new_offboarding():
                 item_type='StaticTask'
             ))
 
+        transfer_to_user = db.session.get(User, transfer_to_id) if transfer_to_id else None
         db.session.commit()
-        if transfer_to_id:
-            transfer_to_user = db.session.get(User, transfer_to_id)
+        if transfer_to_user:
             flash(f'Offboarding started for {target_user.name}. Ownership of risks, services and credentials auto-transferred to {transfer_to_user.name}.', 'warning')
         else:
             flash(f'Offboarding started for {target_user.name}. Checklist created.', 'warning')
