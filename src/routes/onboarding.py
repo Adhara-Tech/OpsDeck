@@ -349,8 +349,11 @@ def new_offboarding():
         user_id = request.form['user_id']
         departure_date = datetime.strptime(request.form['departure_date'], '%Y-%m-%d').date()
         target_user = db.get_or_404(User, user_id)
-        
-        manager_id = session.get('user_id') 
+
+        manager_id = session.get('user_id')
+        transfer_to_id = request.form.get('transfer_to_id') or None
+        if transfer_to_id:
+            transfer_to_id = int(transfer_to_id)
 
         process = OffboardingProcess(
             user_id=user_id,
@@ -422,28 +425,34 @@ def new_offboarding():
                 linked_object_id=pm.id
             ))
 
-        # CORRECCIÓN RIESGOS: Usamos 'risk_description' que es el campo real en tu modelo
+        # RISKS
         risks = Risk.query.filter_by(owner_id=target_user.id).all()
         for r in risks:
-            # Acortamos la descripción si es muy larga para que quepa en el checklist
             short_desc = (r.risk_description[:75] + '..') if len(r.risk_description) > 75 else r.risk_description
-            db.session.add(ProcessItem(
+            item = ProcessItem(
                 offboarding_process_id=process.id,
                 description=f"⚠️ TRANSFER RISK: {short_desc}",
                 item_type='Risk',
                 linked_object_id=r.id
-            ))
+            )
+            if transfer_to_id:
+                r.owner_id = transfer_to_id
+                item.is_completed = True
+            db.session.add(item)
 
-        # CORRECCIÓN SERVICIOS: Usamos 'BusinessService'
-        # 1. Transfer Ownership of Services owned by user
+        # SERVICE OWNERSHIP
         services_owned = BusinessService.query.filter_by(owner_id=target_user.id).all()
         for s in services_owned:
-            db.session.add(ProcessItem(
+            item = ProcessItem(
                 offboarding_process_id=process.id,
                 description=f"⚠️ TRANSFER SERVICE: {s.name} (User is Owner)",
                 item_type='ServiceOwnership',
                 linked_object_id=s.id
-            ))
+            )
+            if transfer_to_id:
+                s.owner_id = transfer_to_id
+                item.is_completed = True
+            db.session.add(item)
             
         # 2. Revoke Access to Services/Applications
         # Find all services where the user is in the 'users' list
@@ -457,17 +466,20 @@ def new_offboarding():
                 linked_object_id=s.id
             ))
 
-        # 3. CREDENTIALS
-        # Import Credential model
+        # CREDENTIALS
         from ..models.credentials import Credential
         credentials_owned = Credential.query.filter_by(owner_id=target_user.id, owner_type='User').all()
         for cred in credentials_owned:
-            db.session.add(ProcessItem(
+            item = ProcessItem(
                 offboarding_process_id=process.id,
                 description=f"🔑 REASSIGN CREDENTIAL: {cred.name} ({cred.type})",
                 item_type='Credential',
                 linked_object_id=cred.id
-            ))
+            )
+            if transfer_to_id:
+                cred.owner_id = transfer_to_id
+                item.is_completed = True
+            db.session.add(item)
 
         # 4. TAREAS GLOBALES
         static_tasks = ProcessTemplate.query.filter_by(process_type='offboarding', is_active=True).all()
@@ -479,7 +491,11 @@ def new_offboarding():
             ))
 
         db.session.commit()
-        flash(f'Offboarding started for {target_user.name}. Checklist created.', 'warning')
+        if transfer_to_id:
+            transfer_to_user = db.session.get(User, transfer_to_id)
+            flash(f'Offboarding started for {target_user.name}. Ownership of risks, services and credentials auto-transferred to {transfer_to_user.name}.', 'warning')
+        else:
+            flash(f'Offboarding started for {target_user.name}. Checklist created.', 'warning')
         return redirect(url_for('onboarding.offboarding_detail', id=process.id))
 
     users = User.query.filter_by(is_archived=False).order_by(User.name).all()

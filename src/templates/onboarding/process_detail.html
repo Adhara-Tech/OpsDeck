@@ -330,7 +330,7 @@
                     <span class="badge bg-success"><i class="fas fa-check"></i> Access Revoked</span>
                     {% endif %}
 
-                    {% elif item.item_type == 'Service' %}
+                    {% elif item.item_type == 'ServiceOwnership' %}
                     <a href="{{ url_for('services.detail', id=item.linked_object_id) }}"
                         class="btn btn-sm btn-outline-secondary me-1" target="_blank">View</a>
                     {% if type == 'offboarding' and not item.is_completed and can_write('hr_people') %}
