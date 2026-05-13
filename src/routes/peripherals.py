@@ -126,6 +126,7 @@ def edit_peripheral(id):
                             assets=Asset.query.order_by(Asset.name).all(),
                             purchases=Purchase.query.order_by(Purchase.description).all(),
                             suppliers=Supplier.query.order_by(Supplier.name).all(),
+                            brands=Brand.query.order_by(Brand.name).all(),
                             users=User.query.filter_by(is_archived=False).order_by(User.name).all())
 
 @peripherals_bp.route('/<int:id>/checkout', methods=['GET', 'POST'])
