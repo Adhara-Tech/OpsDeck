@@ -323,16 +323,42 @@ def update_process_details(id):
     
     process.target_email = request.form.get('target_email')
     process.personal_email = request.form.get('personal_email')
-    
+    process.notes = request.form.get('notes') or None
+
+    start_date_str = request.form.get('start_date')
+    if start_date_str:
+        process.start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+
     manager_id = request.form.get('manager_id')
     buddy_id = request.form.get('buddy_id')
-    
+
     process.assigned_manager_id = int(manager_id) if manager_id else None
     process.assigned_buddy_id = int(buddy_id) if buddy_id else None
-    
+
     db.session.commit()
     flash('Process details updated.', 'success')
     return redirect(url_for('onboarding.onboarding_detail', id=process.id))
+
+@onboarding_bp.route('/offboarding/<int:id>/update_details', methods=['POST'])
+@login_required
+@requires_permission('hr_people')
+def update_offboarding_details(id):
+    if not has_write_permission('hr_people'):
+        flash('Write access required to update process details.', 'danger')
+        return redirect(url_for('onboarding.offboarding_detail', id=id))
+    process = db.get_or_404(OffboardingProcess, id)
+
+    departure_date_str = request.form.get('departure_date')
+    if departure_date_str:
+        process.departure_date = datetime.strptime(departure_date_str, '%Y-%m-%d').date()
+
+    manager_id = request.form.get('manager_id')
+    process.manager_id = int(manager_id) if manager_id else None
+    process.notes = request.form.get('notes') or None
+
+    db.session.commit()
+    flash('Offboarding details updated.', 'success')
+    return redirect(url_for('onboarding.offboarding_detail', id=process.id))
 
 # ==========================================
 # PROCESO DE OFFBOARDING (SALIDA)
