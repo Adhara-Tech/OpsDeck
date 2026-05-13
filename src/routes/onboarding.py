@@ -588,30 +588,29 @@ def revoke_service_access(process_id, item_id):
     # So check offboarding_process_id
     if item.offboarding_process_id != process.id:
         flash('Invalid item for this process.', 'danger')
-        return redirect(url_for('onboarding.onboarding_detail', id=process.id))
+        return redirect(url_for('onboarding.offboarding_detail', id=process.id))
 
     if item.item_type != 'RevokeAccess':
         flash('Invalid item type.', 'danger')
-        return redirect(url_for('onboarding.onboarding_detail', id=process.id))
+        return redirect(url_for('onboarding.offboarding_detail', id=process.id))
 
-    service = db.session.get(BusinessService,item.linked_object_id)
+    service = db.session.get(BusinessService, item.linked_object_id)
     target_user = process.user
-    
+
     if service and target_user:
         if target_user in service.users:
             service.users.remove(target_user)
             flash(f'User removed from {service.name}.', 'success')
         else:
             flash(f'User was not in {service.name} (already removed?).', 'warning')
-            
-        # Mark item as completed
+
         item.is_completed = True
         item.completed_at = now()
         db.session.commit()
     else:
         flash('Service or User not found.', 'danger')
 
-    return redirect(url_for('onboarding.onboarding_detail', id=process.id))
+    return redirect(url_for('onboarding.offboarding_detail', id=process.id))
 
 @onboarding_bp.route('/offboarding/<int:process_id>/revoke_subscription/<int:item_id>', methods=['POST'])
 @login_required
