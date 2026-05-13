@@ -40,9 +40,10 @@
                         </div>
                     </div>
 
-                    {% if pct == 100 and process.status != 'Completed' and can_write('hr_people') %}
+                    {% if process.status != 'Completed' and can_write('hr_people') %}
                     <form action="{{ url_for('onboarding.complete_process', type=type, id=process.id) }}" method="POST"
-                        class="mt-2">
+                        class="mt-2"
+                        {% if pct < 100 %}onsubmit="return confirm('{{ total - completed }} item(s) still pending. Close anyway?')"{% endif %}>
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                         <button class="btn btn-sm btn-{{ theme_color }}">
                             <i class="fas fa-check-double me-1"></i> Complete Process
@@ -329,7 +330,7 @@
                     <span class="badge bg-success"><i class="fas fa-check"></i> Access Revoked</span>
                     {% endif %}
 
-                    {% elif item.item_type == 'Service' %}
+                    {% elif item.item_type == 'ServiceOwnership' %}
                     <a href="{{ url_for('services.detail', id=item.linked_object_id) }}"
                         class="btn btn-sm btn-outline-secondary me-1" target="_blank">View</a>
                     {% if type == 'offboarding' and not item.is_completed and can_write('hr_people') %}
@@ -501,11 +502,6 @@
                 <h6 class="mb-0">ℹ️ Details</h6>
             </div>
             <div class="card-body">
-                {% if type == 'offboarding' %}
-                <p><strong>Responsible Manager:</strong><br> {{ process.manager.name if process.manager else 'N/A' }}
-                </p>
-                {% endif %}
-                {% if type == 'onboarding' %}
                 <div class="d-flex justify-content-end mb-3">
                     {% if can_write('hr_people') %}
                     <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
@@ -514,6 +510,17 @@
                     </button>
                     {% endif %}
                 </div>
+
+                {% if type == 'offboarding' %}
+                <p class="mb-1"><small class="text-muted">Responsible Manager</small><br>
+                    {{ process.manager.name if process.manager else 'N/A' }}
+                </p>
+                <p class="mb-1"><small class="text-muted">Departure Date</small><br>
+                    {{ process.departure_date.strftime('%d %b, %Y') }}
+                </p>
+                {% endif %}
+
+                {% if type == 'onboarding' %}
                 <p class="mb-1"><small class="text-muted">Personal Email</small><br>
                     <a href="mailto:{{ process.personal_email }}">{{ process.personal_email or 'Not set' }}</a>
                 </p>
@@ -526,14 +533,21 @@
                 <p class="mb-1"><small class="text-muted">Buddy</small><br>
                     {{ process.assigned_buddy.name if process.assigned_buddy else 'Not assigned' }}
                 </p>
-                <hr>
+                <p class="mb-1"><small class="text-muted">Start Date</small><br>
+                    {{ process.start_date.strftime('%d %b, %Y') }}
+                </p>
                 {% endif %}
 
-                {% if process.personal_email and type != 'onboarding' %}
-                <p><strong>Personal Email:</strong><br> <a href="mailto:{{ process.personal_email }}">{{
-                        process.personal_email }}</a></p>
+                {% if process.notes %}
+                <hr>
+                <p class="mb-1"><small class="text-muted">Notes</small><br>
+                    <span class="text-break" style="white-space: pre-wrap;">{{ process.notes }}</span>
+                </p>
                 {% endif %}
-                <p><strong>Created on:</strong><br> {{ process.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+
+                <hr>
+                <p class="mb-0"><small class="text-muted">Created on</small><br>
+                    {{ process.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
             </div>
         </div>
 
@@ -634,10 +648,15 @@
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Edit Process Details</h5>
+                    <h5 class="modal-title">Edit Onboarding Details</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Start Date</label>
+                        <input type="date" class="form-control" name="start_date"
+                            value="{{ process.start_date.strftime('%Y-%m-%d') }}" required>
+                    </div>
                     <div class="mb-3">
                         <label class="form-label">Personal Email</label>
                         <input type="email" class="form-control" name="personal_email"
@@ -653,8 +672,7 @@
                         <select class="form-select" name="manager_id">
                             <option value="">-- None --</option>
                             {% for u in users %}
-                            <option value="{{ u.id }}" {% if process.assigned_manager_id==u.id %}selected{% endif %}>{{
-                                u.name }}</option>
+                            <option value="{{ u.id }}" {% if process.assigned_manager_id==u.id %}selected{% endif %}>{{ u.name }}</option>
                             {% endfor %}
                         </select>
                     </div>
@@ -663,15 +681,56 @@
                         <select class="form-select" name="buddy_id">
                             <option value="">-- None --</option>
                             {% for u in users %}
-                            <option value="{{ u.id }}" {% if process.assigned_buddy_id==u.id %}selected{% endif %}>{{
-                                u.name }}</option>
+                            <option value="{{ u.id }}" {% if process.assigned_buddy_id==u.id %}selected{% endif %}>{{ u.name }}</option>
                             {% endfor %}
                         </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" name="notes" rows="3" placeholder="Internal observations...">{{ process.notes or '' }}</textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% else %}
+<div class="modal fade" id="editDetailsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form action="{{ url_for('onboarding.update_offboarding_details', id=process.id) }}" method="POST">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Offboarding Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Departure Date</label>
+                        <input type="date" class="form-control" name="departure_date"
+                            value="{{ process.departure_date.strftime('%Y-%m-%d') }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Responsible Manager</label>
+                        <select class="form-select" name="manager_id">
+                            <option value="">-- None --</option>
+                            {% for u in users %}
+                            <option value="{{ u.id }}" {% if process.manager_id==u.id %}selected{% endif %}>{{ u.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" name="notes" rows="3" placeholder="Internal observations...">{{ process.notes or '' }}</textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">Save Changes</button>
                 </div>
             </div>
         </form>

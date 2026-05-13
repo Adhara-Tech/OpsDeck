@@ -10,7 +10,7 @@
 
 <div class="card">
     <div class="card-body">
-        <form method="POST">
+        <form method="POST" action="{{ url_for('evaluations.edit_evaluation', id=evaluation.id) if evaluation else url_for('evaluations.new_evaluation') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
             <div class="mb-3">

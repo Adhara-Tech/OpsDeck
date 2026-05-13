@@ -19,6 +19,10 @@ from src.utils.timezone_helper import now, today
 
 onboarding_bp = Blueprint('onboarding', __name__)
 
+_EP_INDEX = 'onboarding.index'
+_EP_ONBOARDING = 'onboarding.onboarding_detail'
+_EP_OFFBOARDING = 'onboarding.offboarding_detail'
+
 # --- DASHBOARD PRINCIPAL ---
 
 @onboarding_bp.route('/')
@@ -45,14 +49,14 @@ def index():
 def new_pack():
     if not has_write_permission('hr_people'):
         flash('Write access required to create packs.', 'danger')
-        return redirect(url_for('onboarding.index'))
+        return redirect(url_for(_EP_INDEX))
     name = request.form.get('name')
     if name:
         pack = OnboardingPack(name=name, description=request.form.get('description'))
         db.session.add(pack)
         db.session.commit()
         flash(f'Pack "{name}" created.', 'success')
-    return redirect(url_for('onboarding.index'))
+    return redirect(url_for(_EP_INDEX))
 
 @onboarding_bp.route('/packs')
 @login_required
@@ -200,7 +204,7 @@ def new_onboarding():
     if request.method == 'POST':
         if not has_write_permission('hr_people'):
             flash('Write access required to start onboarding.', 'danger')
-            return redirect(url_for('onboarding.index'))
+            return redirect(url_for(_EP_INDEX))
         new_hire_name = request.form['new_hire_name']
         target_email = request.form.get('target_email')
         personal_email = request.form.get('personal_email')
@@ -297,7 +301,7 @@ def new_onboarding():
                     flash(f'{comm_count} emails scheduled based on pack communications.', 'info')
         
         flash(f'Onboarding started for {new_hire_name}.', 'success')
-        return redirect(url_for('onboarding.onboarding_detail', id=process.id))
+        return redirect(url_for(_EP_ONBOARDING, id=process.id))
 
     packs = OnboardingPack.query.filter_by(is_active=True).all()
     users = User.query.filter_by(is_archived=False).all() # Para asignar usuario si ya existe
@@ -318,21 +322,47 @@ def onboarding_detail(id):
 def update_process_details(id):
     if not has_write_permission('hr_people'):
         flash('Write access required to update process details.', 'danger')
-        return redirect(url_for('onboarding.onboarding_detail', id=id))
+        return redirect(url_for(_EP_ONBOARDING, id=id))
     process = db.get_or_404(OnboardingProcess, id)
     
     process.target_email = request.form.get('target_email')
     process.personal_email = request.form.get('personal_email')
-    
+    process.notes = request.form.get('notes') or None
+
+    start_date_str = request.form.get('start_date')
+    if start_date_str:
+        process.start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+
     manager_id = request.form.get('manager_id')
     buddy_id = request.form.get('buddy_id')
-    
+
     process.assigned_manager_id = int(manager_id) if manager_id else None
     process.assigned_buddy_id = int(buddy_id) if buddy_id else None
-    
+
     db.session.commit()
     flash('Process details updated.', 'success')
-    return redirect(url_for('onboarding.onboarding_detail', id=process.id))
+    return redirect(url_for(_EP_ONBOARDING, id=process.id))
+
+@onboarding_bp.route('/offboarding/<int:id>/update_details', methods=['POST'])
+@login_required
+@requires_permission('hr_people')
+def update_offboarding_details(id):
+    if not has_write_permission('hr_people'):
+        flash('Write access required to update process details.', 'danger')
+        return redirect(url_for(_EP_OFFBOARDING, id=id))
+    process = db.get_or_404(OffboardingProcess, id)
+
+    departure_date_str = request.form.get('departure_date')
+    if departure_date_str:
+        process.departure_date = datetime.strptime(departure_date_str, '%Y-%m-%d').date()
+
+    manager_id = request.form.get('manager_id')
+    process.manager_id = int(manager_id) if manager_id else None
+    process.notes = request.form.get('notes') or None
+
+    db.session.commit()
+    flash('Offboarding details updated.', 'success')
+    return redirect(url_for(_EP_OFFBOARDING, id=process.id))
 
 # ==========================================
 # PROCESO DE OFFBOARDING (SALIDA)
@@ -345,12 +375,15 @@ def new_offboarding():
     if request.method == 'POST':
         if not has_write_permission('hr_people'):
             flash('Write access required to start offboarding.', 'danger')
-            return redirect(url_for('onboarding.index'))
+            return redirect(url_for(_EP_INDEX))
         user_id = request.form['user_id']
         departure_date = datetime.strptime(request.form['departure_date'], '%Y-%m-%d').date()
         target_user = db.get_or_404(User, user_id)
-        
-        manager_id = session.get('user_id') 
+
+        manager_id = session.get('user_id')
+        transfer_to_id = request.form.get('transfer_to_id') or None
+        if transfer_to_id:
+            transfer_to_id = int(transfer_to_id)
 
         process = OffboardingProcess(
             user_id=user_id,
@@ -422,28 +455,34 @@ def new_offboarding():
                 linked_object_id=pm.id
             ))
 
-        # CORRECCIÓN RIESGOS: Usamos 'risk_description' que es el campo real en tu modelo
+        # RISKS
         risks = Risk.query.filter_by(owner_id=target_user.id).all()
         for r in risks:
-            # Acortamos la descripción si es muy larga para que quepa en el checklist
             short_desc = (r.risk_description[:75] + '..') if len(r.risk_description) > 75 else r.risk_description
-            db.session.add(ProcessItem(
+            item = ProcessItem(
                 offboarding_process_id=process.id,
                 description=f"⚠️ TRANSFER RISK: {short_desc}",
                 item_type='Risk',
                 linked_object_id=r.id
-            ))
+            )
+            if transfer_to_id:
+                r.owner_id = transfer_to_id
+                item.is_completed = True
+            db.session.add(item)
 
-        # CORRECCIÓN SERVICIOS: Usamos 'BusinessService'
-        # 1. Transfer Ownership of Services owned by user
+        # SERVICE OWNERSHIP
         services_owned = BusinessService.query.filter_by(owner_id=target_user.id).all()
         for s in services_owned:
-            db.session.add(ProcessItem(
+            item = ProcessItem(
                 offboarding_process_id=process.id,
                 description=f"⚠️ TRANSFER SERVICE: {s.name} (User is Owner)",
                 item_type='ServiceOwnership',
                 linked_object_id=s.id
-            ))
+            )
+            if transfer_to_id:
+                s.owner_id = transfer_to_id
+                item.is_completed = True
+            db.session.add(item)
             
         # 2. Revoke Access to Services/Applications
         # Find all services where the user is in the 'users' list
@@ -457,17 +496,20 @@ def new_offboarding():
                 linked_object_id=s.id
             ))
 
-        # 3. CREDENTIALS
-        # Import Credential model
+        # CREDENTIALS
         from ..models.credentials import Credential
         credentials_owned = Credential.query.filter_by(owner_id=target_user.id, owner_type='User').all()
         for cred in credentials_owned:
-            db.session.add(ProcessItem(
+            item = ProcessItem(
                 offboarding_process_id=process.id,
                 description=f"🔑 REASSIGN CREDENTIAL: {cred.name} ({cred.type})",
                 item_type='Credential',
                 linked_object_id=cred.id
-            ))
+            )
+            if transfer_to_id:
+                cred.owner_id = transfer_to_id
+                item.is_completed = True
+            db.session.add(item)
 
         # 4. TAREAS GLOBALES
         static_tasks = ProcessTemplate.query.filter_by(process_type='offboarding', is_active=True).all()
@@ -478,9 +520,13 @@ def new_offboarding():
                 item_type='StaticTask'
             ))
 
+        transfer_to_user = db.session.get(User, transfer_to_id) if transfer_to_id else None
         db.session.commit()
-        flash(f'Offboarding started for {target_user.name}. Checklist created.', 'warning')
-        return redirect(url_for('onboarding.offboarding_detail', id=process.id))
+        if transfer_to_user:
+            flash(f'Offboarding started for {target_user.name}. Ownership of risks, services and credentials auto-transferred to {transfer_to_user.name}.', 'warning')
+        else:
+            flash(f'Offboarding started for {target_user.name}. Checklist created.', 'warning')
+        return redirect(url_for(_EP_OFFBOARDING, id=process.id))
 
     users = User.query.filter_by(is_archived=False).order_by(User.name).all()
     return render_template('onboarding/form_offboarding.html', users=users)
@@ -538,11 +584,11 @@ def toggle_item(id):
     
     # Redirigir inteligentemente
     if item.onboarding_process_id:
-        return redirect(url_for('onboarding.onboarding_detail', id=item.onboarding_process_id))
+        return redirect(url_for(_EP_ONBOARDING, id=item.onboarding_process_id))
     elif item.offboarding_process_id:
-        return redirect(url_for('onboarding.offboarding_detail', id=item.offboarding_process_id))
+        return redirect(url_for(_EP_OFFBOARDING, id=item.offboarding_process_id))
     
-    return redirect(url_for('onboarding.index'))
+    return redirect(url_for(_EP_INDEX))
 
 @onboarding_bp.route('/process/<string:type>/<int:id>/complete', methods=['POST'])
 @login_required
@@ -569,7 +615,7 @@ def complete_process(type, id):
         flash(f'Offboarding completado. El usuario {process.user.name} ha sido archivado.', 'warning')
         
     db.session.commit()
-    return redirect(url_for('onboarding.index'))
+    return redirect(url_for(_EP_INDEX))
 
 @onboarding_bp.route('/offboarding/<int:process_id>/revoke_service/<int:item_id>', methods=['POST'])
 @login_required
@@ -577,7 +623,7 @@ def complete_process(type, id):
 def revoke_service_access(process_id, item_id):
     if not has_write_permission('hr_people'):
         flash('Write access required to revoke access.', 'danger')
-        return redirect(url_for('onboarding.offboarding_detail', id=process_id))
+        return redirect(url_for(_EP_OFFBOARDING, id=process_id))
     process = db.get_or_404(OffboardingProcess, process_id)
     item = db.get_or_404(ProcessItem, item_id)
     
@@ -588,30 +634,29 @@ def revoke_service_access(process_id, item_id):
     # So check offboarding_process_id
     if item.offboarding_process_id != process.id:
         flash('Invalid item for this process.', 'danger')
-        return redirect(url_for('onboarding.onboarding_detail', id=process.id))
+        return redirect(url_for(_EP_OFFBOARDING, id=process.id))
 
     if item.item_type != 'RevokeAccess':
         flash('Invalid item type.', 'danger')
-        return redirect(url_for('onboarding.onboarding_detail', id=process.id))
+        return redirect(url_for(_EP_OFFBOARDING, id=process.id))
 
-    service = db.session.get(BusinessService,item.linked_object_id)
+    service = db.session.get(BusinessService, item.linked_object_id)
     target_user = process.user
-    
+
     if service and target_user:
         if target_user in service.users:
             service.users.remove(target_user)
             flash(f'User removed from {service.name}.', 'success')
         else:
             flash(f'User was not in {service.name} (already removed?).', 'warning')
-            
-        # Mark item as completed
+
         item.is_completed = True
         item.completed_at = now()
         db.session.commit()
     else:
         flash('Service or User not found.', 'danger')
 
-    return redirect(url_for('onboarding.onboarding_detail', id=process.id))
+    return redirect(url_for(_EP_OFFBOARDING, id=process.id))
 
 @onboarding_bp.route('/offboarding/<int:process_id>/revoke_subscription/<int:item_id>', methods=['POST'])
 @login_required
@@ -619,17 +664,17 @@ def revoke_service_access(process_id, item_id):
 def revoke_subscription_access(process_id, item_id):
     if not has_write_permission('hr_people'):
         flash('Write access required to revoke access.', 'danger')
-        return redirect(url_for('onboarding.offboarding_detail', id=process_id))
+        return redirect(url_for(_EP_OFFBOARDING, id=process_id))
     process = db.get_or_404(OffboardingProcess, process_id)
     item = db.get_or_404(ProcessItem, item_id)
     
     if item.offboarding_process_id != process.id:
         flash('Invalid item for this process.', 'danger')
-        return redirect(url_for('onboarding.offboarding_detail', id=process_id))
+        return redirect(url_for(_EP_OFFBOARDING, id=process_id))
 
     if item.item_type != 'RevokeSubscriptionAccess':
         flash('Invalid item type.', 'danger')
-        return redirect(url_for('onboarding.offboarding_detail', id=process_id))
+        return redirect(url_for(_EP_OFFBOARDING, id=process_id))
 
     subscription = db.session.get(Subscription,item.linked_object_id)
     target_user = process.user
@@ -651,7 +696,7 @@ def revoke_subscription_access(process_id, item_id):
     else:
         flash('Subscription or User not found.', 'danger')
 
-    return redirect(url_for('onboarding.offboarding_detail', id=process.id))
+    return redirect(url_for(_EP_OFFBOARDING, id=process.id))
 
 @onboarding_bp.route('/process/<int:process_id>/create_user/<int:item_id>', methods=['POST'])
 @login_required
@@ -659,23 +704,23 @@ def revoke_subscription_access(process_id, item_id):
 def create_user_account(process_id, item_id):
     if not has_write_permission('hr_people'):
         flash('Write access required to create user.', 'danger')
-        return redirect(url_for('onboarding.onboarding_detail', id=process_id))
+        return redirect(url_for(_EP_ONBOARDING, id=process_id))
     process = db.get_or_404(OnboardingProcess, process_id)
     item = db.get_or_404(ProcessItem, item_id)
     
     # Validation
     if item.onboarding_process_id != process.id:
         flash('Invalid item for this process.', 'danger')
-        return redirect(url_for('onboarding.onboarding_detail', id=process_id))
+        return redirect(url_for(_EP_ONBOARDING, id=process_id))
 
     if item.item_type != 'CreateUser':
         flash('Invalid item type.', 'danger')
-        return redirect(url_for('onboarding.onboarding_detail', id=process_id))
+        return redirect(url_for(_EP_ONBOARDING, id=process_id))
         
     # Check if user already linked
     if process.user_id:
         flash('Process already has a user linked.', 'warning')
-        return redirect(url_for('onboarding.onboarding_detail', id=process.id))
+        return redirect(url_for(_EP_ONBOARDING, id=process.id))
 
     # Generate Email
     # Generate Email
@@ -712,7 +757,7 @@ def create_user_account(process_id, item_id):
     db.session.commit()
     
     flash(f"User created!\nEmail: {email}\nPassword: {password}", "success")
-    return redirect(url_for('onboarding.onboarding_detail', id=process.id))
+    return redirect(url_for(_EP_ONBOARDING, id=process.id))
 
 @onboarding_bp.route('/process/<int:process_id>/add_to_service/<int:item_id>', methods=['POST'])
 @login_required
@@ -720,22 +765,22 @@ def create_user_account(process_id, item_id):
 def add_user_to_service(process_id, item_id):
     if not has_write_permission('hr_people'):
         flash('Write access required to add user to service.', 'danger')
-        return redirect(url_for('onboarding.onboarding_detail', id=process_id))
+        return redirect(url_for(_EP_ONBOARDING, id=process_id))
     process = db.get_or_404(OnboardingProcess, process_id)
     item = db.get_or_404(ProcessItem, item_id)
     
     if item.item_type != 'ServiceAccess' or not item.linked_object_id:
         flash('Invalid item type.', 'danger')
-        return redirect(url_for('onboarding.onboarding_detail', id=process.id))
+        return redirect(url_for(_EP_ONBOARDING, id=process.id))
 
     service = db.session.get(BusinessService,item.linked_object_id)
     if not service:
         flash('Service not found.', 'danger')
-        return redirect(url_for('onboarding.onboarding_detail', id=process.id))
+        return redirect(url_for(_EP_ONBOARDING, id=process.id))
         
     if not process.user:
         flash('No user linked to this onboarding process yet. Create the user first.', 'warning')
-        return redirect(url_for('onboarding.onboarding_detail', id=process.id))
+        return redirect(url_for(_EP_ONBOARDING, id=process.id))
         
     if process.user not in service.users:
         service.users.append(process.user)
@@ -749,7 +794,7 @@ def add_user_to_service(process_id, item_id):
         item.is_completed = True
         db.session.commit()
         
-    return redirect(url_for('onboarding.onboarding_detail', id=process.id))
+    return redirect(url_for(_EP_ONBOARDING, id=process.id))
 
 @onboarding_bp.route('/process/<int:process_id>/add_to_subscription/<int:item_id>', methods=['POST'])
 @login_required
@@ -757,22 +802,22 @@ def add_user_to_service(process_id, item_id):
 def add_user_to_subscription(process_id, item_id):
     if not has_write_permission('hr_people'):
         flash('Write access required to add user to subscription.', 'danger')
-        return redirect(url_for('onboarding.onboarding_detail', id=process_id))
+        return redirect(url_for(_EP_ONBOARDING, id=process_id))
     process = db.get_or_404(OnboardingProcess, process_id)
     item = db.get_or_404(ProcessItem, item_id)
     
     if item.item_type != 'Subscription' or not item.linked_object_id:
         flash('Invalid item type.', 'danger')
-        return redirect(url_for('onboarding.onboarding_detail', id=process.id))
+        return redirect(url_for(_EP_ONBOARDING, id=process.id))
 
     subscription = db.session.get(Subscription,item.linked_object_id)
     if not subscription:
         flash('Subscription not found.', 'danger')
-        return redirect(url_for('onboarding.onboarding_detail', id=process.id))
+        return redirect(url_for(_EP_ONBOARDING, id=process.id))
         
     if not process.user:
         flash('No user linked to this onboarding process yet. Create the user first.', 'warning')
-        return redirect(url_for('onboarding.onboarding_detail', id=process.id))
+        return redirect(url_for(_EP_ONBOARDING, id=process.id))
         
     if process.user not in subscription.users:
         subscription.users.append(process.user)
@@ -789,7 +834,7 @@ def add_user_to_subscription(process_id, item_id):
         item.is_completed = True
         db.session.commit()
         
-    return redirect(url_for('onboarding.onboarding_detail', id=process.id))
+    return redirect(url_for(_EP_ONBOARDING, id=process.id))
 
 @onboarding_bp.route('/process/<int:process_id>/add_to_course/<int:item_id>', methods=['POST'])
 @login_required
@@ -797,7 +842,7 @@ def add_user_to_subscription(process_id, item_id):
 def add_user_to_course(process_id, item_id):
     if not has_write_permission('hr_people'):
         flash('Write access required to add user to course.', 'danger')
-        return redirect(url_for('onboarding.onboarding_detail', id=process_id))
+        return redirect(url_for(_EP_ONBOARDING, id=process_id))
     from datetime import date, timedelta
     from ..models import CourseAssignment
     
@@ -806,16 +851,16 @@ def add_user_to_course(process_id, item_id):
     
     if item.item_type != 'Course' or not item.linked_object_id:
         flash('Invalid item type.', 'danger')
-        return redirect(url_for('onboarding.onboarding_detail', id=process.id))
+        return redirect(url_for(_EP_ONBOARDING, id=process.id))
 
     course = db.session.get(Course,item.linked_object_id)
     if not course:
         flash('Course not found.', 'danger')
-        return redirect(url_for('onboarding.onboarding_detail', id=process.id))
+        return redirect(url_for(_EP_ONBOARDING, id=process.id))
         
     if not process.user:
         flash('No user linked to this onboarding process yet. Create the user first.', 'warning')
-        return redirect(url_for('onboarding.onboarding_detail', id=process.id))
+        return redirect(url_for(_EP_ONBOARDING, id=process.id))
     
     # Check if user is already assigned to this course
     existing = CourseAssignment.query.filter_by(course_id=course.id, user_id=process.user.id).first()
@@ -831,7 +876,7 @@ def add_user_to_course(process_id, item_id):
         item.is_completed = True
         db.session.commit()
         
-    return redirect(url_for('onboarding.onboarding_detail', id=process.id))
+    return redirect(url_for(_EP_ONBOARDING, id=process.id))
 
 # ==========================================
 # API / UTILS
@@ -1016,11 +1061,11 @@ def send_communication_now(id):
     
     if comm.status != 'pending':
         flash(f'Communication is already {comm.status}.', 'warning')
-        return redirect(request.referrer or url_for('onboarding.index'))
+        return redirect(request.referrer or url_for(_EP_INDEX))
     
     if not comm.recipient_email:
         flash('No recipient email configured for this communication.', 'danger')
-        return redirect(request.referrer or url_for('onboarding.index'))
+        return redirect(request.referrer or url_for(_EP_INDEX))
     
     try:
         # Get context and render template
@@ -1051,7 +1096,7 @@ def send_communication_now(id):
         flash(f'Error sending email: {str(e)}', 'danger')
     
     db.session.commit()
-    return redirect(request.referrer or url_for('onboarding.index'))
+    return redirect(request.referrer or url_for(_EP_INDEX))
 
 
 @onboarding_bp.route('/communications/<int:id>/cancel', methods=['POST'])
@@ -1066,10 +1111,10 @@ def cancel_communication(id):
     
     if comm.status != 'pending':
         flash(f'Cannot cancel - communication is already {comm.status}.', 'warning')
-        return redirect(request.referrer or url_for('onboarding.index'))
+        return redirect(request.referrer or url_for(_EP_INDEX))
     
     comm.status = 'cancelled'
     db.session.commit()
     
     flash(f'Communication "{comm.template.name}" cancelled.', 'info')
-    return redirect(request.referrer or url_for('onboarding.index'))
+    return redirect(request.referrer or url_for(_EP_INDEX))

@@ -22,7 +22,7 @@
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
 
                 <div class="mb-3">
-                    <label class="form-label">Select User</label>
+                    <label for="user-select" class="form-label">Select User</label>
                     <select name="user_id" id="user-select" class="form-select" required>
                         <option value="">Search user...</option>
                         {% for user in users %}
@@ -31,9 +31,20 @@
                     </select>
                 </div>
 
+                <div class="mb-3">
+                    <label for="departure-date" class="form-label">Last Day</label>
+                    <input type="date" name="departure_date" id="departure-date" class="form-control" required>
+                </div>
+
                 <div class="mb-4">
-                    <label class="form-label">Last Day</label>
-                    <input type="date" name="departure_date" class="form-control" required>
+                    <label for="transfer-select" class="form-label">Transfer ownership to <span class="text-muted fw-normal" aria-hidden="true">(optional)</span></label>
+                    <select name="transfer_to_id" id="transfer-select" class="form-select" aria-label="Transfer ownership to (optional)">
+                        <option value="">— Leave for manual reassignment —</option>
+                        {% for user in users %}
+                        <option value="{{ user.id }}">{{ user.name }} ({{ user.email }})</option>
+                        {% endfor %}
+                    </select>
+                    <div class="form-text">If set, risks, service ownerships and credentials will be automatically transferred to this person when the checklist is generated.</div>
                 </div>
 
                 <div class="d-grid gap-2">
@@ -48,7 +59,8 @@
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         if (window.TomSelect) {
-            new TomSelect("#user-select", { create: false, sortField: { field: "text", direction: "asc" } });
+            const userSelect = new TomSelect("#user-select", { create: false, sortField: { field: "text", direction: "asc" } });
+            const transferSelect = new TomSelect("#transfer-select", { create: false, sortField: { field: "text", direction: "asc" } });
         }
     });
 </script>

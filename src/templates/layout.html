@@ -179,13 +179,13 @@
                     PROCUREMENT <i class="fa-fw fas fa-chevron-down float-end"></i></h6>
                 <div class="collapse" id="crm-menu" data-bs-parent="#sidebar-accordion">
                     <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint and request.endpoint.startswith('leads.') %}active{% endif %}"
-                            href="{{ url_for('leads.list_leads') }}"><i class="fa-fw fas fa-bullhorn"></i>
+                            class="nav-link {% if request.endpoint and request.endpoint.startswith('requirements.') %}active{% endif %}"
+                            href="{{ url_for('requirements.list_requirements') }}"><i class="fa-fw fas fa-bullhorn"></i>
                             Requirements</a>
                     </li>
                     <li class="nav-item"><a
-                            class="nav-link {% if request.endpoint and request.endpoint.startswith('opportunities.') %}active{% endif %}"
-                            href="{{ url_for('opportunities.list_opportunities') }}"><i
+                            class="nav-link {% if request.endpoint and request.endpoint.startswith('evaluations.') %}active{% endif %}"
+                            href="{{ url_for('evaluations.list_evaluations') }}"><i
                                 class="fa-fw fas fa-lightbulb"></i> Evaluations</a></li>
                     <li class="nav-item"><a
                             class="nav-link {% if request.endpoint and request.endpoint.startswith('suppliers.') %}active{% endif %}"

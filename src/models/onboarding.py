@@ -59,6 +59,7 @@ class OnboardingProcess(db.Model):
     personal_email = db.Column(db.String(120), nullable=True)
 
     start_date = db.Column(db.Date, nullable=False)
+    notes = db.Column(db.Text, nullable=True)
     status = db.Column(db.String(50), default='Provisioning') # Provisioning, Completed
     
     pack_id = db.Column(db.Integer, db.ForeignKey('onboarding_pack.id'))
