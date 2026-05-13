@@ -19,9 +19,9 @@ from src.utils.timezone_helper import now, today
 
 onboarding_bp = Blueprint('onboarding', __name__)
 
-_EP_INDEX = _EP_INDEX
-_EP_ONBOARDING = _EP_ONBOARDING
-_EP_OFFBOARDING = _EP_OFFBOARDING
+_EP_INDEX = 'onboarding.index'
+_EP_ONBOARDING = 'onboarding.onboarding_detail'
+_EP_OFFBOARDING = 'onboarding.offboarding_detail'
 
 # --- DASHBOARD PRINCIPAL ---
 
