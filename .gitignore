@@ -26,5 +26,3 @@ opsdeck-enterprise/
 .agent/
 .plans/
 .coverage
-scripts/
-scripts/*
