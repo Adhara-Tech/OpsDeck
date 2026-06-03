@@ -18,9 +18,18 @@ Generates a directory with ~56 Excel files covering:
   - Onboarding/offboarding, security activities
 
 Usage:
-    python scripts/bcdr_export.py --database-url postgresql://opsdeck:opsdeck@localhost:5432/opsdeck
-    python scripts/bcdr_export.py --host localhost --port 5432 --db opsdeck
-    python scripts/bcdr_export.py --output /backups/opsdeck_20260224
+    python scripts/bcdr-export.py --database-url postgresql://opsdeck:opsdeck@localhost:5432/opsdeck
+    python scripts/bcdr-export.py --host localhost --port 5432 --db opsdeck
+    python scripts/bcdr-export.py --output /backups/opsdeck_20260224
+
+Environment variables (all optional; CLI flags take precedence):
+    DATABASE_URL       Full connection URL (overrides the POSTGRES_* vars below)
+    POSTGRES_HOST      DB host (default: localhost)
+    POSTGRES_PORT      DB port (default: 5432)
+    POSTGRES_DB        DB name (default: opsdeck)
+    POSTGRES_USER      DB user (default: opsdeck)
+    POSTGRES_PASSWORD  DB password (default: opsdeck)
+    OUTPUT_DIR         Output directory (default: bcdr_opsdeck_YYYYMMDD_HHMM/)
 
 Requirements:
     pip install sqlalchemy psycopg2-binary openpyxl
@@ -1455,9 +1464,9 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python scripts/bcdr_export.py --database-url postgresql://opsdeck:opsdeck@localhost:5432/opsdeck
-  python scripts/bcdr_export.py --host db.prod.internal --db opsdeck_prod
-  python scripts/bcdr_export.py --output /backups/opsdeck_$(date +%%Y%%m%%d)
+  python scripts/bcdr-export.py --database-url postgresql://opsdeck:opsdeck@localhost:5432/opsdeck
+  python scripts/bcdr-export.py --host db.prod.internal --db opsdeck_prod
+  python scripts/bcdr-export.py --output /backups/opsdeck_$(date +%%Y%%m%%d)
         """,
     )
     parser.add_argument(
@@ -1485,8 +1494,8 @@ Examples:
         help="DB password (default: $POSTGRES_PASSWORD or opsdeck)"
     )
     parser.add_argument(
-        "--output", "-o", default=None,
-        help="Output directory (default: bcdr_opsdeck_YYYYMMDD_HHMM/)"
+        "--output", "-o", default=os.getenv("OUTPUT_DIR"),
+        help="Output directory (default: $OUTPUT_DIR or bcdr_opsdeck_YYYYMMDD_HHMM/)"
     )
 
     args = parser.parse_args()

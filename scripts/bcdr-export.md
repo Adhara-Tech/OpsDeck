@@ -1,4 +1,4 @@
-# bcdr_export.py — BCDR Export (Disaster Recovery)
+# bcdr-export.py — BCDR Export (Disaster Recovery)
 
 Standalone script that extracts **all data** from the OpsDeck database and generates a directory with one Excel file (`.xlsx`) per entity type. Intended for offline backups, audits, and data recovery in case of disaster.
 
@@ -8,24 +8,50 @@ Standalone script that extracts **all data** from the OpsDeck database and gener
 pip install sqlalchemy psycopg2-binary openpyxl
 ```
 
+## Configuration
+
+All parameters can be supplied either as CLI flags or environment variables. **CLI flags take precedence** over environment variables.
+
+| CLI flag | Environment variable | Default | Description |
+|---|---|---|---|
+| `--database-url` | `DATABASE_URL` | *(built from POSTGRES_\*)* | Full connection URL (overrides the `POSTGRES_*` vars) |
+| `--host` | `POSTGRES_HOST` | `localhost` | PostgreSQL host |
+| `--port` | `POSTGRES_PORT` | `5432` | PostgreSQL port |
+| `--db` | `POSTGRES_DB` | `opsdeck` | Database name |
+| `--user` | `POSTGRES_USER` | `opsdeck` | DB user |
+| `--password` | `POSTGRES_PASSWORD` | `opsdeck` | DB password |
+| `--output` / `-o` | `OUTPUT_DIR` | `bcdr_opsdeck_YYYYMMDD_HHMM/` | Output directory |
+
+Because every parameter is env-configurable and none is required, the script runs with no flags inside a container — ideal for mounting Kubernetes secrets as environment variables:
+
+```yaml
+env:
+  - name: DATABASE_URL
+    valueFrom:
+      secretKeyRef: { name: opsdeck-db, key: url }
+  - name: OUTPUT_DIR
+    value: /backups
+```
+
 ## Usage
 
 ```bash
 # Connection via DATABASE_URL (recommended)
-python scripts/bcdr_export.py --database-url postgresql://opsdeck:opsdeck@localhost:5432/opsdeck
+python scripts/bcdr-export.py --database-url postgresql://opsdeck:opsdeck@localhost:5432/opsdeck
 
 # Connection via individual parameters
-python scripts/bcdr_export.py --host db.prod.internal --port 5432 --db opsdeck --user opsdeck --password opsdeck
+python scripts/bcdr-export.py --host db.prod.internal --port 5432 --db opsdeck --user opsdeck --password opsdeck
 
 # Custom output directory
-python scripts/bcdr_export.py --database-url $DATABASE_URL --output /backups/opsdeck_20260224
+python scripts/bcdr-export.py --database-url $DATABASE_URL --output /backups/opsdeck_20260224
 
-# Use the DATABASE_URL environment variable directly
+# Pure environment-variable invocation (no flags)
 export DATABASE_URL=postgresql://opsdeck:opsdeck@localhost:5432/opsdeck
-python scripts/bcdr_export.py
+export OUTPUT_DIR=/backups/opsdeck
+python scripts/bcdr-export.py
 ```
 
-If `--output` is not specified, a `bcdr_opsdeck_YYYYMMDD_HHMM/` directory is created in the current directory.
+If neither `--output` nor `OUTPUT_DIR` is set, a `bcdr_opsdeck_YYYYMMDD_HHMM/` directory is created in the current directory.
 
 ## Running inside Docker
 
@@ -33,18 +59,18 @@ The DB port is usually not exposed to the host, so it is easier to run from insi
 
 ```bash
 # Copy the script into the container and run it
-docker cp scripts/bcdr_export.py opsdeck-web-1:/tmp/bcdr_export.py
+docker cp scripts/bcdr-export.py opsdeck-web-1:/tmp/bcdr-export.py
 
 # Install openpyxl if missing (sqlalchemy and psycopg2 are already in the image)
 docker exec opsdeck-web-1 pip install openpyxl
 
 # Run
-docker exec opsdeck-web-1 python /tmp/bcdr_export.py \
+docker exec opsdeck-web-1 python /tmp/bcdr-export.py \
   --database-url postgresql://opsdeck:opsdeck@db:5432/opsdeck \
-  --output /tmp/bcdr_export
+  --output /tmp/bcdr-export
 
 # Copy the result back to the host
-docker cp opsdeck-web-1:/tmp/bcdr_export/. ./export/
+docker cp opsdeck-web-1:/tmp/bcdr-export/. ./export/
 ```
 
 ## Output
