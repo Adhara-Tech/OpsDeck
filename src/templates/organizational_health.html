@@ -208,6 +208,41 @@
                         {% endif %}
                     </div>
                 </div>
+
+                <!-- Score breakdown: factors lowering the risk score -->
+                <hr class="my-3">
+                {% if critical_risks or high_risks %}
+                <h6 class="text-muted text-uppercase mb-2 small">What's lowering the score</h6>
+                <ul class="list-group list-group-flush mb-3">
+                    {% if critical_risks %}
+                    <a href="{{ url_for('risk.list_risks', min_impact=4, min_likelihood=4, active_only=1) }}"
+                        class="list-group-item list-group-item-action d-flex justify-content-between align-items-center px-0 bg-transparent border-0 py-1">
+                        <span><i class="fas fa-circle text-danger me-2 small"></i>{{ critical_risks }} critical
+                            risk{{ 's' if critical_risks != 1 }} <small class="text-muted">(impact &amp; likelihood
+                                &ge; 4)</small></span>
+                        <span class="badge bg-danger">&minus;{{ critical_risks * 15 }} pts</span>
+                    </a>
+                    {% endif %}
+                    {% if high_risks %}
+                    <a href="{{ url_for('risk.list_risks', min_impact=3, min_likelihood=3, active_only=1) }}"
+                        class="list-group-item list-group-item-action d-flex justify-content-between align-items-center px-0 bg-transparent border-0 py-1">
+                        <span><i class="fas fa-circle text-warning me-2 small"></i>{{ high_risks }} high+
+                            risk{{ 's' if high_risks != 1 }} <small class="text-muted">(impact &amp; likelihood
+                                &ge; 3)</small></span>
+                        <span class="badge bg-warning text-dark">&minus;{{ high_risks * 5 }} pts</span>
+                    </a>
+                    {% endif %}
+                </ul>
+                {% else %}
+                <p class="text-success text-center mb-3 small"><i class="fas fa-check-circle"></i> No critical or high
+                    residual risks lowering the score.</p>
+                {% endif %}
+
+                <div class="text-center">
+                    <a href="{{ url_for('risk.list_risks') }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-exclamation-triangle"></i> View Risk Register
+                    </a>
+                </div>
             </div>
         </div>
     </div>

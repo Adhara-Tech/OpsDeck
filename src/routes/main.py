@@ -660,6 +660,8 @@ def organizational_health():
         today=today(),
         health_score=health_score,
         global_status=global_status,
+        critical_risks=critical_risks,
+        high_risks=high_risks,
         critical_items=critical_items,
         critical_count=critical_count,
         warning_count=warning_count,
