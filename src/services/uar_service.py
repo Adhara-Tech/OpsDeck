@@ -159,7 +159,7 @@ class UARAutomationService:
 
             data = []
             for user in subscription.users:
-                for license in subscription.licenses.filter_by(user_id=user.id):
+                for license in [l for l in subscription.licenses if l.user_id == user.id]:
                     data.append({
                         'user_id': user.id,
                         'email': user.email,
@@ -176,14 +176,15 @@ class UARAutomationService:
             if not service:
                 raise ValueError(f"Business Service {service_id} not found")
 
-            users = service.get_effective_users()
+            # get_effective_users() returns dicts: {'user': User, 'source': str, 'ref': object}
+            access_list = service.get_effective_users()
             data = [{
-                'user_id': u.id,
-                'email': u.email,
-                'name': u.name,
-                'source': 'service',
+                'user_id': access['user'].id,
+                'email': access['user'].email,
+                'name': access['user'].name,
+                'source': access['source'],
                 'service_name': service.name
-            } for u in users]
+            } for access in access_list]
 
         elif source_type == 'Database Query':
             query = source_config.get('query')
