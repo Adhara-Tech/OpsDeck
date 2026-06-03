@@ -23,7 +23,15 @@ class UserSchema(BaseSchema):
     class Meta(BaseSchema.Meta):
         model = User
         # Exclude sensitive data automatically
-        exclude = ('password_hash', 'api_token') 
+        exclude = ('password_hash', 'api_token')
+
+class UserInputSchema(Schema):
+    email = fields.Email(required=True, validate=validate.Length(min=1, max=100))
+    name = fields.String(required=True, validate=validate.Length(min=1, max=100))
+    department = fields.String(load_default=None, validate=validate.Length(max=100))
+    job_title = fields.String(load_default=None, validate=validate.Length(max=100))
+    personal_email = fields.String(load_default=None, validate=validate.Length(max=120))
+    role = fields.String(load_default='user', validate=validate.Length(max=50))
 
 class AssetSchema(BaseSchema):
     custom_properties = fields.Dict(dump_only=True)

@@ -9,7 +9,7 @@ from .models.change import Change
 from .models.security import SecurityIncident
 from .models.onboarding import OnboardingProcess
 from .schemas import (
-    UserSchema, AssetSchema, PeripheralSchema,
+    UserSchema, UserInputSchema, AssetSchema, PeripheralSchema,
     LicenseSchema, SubscriptionSchema, ServiceSchema,
     ChangeApiSchema, ChangeInputSchema,
     IncidentApiSchema, IncidentInputSchema,
@@ -102,7 +102,6 @@ def register_read_only_resource(blueprint, model, schema, url_name):
             return db.get_or_404(model, id)
 
 # --- Register Routes ---
-register_read_only_resource(api_bp, User, UserSchema, 'users')
 register_read_only_resource(api_bp, Asset, AssetSchema, 'assets')
 register_read_only_resource(api_bp, Peripheral, PeripheralSchema, 'peripherals')
 register_read_only_resource(api_bp, License, LicenseSchema, 'licenses')
@@ -120,6 +119,48 @@ def resolve_user(identifier):
     if not user:
         user = User.query.filter_by(name=identifier, is_archived=False).first()
     return user
+
+
+# --- Users (List + Detail read, upsert by email) ---
+
+@api_bp.route('/users')
+class UserListResource(MethodView):
+
+    @api_bp.doc(security=[{"bearerAuth": []}])
+    @api_bp.response(200, UserSchema(many=True))
+    def get(self):
+        """List all users (Protected)"""
+        limit = request.args.get('limit', 100, type=int)
+        offset = request.args.get('offset', 0, type=int)
+        return User.query.limit(limit).offset(offset).all()
+
+    @api_bp.doc(security=[{"bearerAuth": []}])
+    @api_bp.arguments(UserInputSchema)
+    @api_bp.response(201, UserSchema)
+    def post(self, data):
+        """Create or update a User (upsert by email)"""
+        existing = User.query.filter_by(email=data['email']).first()
+        if existing:
+            for key, value in data.items():
+                if value is not None and key != 'email':
+                    setattr(existing, key, value)
+            db.session.commit()
+            return existing, 200
+
+        user = User(**{k: v for k, v in data.items() if v is not None})
+        db.session.add(user)
+        db.session.commit()
+        return user, 201
+
+
+@api_bp.route('/users/<int:id>')
+class UserDetailResource(MethodView):
+
+    @api_bp.doc(security=[{"bearerAuth": []}])
+    @api_bp.response(200, UserSchema)
+    def get(self, id):
+        """Get specific user by ID (Protected)"""
+        return db.get_or_404(User, id)
 
 
 # --- POST Endpoints (Upsert by external_ref) ---
