@@ -102,3 +102,27 @@ def get_conversion_rate(currency_code):
     
     # 2. Fallback to hardcoded rates
     return CURRENCY_RATES.get(currency_code, 1.0)
+
+
+def renewal_occurrences_in_range(subscriptions, start_date, end_date):
+    """
+    Return every subscription renewal occurrence that falls within
+    [start_date, end_date] as a list of (renewal_date, subscription) tuples.
+
+    Iterates recurring renewals via ``get_renewal_date_after`` so multiple
+    renewals of the same subscription inside the range are all counted.
+    Subscriptions without a next renewal (e.g. auto_renew disabled) are skipped.
+
+    Shared by the Ops & Finance dashboard and the Organizational Health
+    "Operations Pulse" card so both report the same spend figures.
+    """
+    occurrences = []
+    for subscription in subscriptions:
+        next_renewal = subscription.next_renewal_date
+        if next_renewal is None:
+            continue
+        while next_renewal and next_renewal <= end_date:
+            if next_renewal >= start_date:
+                occurrences.append((next_renewal, subscription))
+            next_renewal = subscription.get_renewal_date_after(next_renewal)
+    return occurrences

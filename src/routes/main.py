@@ -14,6 +14,7 @@ from ..models.credentials import Credential, CredentialSecret
 from ..models.certificates import Certificate, CertificateVersion
 from ..models.audits import ComplianceAudit
 from ..services.permissions_service import requires_permission, get_user_modules, user_has_module_access
+from ..services.finance_service import renewal_occurrences_in_range
 from src import limiter
 from src import notifications
 import calendar
@@ -655,32 +656,33 @@ def organizational_health():
     upcoming_activities.sort(key=lambda a: a['days'])
     
     # ----- OPS SUMMARY -----
-    total_assets = Asset.query.filter(
+    unhealthy_statuses = ['In Repair', 'Awaiting Disposal', 'Disposed', 'Sold']
+    active_assets = Asset.query.filter(
         Asset.is_archived == False,
         Asset.status != 'Decommissioned'
-    ).count()
-    unhealthy_statuses = ['In Repair', 'Awaiting Disposal', 'Disposed', 'Sold']
-    healthy_assets = Asset.query.filter(
-        Asset.is_archived == False,
-        Asset.status != 'Decommissioned',
-        Asset.status.notin_(unhealthy_statuses)
-    ).count()
-    asset_health = int((healthy_assets / total_assets * 100) if total_assets > 0 else 100)
-    
-    # Monthly spend projection from subscriptions
-    this_month_start = today().replace(day=1)
-    next_month_start = this_month_start + relativedelta(months=1)
-    projected_spend = sum(
-        sub.cost_eur for sub in subscriptions
-        if sub.next_renewal_date and this_month_start <= sub.next_renewal_date < next_month_start
+    ).all()
+    total_assets = len(active_assets)
+    healthy_assets = sum(1 for a in active_assets if a.status not in unhealthy_statuses)
+    assets_under_warranty = sum(
+        1 for a in active_assets
+        if a.warranty_end_date and a.warranty_end_date >= current_date
     )
-    
+    asset_health = int((healthy_assets / total_assets * 100) if total_assets > 0 else 100)
+
+    # Spend projection: subscription renewals landing in the current calendar month.
+    # Uses the same helper as the Ops & Finance dashboard so the two figures match.
+    month_start = current_date.replace(day=1)
+    month_end = month_start + relativedelta(months=1, days=-1)
+    month_renewals = renewal_occurrences_in_range(subscriptions, month_start, month_end)
+    projected_spend = sum(sub.cost_eur for _, sub in month_renewals)
+
     ops_summary = {
         'projected_spend': projected_spend,
-        'spend_trend': 0,  # TODO: Calculate from historical data
         'asset_health': asset_health,
         'healthy_assets': healthy_assets,
-        'total_assets': total_assets
+        'total_assets': total_assets,
+        'assets_under_warranty': assets_under_warranty,
+        'active_subscriptions': len(subscriptions),
     }
     
     # ----- COMPLIANCE SUMMARY -----
@@ -1040,18 +1042,8 @@ def ops_finance_dashboard():
         start_date, end_date = current_date, current_date + timedelta(days=30)
 
     all_active_subscriptions = Subscription.query.filter_by(is_archived=False).all()
-    upcoming_renewals, total_cost = [], 0
-
-    for subscription in all_active_subscriptions:
-        next_renewal = subscription.next_renewal_date
-        if next_renewal is None:
-            continue
-        while next_renewal and next_renewal <= end_date:
-            if next_renewal >= start_date:
-                upcoming_renewals.append((next_renewal, subscription))
-                total_cost += subscription.cost_eur
-            next_renewal = subscription.get_renewal_date_after(next_renewal)
-
+    upcoming_renewals = renewal_occurrences_in_range(all_active_subscriptions, start_date, end_date)
+    total_cost = sum(subscription.cost_eur for _, subscription in upcoming_renewals)
     upcoming_renewals.sort(key=lambda x: x[0])
 
     # --- Forecast Chart Logic ---

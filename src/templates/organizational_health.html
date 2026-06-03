@@ -510,26 +510,33 @@
             </div>
             <div class="card-body">
                 <div class="row text-center">
-                    <div class="col-6">
-                        <p class="text-muted mb-1">Monthly Spend Projection</p>
+                    <div class="col-6 mb-3">
+                        <p class="text-muted mb-1">Renewals This Month</p>
                         <span class="summary-stat text-primary">€{{ "{:,.0f}".format(ops_summary.projected_spend)
                             }}</span>
-                        {% if ops_summary.spend_trend != 0 %}
-                        <p class="summary-trend {{ 'up' if ops_summary.spend_trend > 0 else 'down' }}">
-                            <i class="fas fa-arrow-{{ 'up' if ops_summary.spend_trend > 0 else 'down' }}"></i>
-                            {{ ops_summary.spend_trend | abs }}% vs last month
-                        </p>
-                        {% endif %}
                     </div>
-                    <div class="col-6">
+                    <div class="col-6 mb-3">
                         <p class="text-muted mb-1">Asset Health</p>
                         <span
                             class="summary-stat text-{{ 'success' if ops_summary.asset_health >= 90 else ('warning' if ops_summary.asset_health >= 70 else 'danger') }}">
                             {{ ops_summary.asset_health }}%
                         </span>
-                        <p class="text-muted small">
+                        <p class="text-muted small mb-0">
                             {{ ops_summary.healthy_assets }} / {{ ops_summary.total_assets }} operational
                         </p>
+                    </div>
+                    <div class="col-6">
+                        <p class="text-muted mb-1">Under Warranty</p>
+                        {% set warranty_pct = (ops_summary.assets_under_warranty / ops_summary.total_assets * 100) | round | int if ops_summary.total_assets else 0 %}
+                        <span
+                            class="summary-stat text-{{ 'success' if warranty_pct >= 80 else ('warning' if warranty_pct >= 50 else 'danger') }}">
+                            {{ ops_summary.assets_under_warranty }} / {{ ops_summary.total_assets }}
+                        </span>
+                        <p class="text-muted small mb-0">{{ warranty_pct }}% of assets covered</p>
+                    </div>
+                    <div class="col-6">
+                        <p class="text-muted mb-1">Active Subscriptions</p>
+                        <span class="summary-stat text-info">{{ ops_summary.active_subscriptions }}</span>
                     </div>
                 </div>
                 <hr>
