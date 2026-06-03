@@ -6,6 +6,12 @@ metadata:
     {{- include "opsdeck.labels" . | nindent 4 }}
 spec:
   replicas: 1
+  # Recreate: termina el pod antiguo antes de crear el nuevo.
+  # Necesario porque los volúmenes (PVC) son ReadWriteOnce y no se pueden
+  # compartir entre dos pods a la vez durante un RollingUpdate.
+  # Implica unos segundos/minutos de downtime en cada actualización.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       {{- include "opsdeck.selectorLabels" . | nindent 6 }}
