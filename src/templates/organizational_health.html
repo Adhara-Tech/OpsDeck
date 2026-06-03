@@ -314,34 +314,45 @@
         </div>
     </div>
 
-    <!-- Zone B: Critical Action Items (Red State) -->
+    <!-- Zone B: Upcoming Security Activities (recurring tasks due soon) -->
     <div class="bento-half">
-        <div class="card border-danger h-100" id="critical-action-items">
+        <div class="card border-danger h-100" id="upcoming-activities">
             <div class="card-header bg-danger text-white">
-                <h5 class="mb-0"><i class="fas fa-exclamation-circle"></i> Critical Action Items</h5>
+                <h5 class="mb-0"><i class="fas fa-shield-virus"></i> Upcoming Security Activities</h5>
             </div>
             <div class="card-body p-0" style="max-height: 400px; overflow-y: auto;">
-                {% if critical_items %}
+                {% if upcoming_activities %}
                 <ul class="list-group list-group-flush">
-                    {% for item in critical_items %}
+                    {% for act in upcoming_activities %}
                     <li class="list-group-item critical-item d-flex justify-content-between align-items-start">
-                        <div>
-                            <span class="badge bg-{{ 'danger' if item.severity == 'critical' else 'warning' }} me-2">
-                                {{ item.type | upper }}
-                            </span>
-                            <strong>{{ item.title }}</strong>
-                            <p class="text-muted small mb-0">{{ item.description }}</p>
+                        <div class="me-2">
+                            {% if act.frequency %}
+                            <span class="badge bg-secondary me-2 text-capitalize">{{ act.frequency }}</span>
+                            {% endif %}
+                            <strong>{{ act.name }}</strong>
+                            <p class="text-muted small mb-0">
+                                {% if act.last_execution %}Last done {{ act.last_execution.strftime('%Y-%m-%d') }}{% else %}Never performed{% endif %}
+                            </p>
                         </div>
-                        <a href="{{ item.link }}" class="btn btn-sm btn-outline-danger">
-                            <i class="fas fa-arrow-right"></i>
-                        </a>
+                        <div class="text-end text-nowrap">
+                            {% if act.days < 0 %}
+                            <span class="badge bg-danger mb-1">{{ -act.days }}d overdue</span>
+                            {% elif act.days == 0 %}
+                            <span class="badge bg-danger mb-1">Due today</span>
+                            {% else %}
+                            <span class="badge bg-{{ 'warning text-dark' if act.days <= 7 else 'info' }} mb-1">in {{ act.days }}d</span>
+                            {% endif %}
+                            <a href="{{ act.link }}" class="btn btn-sm btn-outline-danger d-block">
+                                <i class="fas fa-arrow-right"></i>
+                            </a>
+                        </div>
                     </li>
                     {% endfor %}
                 </ul>
                 {% else %}
                 <div class="text-center text-muted py-4">
                     <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
-                    <p class="mb-0">No critical items. Great job!</p>
+                    <p class="mb-0">No security activities due in the next 30 days.</p>
                 </div>
                 {% endif %}
             </div>

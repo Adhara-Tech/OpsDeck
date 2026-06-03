@@ -636,6 +636,23 @@ def organizational_health():
             })
     # Already-due items (days is None) first, then ascending by days remaining.
     compliance_tasks.sort(key=lambda t: (1, t['days']) if t['days'] is not None else (0, 0))
+
+    # ----- UPCOMING SECURITY ACTIVITIES (due within 30 days, incl. overdue) -----
+    from ..models.activities import SecurityActivity
+    upcoming_activities = []
+    for activity in SecurityActivity.query.all():
+        days = activity.days_until_due
+        if days is None or days > 30:
+            continue
+        upcoming_activities.append({
+            'name': activity.name,
+            'frequency': activity.frequency,
+            'days': days,
+            'last_execution': activity.last_execution_date,
+            'link': url_for('activities.activity_detail', id=activity.id),
+        })
+    # Soonest first (most overdue at the top), through to +30 days.
+    upcoming_activities.sort(key=lambda a: a['days'])
     
     # ----- OPS SUMMARY -----
     total_assets = Asset.query.filter(
@@ -698,6 +715,7 @@ def organizational_health():
         warning_count=warning_count,
         expiring_count=expiring_count,
         compliance_tasks=compliance_tasks,
+        upcoming_activities=upcoming_activities,
         expirations=expirations,
         ops_summary=ops_summary,
         compliance_summary=compliance_summary,
