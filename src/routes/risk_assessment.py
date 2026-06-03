@@ -295,7 +295,7 @@ def get_linkable_objects(linkable_type):
     model_map = {
         'Policy': (Policy, 'title'),
         'Asset': (Asset, 'name'),
-        'Documentation': (Documentation, 'title'),
+        'Documentation': (Documentation, 'name'),
         'Software': (Software, 'name'),
         'Supplier': (Supplier, 'name'),
         'Course': (Course, 'title'),

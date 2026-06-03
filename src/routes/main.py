@@ -14,6 +14,7 @@ from ..models.credentials import Credential, CredentialSecret
 from ..models.certificates import Certificate, CertificateVersion
 from ..models.audits import ComplianceAudit
 from ..services.permissions_service import requires_permission, get_user_modules, user_has_module_access
+from ..services.finance_service import renewal_occurrences_in_range
 from src import limiter
 from src import notifications
 import calendar
@@ -537,7 +538,8 @@ def organizational_health():
             expirations['finance'].append({
                 'name': pm.name,
                 'days': days,
-                'meta': pm.details or pm.method_type
+                'meta': pm.details or pm.method_type,
+                'link': url_for('payment_methods.payment_method_detail', id=pm.id)
             })
     expirations['finance'].sort(key=lambda x: x['days'])
     
@@ -555,7 +557,8 @@ def organizational_health():
         expirations['identity'].append({
             'name': secret.credential.name,
             'type': secret.credential.type,
-            'days': days
+            'days': days,
+            'link': url_for('credentials.detail_credential', id=secret.credential.id)
         })
     expirations['identity'].sort(key=lambda x: x['days'])
     
@@ -572,7 +575,8 @@ def organizational_health():
         expirations['certificates'].append({
             'name': cv.certificate.name,
             'issuer': cv.issuer,
-            'days': days
+            'days': days,
+            'link': url_for('certificates.certificate_detail', id=cv.certificate.id)
         })
     expirations['certificates'].sort(key=lambda x: x['days'])
     
@@ -585,7 +589,8 @@ def organizational_health():
             expirations['legal'].append({
                 'name': sub.name,
                 'cost': sub.cost_eur,
-                'days': days
+                'days': days,
+                'link': url_for('subscriptions.subscription_detail', id=sub.id)
             })
     
     licenses = License.query.filter(
@@ -597,58 +602,133 @@ def organizational_health():
         expirations['legal'].append({
             'name': lic.name,
             'cost': None,
-            'days': days
+            'days': days,
+            'link': url_for('licenses.detail', id=lic.id)
         })
     expirations['legal'].sort(key=lambda x: x['days'])
     
     # ----- COUNTS -----
     critical_count = len(critical_items)
-    warning_count = sum(len(v) for v in expirations.values() if v and all(item['days'] <= 30 for item in v[:1]))
+    warning_count = sum(1 for v in expirations.values() for item in v if item['days'] <= 30)
     expiring_count = sum(len(v) for v in expirations.values())
+
+    # ----- UNIFIED COMPLIANCE TASK LIST (prioritized) -----
+    # Critical/expired items first (already due), then upcoming expirations by soonest.
+    compliance_tasks = []
+    for item in critical_items:
+        compliance_tasks.append({
+            'category': item['type'],
+            'severity': item['severity'],
+            'title': item['title'],
+            'meta': item['description'],
+            'days': None,
+            'link': item['link'],
+        })
+    for category, items in expirations.items():
+        for it in items:
+            compliance_tasks.append({
+                'category': category,
+                'severity': 'warning' if it['days'] <= 30 else 'info',
+                'title': it['name'],
+                'meta': it.get('meta') or it.get('type') or it.get('issuer')
+                        or ('€%.2f' % it['cost'] if it.get('cost') else ''),
+                'days': it['days'],
+                'link': it['link'],
+            })
+    # Already-due items (days is None) first, then ascending by days remaining.
+    compliance_tasks.sort(key=lambda t: (1, t['days']) if t['days'] is not None else (0, 0))
+
+    # ----- UPCOMING SECURITY ACTIVITIES (due within 30 days, incl. overdue) -----
+    from ..models.activities import SecurityActivity
+    upcoming_activities = []
+    for activity in SecurityActivity.query.all():
+        days = activity.days_until_due
+        if days is None or days > 30:
+            continue
+        upcoming_activities.append({
+            'name': activity.name,
+            'frequency': activity.frequency,
+            'days': days,
+            'last_execution': activity.last_execution_date,
+            'link': url_for('activities.activity_detail', id=activity.id),
+        })
+    # Soonest first (most overdue at the top), through to +30 days.
+    upcoming_activities.sort(key=lambda a: a['days'])
     
     # ----- OPS SUMMARY -----
-    total_assets = Asset.query.filter(
+    unhealthy_statuses = ['In Repair', 'Awaiting Disposal', 'Disposed', 'Sold']
+    active_assets = Asset.query.filter(
         Asset.is_archived == False,
         Asset.status != 'Decommissioned'
-    ).count()
-    unhealthy_statuses = ['In Repair', 'Awaiting Disposal', 'Disposed', 'Sold']
-    healthy_assets = Asset.query.filter(
-        Asset.is_archived == False,
-        Asset.status != 'Decommissioned',
-        Asset.status.notin_(unhealthy_statuses)
-    ).count()
-    asset_health = int((healthy_assets / total_assets * 100) if total_assets > 0 else 100)
-    
-    # Monthly spend projection from subscriptions
-    this_month_start = today().replace(day=1)
-    next_month_start = this_month_start + relativedelta(months=1)
-    projected_spend = sum(
-        sub.cost_eur for sub in subscriptions
-        if sub.next_renewal_date and this_month_start <= sub.next_renewal_date < next_month_start
+    ).all()
+    total_assets = len(active_assets)
+    healthy_assets = sum(1 for a in active_assets if a.status not in unhealthy_statuses)
+    assets_under_warranty = sum(
+        1 for a in active_assets
+        if a.warranty_end_date and a.warranty_end_date >= current_date
     )
-    
+    asset_health = int((healthy_assets / total_assets * 100) if total_assets > 0 else 100)
+
+    # Spend projection: subscription renewals landing in the current calendar month.
+    # Uses the same helper as the Ops & Finance dashboard so the two figures match.
+    month_start = current_date.replace(day=1)
+    month_end = month_start + relativedelta(months=1, days=-1)
+    month_renewals = renewal_occurrences_in_range(subscriptions, month_start, month_end)
+    projected_spend = sum(sub.cost_eur for _, sub in month_renewals)
+
     ops_summary = {
         'projected_spend': projected_spend,
-        'spend_trend': 0,  # TODO: Calculate from historical data
         'asset_health': asset_health,
         'healthy_assets': healthy_assets,
-        'total_assets': total_assets
+        'total_assets': total_assets,
+        'assets_under_warranty': assets_under_warranty,
+        'active_subscriptions': len(subscriptions),
     }
     
     # ----- COMPLIANCE SUMMARY -----
-    total_controls = FrameworkControl.query.join(Framework).filter(Framework.is_active == True).count()
-    # Controls with at least one compliance link are considered "compliant"
-    from sqlalchemy import func
-    from ..models.security import ComplianceLink
-    compliant_controls = db.session.query(func.count(func.distinct(ComplianceLink.framework_control_id))).scalar() or 0
-    compliance_score = int((compliant_controls / total_controls * 100) if total_controls > 0 else 100)
-    pending_audits = ComplianceAudit.query.filter(ComplianceAudit.status.in_(['Prep', 'In Progress'])).count()
-    
+    # Use the same real-time evaluator as the Compliance dashboard so the figures
+    # match the page the "View Compliance Dashboard" button links to.
+    from src.services.compliance_service import get_compliance_evaluator
+    evaluator = get_compliance_evaluator()
+    active_frameworks = Framework.query.filter_by(is_active=True).order_by(Framework.name).all()
+
+    agg = {'total': 0, 'compliant': 0, 'warning': 0, 'non_compliant': 0,
+           'manual': 0, 'uncovered': 0, 'not_applicable': 0}
+    framework_scores = []
+    for fw in active_frameworks:
+        status = evaluator.get_framework_status(fw.id)
+        if not status:
+            continue
+        stats = status['stats']
+        for key in agg:
+            agg[key] += stats.get(key, 0)
+        applicable = stats['total'] - stats.get('not_applicable', 0)
+        # "Covered" = anything with evidence (compliant / warning / non_compliant / manual).
+        covered = stats['compliant'] + stats['manual']
+        pct = int(round(covered / applicable * 100)) if applicable else 100
+        framework_scores.append({
+            'name': fw.name,
+            'pct': pct,
+            'covered': covered,
+            'applicable': applicable,
+        })
+
+    applicable_controls = agg['total'] - agg['not_applicable']
+    covered_controls = agg['compliant'] + agg['manual']
+    compliance_score = int(round(covered_controls / applicable_controls * 100)) if applicable_controls else 100
+    at_risk_controls = agg['warning'] + agg['non_compliant']
+    pending_audits = ComplianceAudit.query.filter(
+        ComplianceAudit.status.in_(['Planned', 'Prep', 'Auditor Review'])
+    ).count()
+
     compliance_summary = {
         'score': compliance_score,
-        'compliant_controls': compliant_controls,
-        'total_controls': total_controls,
-        'pending_audits': pending_audits
+        'compliant_controls': covered_controls,
+        'total_controls': applicable_controls,
+        'at_risk_controls': at_risk_controls,
+        'uncovered_controls': agg['uncovered'],
+        'pending_audits': pending_audits,
+        'frameworks': framework_scores,
     }
     
     # Get user modules and role for template permissions check
@@ -660,10 +740,14 @@ def organizational_health():
         today=today(),
         health_score=health_score,
         global_status=global_status,
+        critical_risks=critical_risks,
+        high_risks=high_risks,
         critical_items=critical_items,
         critical_count=critical_count,
         warning_count=warning_count,
         expiring_count=expiring_count,
+        compliance_tasks=compliance_tasks,
+        upcoming_activities=upcoming_activities,
         expirations=expirations,
         ops_summary=ops_summary,
         compliance_summary=compliance_summary,
@@ -988,18 +1072,8 @@ def ops_finance_dashboard():
         start_date, end_date = current_date, current_date + timedelta(days=30)
 
     all_active_subscriptions = Subscription.query.filter_by(is_archived=False).all()
-    upcoming_renewals, total_cost = [], 0
-
-    for subscription in all_active_subscriptions:
-        next_renewal = subscription.next_renewal_date
-        if next_renewal is None:
-            continue
-        while next_renewal and next_renewal <= end_date:
-            if next_renewal >= start_date:
-                upcoming_renewals.append((next_renewal, subscription))
-                total_cost += subscription.cost_eur
-            next_renewal = subscription.get_renewal_date_after(next_renewal)
-
+    upcoming_renewals = renewal_occurrences_in_range(all_active_subscriptions, start_date, end_date)
+    total_cost = sum(subscription.cost_eur for _, subscription in upcoming_renewals)
     upcoming_renewals.sort(key=lambda x: x[0])
 
     # --- Forecast Chart Logic ---

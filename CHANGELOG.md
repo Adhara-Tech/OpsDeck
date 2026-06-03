@@ -8,6 +8,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 
+## [0.6.10] - 2026-06-03
+
+### Added
+- **Google Users Import**: Helper script to import users from Google, with accompanying scripts and READMEs
+
+### Changed
+- Updated Python and Node dependencies
+- Helm chart deployment strategy set to `Recreate` to avoid PVC conflicts on upgrade (volumes are ReadWriteOnce and cannot be shared between pods)
+
+### Fixed
+- UAR automations: date type mismatch, plus execution against Subscription and Business Service sources
+- Risk assessment evidence picker showed document IDs instead of names
+- Robot icon not centered in the Automation Rules empty state on control detail
+
+## [0.6.9] - 2026-05-14
+
+### Added
+- **Hardware Brands as Objects**: Manage brands as first-class entities, with a brand breakdown in reports and a new assets dashboard graph
+- **CMDB ↔ Services**: Attach configuration/CMDB items to business services
+- **Onboarding/Offboarding Notes**: Add notes to onboarding and offboarding processes
+- **IRSA Support**: IAM Roles for Service Accounts (AWS)
+- **Backup Image & Cronjob**: Dedicated backup container image plus a backup cronjob in the Helm chart
+- **Custom Sender Name**: Configurable email sender name
+- **Migration Test Suite**: Added migration tests and refactored the migration system
+- **Dependency Graph Labels**: Labels on the dependency graph
+
+### Changed
+- Suppliers are now optional on subscriptions
+- Credentials truncated to 12 characters in display
+- Services and users ordered alphabetically
+- Removed legacy CRM module references
+- Offboardings can be closed without 100% completion
+- Flask no longer runs in debug mode (security scan fix)
+
+### Fixed
+- 403 when revoking access from services
+- Offboardings: service transfer and the transfer-service button not showing
+- Empty brands dropdown in peripherals
+- Crash when attaching a file to a service
+- Asset crash on null data
+- API pagination
+- Notification jobs
+- Sticky tabs and assorted layout issues
+- Service context tab not showing in the service detail view
+- Evaluations template and missing route names
+
 ## [0.6.8] - 2026-02-20
 
 ### Added

@@ -10,3 +10,6 @@ tests/
 .migrations/
 .claude/
 .agent/
+
+# Enterprise plugin: optional, not part of the base image
+opsdeck-enterprise/

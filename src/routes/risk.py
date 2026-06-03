@@ -51,6 +51,20 @@ def list_risks():
     if min_score:
         query = query.filter((Risk.residual_impact * Risk.residual_likelihood) >= min_score)
 
+    # Threshold filters (both must be met) — used by the Organizational Health
+    # dashboard to link to the exact set of risks that lower the health score.
+    min_impact = request.args.get('min_impact', type=int)
+    if min_impact:
+        query = query.filter(Risk.residual_impact >= min_impact)
+
+    min_likelihood = request.args.get('min_likelihood', type=int)
+    if min_likelihood:
+        query = query.filter(Risk.residual_likelihood >= min_likelihood)
+
+    # Exclude closed/accepted risks (matches the health-score definition).
+    if request.args.get('active_only'):
+        query = query.filter(Risk.status != 'Closed', Risk.treatment_strategy != 'Accept')
+
     risks = query.order_by((Risk.residual_impact * Risk.residual_likelihood).desc(), Risk.created_at.desc()).all()
     
     return render_template('risk/list.html', risks=risks)

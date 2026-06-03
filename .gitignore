@@ -26,3 +26,6 @@ opsdeck-enterprise/
 .agent/
 .plans/
 .coverage
+.DS_Store
+*/DS_Store
+*.log

@@ -1,8 +1,33 @@
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from sqlalchemy.orm import foreign
 from sqlalchemy import and_
 from ..extensions import db
 from src.utils.timezone_helper import today, now
+
+# Cadence (frequency) → approximate interval in days. ad-hoc has no fixed schedule.
+# Tolerates both the form values ('semi-annual', 'annual', ...) and the
+# capitalized/legacy variants used elsewhere ('Yearly', 'Semiannual', ...).
+FREQUENCY_TO_DAYS = {
+    'weekly': 7,
+    'biweekly': 14,
+    'bi-weekly': 14,
+    'monthly': 30,
+    'quarterly': 90,
+    'semi-annual': 180,
+    'semiannual': 180,
+    'annual': 365,
+    'yearly': 365,
+    'annually': 365,
+    'ad-hoc': None,
+    'adhoc': None,
+}
+
+
+def frequency_to_days(frequency):
+    """Map a cadence string to its interval in days (None if no fixed schedule)."""
+    if not frequency:
+        return None
+    return FREQUENCY_TO_DAYS.get(frequency.strip().lower().replace(' ', '-'))
 
 # --- Association Tables for Security Activities ---
 
@@ -124,6 +149,43 @@ class SecurityActivity(db.Model):
         if self.owner_type == 'Group' and self.owner_id:
             return db.session.get(Group, self.owner_id)
         return None
+
+    @property
+    def last_execution(self):
+        """Most recent execution record, or None if never performed."""
+        return self.executions.first()
+
+    @property
+    def last_execution_date(self):
+        """Date of the most recent execution, or None if never performed."""
+        last = self.last_execution
+        return last.execution_date if last else None
+
+    @property
+    def frequency_days(self):
+        """Cadence interval in days (None for ad-hoc / unrecognized frequency)."""
+        return frequency_to_days(self.frequency)
+
+    @property
+    def next_due_date(self):
+        """
+        When this activity should next be performed: the last execution date
+        (or the creation date if never performed) plus the cadence interval.
+        Returns None for ad-hoc activities with no fixed schedule.
+        """
+        days = self.frequency_days
+        if not days:
+            return None
+        reference = self.last_execution_date or self.created_at.date()
+        return reference + timedelta(days=days)
+
+    @property
+    def days_until_due(self):
+        """Days until the next due date (negative if overdue). None for ad-hoc."""
+        due = self.next_due_date
+        if due is None:
+            return None
+        return (due - today()).days
 
 class ActivityExecution(db.Model):
     """
