@@ -682,6 +682,11 @@
                             </li>
                             {% endif %}
                             <li>
+                                <a class="dropdown-item py-2" href="{{ url_for('main.my_dashboard') }}">
+                                    <i class="fas fa-user-gauge fa-fw me-2 text-info"></i> My Dashboard
+                                </a>
+                            </li>
+                            <li>
                                 <a class="dropdown-item py-2" href="{{ url_for('training.my_training') }}">
                                     <i class="fas fa-graduation-cap fa-fw me-2 text-primary"></i> My Courses
                                 </a>
