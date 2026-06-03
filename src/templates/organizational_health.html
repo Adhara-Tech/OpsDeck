@@ -556,31 +556,59 @@
             </div>
             <div class="card-body">
                 <div class="row text-center">
-                    <div class="col-6">
+                    <div class="col-6 mb-3">
                         <p class="text-muted mb-1">Overall Compliance</p>
                         <span
                             class="summary-stat text-{{ 'success' if compliance_summary.score >= 80 else ('warning' if compliance_summary.score >= 60 else 'danger') }}">
                             {{ compliance_summary.score }}%
                         </span>
-                        <p class="text-muted small">{{ compliance_summary.compliant_controls }} / {{
-                            compliance_summary.total_controls }} controls</p>
+                        <p class="text-muted small mb-0">{{ compliance_summary.compliant_controls }} / {{
+                            compliance_summary.total_controls }} controls covered</p>
                     </div>
-                    <div class="col-6">
+                    <div class="col-6 mb-3">
                         <p class="text-muted mb-1">Pending Audits</p>
                         <span
                             class="summary-stat text-{{ 'danger' if compliance_summary.pending_audits > 0 else 'success' }}">
                             {{ compliance_summary.pending_audits }}
                         </span>
-                        <p class="text-muted small">
-                            {% if compliance_summary.pending_audits > 0 %}
-                            Require attention
-                            {% else %}
-                            All up to date
-                            {% endif %}
+                        <p class="text-muted small mb-0">
+                            {% if compliance_summary.pending_audits > 0 %}Require attention{% else %}All up to date{% endif %}
                         </p>
                     </div>
+                    <div class="col-6">
+                        <p class="text-muted mb-1">Controls at Risk</p>
+                        <span class="summary-stat text-{{ 'danger' if compliance_summary.at_risk_controls > 0 else 'success' }}">
+                            {{ compliance_summary.at_risk_controls }}
+                        </span>
+                        <p class="text-muted small mb-0">Failing or stale evidence</p>
+                    </div>
+                    <div class="col-6">
+                        <p class="text-muted mb-1">Uncovered</p>
+                        <span class="summary-stat text-{{ 'warning' if compliance_summary.uncovered_controls > 0 else 'success' }}">
+                            {{ compliance_summary.uncovered_controls }}
+                        </span>
+                        <p class="text-muted small mb-0">No evidence yet</p>
+                    </div>
                 </div>
-                <hr>
+
+                {% if compliance_summary.frameworks %}
+                <hr class="my-2">
+                <h6 class="text-muted text-uppercase mb-2 small">Coverage by framework</h6>
+                <div style="max-height: 160px; overflow-y: auto;">
+                    {% for fw in compliance_summary.frameworks %}
+                    <div class="d-flex justify-content-between align-items-center small mb-1">
+                        <span class="text-truncate me-2" style="max-width: 70%;" title="{{ fw.name }}">{{ fw.name }}</span>
+                        <span class="text-muted">{{ fw.covered }}/{{ fw.applicable }} · {{ fw.pct }}%</span>
+                    </div>
+                    <div class="progress mb-2" style="height: 6px;">
+                        <div class="progress-bar bg-{{ 'success' if fw.pct >= 80 else ('warning' if fw.pct >= 50 else 'danger') }}"
+                            style="width: {{ fw.pct }}%"></div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <hr class="my-2">
                 <div class="text-center">
                     <a href="{{ url_for('compliance.dashboard') }}" class="btn btn-outline-success">
                         <i class="fas fa-clipboard-check"></i> View Compliance Dashboard

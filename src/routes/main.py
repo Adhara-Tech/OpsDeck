@@ -686,19 +686,49 @@ def organizational_health():
     }
     
     # ----- COMPLIANCE SUMMARY -----
-    total_controls = FrameworkControl.query.join(Framework).filter(Framework.is_active == True).count()
-    # Controls with at least one compliance link are considered "compliant"
-    from sqlalchemy import func
-    from ..models.security import ComplianceLink
-    compliant_controls = db.session.query(func.count(func.distinct(ComplianceLink.framework_control_id))).scalar() or 0
-    compliance_score = int((compliant_controls / total_controls * 100) if total_controls > 0 else 100)
-    pending_audits = ComplianceAudit.query.filter(ComplianceAudit.status.in_(['Prep', 'In Progress'])).count()
-    
+    # Use the same real-time evaluator as the Compliance dashboard so the figures
+    # match the page the "View Compliance Dashboard" button links to.
+    from src.services.compliance_service import get_compliance_evaluator
+    evaluator = get_compliance_evaluator()
+    active_frameworks = Framework.query.filter_by(is_active=True).order_by(Framework.name).all()
+
+    agg = {'total': 0, 'compliant': 0, 'warning': 0, 'non_compliant': 0,
+           'manual': 0, 'uncovered': 0, 'not_applicable': 0}
+    framework_scores = []
+    for fw in active_frameworks:
+        status = evaluator.get_framework_status(fw.id)
+        if not status:
+            continue
+        stats = status['stats']
+        for key in agg:
+            agg[key] += stats.get(key, 0)
+        applicable = stats['total'] - stats.get('not_applicable', 0)
+        # "Covered" = anything with evidence (compliant / warning / non_compliant / manual).
+        covered = stats['compliant'] + stats['manual']
+        pct = int(round(covered / applicable * 100)) if applicable else 100
+        framework_scores.append({
+            'name': fw.name,
+            'pct': pct,
+            'covered': covered,
+            'applicable': applicable,
+        })
+
+    applicable_controls = agg['total'] - agg['not_applicable']
+    covered_controls = agg['compliant'] + agg['manual']
+    compliance_score = int(round(covered_controls / applicable_controls * 100)) if applicable_controls else 100
+    at_risk_controls = agg['warning'] + agg['non_compliant']
+    pending_audits = ComplianceAudit.query.filter(
+        ComplianceAudit.status.in_(['Planned', 'Prep', 'Auditor Review'])
+    ).count()
+
     compliance_summary = {
         'score': compliance_score,
-        'compliant_controls': compliant_controls,
-        'total_controls': total_controls,
-        'pending_audits': pending_audits
+        'compliant_controls': covered_controls,
+        'total_controls': applicable_controls,
+        'at_risk_controls': at_risk_controls,
+        'uncovered_controls': agg['uncovered'],
+        'pending_audits': pending_audits,
+        'frameworks': framework_scores,
     }
     
     # Get user modules and role for template permissions check
