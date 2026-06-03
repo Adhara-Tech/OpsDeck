@@ -537,7 +537,8 @@ def organizational_health():
             expirations['finance'].append({
                 'name': pm.name,
                 'days': days,
-                'meta': pm.details or pm.method_type
+                'meta': pm.details or pm.method_type,
+                'link': url_for('payment_methods.payment_method_detail', id=pm.id)
             })
     expirations['finance'].sort(key=lambda x: x['days'])
     
@@ -555,7 +556,8 @@ def organizational_health():
         expirations['identity'].append({
             'name': secret.credential.name,
             'type': secret.credential.type,
-            'days': days
+            'days': days,
+            'link': url_for('credentials.detail_credential', id=secret.credential.id)
         })
     expirations['identity'].sort(key=lambda x: x['days'])
     
@@ -572,7 +574,8 @@ def organizational_health():
         expirations['certificates'].append({
             'name': cv.certificate.name,
             'issuer': cv.issuer,
-            'days': days
+            'days': days,
+            'link': url_for('certificates.certificate_detail', id=cv.certificate.id)
         })
     expirations['certificates'].sort(key=lambda x: x['days'])
     
@@ -585,7 +588,8 @@ def organizational_health():
             expirations['legal'].append({
                 'name': sub.name,
                 'cost': sub.cost_eur,
-                'days': days
+                'days': days,
+                'link': url_for('subscriptions.subscription_detail', id=sub.id)
             })
     
     licenses = License.query.filter(
@@ -597,14 +601,41 @@ def organizational_health():
         expirations['legal'].append({
             'name': lic.name,
             'cost': None,
-            'days': days
+            'days': days,
+            'link': url_for('licenses.detail', id=lic.id)
         })
     expirations['legal'].sort(key=lambda x: x['days'])
     
     # ----- COUNTS -----
     critical_count = len(critical_items)
-    warning_count = sum(len(v) for v in expirations.values() if v and all(item['days'] <= 30 for item in v[:1]))
+    warning_count = sum(1 for v in expirations.values() for item in v if item['days'] <= 30)
     expiring_count = sum(len(v) for v in expirations.values())
+
+    # ----- UNIFIED COMPLIANCE TASK LIST (prioritized) -----
+    # Critical/expired items first (already due), then upcoming expirations by soonest.
+    compliance_tasks = []
+    for item in critical_items:
+        compliance_tasks.append({
+            'category': item['type'],
+            'severity': item['severity'],
+            'title': item['title'],
+            'meta': item['description'],
+            'days': None,
+            'link': item['link'],
+        })
+    for category, items in expirations.items():
+        for it in items:
+            compliance_tasks.append({
+                'category': category,
+                'severity': 'warning' if it['days'] <= 30 else 'info',
+                'title': it['name'],
+                'meta': it.get('meta') or it.get('type') or it.get('issuer')
+                        or ('€%.2f' % it['cost'] if it.get('cost') else ''),
+                'days': it['days'],
+                'link': it['link'],
+            })
+    # Already-due items (days is None) first, then ascending by days remaining.
+    compliance_tasks.sort(key=lambda t: (1, t['days']) if t['days'] is not None else (0, 0))
     
     # ----- OPS SUMMARY -----
     total_assets = Asset.query.filter(
@@ -666,6 +697,7 @@ def organizational_health():
         critical_count=critical_count,
         warning_count=warning_count,
         expiring_count=expiring_count,
+        compliance_tasks=compliance_tasks,
         expirations=expirations,
         ops_summary=ops_summary,
         compliance_summary=compliance_summary,
