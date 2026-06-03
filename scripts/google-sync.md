@@ -1,96 +1,96 @@
 # google-sync.py — OpsDeck to Google Workspace Sync
 
-Script que lee onboardings/offboardings pendientes de OpsDeck y provisiona o suspende usuarios en Google Workspace vía la Admin Directory API.
+Script that reads pending onboardings/offboardings from OpsDeck and provisions or suspends users in Google Workspace via the Admin Directory API.
 
-## Requisitos
+## Requirements
 
 ```bash
 pip install requests google-auth google-api-python-client
 ```
 
-## Variables de entorno
+## Environment variables
 
-### Obligatorias
+### Required
 
-| Variable | Descripción | Ejemplo |
+| Variable | Description | Example |
 |---|---|---|
-| `GOOGLE_SERVICE_ACCOUNT_JSON` | Ruta al JSON de service account | `/etc/opsdeck/sa.json` |
-| `GOOGLE_DELEGATED_USER` | Email del admin para domain-wide delegation | `admin@tudominio.com` |
-| `OPSDECK_URL` | URL base de OpsDeck | `https://opsdeck.internal` |
-| `OPSDECK_API_TOKEN` | Bearer token (requiere rol admin) | `abc123...` |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | Path to the service account JSON | `/etc/opsdeck/sa.json` |
+| `GOOGLE_DELEGATED_USER` | Admin email for domain-wide delegation | `admin@yourdomain.com` |
+| `OPSDECK_URL` | OpsDeck base URL | `https://opsdeck.internal` |
+| `OPSDECK_API_TOKEN` | Bearer token (requires admin role) | `abc123...` |
 
-### Opcionales
+### Optional
 
-| Variable | Default | Descripción |
+| Variable | Default | Description |
 |---|---|---|
-| `GOOGLE_ORG_UNIT` | `/` | OU path para nuevos usuarios |
-| `GOOGLE_DOMAIN` | *(vacío)* | Dominio para validación (ej: `tudominio.com`) |
+| `GOOGLE_ORG_UNIT` | `/` | OU path for new users |
+| `GOOGLE_DOMAIN` | *(empty)* | Domain for validation (e.g. `yourdomain.com`) |
 
-## Uso
+## Usage
 
 ```bash
-# Configurar variables
+# Configure variables
 export GOOGLE_SERVICE_ACCOUNT_JSON=/path/to/service-account.json
-export GOOGLE_DELEGATED_USER=admin@tudominio.com
+export GOOGLE_DELEGATED_USER=admin@yourdomain.com
 export OPSDECK_URL=https://opsdeck.internal
-export OPSDECK_API_TOKEN=tu-token-opsdeck
+export OPSDECK_API_TOKEN=your-opsdeck-token
 
-# Preview provisioning (no crea nada en Google)
+# Preview provisioning (creates nothing in Google)
 python scripts/google-sync.py provision --dry-run
 
-# Ejecutar provisioning
+# Run provisioning
 python scripts/google-sync.py provision --execute
 
-# Preview suspensiones
+# Preview suspensions
 python scripts/google-sync.py suspend --dry-run
 
-# Ejecutar suspensiones
+# Run suspensions
 python scripts/google-sync.py suspend --execute
 
-# Todo junto (provision + suspend)
+# All at once (provision + suspend)
 python scripts/google-sync.py all --dry-run
 python scripts/google-sync.py all --execute
 ```
 
-## Comandos
+## Commands
 
-| Comando | Descripción |
+| Command | Description |
 |---|---|
-| `provision` | Crea usuarios en Google desde onboardings pendientes en OpsDeck |
-| `suspend` | Suspende usuarios en Google desde offboardings pendientes en OpsDeck |
-| `all` | Ejecuta provision + suspend |
+| `provision` | Creates users in Google from pending onboardings in OpsDeck |
+| `suspend` | Suspends users in Google from pending offboardings in OpsDeck |
+| `all` | Runs provision + suspend |
 
-Siempre se requiere `--dry-run` o `--execute` para evitar ejecuciones accidentales.
+`--dry-run` or `--execute` is always required to avoid accidental runs.
 
-## Flujo de provisioning
+## Provisioning flow
 
-1. Lee onboardings pendientes de `GET /api/v1/onboardings/pending-provisioning`
-2. Valida dominio del email (si `GOOGLE_DOMAIN` está configurado)
-3. Crea el usuario en Google Workspace con:
-   - Email, nombre (split en givenName/familyName)
-   - Password temporal aleatorio (24 chars, cambio obligatorio en primer login)
-   - OU path configurado
-   - Department y job_title si están disponibles
-4. Marca el onboarding como provisionado en OpsDeck via `POST /api/v1/onboardings/{id}/mark-provisioned`
-5. Si el usuario ya existe en Google (409), lo marca como provisionado igualmente
+1. Reads pending onboardings from `GET /api/v1/onboardings/pending-provisioning`
+2. Validates the email domain (if `GOOGLE_DOMAIN` is configured)
+3. Creates the user in Google Workspace with:
+   - Email, name (split into givenName/familyName)
+   - Random temporary password (24 chars, must be changed at first login)
+   - Configured OU path
+   - Department and job_title if available
+4. Marks the onboarding as provisioned in OpsDeck via `POST /api/v1/onboardings/{id}/mark-provisioned`
+5. If the user already exists in Google (409), it is marked as provisioned anyway
 
-## Flujo de suspensión
+## Suspension flow
 
-1. Lee offboardings pendientes de `GET /api/v1/offboardings/pending-suspension`
-2. Suspende el usuario en Google usando `external_id` (Google ID) o email como fallback
-3. Marca el offboarding como suspendido en OpsDeck via `POST /api/v1/offboardings/{id}/mark-suspended`
-4. Si el usuario no existe en Google (404), lo marca como suspendido igualmente
+1. Reads pending offboardings from `GET /api/v1/offboardings/pending-suspension`
+2. Suspends the user in Google using `external_id` (Google ID) or email as a fallback
+3. Marks the offboarding as suspended in OpsDeck via `POST /api/v1/offboardings/{id}/mark-suspended`
+4. If the user does not exist in Google (404), it is marked as suspended anyway
 
-## Configuración de Google Cloud
+## Google Cloud configuration
 
-Para que el script funcione necesitas:
+For the script to work you need:
 
-1. **Service Account** con domain-wide delegation habilitado
-2. **Scope** autorizado en la consola de admin de Google: `https://www.googleapis.com/auth/admin.directory.user`
-3. **JSON key** del service account descargado y referenciado en `GOOGLE_SERVICE_ACCOUNT_JSON`
+1. **Service Account** with domain-wide delegation enabled
+2. **Scope** authorized in the Google admin console: `https://www.googleapis.com/auth/admin.directory.user`
+3. **JSON key** of the service account downloaded and referenced in `GOOGLE_SERVICE_ACCOUNT_JSON`
 
-## Notas
+## Notes
 
-- Las credenciales de Google solo se requieren en modo `--execute`. El modo `--dry-run` solo necesita acceso a la API de OpsDeck.
-- Los passwords temporales se generan con `secrets.choice()` y son de 24 caracteres alfanuméricos + símbolos.
-- Si se configura `GOOGLE_DOMAIN`, los emails que no coincidan se saltan (skip) sin error.
+- Google credentials are only required in `--execute` mode. `--dry-run` mode only needs access to the OpsDeck API.
+- Temporary passwords are generated with `secrets.choice()` and are 24 alphanumeric characters + symbols.
+- If `GOOGLE_DOMAIN` is configured, emails that do not match are skipped without error.

@@ -1,82 +1,82 @@
 # bcdr_export.py — BCDR Export (Disaster Recovery)
 
-Script standalone que extrae **todos los datos** de la base de datos de OpsDeck y genera un directorio con un archivo Excel (`.xlsx`) por cada tipo de entidad. Pensado para backups offline, auditorías y recuperación de datos en caso de desastre.
+Standalone script that extracts **all data** from the OpsDeck database and generates a directory with one Excel file (`.xlsx`) per entity type. Intended for offline backups, audits, and data recovery in case of disaster.
 
-## Requisitos
+## Requirements
 
 ```bash
 pip install sqlalchemy psycopg2-binary openpyxl
 ```
 
-## Uso
+## Usage
 
 ```bash
-# Conexión por DATABASE_URL (recomendado)
+# Connection via DATABASE_URL (recommended)
 python scripts/bcdr_export.py --database-url postgresql://opsdeck:opsdeck@localhost:5432/opsdeck
 
-# Conexión por parámetros individuales
+# Connection via individual parameters
 python scripts/bcdr_export.py --host db.prod.internal --port 5432 --db opsdeck --user opsdeck --password opsdeck
 
-# Directorio de salida personalizado
+# Custom output directory
 python scripts/bcdr_export.py --database-url $DATABASE_URL --output /backups/opsdeck_20260224
 
-# Usar variable de entorno DATABASE_URL directamente
+# Use the DATABASE_URL environment variable directly
 export DATABASE_URL=postgresql://opsdeck:opsdeck@localhost:5432/opsdeck
 python scripts/bcdr_export.py
 ```
 
-Si no se especifica `--output`, se crea un directorio `bcdr_opsdeck_YYYYMMDD_HHMM/` en el directorio actual.
+If `--output` is not specified, a `bcdr_opsdeck_YYYYMMDD_HHMM/` directory is created in the current directory.
 
-## Ejecución dentro de Docker
+## Running inside Docker
 
-El puerto de la BD no suele estar expuesto al host, así que es más sencillo ejecutar desde dentro del contenedor web:
+The DB port is usually not exposed to the host, so it is easier to run from inside the web container:
 
 ```bash
-# Copiar el script al contenedor y ejecutar
+# Copy the script into the container and run it
 docker cp scripts/bcdr_export.py opsdeck-web-1:/tmp/bcdr_export.py
 
-# Instalar openpyxl si no está (sqlalchemy y psycopg2 ya están en la imagen)
+# Install openpyxl if missing (sqlalchemy and psycopg2 are already in the image)
 docker exec opsdeck-web-1 pip install openpyxl
 
-# Ejecutar
+# Run
 docker exec opsdeck-web-1 python /tmp/bcdr_export.py \
   --database-url postgresql://opsdeck:opsdeck@db:5432/opsdeck \
   --output /tmp/bcdr_export
 
-# Copiar el resultado al host
+# Copy the result back to the host
 docker cp opsdeck-web-1:/tmp/bcdr_export/. ./export/
 ```
 
-## Salida
+## Output
 
-Se genera un directorio con **57 archivos**:
+A directory with **57 files** is generated:
 
-| Categoría | Archivos |
+| Category | Files |
 |---|---|
-| **Organización** | Users, Groups, Locations, Org_Settings |
-| **Assets & Inventario** | Assets, Peripherals, Software, Licenses, Maintenance_Logs, Disposal_Records, Asset_Inventories |
+| **Organization** | Users, Groups, Locations, Org_Settings |
+| **Assets & Inventory** | Assets, Peripherals, Software, Licenses, Maintenance_Logs, Disposal_Records, Asset_Inventories |
 | **Procurement & Vendors** | Suppliers, Contacts, Subscriptions, Contracts, Purchases, Budgets, Payment_Methods, Cost_Centers, Requirements, Opportunities |
-| **Servicios & Credenciales** | Business_Services, Service_Components, Configurations, Credentials, Credential_Secrets, Certificates, Certificate_Versions |
-| **Seguridad & Riesgos** | Risks, Threat_Types, Security_Activities, Activity_Executions, Security_Assessments, Risk_Assessments |
-| **Incidentes & Cambios** | Incidents, Post-Incident_Reviews, Changes |
-| **Compliance & Auditorías** | Frameworks, Framework_Controls, Compliance_Links, Compliance_Rules, Audits, Audit_Items, Policies, Policy_Versions |
+| **Services & Credentials** | Business_Services, Service_Components, Configurations, Credentials, Credential_Secrets, Certificates, Certificate_Versions |
+| **Security & Risks** | Risks, Threat_Types, Security_Activities, Activity_Executions, Security_Assessments, Risk_Assessments |
+| **Incidents & Changes** | Incidents, Post-Incident_Reviews, Changes |
+| **Compliance & Audits** | Frameworks, Framework_Controls, Compliance_Links, Compliance_Rules, Audits, Audit_Items, Policies, Policy_Versions |
 | **BCDR & HR** | BCDR_Plans, BCDR_Tests, Onboarding, Offboarding, Onboarding_Packs |
-| **Documentación & Comms** | Links, Documents, Tags, Attachments, Email_Templates, Campaigns |
+| **Documentation & Comms** | Links, Documents, Tags, Attachments, Email_Templates, Campaigns |
 
-Más un archivo `_Indice.xlsx` con el resumen de todos los archivos y conteos.
+Plus an `_Index.xlsx` file with the summary of all files and counts.
 
-### Formato de cada archivo
+### Format of each file
 
-- Título con nombre de entidad y fecha de exportación
-- Cabeceras estilizadas (azul oscuro, texto blanco)
-- Columnas de estado con colores condicionales (verde/amarillo/rojo)
-- Columnas de texto largo con alineación izquierda y wrap
-- Ancho de columnas auto-ajustado
-- IDs incluidos para poder reconstruir relaciones entre entidades
+- Title with entity name and export date
+- Styled headers (dark blue, white text)
+- Status columns with conditional colors (green/yellow/red)
+- Long text columns with left alignment and wrap
+- Auto-adjusted column widths
+- IDs included so relationships between entities can be reconstructed
 
-## Notas
+## Notes
 
-- Los **secrets de credenciales** se exportan enmascarados (tal como están en BD, nunca el valor real).
-- Los **attachments** se exportan como metadatos (nombre, tipo, ID). Los archivos físicos se guardan aparte en el volumen de uploads.
-- Funciona con PostgreSQL (producción) y con SQLite si se pasa una URL `sqlite:///`.
-- Si una tabla no existe (por ejemplo en una versión antigua), la hoja se genera con un mensaje de error en lugar de fallar.
+- **Credential secrets** are exported masked (as stored in the DB, never the real value).
+- **Attachments** are exported as metadata (name, type, ID). The physical files are stored separately in the uploads volume.
+- Works with PostgreSQL (production) and with SQLite if a `sqlite:///` URL is passed.
+- If a table does not exist (for example in an older version), the sheet is generated with an error message instead of failing.
